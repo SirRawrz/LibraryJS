@@ -1,0 +1,1528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Games</title>
+<style>
+  :root{--bg:#0B0F13;--fg:#EAEFF3;--accent:#2f8cff}
+  body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--fg);padding:18px}
+  .topbar{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  h1{margin:0;font-size:20px}
+  .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+  select,input[type="text"],input[type="file"],textarea{padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:var(--fg)}
+  .container{display:flex;flex-wrap:wrap;gap:18px}
+  .folder{width:150px;text-align:center;cursor:pointer;position:relative;transition:transform .12s ease,box-shadow .12s ease}
+  .folder:hover{transform:translateY(-6px);box-shadow:0 20px 40px rgba(0,0,0,0.6)}
+  .folder img{width:150px;height:210px;object-fit:cover;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.6)}
+  .folder p{margin:8px 0 0;font-weight:600;font-size:14px;color:var(--fg);word-break:break-word}
+  .return-button{padding:8px 10px;border-radius:8px;border:none;background:#333;color:white;cursor:pointer}
+  .toast{position:fixed;right:18px;bottom:22px;padding:10px 14px;background:rgba(0,0,0,0.7);color:white;border-radius:8px;display:none;z-index:99999}
+  /* modal */
+  .modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:9999}
+  .modal{width:min(920px,96%);background:linear-gradient(180deg,#0f1720,#0b1116);padding:16px;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.6);color:var(--fg);position:relative}
+  .modal .hero{display:flex;gap:12px;align-items:flex-start}
+  .modal img{width:132px;height:176px;object-fit:contain;border-radius:8px}
+  .modal .meta{flex:1}
+  .meta h2{margin:0 0 8px 0}
+  .meta p{margin:0 0 12px;color:#cfe6ff}
+  .meta .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn-primary{background:var(--accent);padding:10px 14px;border-radius:8px;border:none;color:white;font-weight:700;cursor:pointer}
+  .btn-secondary{background:#222;padding:8px 12px;border-radius:8px;border:none;color:white;cursor:pointer}
+  .small-note { font-size:12px; color:#cfe6ff; }
+  .flow-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:nowrap;margin:0 0 14px 0}.flow-header .flow-actions{margin-left:auto}
+  .flow-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+  .flow-back{margin-right:auto}
+  @media (max-width:640px){ .folder img{width:120px;height:170px} .modal img{width:96px;height:128px} .modal .hero{flex-direction:column;align-items:center} }
+  .custom-input { display:none; padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:#111;color:white;width:120px; }
+  .pref-note { font-size:12px; color:#9fd; margin-top:8px; display:none; }
+  /* upload modal */
+  .upload-grid{display:grid;grid-template-columns:160px 1fr;gap:12px;align-items:start}
+  .upload-preview{width:140px;height:140px;border-radius:8px;background:#0b0e12;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px dashed rgba(255,255,255,0.04);padding:6px;box-sizing:border-box}
+  .upload-preview img{width:100%;height:100%;object-fit:contain}
+  .muted{opacity:0.8;color:#9db}
+  /* mappings form */
+  .mapping-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .mapping-row label{width:80px;color:#bcd}
+  .mapping-row input{flex:1}
+  .field-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .field-row label{min-width:120px;color:#bcd}
+  /* core icon in top-right of tile */
+  .core-icon { position:absolute; right:8px; top:8px; width:28px; height:28px; border-radius:6px; background:rgba(0,0,0,0.6); display:flex;align-items:center;justify-content:center; overflow:hidden; }
+  .core-icon img{width:100%;height:100%;object-fit:contain; display:block}
+  .ext-badge-fallback { font-size:11px;padding:4px 6px;border-radius:6px;background:rgba(0,0,0,0.6);color:#fff; }
+  .core-icon[title]{cursor:pointer}
+  .core-icon[title]:hover::after { content: attr(title); position: absolute; top:36px; right:0; background:#111;padding:6px 8px;border-radius:6px;font-size:12px;color:#ddd;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,0.6) }
+  /* profile button bottom-right */
+  #profileBtn { position:fixed; right:16px; bottom:16px; width:56px; height:56px; border-radius:50%; background:linear-gradient(180deg,#111,#0b1116); display:flex;align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(0,0,0,0.6); cursor:pointer; z-index:10000; border:2px solid rgba(255,255,255,0.04); text-decoration:none; }
+  #profileImg { width:48px; height:48px; border-radius:50%; object-fit:cover; display:block; }
+  #profileInitials { font-weight:700; color:white; font-size:18px; display:block; user-select:none; }
+  /* view-mode: two column layout */
+  .view-grid { display: grid; grid-template-columns: 1fr 280px; gap:12px; align-items:start; }
+  .view-main {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-position: top center;
+    background-size: cover;
+    transition: background-image 300ms ease-in-out, background-color 200ms ease-in-out;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .view-main.has-banner::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7));
+    pointer-events: none;
+    z-index: 1;
+  }
+  .view-main > * {
+    position: relative;
+    z-index: 2;
+  }
+  .view-main.has-banner {
+    padding-top: 2rem;
+  }
+  .view-title { font-size:20px; font-weight:800; margin:0; }
+  .about-text { white-space:pre-wrap; color:#dfeeff; margin-top:6px; font-size:14px; }
+  .view-side { display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+  .view-gear-row { display:flex; justify-content:flex-end; align-items:center; gap:8px; }
+  .gear-btn { background:transparent;border:none;color:var(--fg);font-size:20px;padding:6px;border-radius:6px;cursor:pointer; background:rgba(255,255,255,0.02) }
+  .notes-column { background:rgba(255,255,255,0.01); padding:10px; border-radius:8px; min-height:120px; max-height:460px; overflow:auto; }
+  .notes-list { display:flex; flex-direction:column; gap:8px; }
+  .note-item { padding:8px;border-radius:6px;background:rgba(0,0,0,0.25); }
+  .note-meta { font-size:11px;color:#9fb;margin-top:6px }
+  .notes-actions { display:flex; gap:8px; margin-top:8px; justify-content:flex-end; }
+  @media (max-width:840px) {
+    .view-grid { grid-template-columns: 1fr; }
+    .view-side { order: 2; }
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>Games</h1>
+
+    <div style="display:flex;gap:8px;align-items:center">
+      <label style="opacity:0.85">Search</label>
+      <input id="search" type="text" placeholder="filter by name..." />
+    </div>
+
+    <div class="controls" aria-hidden="false" style="margin-left:auto">
+      <label style="opacity:0.85">Emulator target</label>
+      <select id="emulatorSelect" title="Base emulator page">
+        <option value="./emulator/indexgba.html?rom=">GBA (indexgba.html?rom=)</option>
+        <option value="./emulator/indexgb.html?rom=">GB (indexgb.html?rom=)</option>
+        <option value="./emulator/indexn64.html?rom=">N64 (indexn64.html?rom=)</option>
+        <option value="./emulator/indexsnes.html?rom=">SNES (indexsnes.html?rom=)</option>
+        <option value="./emulator/indexpsx.html?rom=">PSX (indexpsx.html?rom=)</option>
+        <option value="./emulator/indexsega.html?rom=">Sega (indexsega.html?rom=)</option>
+        <option value="./emulator/indexarcade.html?rom=">Arcade (indexarcade.html?rom=)</option>
+        <option value="./emulator/indexnds.html?rom=">NDS (indexnds.html?rom=)</option>
+        <option value="./emulator/indexpsp.html?rom=">PSP (indexpsp.html?rom=)</option>
+        <option value="./emulator/indexps1lowp.html?rom=">PS1 Low Perf (indexps1lowp.html?rom=)</option>
+        <option value="./emulator/indexsegaSaturn.html?rom=">Sega Saturn (indexsegaSaturn.html?rom=)</option>
+        <option value="">— No auto-launch —</option>
+      </select>
+
+      <label style="opacity:0.85">Ext</label>
+      <select id="extSelect" title="Default extension when launching">
+        <option value=".gba">.gba</option>
+        <option value=".gb">.gb</option>
+        <option value=".z64">.z64</option>
+        <option value=".n64">.n64</option>
+        <option value=".v64">.v64</option>
+        <option value=".sfc">.sfc</option>
+        <option value=".iso">.iso</option>
+        <option value=".bin">.bin</option>
+        <option value=".pbp">.pbp</option>
+        <option value=".chd">.chd</option>
+        <option value="__custom__">Custom Ext.</option>
+      </select>
+
+      <input id="customExtTop" class="custom-input" type="text" placeholder=".ext (top default)" />
+
+      <button id="mappingsBtn" class="btn-secondary" title="Edit per-platform emulator pages">Emulator Mappings</button>
+      <button id="uploadNewBtn" class="btn-secondary" title="Upload a new rom and optional image">Upload New ROM</button>
+      <button id="refreshBtn" class="btn-secondary">Refresh</button>
+    </div>
+  </div>
+
+  <div id="folderContainer" class="container" role="list"></div>
+
+  <!-- preview / preference modal (view + edit modes) -->
+  <div id="modalBack" class="modal-back" tabindex="-1" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <!-- view mode header (two-column layout: main + notes column) -->
+      <div id="viewMode" style="display:none">
+        <div class="view-grid">
+          <div class="view-main" id="viewMain">
+            <div>
+              <h2 id="viewTitle" class="view-title">Title</h2>
+              <p id="viewFilename" style="font-size:13px;color:#bcd;">Filename: </p>
+            </div>
+
+            <div id="aboutView" style="margin-top:6px">
+              <div style="font-size:12px;color:#9fd">About</div>
+              <div id="aboutText" class="about-text">No description.</div>
+            </div>
+
+            <div class="flow-header">
+              <button id="closeViewBtn" class="btn-secondary flow-back">Back</button>
+              <div class="flow-actions">
+                <button id="launchFromViewBtn" class="btn-primary">Launch</button>
+                <button id="copyFromViewBtn" class="btn-secondary">Copy filename</button>
+                <button id="viewEditGear" class="gear-btn" title="Edit visual name, about, banner">⚙</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="view-side">
+            <div class="notes-column">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:12px;color:#9fd">Notes</div>
+                <div style="font-size:12px;color:#9fd" id="notesCount">0</div>
+              </div>
+              <div id="notesPreview" class="notes-list" style="margin-top:8px"></div>
+
+              <div class="notes-actions">
+                <button id="manageNotesBtn" class="btn-secondary" style="font-size:12px;padding:6px">Manage</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- edit mode (unchanged content, shown when editing) -->
+      <div id="editMode" style="display:none">
+        <div class="flow-header">
+          <button id="cancelEditBtn" class="btn-secondary flow-back">Back</button>
+          <div class="flow-actions">
+            <button id="savePrefBtn" class="btn-primary">Save preference</button>
+            <button id="launchBtn" class="btn-primary">Launch</button>
+            <button id="copyBtn" class="btn-secondary">Copy filename</button>
+          </div>
+        </div>
+        <div class="hero">
+          <img id="modalImg" src="" alt="preview" />
+          <div class="meta">
+            <h2 id="modalTitle">Title</h2>
+            <p id="modalFilename" style="font-size:13px;color:#bcd;">Filename: </p>
+
+            <div class="field-row">
+              <label class="small-note">Visual name</label>
+              <input id="visualNameInput" type="text" placeholder="Display name for tile (optional)" />
+            </div>
+
+            <div class="field-row">
+              <label class="small-note">About (short)</label>
+              <textarea id="aboutInput" rows="3" placeholder="Short description for this game"></textarea>
+            </div>
+
+            <div class="field-row">
+              <label class="small-note">Extension</label>
+              <select id="modalExtSelect">
+                <option value=".gba">.gba</option>
+                <option value=".gb">.gb</option>
+                <option value=".z64">.z64</option>
+                <option value=".n64">.n64</option>
+                <option value=".v64">.v64</option>
+                <option value=".sfc">.sfc</option>
+                <option value=".iso">.iso</option>
+                <option value=".bin">.bin</option>
+                <option value=".pbp">.pbp</option>
+                <option value=".chd">.chd</option>
+                <option value="__custom__">Custom</option>
+              </select>
+              <input id="customExtInput" class="custom-input" type="text" placeholder=".ext (custom)" />
+            </div>
+
+            <div class="field-row">
+              <label class="small-note">Per-ROM core</label>
+              <select id="modalCoreSelect">
+                <option value="">— use mappings / global —</option>
+                <!-- options inserted by populateCoreOptions() -->
+              </select>
+            </div>
+
+            <div style="margin-top:6px">
+              <div class="small-note">Banner image (optional)</div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+                <div class="upload-preview" id="bannerPreview" style="width:160px;height:80px;">
+                  <span class="muted">No banner</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  <button id="chooseBannerBtn" class="btn-secondary">Choose Banner</button>
+                  <input id="bannerFileInput" type="file" accept="image/*" style="display:none" />
+                  <div id="bannerUploadNote" class="muted" style="max-width:360px"></div>
+                </div>
+              </div>
+            </div>
+
+            <p id="prefSavedNote" class="pref-note">Preference saved and uploaded to server.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- notes modal (manage notes) -->
+      <div id="notesBack" style="display:none;margin-top:8px">
+        <div class="modal" role="dialog" aria-modal="true" style="width:min(720px,96%);">
+          <h2 style="margin:0 0 8px 0">Manage Notes</h2>
+          <div style="display:flex;gap:12px;">
+            <textarea id="newNoteText" rows="4" style="flex:1" placeholder="Write a note..."></textarea>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <button id="addNoteBtn" class="btn-primary">Add Note</button>
+              <button id="closeNotesBtn" class="btn-secondary">Close</button>
+            </div>
+          </div>
+          <div id="notesManagerList" class="notes-list" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- other modals (upload, mappings) unchanged from previous file -->
+  <div id="uploadBack" class="modal-back" tabindex="-1" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="uploadTitle">
+      <div class="flow-header">
+        <button id="cancelUploadBtn" class="btn-secondary flow-back">Back</button>
+        <div class="flow-actions">
+          <button id="doUploadBtn" class="btn-primary">Upload</button>
+        </div>
+      </div>
+      <h2 id="uploadTitle">Upload New ROM</h2>
+      <div style="height:12px"></div>
+      <div class="upload-grid">
+        <div>
+          <div class="upload-preview" id="uploadPreview">
+            <span class="muted">No image</span>
+          </div>
+          <div style="height:8px"></div>
+          <div style="display:flex;gap:8px;">
+            <button id="chooseImageBtn" class="btn-secondary">Choose Image</button>
+            <input id="imageFileInput" type="file" accept="image/*" style="display:none" />
+          </div>
+        </div>
+
+        <div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label class="small-note">ROM file (required)</label>
+            <input id="romFileInput" type="file" accept="*" />
+            <div class="muted">Selecting a ROM will determine the preferred extension saved (e.g. <code>.gba</code>, <code>.n64</code>, <code>.pbp</code>).</div>
+            <div id="uploadStatus" class="muted" style="margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mapsBack" class="modal-back" tabindex="-1" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mapsTitle">
+      <h2 id="mapsTitle">Emulator Mappings (master)</h2>
+      <div style="height:12px"></div>
+
+      <div id="mappingsForm">
+        <div class="mapping-row">
+          <label>GBA</label>
+          <input id="map_gba" type="text" placeholder="./emulator/indexgba.html?rom=" />
+        </div>
+        <div class="mapping-row">
+          <label>GB</label>
+          <input id="map_gb" type="text" placeholder="./emulator/indexgb.html?rom=" />
+        </div>
+        <div class="mapping-row">
+          <label>N64</label>
+          <input id="map_n64" type="text" placeholder="./emulator/indexn64.html?rom=" />
+        </div>
+        <div class="mapping-row">
+          <label>NDS</label>
+          <input id="map_nds" type="text" placeholder="./emulator/indexnds.html?rom=" />
+        </div>
+        <div class="mapping-row">
+          <label>SNES</label>
+          <input id="map_snes" type="text" placeholder="./emulator/indexsnes.html?rom=" />
+        </div>
+        <div class="mapping-row">
+          <label>PSX</label>
+          <input id="map_psx" type="text" placeholder="./emulator/indexpsx.html?rom=" />
+        </div>
+        <div class="mapping-row">
+          <label>PSP</label>
+          <input id="map_psp" type="text" placeholder="./emulator/indexpsp.html?rom=" />
+        </div>
+        <div class="mapping-row">
+          <label>Sega</label>
+          <input id="map_sega" type="text" placeholder="./emulator/indexsega.html?rom=" />
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button id="saveMapsBtn" class="btn-primary">Save mappings</button>
+          <button id="cancelMapsBtn" class="btn-secondary">Cancel</button>
+        </div>
+        <p id="mapsSavedNote" class="pref-note" style="display:none">Mappings saved and uploaded.</p>
+      </div>
+    </div>
+  </div>
+
+  <a id="profileBtn" href="/Profiles/" title="Profiles" aria-label="Profiles">
+    <img id="profileImg" src="" alt="" style="display:none" />
+    <span id="profileInitials" style="display:none"></span>
+  </a>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Load server title and profiles data -->
+  <script id="profilesLoader" src="./profiles.js"></script>
+
+<script>
+/* Profile-scoped notes update */
+const IMAGERE = /\.(jpe?g|png|gif|webp|avif|heic)$/i;
+const IMAGES_DIR = 'emulator/Roms/images/';
+const ROMS_DIR = 'emulator/Roms/';
+
+const folderContainer = document.getElementById('folderContainer');
+const searchInput = document.getElementById('search');
+const refreshBtn = document.getElementById('refreshBtn');
+const emulatorSelect = document.getElementById('emulatorSelect');
+const extSelect = document.getElementById('extSelect');
+const customExtTop = document.getElementById('customExtTop');
+
+const mappingsBtn = document.getElementById('mappingsBtn');
+const mapsBack = document.getElementById('mapsBack');
+const mapGba = document.getElementById('map_gba');
+const mapGb = document.getElementById('map_gb');
+const mapN64 = document.getElementById('map_n64');
+const mapNds = document.getElementById('map_nds');
+const mapSnes = document.getElementById('map_snes');
+const mapPsx = document.getElementById('map_psx');
+const mapPsp = document.getElementById('map_psp');
+const mapSega = document.getElementById('map_sega');
+const saveMapsBtn = document.getElementById('saveMapsBtn');
+const cancelMapsBtn = document.getElementById('cancelMapsBtn');
+const mapsSavedNote = document.getElementById('mapsSavedNote');
+
+const uploadNewBtn = document.getElementById('uploadNewBtn');
+const uploadBack = document.getElementById('uploadBack');
+const uploadPreview = document.getElementById('uploadPreview');
+const chooseImageBtn = document.getElementById('chooseImageBtn');
+const imageFileInput = document.getElementById('imageFileInput');
+const romFileInput = document.getElementById('romFileInput');
+const doUploadBtn = document.getElementById('doUploadBtn');
+const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+const uploadStatus = document.getElementById('uploadStatus');
+
+const modalBack = document.getElementById('modalBack');
+// view mode elements (polished)
+const viewMode = document.getElementById('viewMode');
+const viewMain = document.getElementById('viewMain');
+const viewTitle = document.getElementById('viewTitle');
+const viewFilename = document.getElementById('viewFilename');
+const aboutText = document.getElementById('aboutText');
+const launchFromViewBtn = document.getElementById('launchFromViewBtn');
+const copyFromViewBtn = document.getElementById('copyFromViewBtn');
+const closeViewBtn = document.getElementById('closeViewBtn');
+const notesPreview = document.getElementById('notesPreview');
+const manageNotesBtn = document.getElementById('manageNotesBtn');
+const notesCount = document.getElementById('notesCount');
+const viewEditGear = document.getElementById('viewEditGear');
+
+// edit mode elements
+const editMode = document.getElementById('editMode');
+const modalImg = document.getElementById('modalImg');
+const modalTitle = document.getElementById('modalTitle');
+const modalFilename = document.getElementById('modalFilename');
+const modalExtSelect = document.getElementById('modalExtSelect');
+const modalCoreSelect = document.getElementById('modalCoreSelect');
+const customExtInput = document.getElementById('customExtInput');
+const visualNameInput = document.getElementById('visualNameInput');
+const aboutInput = document.getElementById('aboutInput');
+const savePrefBtn = document.getElementById('savePrefBtn');
+const launchBtn = document.getElementById('launchBtn');
+const copyBtn = document.getElementById('copyBtn');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+const prefSavedNote = document.getElementById('prefSavedNote');
+
+const chooseBannerBtn = document.getElementById('chooseBannerBtn');
+const bannerFileInput = document.getElementById('bannerFileInput');
+const bannerPreview = document.getElementById('bannerPreview');
+const bannerUploadNote = document.getElementById('bannerUploadNote');
+
+const notesBack = document.getElementById('notesBack');
+const notesManagerList = document.getElementById('notesManagerList');
+const newNoteText = document.getElementById('newNoteText');
+const addNoteBtn = document.getElementById('addNoteBtn');
+const closeNotesBtn = document.getElementById('closeNotesBtn');
+
+const toast = document.getElementById('toast');
+
+const profileBtn = document.getElementById('profileBtn');
+const profileImg = document.getElementById('profileImg');
+const profileInitials = document.getElementById('profileInitials');
+
+let images = [];
+let currentItem = null;
+
+const CORE_OPTIONS = [
+  { name: 'GBA', value: './emulator/indexgba.html?rom=' , key:'gba'},
+  { name: 'GB', value: './emulator/indexgb.html?rom=' , key:'gb'},
+  { name: 'N64', value: './emulator/indexn64.html?rom=' , key:'n64'},
+  { name: 'NDS', value: './emulator/indexnds.html?rom=' , key:'nds'},
+  { name: 'SNES', value: './emulator/indexsnes.html?rom=' , key:'snes'},
+  { name: 'PSX', value: './emulator/indexpsx.html?rom=' , key:'psx'},
+  { name: 'PSP', value: './emulator/indexpsp.html?rom=' , key:'psp'},
+  { name: 'PS1 LowPerf', value: './emulator/indexps1lowp.html?rom=' , key:'ps1lowp'},
+  { name: 'Sega', value: './emulator/indexsega.html?rom=' , key:'sega'},
+  { name: 'Sega Saturn', value: './emulator/indexsegaSaturn.html?rom=' , key:'segasaturn'},
+  { name: 'Arcade', value: './emulator/indexarcade.html?rom=' , key:'arcade'}
+];
+
+const ROMPREFS_KEY = 'romprefs';
+const EMUPREFS_KEY = 'emulatorprefs';
+
+function _normalizePrefsObject(rawObj) {
+  const out = {};
+  if (!rawObj || typeof rawObj !== 'object') return out;
+  for (const k of Object.keys(rawObj)) {
+    let decoded = k;
+    try { decoded = decodeURIComponent(k); } catch(e) { decoded = k; }
+    decoded = String(decoded).replace(/\+/g,' ');
+    out[decoded] = rawObj[k];
+    out[k] = rawObj[k];
+  }
+  return out;
+}
+function getStoredRomPrefs() {
+  try {
+    const raw = localStorage.getItem(ROMPREFS_KEY);
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw) || {};
+      return _normalizePrefsObject(parsed);
+    } catch(e) {
+      console.warn('romprefs parse failed', e);
+      return {};
+    }
+  } catch(e){ console.warn('getStoredRomPrefs failed', e); return {}; }
+}
+function setStoredRomPrefs(obj) {
+  try { localStorage.setItem(ROMPREFS_KEY, JSON.stringify(obj || {})); } catch(e){ console.warn('setStoredRomPrefs failed', e); }
+}
+function getStoredEmuPrefs() {
+  try {
+    const raw = localStorage.getItem(EMUPREFS_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw || '{}');
+  } catch(e){ console.warn('getStoredEmuPrefs failed', e); return {}; }
+}
+function setStoredEmuPrefs(obj) {
+  try { localStorage.setItem(EMUPREFS_KEY, JSON.stringify(obj || {})); } catch(e){ console.warn('setStoredEmuPrefs failed', e); }
+}
+
+async function saveMasterToServer(obj, slug) {
+  try {
+    const fileName = `${slug}.txt`;
+    const payloadText = `[[[\n${JSON.stringify(obj, null, 2)}\n]]]`;
+    if (typeof pocketReplace === 'function') {
+      const ok = await pocketReplace(fileName, null, payloadText).catch(()=>false);
+      if (ok) return true;
+    }
+  } catch(e){ console.warn('pocketReplace failed', e); }
+  try {
+    if (typeof isAndroidUpload === 'function' && isAndroidUpload()) {
+      const fileName = `${slug}.txt`;
+      const blob = new Blob([JSON.stringify(obj)], { type: 'application/json' });
+      const form = new FormData();
+      form.append('files[]', blob, fileName);
+      const r = await fetch(`/pocketserver-api/upload`, { method: 'POST', body: form });
+      if (r && r.ok) return true;
+    }
+  } catch(e){ console.warn('android upload failed', e); }
+  try {
+    const url = `/Profiles/${encodeURIComponent(slug)}.txt`;
+    const payloadText = `[[[\n${JSON.stringify(obj, null, 2)}\n]]]`;
+    const r = await fetch(url + `?_=${Date.now()}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/plain' },
+      body: payloadText,
+      credentials: 'include'
+    });
+    if (r && r.ok) return true;
+  } catch(e){ console.warn('fallback PUT failed', e); }
+  return false;
+}
+async function loadMasterFromServer(slug) {
+  try {
+    const fileName = `${slug}.txt`;
+    const r = await fetch(`/Profiles/${encodeURIComponent(fileName)}?_=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
+    let text = null;
+    if (r && r.ok) text = await r.text();
+    else {
+      const alt = `/Profiles/${encodeURIComponent(slug)}?_=${Date.now()}`;
+      const r2 = await fetch(alt, { cache: 'no-store', credentials: 'include' });
+      if (r2 && r2.ok) text = await r2.text();
+      else return null;
+    }
+    try {
+      const m = text.match(/\[\[\[\s*([\s\S]*?)\s*\]\]\]/);
+      let parsed = null;
+      if (m && m[1]) parsed = JSON.parse(m[1]);
+      else parsed = JSON.parse(text);
+      return parsed;
+    } catch(e){ console.warn('loadMasterFromServer parse error', e); return null; }
+  } catch(e){ console.warn('loadMasterFromServer fetch failed', e); return null; }
+}
+
+function showToast(msg, ms=2000){
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  setTimeout(()=>{ toast.style.display='none'; }, ms);
+}
+
+function humanize(name){
+  const noExt = name.replace(/\.[^.]+$/,'');
+  const cleaned = noExt.replace(/[_\-\.]+/g,' ').replace(/\s+/g,' ').trim();
+  return cleaned.split(' ').map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+}
+
+async function listImagesFromDir(dir){
+  try {
+    const r = await fetch(dir, { cache: 'no-store' });
+    if (!r.ok) throw new Error('dir fetch not ok: ' + r.status);
+    const html = await r.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const anchors = Array.from(doc.querySelectorAll('a[href]')).map(a => a.getAttribute('href') || '');
+    const resolved = anchors.map(h => {
+      try { return new URL(h, location.origin + dir).href; } catch(e) { return (dir + h); }
+    }).filter(Boolean).map(s=>s.split('#')[0].split('?')[0]);
+    const imgs = resolved.filter(u => IMAGERE.test(u.split('/').pop()));
+    return imgs;
+  } catch (e){
+    console.warn('listImagesFromDir failed', e);
+    return [];
+  }
+}
+
+function normalizeExt(raw) {
+  if (!raw) return '';
+  raw = String(raw).trim();
+  if (!raw) return '';
+  if (!raw.startsWith('.')) raw = '.' + raw;
+  return raw.toLowerCase();
+}
+function platformForExtension(ext) {
+  if (!ext) return null;
+  ext = ext.toLowerCase();
+  if (ext === '.gba' || ext === '.gba.zip') return 'gba';
+  if (ext === '.gb' || ext === '.gbc' || ext === '.gbc.zip') return 'gb';
+  if (ext === '.z64' || ext === '.n64' || ext === '.v64') return 'n64';
+  if (ext === '.sfc' || ext === '.smc') return 'snes';
+  if (ext === '.iso' || ext === '.bin' || ext === '.cue' || ext === '.chd') return 'psx';
+  if (ext === '.pbp') return 'pbp';
+  if (ext.startsWith('.seg') || ext === '.md' || ext === '.smd' || ext === '.gen') return 'sega';
+  return null;
+}
+
+function getPrefForItem(basename) {
+  const prefs = getStoredRomPrefs();
+  const raw = prefs[basename];
+  if (!raw) return null;
+  if (typeof raw === 'string') return { ext: raw, core: null };
+  if (typeof raw === 'object') return raw;
+  return null;
+}
+
+function resolveExtensionForItem(basename) {
+  const pref = getPrefForItem(basename);
+  if (pref && pref.ext) return pref.ext;
+  const ge = extSelect.value;
+  if (ge === '__custom__') return normalizeExt(customExtTop.value) || '';
+  return ge || '';
+}
+
+function resolveEmulatorForItem(basename) {
+  const pref = getPrefForItem(basename);
+  if (pref && pref.core) return pref.core;
+
+  const ext = normalizeExt(pref && pref.ext ? pref.ext : resolveExtensionForItem(basename));
+  const emuPrefs = getStoredEmuPrefs();
+
+  if (ext === '.pbp') {
+    if (emuPrefs.psx) return emuPrefs.psx;
+    if (emuPrefs.psp) return emuPrefs.psp;
+  }
+
+  const p = platformForExtension(ext);
+  if (p && emuPrefs && emuPrefs[p]) return emuPrefs[p];
+  return emulatorSelect.value || null;
+}
+
+function coreKeyFromEmuUrl(url) {
+  if (!url) return '';
+  try {
+    const m = url.match(/index([a-zA-Z0-9_-]+)\.html/);
+    if (m && m[1]) return m[1];
+    const parts = url.split('/');
+    const last = parts[parts.length-1].split('?')[0];
+    return last.replace(/\.html$/,'').replace(/^index/,'');
+  } catch(e){ return ''; }
+}
+
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function makeTile(item){
+  const el = document.createElement('div');
+  el.className = 'folder';
+  el.setAttribute('role','listitem');
+  el.tabIndex = 0;
+
+  const prefObj = getPrefForItem(item.basename);
+  let coreUrl = null;
+  if (prefObj && prefObj.core) coreUrl = prefObj.core;
+  else coreUrl = resolveEmulatorForItem(item.basename);
+  const coreKey = coreKeyFromEmuUrl(coreUrl) || (() => {
+    const ext = resolveExtensionForItem(item.basename) || (extSelect.value === '__custom__' ? customExtTop.value : extSelect.value);
+    const p = platformForExtension(normalizeExt(ext));
+    return p || '';
+  })();
+
+  const coreIconDiv = document.createElement('div');
+  coreIconDiv.className = 'core-icon';
+  const iconImg = document.createElement('img');
+  iconImg.alt = coreKey || '';
+  iconImg.draggable = false;
+  if (coreKey) {
+    iconImg.src = `/emulator/${coreKey}.png`;
+    iconImg.onerror = function(){
+      if (iconImg.src && iconImg.src.endsWith('.png')) {
+        iconImg.src = `/emulator/${coreKey}.svg`;
+        iconImg.onerror = function(){
+          iconImg.style.display = 'none';
+          const extText = (prefObj && prefObj.ext) ? prefObj.ext : (extSelect.value === '__custom__' ? customExtTop.value : extSelect.value);
+          const fallback = document.createElement('div');
+          fallback.className = 'ext-badge-fallback';
+          fallback.textContent = extText || '';
+          coreIconDiv.appendChild(fallback);
+        };
+      } else {
+        iconImg.style.display = 'none';
+        const extText = (prefObj && prefObj.ext) ? prefObj.ext : (extSelect.value === '__custom__' ? customExtTop.value : extSelect.value);
+        const fallback = document.createElement('div');
+        fallback.className = 'ext-badge-fallback';
+        fallback.textContent = extText || '';
+        coreIconDiv.appendChild(fallback);
+      }
+    };
+  } else {
+    iconImg.style.display = 'none';
+    const extText = (prefObj && prefObj.ext) ? prefObj.ext : (extSelect.value === '__custom__' ? customExtTop.value : extSelect.value);
+    const fallback = document.createElement('div');
+    fallback.className = 'ext-badge-fallback';
+    fallback.textContent = extText || '';
+    coreIconDiv.appendChild(fallback);
+  }
+  coreIconDiv.title = coreKey || (prefObj && prefObj.ext) || 'unknown';
+  coreIconDiv.appendChild(iconImg);
+  el.appendChild(coreIconDiv);
+
+  const displayTitle = (prefObj && prefObj.visualName) ? prefObj.visualName : item.title;
+
+  el.innerHTML += `<img src="${item.url}" alt="${escapeHtml(item.name)}" loading="lazy"><p>${escapeHtml(displayTitle)}</p>`;
+
+  coreIconDiv.addEventListener('click', (ev)=>{ ev.stopPropagation(); openModal(item); });
+  function openIt(){ openModal(item); }
+  el.addEventListener('click', openIt);
+  el.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter' || ev.key===' ') { ev.preventDefault(); openIt(); }});
+  return el;
+}
+
+function clearTiles(){ folderContainer.innerHTML = ''; }
+
+function renderTiles(list){
+  clearTiles();
+  if (!list.length){
+    folderContainer.innerHTML = '<p style="opacity:0.8">No images found in '+IMAGES_DIR+'</p>';
+    return;
+  }
+  list.forEach(item => folderContainer.appendChild(makeTile(item)));
+}
+
+async function loadImages(){
+  showToast('Loading images...', 600);
+  images = [];
+  const urls = await listImagesFromDir(IMAGES_DIR);
+  if (!urls || !urls.length){
+    try {
+      const r = await fetch('./games-images.json?'+Date.now(), { cache: 'no-store' });
+      if (r && r.ok) {
+        const arr = await r.json();
+        if (Array.isArray(arr)) urls.push(...arr);
+      }
+    } catch(e){}
+  }
+
+  urls.forEach(u => {
+    const rawFilename = u.split('/').pop();
+    // --- skip banner files that are only meant to be page banners ---
+    if (/^banner\./i.test(rawFilename)) return;
+    // --------------------------------------------------------------------
+
+    let decodedName = rawFilename;
+    try { decodedName = decodeURIComponent(rawFilename); } catch(e) { decodedName = rawFilename; }
+    decodedName = decodedName.replace(/\+/g, ' ');
+    images.push({
+      url: u,
+      name: decodedName,
+      basename: decodedName.replace(/\.[^.]+$/,''), // basename used as key
+      title: humanize(decodedName)
+    });
+  });
+
+  images.sort((a,b) => a.title.localeCompare(b.title, undefined, {numeric:true}));
+  renderTiles(images);
+}
+
+function showCustomInput(selectEl, customInputEl) {
+  if (selectEl && selectEl.value === '__custom__') customInputEl.style.display = 'inline-block';
+  else if (customInputEl) customInputEl.style.display = 'none';
+}
+function populateCoreOptions() {
+  if (!modalCoreSelect) return;
+  modalCoreSelect.innerHTML = '<option value="">— use mappings / global —</option>';
+  CORE_OPTIONS.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.value;
+    opt.textContent = c.name + ' (' + (c.value.split('/').pop()||c.value) + ')';
+    modalCoreSelect.appendChild(opt);
+  });
+}
+
+async function uploadFileToServer(file, targetPath) {
+  try {
+    const form = new FormData();
+    form.append('files[]', file, targetPath.split('/').pop());
+    const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form });
+    if (r && r.ok) return true;
+  } catch (e) { console.warn('pocketserver upload failed', e); }
+  try {
+    const r2 = await fetch(targetPath + `?_=${Date.now()}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: file,
+      credentials: 'include'
+    });
+    if (r2 && r2.ok) return true;
+    console.warn('PUT to', targetPath, 'failed', r2 && r2.status);
+  } catch (e) { console.warn('PUT fallback failed', e); }
+  return false;
+}
+
+/* ---------- Profile-aware notes helpers (server-shared, local device-scoped cache) ---------- */
+function getActiveProfile() {
+  try { return localStorage.getItem('activeProfile') || 'Guest'; } catch(e){ return 'Guest'; }
+}
+
+/**
+ * Platform for local cache keys only.
+ * Fallback order: window.detectedPlatform -> localStorage.platform -> 'windows'
+ */
+function platformNow() {
+  try {
+    if (window && window.detectedPlatform) return String(window.detectedPlatform).toLowerCase();
+    const fromStorage = localStorage.getItem('platform');
+    if (fromStorage) return String(fromStorage).toLowerCase();
+  } catch (e) { /* ignore */ }
+  return 'windows';
+}
+
+/* Toggle whether local caching should be used as a first-class copy.
+   Default: false (server-first, local only as fallback).
+   You can enable by setting localStorage.setItem('notes_cache','true') */
+const NOTES_CACHE_ENABLED = (function(){
+  try { return localStorage.getItem('notes_cache') === 'true'; } catch(e){ return false; }
+})();
+
+/* LocalStorage key is platform + profile + basename (device-scoped) */
+function notesStorageKeyFor(basename) {
+  const profile = getActiveProfile();
+  const plat = platformNow();
+  return `notes-${plat}-${profile}-${basename}`;
+}
+
+/* Server slug: profile + basename only (shared across devices for same profile).
+   NOTE: do NOT include platform here — otherwise different platforms won't find each other's server file. */
+function notesServerSlug(profile, basename) {
+  const cleanProfile = String(profile || 'Guest').replace(/\s+/g,'_');
+  const cleanBase = String(basename || '').replace(/\s+/g,'_');
+  return `notes-${cleanProfile}-${cleanBase}`;
+}
+
+/* Save notes to server. Returns true if server save succeeded. */
+async function saveNotesToServer(basename, notesArr) {
+  try {
+    const profile = getActiveProfile();
+    const slug = notesServerSlug(profile, basename);
+    const ok = await saveMasterToServer({ notes: notesArr }, slug);
+    return !!ok;
+  } catch(e){ console.warn('saveNotesToServer error', e); }
+  return false;
+}
+
+/* Local helpers (only used as device-local cache / fallback) */
+function setLocalNotes(basename, arr) {
+  if (!NOTES_CACHE_ENABLED) {
+    // If caching disabled, only write local cache when explicitly called as fallback.
+    try { localStorage.setItem(notesStorageKeyFor(basename), JSON.stringify(arr || [])); } catch(e){ console.warn('setLocalNotes failed', e); }
+    return;
+  }
+  try { localStorage.setItem(notesStorageKeyFor(basename), JSON.stringify(arr || [])); } catch(e){ console.warn('setLocalNotes failed', e); }
+}
+function getLocalNotes(basename) {
+  try {
+    const raw = localStorage.getItem(notesStorageKeyFor(basename));
+    if (!raw) return [];
+    return JSON.parse(raw || '[]');
+  } catch(e){ return []; }
+}
+
+/* Load notes: try server first (shared), fallback to local cache if server fails.
+   If server returns notes, do NOT overwrite local cache unless NOTES_CACHE_ENABLED is true. */
+async function loadNotesForItem(basename) {
+  const profile = getActiveProfile();
+  try {
+    const loaded = await loadMasterFromServer(notesServerSlug(profile, basename));
+    if (loaded && loaded.notes && Array.isArray(loaded.notes)) {
+      if (NOTES_CACHE_ENABLED) {
+        // optional: keep local cache in sync if enabled
+        setLocalNotes(basename, loaded.notes);
+      }
+      return loaded.notes;
+    }
+  } catch(e){ console.warn('loadNotesForItem server failed', e); }
+  // server failed or returned nothing -> fallback to local cache (may be empty)
+  return getLocalNotes(basename);
+}
+/* ---------- End profile-aware notes helpers ---------- */
+
+
+/* ---------- Notes refresh-on-open helpers ---------- */
+
+async function loadNotesFromServerOnly(basename){
+  try{
+    const profile = getActiveProfile();
+    const loaded = await loadMasterFromServer(notesServerSlug(profile, basename));
+    if (!loaded) return null;
+    return Array.isArray(loaded.notes) ? loaded.notes : [];
+  }catch(e){
+    console.warn('loadNotesFromServerOnly failed', e);
+    return null;
+  }
+}
+
+function notesEqual(a, b){
+  try{
+    if (a === b) return true;
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    return JSON.stringify(a) === JSON.stringify(b);
+  }catch(e){
+    return false;
+  }
+}
+
+async function refreshNotesOnOpen(basename, opts = { force: false }){
+  try{
+    const serverNotes = await loadNotesFromServerOnly(basename);
+    if (serverNotes === null) return false;
+    const localNotes = getLocalNotes(basename) || [];
+    if (opts.force || !notesEqual(localNotes, serverNotes)) {
+      try {
+        if (typeof NOTES_CACHE_ENABLED !== 'undefined' && NOTES_CACHE_ENABLED) {
+          setLocalNotes(basename, serverNotes);
+        }
+      } catch(e){ console.warn('setting local notes during refresh failed', e); }
+      try {
+        renderNotesManager(serverNotes);
+        renderNotesPreview(serverNotes);
+      } catch(e) { console.warn('rendering notes after refresh failed', e); }
+      if (typeof showToast === 'function') showToast('Notes updated from server');
+      return true;
+    }
+    return false;
+  }catch(e){
+    console.warn('refreshNotesOnOpen error', e);
+    return false;
+  }
+}
+
+/* ---------- End refresh-on-open helpers ---------- */
+
+
+function renderNotesPreview(notes) {
+  notesPreview.innerHTML = '';
+  if (!notes || !notes.length) {
+    notesPreview.innerHTML = '<div class="muted">No notes</div>';
+    notesCount.textContent = '0';
+    return;
+  }
+  notesCount.textContent = notes.length;
+  const arr = notes.slice().reverse();
+  arr.forEach(n => {
+    const itm = document.createElement('div');
+    itm.className = 'note-item';
+    const body = document.createElement('div');
+    body.textContent = n.text;
+    const meta = document.createElement('div');
+    meta.className = 'note-meta';
+    const d = new Date(n.ts || Date.now());
+    meta.textContent = d.toLocaleString();
+    itm.appendChild(body);
+    itm.appendChild(meta);
+    notesPreview.appendChild(itm);
+  });
+}
+
+/* ---------- View / modal flow ---------- */
+async function openModal(item){
+  currentItem = item;
+
+  const stored = getPrefForItem(item.basename);
+
+  modalTitle.textContent = item.title;
+  modalImg.src = item.url;
+  modalFilename.textContent = 'Filename: ' + item.name;
+  viewFilename.textContent = 'Filename: ' + item.name;
+
+  const hasPrefs = stored && (stored.visualName || stored.about || stored.bannerFilename);
+  if (hasPrefs) {
+    // VIEW MODE (polished) with banner as background
+    editMode.style.display = 'none';
+    viewMode.style.display = 'block';
+
+    let bannerUrl = item.url;
+    if (stored && stored.bannerFilename) {
+      const bf = stored.bannerFilename;
+      if (bf.startsWith('/') || bf.startsWith('http')) bannerUrl = bf;
+      else bannerUrl = IMAGES_DIR + bf;
+    }
+    // Set as background image on .view-main
+    viewMain.style.backgroundImage = `url('${bannerUrl}')`;
+    viewMain.classList.add('has-banner');
+    viewTitle.textContent = stored && stored.visualName ? stored.visualName : item.title;
+    aboutText.textContent = (stored && stored.about) ? stored.about : 'No description.';
+
+    const notes = await loadNotesForItem(item.name);
+    renderNotesPreview(notes);
+
+    modalBack.style.display = 'flex';
+    modalBack.setAttribute('aria-hidden','false');
+    setTimeout(()=>{ try { modalBack.focus(); } catch(e){} }, 60);
+    return;
+  }
+
+  // EDIT MODE (no prefs)
+  viewMode.style.display = 'none';
+  editMode.style.display = 'block';
+  modalBack.style.display = 'flex';
+  modalBack.setAttribute('aria-hidden','false');
+
+  visualNameInput.value = (stored && stored.visualName) ? stored.visualName : '';
+  aboutInput.value = (stored && stored.about) ? stored.about : '';
+  bannerPreview.innerHTML = '<span class="muted">No banner</span>';
+  bannerFileInput.value = '';
+  bannerUploadNote.textContent = '';
+  prefSavedNote.style.display = 'none';
+
+  if (stored) {
+    if (typeof stored.ext === 'string') {
+      const extOpt = Array.from(modalExtSelect.options).find(o => o.value === stored.ext);
+      if (extOpt) { modalExtSelect.value = stored.ext; customExtInput.style.display = 'none'; customExtInput.value = ''; }
+      else { modalExtSelect.value = '__custom__'; customExtInput.style.display = 'inline-block'; customExtInput.value = stored.ext || ''; }
+    }
+    if (stored.core) {
+      const optCore = Array.from(modalCoreSelect.options).find(o => o.value === stored.core);
+      if (optCore) modalCoreSelect.value = stored.core;
+      else {
+        const tmp = document.createElement('option');
+        tmp.value = stored.core;
+        tmp.textContent = 'Custom (' + stored.core.split('/').pop() + ')';
+        modalCoreSelect.appendChild(tmp);
+        modalCoreSelect.value = stored.core;
+      }
+    } else modalCoreSelect.value = '';
+  } else {
+    if (extSelect.value === '__custom__') {
+      modalExtSelect.value = '__custom__';
+      customExtInput.style.display = 'inline-block';
+      customExtInput.value = customExtTop.value || '';
+    } else {
+      modalExtSelect.value = extSelect.value || '.gba';
+      customExtInput.style.display = 'none';
+      customExtInput.value = '';
+    }
+    modalCoreSelect.value = '';
+  }
+
+  updateLaunchButton();
+}
+
+function closeModal(){
+  modalBack.style.display = 'none';
+  modalBack.setAttribute('aria-hidden','true');
+  // Clear background to avoid affecting next open
+  viewMain.style.backgroundImage = '';
+  viewMain.classList.remove('has-banner');
+  currentItem = null;
+  notesBack.style.display = 'none';
+}
+
+function updateLaunchButton(){
+  if (!currentItem) return;
+  const ext = resolveExtensionForItem(currentItem.basename) || '';
+  const emu = resolveEmulatorForItem(currentItem.basename);
+  if (!emu) { launchBtn.textContent = 'No emulator selected'; launchBtn.disabled = true; }
+  else { launchBtn.disabled = false; launchBtn.textContent = 'Launch — ' + currentItem.basename + (ext || ''); }
+}
+
+launchBtn.addEventListener('click', ()=>{
+  if (!currentItem) return;
+  const ext = resolveExtensionForItem(currentItem.basename) || '';
+  const emu = resolveEmulatorForItem(currentItem.basename);
+  if (!emu) { showToast('Pick an emulator target (global, mapping, or per-ROM core)',2200); return; }
+  const rom = encodeURIComponent(currentItem.basename + ext);
+  const url = emu + rom;
+  window.location.href = url;
+});
+launchFromViewBtn.addEventListener('click', ()=>{
+  if (!currentItem) return;
+  const emu = resolveEmulatorForItem(currentItem.basename);
+  const ext = resolveExtensionForItem(currentItem.basename) || '';
+  if (!emu) { showToast('Pick an emulator target (global, mapping, or per-ROM core)',2200); return; }
+  const rom = encodeURIComponent(currentItem.basename + ext);
+  const url = emu + rom;
+  window.location.href = url;
+});
+
+copyBtn.addEventListener('click', async ()=>{ if (!currentItem) return; try { await navigator.clipboard.writeText(currentItem.name); showToast('Filename copied') } catch(e){ showToast('Copy failed') }});
+copyFromViewBtn.addEventListener('click', async ()=>{ if (!currentItem) return; try { await navigator.clipboard.writeText(currentItem.name); showToast('Filename copied') } catch(e){ showToast('Copy failed') }});
+
+closeViewBtn.addEventListener('click', closeModal);
+modalBack.addEventListener('click', (e)=>{ if (e.target === modalBack) closeModal(); });
+window.addEventListener('keydown', (e)=>{ if (e.key==='Escape') closeModal(); });
+
+savePrefBtn.addEventListener('click', async ()=>{
+  if (!currentItem) { showToast('No current item'); return; }
+
+  const prefs = (() => {
+    try { return JSON.parse(localStorage.getItem(ROMPREFS_KEY) || '{}'); } catch(e){ return {}; }
+  })();
+
+  let chosenExt = modalExtSelect.value;
+  if (chosenExt === '__custom__') {
+    let c = customExtInput.value.trim();
+    if (!c) { showToast('Enter a custom extension (e.g. .v64)', 1800); customExtInput.focus(); return; }
+    if (!c.startsWith('.')) c = '.' + c;
+    chosenExt = c;
+  }
+
+  let chosenCore = modalCoreSelect.value || null;
+  const visualName = visualNameInput.value.trim() || null;
+  const about = aboutInput.value.trim() || null;
+
+  let bannerFilename = null;
+  const f = bannerFileInput.files && bannerFileInput.files[0];
+  if (f) {
+    const imgOrigExtIdx = f.name.lastIndexOf('.');
+    const imgExt = imgOrigExtIdx === -1 ? '.jpg' : f.name.substring(imgOrigExtIdx);
+    const safeBase = currentItem.basename.replace(/\s+/g,'_');
+    const safeImageName = `banner.${safeBase}${imgExt}`;
+    const imageTargetPath = `${IMAGES_DIR}${safeImageName}`;
+    bannerUploadNote.textContent = 'Uploading banner...';
+    const ok = await uploadFileToServer(f, imageTargetPath);
+    if (ok) {
+      bannerFilename = safeImageName;
+      bannerUploadNote.textContent = 'Banner uploaded.';
+    } else {
+      bannerUploadNote.textContent = 'Banner upload failed.';
+      showToast('Banner upload failed (preference not saved).');
+      return;
+    }
+  } else {
+    const existing = getPrefForItem(currentItem.basename);
+    if (existing && existing.bannerFilename) bannerFilename = existing.bannerFilename;
+  }
+
+  const outObj = Object.assign({}, prefs[currentItem.basename] || {});
+  outObj.ext = chosenExt || outObj.ext || '';
+  outObj.core = chosenCore || outObj.core || null;
+  if (visualName) outObj.visualName = visualName; else delete outObj.visualName;
+  if (about) outObj.about = about; else delete outObj.about;
+  if (bannerFilename) outObj.bannerFilename = bannerFilename;
+  prefs[currentItem.basename] = outObj;
+  setStoredRomPrefs(prefs);
+
+  prefSavedNote.style.display = 'block';
+  try {
+    const ok = await saveMasterToServer(prefs, 'romprefs');
+    if (ok) { showToast('Preference saved to server'); prefSavedNote.textContent = 'Preference saved and uploaded to server.'; }
+    else { showToast('Saved locally (server save failed)'); prefSavedNote.textContent = 'Saved locally — server save failed.'; }
+  } catch(e){ showToast('Save failed'); console.warn('savePrefBtn error', e); }
+
+  // after save, show view mode with updated content
+  viewMode.style.display = 'block';
+  editMode.style.display = 'none';
+  const bannerUrl = (outObj.bannerFilename ? (outObj.bannerFilename.startsWith('/') || outObj.bannerFilename.startsWith('http') ? outObj.bannerFilename : IMAGES_DIR + outObj.bannerFilename) : currentItem.url);
+  viewMain.style.backgroundImage = `url('${bannerUrl}')`;
+  viewMain.classList.add('has-banner');
+  viewTitle.textContent = outObj.visualName || currentItem.title;
+  aboutText.textContent = outObj.about || 'No description.';
+  try { await loadImages(); } catch(e){}
+});
+
+cancelEditBtn.addEventListener('click', ()=>{
+  const stored = getPrefForItem(currentItem.basename);
+  if (stored && (stored.visualName || stored.about || stored.bannerFilename)) {
+    editMode.style.display = 'none';
+    viewMode.style.display = 'block';
+    const bannerUrl = (stored.bannerFilename ? (stored.bannerFilename.startsWith('/') || stored.bannerFilename.startsWith('http') ? stored.bannerFilename : IMAGES_DIR + stored.bannerFilename) : currentItem.url);
+    viewMain.style.backgroundImage = `url('${bannerUrl}')`;
+    viewMain.classList.add('has-banner');
+    viewTitle.textContent = stored.visualName || currentItem.title;
+    aboutText.textContent = stored.about || 'No description.';
+  } else closeModal();
+});
+
+function extensionFromFilenameAllDots(filename) {
+  const idx = filename.indexOf('.');
+  if (idx === -1) return '';
+  return filename.substring(idx);
+}
+
+uploadNewBtn.addEventListener('click', ()=>{ imageFileInput.value = ''; romFileInput.value = ''; uploadPreview.innerHTML = '<span class="muted">No image</span>'; uploadStatus.textContent = ''; uploadBack.style.display = 'flex'; uploadBack.setAttribute('aria-hidden','false'); });
+chooseImageBtn.addEventListener('click', ()=> imageFileInput.click());
+imageFileInput.addEventListener('change', (ev) => {
+  const f = ev.target.files && ev.target.files[0];
+  if (!f) { uploadPreview.innerHTML = '<span class="muted">No image</span>'; return; }
+  const url = URL.createObjectURL(f);
+  uploadPreview.innerHTML = `<img src="${url}" alt="preview">`;
+});
+cancelUploadBtn.addEventListener('click', ()=> { uploadBack.style.display = 'none'; uploadBack.setAttribute('aria-hidden','true'); });
+
+doUploadBtn.addEventListener('click', async ()=>{
+  const romFile = romFileInput.files && romFileInput.files[0];
+  if (!romFile) { uploadStatus.textContent = 'Select a ROM file to upload.'; return; }
+
+  const imageFile = imageFileInput.files && imageFileInput.files[0];
+  const romFilename = romFile.name;
+  const firstDot = romFilename.indexOf('.');
+  const romBasename = firstDot === -1 ? romFilename : romFilename.substring(0, firstDot);
+  const romExt = extensionFromFilenameAllDots(romFilename);
+
+  uploadStatus.textContent = 'Uploading ROM...';
+  doUploadBtn.disabled = true;
+
+  const romTarget = `${ROMS_DIR}${romFilename}`;
+  const romOk = await uploadFileToServer(romFile, romTarget);
+  if (!romOk) {
+    uploadStatus.textContent = 'ROM upload failed.';
+    doUploadBtn.disabled = false;
+    return;
+  }
+  uploadStatus.textContent = 'ROM uploaded.';
+
+  let imageUrlForGallery = null;
+  if (imageFile) {
+    uploadStatus.textContent = 'Uploading image...';
+    const imgOrigExtIdx = imageFile.name.lastIndexOf('.');
+    const imgExt = imgOrigExtIdx === -1 ? '.jpg' : imageFile.name.substring(imgOrigExtIdx);
+    const safeImageName = romBasename.replace(/\s+/g,'_') + imgExt;
+    const imageTargetPath = `${IMAGES_DIR}${safeImageName}`;
+    const imgOk = await uploadFileToServer(imageFile, imageTargetPath);
+    if (imgOk) { imageUrlForGallery = imageTargetPath; uploadStatus.textContent = 'Image uploaded.'; }
+    else uploadStatus.textContent = 'Image upload failed (ROM uploaded).';
+  }
+
+  try {
+    const prefsRaw = (()=>{ try { return JSON.parse(localStorage.getItem(ROMPREFS_KEY) || '{}'); } catch(e){ return {}; } })();
+    const decodedBasename = (function(b){
+      try { return decodeURIComponent(b); } catch(e){ return b; }
+    })(romBasename).replace(/\+/g,' ');
+    prefsRaw[decodedBasename] = { ext: romExt || '', core: null };
+    setStoredRomPrefs(prefsRaw);
+    uploadStatus.textContent = (uploadStatus.textContent ? uploadStatus.textContent + ' ' : '') + 'Saving preference...';
+    const ok = await saveMasterToServer(prefsRaw, 'romprefs');
+    if (ok) { uploadStatus.textContent = 'Upload complete. Preference saved to server.'; showToast('Upload complete. Preference saved.'); }
+    else { uploadStatus.textContent = 'Upload complete. Saved locally (server save failed).'; showToast('Uploaded rom; server save failed — saved locally.'); }
+  } catch (e) {
+    uploadStatus.textContent = 'Upload complete. Preference save failed locally.';
+    console.warn('pref save fail', e);
+  }
+
+  try {
+    await loadImages();
+    if (imageUrlForGallery) {
+      const exists = images.find(i => i.url.endsWith(imageUrlForGallery.split('/').pop()));
+      if (!exists) {
+        const fn = imageUrlForGallery.split('/').pop();
+        let decoded = fn;
+        try { decoded = decodeURIComponent(fn); } catch(e){ decoded = fn; }
+        decoded = decoded.replace(/\+/g,' ');
+        images.unshift({
+          url: imageUrlForGallery,
+          name: decoded,
+          basename: decoded.replace(/\.[^.]+$/,''), 
+          title: humanize(decoded)
+        });
+        renderTiles(images);
+      }
+    }
+  } catch(e){ console.warn('post-upload refresh failed', e); }
+
+  doUploadBtn.disabled = false;
+  setTimeout(()=>{ uploadBack.style.display = 'none'; uploadBack.setAttribute('aria-hidden','true'); }, 800);
+});
+uploadBack.addEventListener('click', (e) => { if (e.target === uploadBack) { uploadBack.style.display = 'none'; uploadBack.setAttribute('aria-hidden','true'); } });
+
+mappingsBtn.addEventListener('click', async ()=>{
+  const emuPrefs = getStoredEmuPrefs();
+  mapGba.value = emuPrefs.gba || './emulator/indexgba.html?rom=';
+  mapGb.value = emuPrefs.gb || './emulator/indexgb.html?rom=';
+  mapN64.value = emuPrefs.n64 || './emulator/indexn64.html?rom=';
+  mapNds.value = emuPrefs.nds || './emulator/indexnds.html?rom=';
+  mapSnes.value = emuPrefs.snes || './emulator/indexsnes.html?rom=';
+  mapPsx.value = emuPrefs.psx || './emulator/indexpsx.html?rom=';
+  mapPsp.value = emuPrefs.psp || './emulator/indexpsp.html?rom=';
+  mapSega.value = emuPrefs.sega || './emulator/indexsega.html?rom=';
+  mapsSavedNote.style.display = 'none';
+  mapsBack.style.display = 'flex';
+  mapsBack.setAttribute('aria-hidden','false');
+});
+cancelMapsBtn.addEventListener('click', ()=> { mapsBack.style.display = 'none'; mapsBack.setAttribute('aria-hidden','true'); });
+
+saveMapsBtn.addEventListener('click', async ()=>{
+  const prefs = {
+    gba: (mapGba.value || '').trim(),
+    gb: (mapGb.value || '').trim(),
+    n64: (mapN64.value || '').trim(),
+    nds: (mapNds.value || '').trim(),
+    snes: (mapSnes.value || '').trim(),
+    psx: (mapPsx.value || '').trim(),
+    psp: (mapPsp.value || '').trim(),
+    sega: (mapSega.value || '').trim()
+  };
+  setStoredEmuPrefs(prefs);
+  mapsSavedNote.style.display = 'block';
+  try {
+    const ok = await saveMasterToServer(prefs, 'emulatorprefs');
+    if (ok) { showToast('Emulator mappings saved to server'); mapsSavedNote.textContent = 'Mappings saved and uploaded.'; }
+    else { showToast('Saved mappings locally (server save failed)'); mapsSavedNote.textContent = 'Saved locally — server save failed.'; }
+  } catch(e){ showToast('Save failed'); console.warn('saveMapsBtn', e); }
+  setTimeout(()=>{ mapsBack.style.display = 'none'; mapsBack.setAttribute('aria-hidden','true'); }, 800);
+});
+
+function filterTiles(){
+  const q = (searchInput.value||'').trim().toLowerCase();
+  if (!q){ renderTiles(images); return; }
+  const filtered = images.filter(i => i.title.toLowerCase().includes(q) || i.name.toLowerCase().includes(q));
+  renderTiles(filtered);
+}
+searchInput.addEventListener('input', filterTiles);
+refreshBtn.addEventListener('click', ()=>{ loadImages(); showToast('Refreshing...'); });
+
+extSelect.addEventListener('change', ()=> {
+  showCustomInput(extSelect, customExtTop);
+  try { localStorage.setItem('games_ext', extSelect.value); } catch(e){}
+  updateLaunchButton();
+});
+customExtTop.addEventListener('input', ()=> { try { localStorage.setItem('games_ext_custom', customExtTop.value);} catch(e){}; updateLaunchButton(); });
+
+if (modalExtSelect) {
+  modalExtSelect.addEventListener('change', ()=> { showCustomInput(modalExtSelect, customExtInput); updateLaunchButton(); });
+}
+if (customExtInput) customExtInput.addEventListener('input', updateLaunchButton);
+if (modalCoreSelect) modalCoreSelect.addEventListener('change', updateLaunchButton);
+
+emulatorSelect.addEventListener('change', ()=>{ try { localStorage.setItem('games_emulator', emulatorSelect.value); } catch(e){}; updateLaunchButton(); });
+
+mapsBack.addEventListener('click', (e) => { if (e.target === mapsBack) { mapsBack.style.display = 'none'; mapsBack.setAttribute('aria-hidden','true'); }} );
+uploadBack.addEventListener('click', (e) => { if (e.target === uploadBack) { uploadBack.style.display = 'none'; uploadBack.setAttribute('aria-hidden','true'); }} );
+modalBack.addEventListener('click', (e)=>{ if (e.target === modalBack) closeModal(); });
+
+function setProfileButton() {
+  const active = localStorage.getItem('activeProfile') || 'Guest';
+  const trySrc = `/Profiles/${encodeURIComponent(active)}.jpg`;
+  profileImg.src = trySrc;
+  profileImg.style.display = 'block';
+  profileInitials.style.display = 'none';
+  profileImg.onerror = function() {
+    profileImg.style.display = 'none';
+    profileImg.onerror = null;
+    const initials = (active || 'G').split(/\s+/).map(s => s[0] ? s[0].toUpperCase() : '').slice(0,2).join('') || 'G';
+    profileInitials.textContent = initials;
+    profileInitials.style.display = 'block';
+  };
+  profileBtn.href = 'profile.html';
+}
+
+chooseBannerBtn.addEventListener('click', ()=> bannerFileInput.click());
+bannerFileInput.addEventListener('change', (ev) => {
+  const f = ev.target.files && ev.target.files[0];
+  if (!f) { bannerPreview.innerHTML = '<span class="muted">No banner</span>'; return; }
+  const url = URL.createObjectURL(f);
+  bannerPreview.innerHTML = `<img src="${url}" alt="preview">`;
+});
+
+if (viewEditGear) {
+  viewEditGear.addEventListener('click', ()=>{
+    if (!currentItem) return;
+    const stored = getPrefForItem(currentItem.basename) || {};
+    editMode.style.display = 'block';
+    viewMode.style.display = 'none';
+    visualNameInput.value = stored.visualName || '';
+    aboutInput.value = stored.about || '';
+    bannerPreview.innerHTML = '<span class="muted">No banner</span>';
+    bannerFileInput.value = '';
+    bannerUploadNote.textContent = '';
+    prefSavedNote.style.display = 'none';
+    if (stored) {
+      if (typeof stored.ext === 'string') {
+        const extOpt = Array.from(modalExtSelect.options).find(o => o.value === stored.ext);
+        if (extOpt) { modalExtSelect.value = stored.ext; customExtInput.style.display = 'none'; customExtInput.value = ''; }
+        else { modalExtSelect.value = '__custom__'; customExtInput.style.display = 'inline-block'; customExtInput.value = stored.ext || ''; }
+      }
+      if (stored.core) {
+        const optCore = Array.from(modalCoreSelect.options).find(o => o.value === stored.core);
+        if (optCore) modalCoreSelect.value = stored.core;
+        else {
+          const tmp = document.createElement('option');
+          tmp.value = stored.core;
+          tmp.textContent = 'Custom (' + stored.core.split('/').pop() + ')';
+          modalCoreSelect.appendChild(tmp);
+          modalCoreSelect.value = stored.core;
+        }
+      } else modalCoreSelect.value = '';
+    } else {
+      modalExtSelect.value = extSelect.value || '.gba';
+      customExtInput.style.display = 'none';
+      modalCoreSelect.value = '';
+    }
+    updateLaunchButton();
+  });
+}
+
+manageNotesBtn.addEventListener('click', async ()=>{
+  if (!currentItem) return;
+  notesBack.style.display = 'block';
+  notesBack.setAttribute('aria-hidden','false');
+  const notes = await loadNotesForItem(currentItem.name);
+  renderNotesManager(notes || []);
+});
+
+closeNotesBtn.addEventListener('click', ()=> {
+  notesBack.style.display = 'none';
+  notesBack.setAttribute('aria-hidden','true');
+});
+
+function renderNotesManager(notes) {
+  notesManagerList.innerHTML = '';
+  if (!notes || !notes.length) {
+    notesManagerList.innerHTML = '<div class="muted">No notes yet</div>';
+    return;
+  }
+  const arr = notes.slice().reverse();
+  arr.forEach((n, idx) => {
+    const container = document.createElement('div');
+    container.className = 'note-item';
+    const body = document.createElement('div');
+    body.className = 'note-body';
+    body.textContent = n.text;
+    const meta = document.createElement('div');
+    meta.className = 'note-meta';
+    const d = new Date(n.ts || Date.now());
+    meta.textContent = d.toLocaleString();
+    const actions = document.createElement('div');
+    actions.className = 'note-actions';
+    const del = document.createElement('button');
+    del.textContent = 'Delete';
+    del.addEventListener('click', async ()=>{
+  const original = notes.slice();
+  const removeIndex = notes.length - 1 - idx;
+  original.splice(removeIndex, 1);
+
+  const ok = await saveNotesToServer(currentItem.name, original);
+  if (ok) {
+    showToast('Note removed (server)');
+    if (NOTES_CACHE_ENABLED) setLocalNotes(currentItem.name, original);
+  } else {
+    setLocalNotes(currentItem.name, original);
+    showToast('Removed locally (server save failed)');
+  }
+
+  renderNotesManager(original);
+  renderNotesPreview(original);
+});
+    actions.appendChild(del);
+    container.appendChild(body);
+    container.appendChild(meta);
+    container.appendChild(actions);
+    notesManagerList.appendChild(container);
+  });
+}
+
+addNoteBtn.addEventListener('click', async ()=>{
+  const txt = newNoteText.value.trim();
+  if (!txt) return;
+
+  // get current notes (server-preference)
+  let ns = [];
+  try { ns = await loadNotesForItem(currentItem.name) || []; } catch(e){ ns = []; }
+
+  const noteObj = { text: txt, ts: Date.now() };
+  ns.push(noteObj);
+
+  // Attempt server save first. If it fails, write to local cache as fallback.
+  const ok = await saveNotesToServer(currentItem.name, ns);
+  if (ok) {
+    showToast('Note saved to server');
+    if (NOTES_CACHE_ENABLED) setLocalNotes(currentItem.name, ns);
+  } else {
+    setLocalNotes(currentItem.name, ns); // fallback local-only save
+    showToast('Note saved locally (server save failed)');
+  }
+
+  newNoteText.value = '';
+  renderNotesManager(ns);
+  renderNotesPreview(ns);
+});
+
+(async function init(){
+  try {
+    const em = localStorage.getItem('games_emulator'); if (em) emulatorSelect.value = em;
+    const ex = localStorage.getItem('games_ext'); if (ex) extSelect.value = ex;
+    const topCustom = localStorage.getItem('games_ext_custom'); if (topCustom) customExtTop.value = topCustom;
+  } catch(e){}
+  showCustomInput(extSelect, customExtTop);
+  try {
+    const serverRomPrefs = await loadMasterFromServer('romprefs');
+    if (serverRomPrefs && typeof serverRomPrefs === 'object') setStoredRomPrefs(serverRomPrefs);
+  } catch(e){ console.warn('romprefs load failed', e); }
+  try {
+    const serverEmuPrefs = await loadMasterFromServer('emulatorprefs');
+    if (serverEmuPrefs && typeof serverEmuPrefs === 'object') setStoredEmuPrefs(serverEmuPrefs);
+  } catch(e){ console.warn('emuprefs load failed', e); }
+
+  populateCoreOptions();
+  await loadImages();
+  setProfileButton();
+  updateLaunchButton();
+
+  // Set page title from profile.js (window._customServerTitle)
+  if (window._customServerTitle && typeof window._customServerTitle === 'string') {
+    document.title = window._customServerTitle;
+  }
+})();
+
+</script>
+</body>
+</html>

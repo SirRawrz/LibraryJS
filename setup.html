@@ -1,0 +1,2047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Setup Wizard</title>
+<style>
+  :root {
+    --bg: #0c1018;
+    --panel: #121826;
+    --panel2: #0f1521;
+    --line: rgba(255,255,255,.08);
+    --text: #ecf2ff;
+    --muted: #95a2bd;
+    --good: #7ee0c4;
+    --warn: #ffb36b;
+    --danger: #ff7f8b;
+    --radius: 20px;
+    --shadow: 0 20px 50px rgba(0,0,0,.28);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background:
+      radial-gradient(circle at top, rgba(126,224,196,.09), transparent 32%),
+      radial-gradient(circle at 80% 0%, rgba(47,140,255,.08), transparent 24%),
+      var(--bg);
+    color: var(--text);
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 18px 16px 8px;
+  }
+  h1 { margin: 0; font-size: 24px; }
+  .pill {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: minmax(320px, 390px) minmax(460px, 1fr) minmax(360px, 520px);
+    gap: 16px;
+    padding: 16px;
+    align-items: start;
+  }
+  .panel {
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .head {
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    background: rgba(255,255,255,.02);
+  }
+  .head h2 { margin: 0; font-size: 17px; }
+  .head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .body { padding: 16px 18px 18px; }
+  .field { margin-bottom: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  input[type="text"], input[type="url"], input[type="number"], select, textarea {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font: inherit;
+    outline: none;
+  }
+  textarea {
+    min-height: 180px;
+    resize: vertical;
+    line-height: 1.45;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+  button {
+    border: 0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, rgba(126,224,196,1), rgba(82,192,160,1));
+    color: #07110e;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button.secondary { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid var(--line); }
+  button.warn { background: rgba(255,179,107,.15); color: #ffd2a2; border: 1px solid rgba(255,179,107,.2); }
+  button.danger { background: rgba(255,127,139,.12); color: #ffb8c0; border: 1px solid rgba(255,127,139,.18); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .row.space { justify-content: space-between; }
+  .mini { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .section-title {
+    margin: 18px 0 10px;
+    font-size: 13px;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    color: #c3cbe0;
+  }
+  .preview-box, .box {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.03);
+    border-radius: 16px;
+    padding: 12px;
+  }
+  .item-list { display: grid; gap: 10px; }
+  .item-card {
+    border: 1px solid var(--line);
+    background: rgba(8,12,18,.45);
+    border-radius: 16px;
+    padding: 12px;
+  }
+  .item-card .item-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .item-card .item-title {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  .item-card .item-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .item-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1.2fr 1.1fr;
+    gap: 10px;
+  }
+  .group-box {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,.08);
+  }
+  .group-items {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .chipbar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .type-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .flow-tile {
+    min-height: 108px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--text);
+    border-radius: 16px;
+    padding: 18px 12px 20px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+    transition: transform .12s ease, border-color .12s ease, background .12s ease;
+  }
+  .flow-tile:hover {
+    transform: translateY(-1px);
+    border-color: rgba(126,224,196,.35);
+    background: rgba(126,224,196,.08);
+  }
+  .flow-tile .kicker {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  .flow-tile .main {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .flow-tile.active {
+    border-color: rgba(126,224,196,.8);
+    background: linear-gradient(180deg, rgba(126,224,196,.18), rgba(82,192,160,.12));
+    box-shadow: 0 0 0 1px rgba(126,224,196,.12) inset;
+  }
+  .flow-nav {
+    display: none;
+    margin: 0 16px 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.03);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .flow-nav .flow-stepbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .flow-nav .flow-stepchip {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .flow-nav .flow-stepchip.active {
+    color: var(--text);
+    border-color: rgba(126,224,196,.8);
+    background: linear-gradient(180deg, rgba(126,224,196,.16), rgba(82,192,160,.10));
+  }
+  .flow-nav .flow-stepinfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 220px;
+  }
+  .flow-nav .flow-stepinfo .kicker {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .24px;
+  }
+  .flow-nav .flow-stepinfo .main {
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .flow-stage { display: block; }
+  .dropzone {
+    position: relative;
+    border: 1.5px dashed rgba(255,255,255,.14);
+    background: rgba(255,255,255,.03);
+    border-radius: 16px;
+    padding: 14px 14px;
+    min-height: 92px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: .15s ease;
+    overflow: hidden;
+  }
+  .dropzone:hover,
+  .dropzone.dragover {
+    border-color: rgba(126,224,196,.65);
+    background: rgba(126,224,196,.08);
+    transform: translateY(-1px);
+  }
+  .dropzone input[type="file"] { display: none; }
+  .dropzone .dz-name { font-size: 13px; font-weight: 800; color: var(--text); }
+  .dropzone .dz-meta { font-size: 11px; line-height: 1.35; color: var(--muted); }
+  .dropzone .dz-preview {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.15);
+  }
+  .field .dropzone { margin-bottom: 8px; }
+  .field.compact .dropzone { min-height: 72px; }
+  .field.compact .dropzone .dz-name { font-size: 12px; }
+  .field.compact .dropzone .dz-meta { font-size: 10px; }
+  .import-drop { margin-bottom: 12px; }
+  .import-drop .dropzone { min-height: 86px; }
+  .step-note {
+    border-left: 3px solid rgba(126,224,196,.55);
+    background: rgba(126,224,196,.05);
+    padding: 10px 12px;
+    border-radius: 12px;
+    color: #d8f4ea;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  body.flow-mode header { display: none; }
+  body.flow-mode .flow-nav { display: flex; }
+  body.flow-mode .app {
+    grid-template-columns: 1fr;
+    max-width: 1160px;
+    margin: 0 auto;
+  }
+  body.flow-mode .panel { max-width: none; }
+  body.flow-mode .body { padding: 14px; }
+  body.flow-mode .preview-box { display: none; }
+  body.flow-mode #outputPanel { display: none; }
+  body.flow-mode.flow-output-visible #outputPanel { display: block; }
+  body.flow-mode [data-flow-step] { display: none; }
+  body.flow-mode [data-flow-step].flow-active { display: block; }
+  body.flow-mode .flow-stage { margin-bottom: 12px; }
+  body.flow-mode .item-grid,
+  body.flow-mode .grid2,
+  body.flow-mode .grid3 { grid-template-columns: 1fr; }
+  .output-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .output-tabs button.active {
+    outline: 2px solid rgba(126,224,196,.26);
+    background: linear-gradient(180deg, rgba(126,224,196,1), rgba(82,192,160,1));
+    color: #04110d;
+  }
+  .footer-note { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .status.good { color: var(--good); }
+  .status.warn { color: var(--warn); }
+  .status.bad { color: var(--danger); }
+  .hidden { display: none !important; }
+  .code-output {
+    min-height: 280px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+  .review-grid {
+    display: grid;
+    gap: 12px;
+  }
+  .review-card {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(255,255,255,.03);
+    padding: 12px;
+  }
+  .review-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .review-title {
+    font-size: 15px;
+    font-weight: 800;
+  }
+  .review-path {
+    font-size: 12px;
+    color: var(--muted);
+    word-break: break-all;
+  }
+  .profile-preview-row {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+  .profile-thumb {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    object-fit: cover;
+    background: rgba(0,0,0,.2);
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  .small-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .flow-summary {
+    display: grid;
+    gap: 10px;
+  }
+  .qr-tool-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .qr-tool-card {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(255,255,255,.03);
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+  }
+  .qr-tool-card .qr-title {
+    font-size: 15px;
+    font-weight: 800;
+  }
+  .qr-tool-card .qr-sub {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .qr-preview {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(0,0,0,.18);
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 8px;
+  }
+  .qr-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+    image-rendering: pixelated;
+    background: #fff;
+  }
+  .qr-iframe {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    left: -9999px;
+    top: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .qr-status {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .qr-status.good { color: var(--good); }
+  .qr-status.warn { color: var(--warn); }
+  .qr-status.bad { color: var(--danger); }
+  .summary-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.03);
+    border-radius: 14px;
+    padding: 10px 12px;
+  }
+  .summary-line span:last-child { color: var(--text); font-weight: 700; }
+  @media (max-width: 1180px) {
+    .app { grid-template-columns: 1fr; }
+    .type-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .item-grid, .grid2, .grid3 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    .type-grid { grid-template-columns: 1fr; }
+    header { padding-bottom: 0; }
+    .pill { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1 id="pageTitle">Setup Wizard</h1>
+    <div class="mini" id="pageSubtitle">Create the server files, profile list, and profile images for a fresh install.</div>
+  </div>
+  <div class="pill" id="targetPill">Outputs: platform.txt · serverip.txt · tailscaleip.txt · profiles.js</div>
+</header>
+
+<div class="flow-nav" id="flowNav">
+  <div class="flow-stepinfo">
+    <div class="kicker" id="flowStepKicker">Flow</div>
+    <div class="main" id="flowStepMain">Choose a step</div>
+    <div class="mini" id="flowStepSub">Use Back and Next to move through the setup.</div>
+  </div>
+  <div class="flow-stepbar" id="flowStepBar"></div>
+  <div class="row">
+    <button id="flowBackBtn" class="secondary" type="button">Back</button>
+    <button id="flowNextBtn" type="button">Next</button>
+  </div>
+</div>
+
+<main class="app">
+  <section class="panel">
+    <div class="head">
+      <h2>Setup steps</h2>
+      <p>Fill the server details, add all profiles, drop or upload each profile image, then export or upload the generated files.</p>
+    </div>
+    <div class="body">
+      
+
+      <div class="section-title">Quick actions</div>
+      <div class="row">
+        <button type="button" id="addProfileBtn">Add profile</button>
+        <button type="button" class="secondary" id="resetBtn">Reset all</button>
+        <button type="button" class="secondary" id="saveDraftBtn">Save draft</button>
+        <button type="button" class="secondary" id="loadDraftBtn">Load draft</button>
+      </div>
+
+      <div class="section-title">Setup progress</div>
+      <div class="chipbar" id="statusChips"></div>
+
+      <div class="section-title">Files that will be created</div>
+      <div class="box mini">
+        <div><strong>platform.txt</strong> — platform label used by the server.</div>
+        <div><strong>serverip.txt</strong> — local server IP or host name.</div>
+        <div><strong>tailscaleip.txt</strong> — your Tailscale address.</div>
+        <div><strong>profiles.js</strong> — the profile list and title used by the app.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="head">
+      <h2>Editor</h2>
+      
+    </div>
+    <div class="body">      <div data-flow-step="server" class="flow-stage">
+        <div class="section-title">Server details</div>
+        <div class="grid2">
+          <div class="field">
+            <label for="serverTitle">Server title</label>
+            <input id="serverTitle" type="text" placeholder="Family Media Library" />
+          </div>
+          <div class="field">
+            <label for="platformSelect">platform.txt</label>
+            <select id="platformSelect">
+              <option value="windows">windows</option>
+              <option value="android">android</option>
+              <option value="iphone">iphone</option>
+              <option value="linux">linux</option>
+              <option value="unknown">unknown</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="serverIp">serverip.txt</label>
+            <input id="serverIp" type="text" placeholder="192.168.1.100" />
+          </div>
+          <div class="field">
+            <label for="tailscaleIp">tailscaleip.txt</label>
+            <input id="tailscaleIp" type="text" placeholder="100.x.x.x" />
+          </div>
+        </div>
+        <div class="mini">These text files are exported exactly as typed, so you can use hostnames, LAN IPs, or Tailscale addresses.</div>
+      </div>
+
+      <div data-flow-step="profiles" class="flow-stage">
+        <div class="section-title">Profiles</div>
+        <div class="mini">Add every profile now. Each card has a drag-and-drop target for its image and a path preview for the final profiles.js file.</div>
+        <div class="field" style="margin-top:10px;">
+          <label for="profileCount">Profile count helper</label>
+          <div class="row">
+            <input id="profileCount" type="number" min="1" step="1" value="1" style="max-width:120px;" />
+            <button type="button" class="secondary" id="setCountBtn">Set count</button>
+            <span class="mini">This adds or removes cards to match the count.</span>
+          </div>
+        </div>
+        <div class="item-list" id="profilesList"></div>
+      </div>
+
+      <div data-flow-step="qrs" class="flow-stage">
+        <div class="section-title">QR codes</div>
+        <div class="mini">
+          Build four QR images: two from <strong>serverip.txt</strong> and two from <strong>tailscaleip.txt</strong>.
+          The QR route suffix stays the same for each pair: <code>/index.html?I</code> for Original and <code>/index.html?l</code> for Kid Safe.
+        </div>
+
+        <div class="row" style="margin: 12px 0 4px;">
+          <button type="button" id="generateAllQrBtn">Generate All QRs</button>
+          <button type="button" class="secondary" id="fillAllQrUrlsBtn">Fill all QR URLs</button>
+        </div>
+        <div class="mini">Generate All QRs creates all four PNGs in the hidden helper, and Fill all QR URLs only updates the address fields.</div>
+
+        <div class="qr-tool-grid">
+          <div class="qr-tool-card" data-qr-mode="regular">
+            <div>
+              <div class="qr-title">Server Original QR</div>
+              <div class="qr-sub">Uses <code>serverip.txt</code> + <code>/index.html?I</code>. Saves as <code>regular-qr.png</code>.</div>
+            </div>
+            <div class="row">
+              <button type="button" data-qr-action="use-source">Use server IP</button>
+              <button type="button" class="secondary" data-qr-action="generate">Generate this QR</button>
+            </div>
+            <div class="field compact">
+              <label>Upload QR image</label>
+              <div class="dropzone" data-qr-role="dropzone" tabindex="0" role="button" aria-label="Drop or choose QR image">
+                <img class="dz-preview hidden" data-qr-role="dropPreview" alt="QR preview" />
+                <div class="dz-name">Drop PNG here</div>
+                <div class="dz-meta">Or click to choose a file.</div>
+                <input type="file" accept="image/*" data-qr-field="file" />
+              </div>
+            </div>
+            <div class="qr-preview">
+              <img data-qr-role="preview" alt="Server Original QR preview" class="hidden" />
+              <div class="mini" data-qr-role="empty">No QR image yet.</div>
+            </div>
+            <div class="qr-status" data-qr-role="status">Waiting for QR.</div>
+          </div>
+
+          <div class="qr-tool-card" data-qr-mode="kids">
+            <div>
+              <div class="qr-title">Server Kid Safe QR</div>
+              <div class="qr-sub">Uses <code>serverip.txt</code> + <code>/index.html?l</code>. Saves as <code>kids-qr.png</code>.</div>
+            </div>
+            <div class="row">
+              <button type="button" data-qr-action="use-source">Use server IP</button>
+              <button type="button" class="secondary" data-qr-action="generate">Generate this QR</button>
+            </div>
+            <div class="field compact">
+              <label>Upload QR image</label>
+              <div class="dropzone" data-qr-role="dropzone" tabindex="0" role="button" aria-label="Drop or choose QR image">
+                <img class="dz-preview hidden" data-qr-role="dropPreview" alt="QR preview" />
+                <div class="dz-name">Drop PNG here</div>
+                <div class="dz-meta">Or click to choose a file.</div>
+                <input type="file" accept="image/*" data-qr-field="file" />
+              </div>
+            </div>
+            <div class="qr-preview">
+              <img data-qr-role="preview" alt="Server Kid Safe QR preview" class="hidden" />
+              <div class="mini" data-qr-role="empty">No QR image yet.</div>
+            </div>
+            <div class="qr-status" data-qr-role="status">Waiting for QR.</div>
+          </div>
+
+          <div class="qr-tool-card" data-qr-mode="tailscaleRegular">
+            <div>
+              <div class="qr-title">Tailscale Original QR</div>
+              <div class="qr-sub">Uses <code>tailscaleip.txt</code> + <code>/index.html?I</code>. Saves as <code>tailscale-regular-qr.png</code>.</div>
+            </div>
+            <div class="row">
+              <button type="button" data-qr-action="use-source">Use Tailscale IP</button>
+              <button type="button" class="secondary" data-qr-action="generate">Generate this QR</button>
+            </div>
+            <div class="field compact">
+              <label>Upload QR image</label>
+              <div class="dropzone" data-qr-role="dropzone" tabindex="0" role="button" aria-label="Drop or choose QR image">
+                <img class="dz-preview hidden" data-qr-role="dropPreview" alt="QR preview" />
+                <div class="dz-name">Drop PNG here</div>
+                <div class="dz-meta">Or click to choose a file.</div>
+                <input type="file" accept="image/*" data-qr-field="file" />
+              </div>
+            </div>
+            <div class="qr-preview">
+              <img data-qr-role="preview" alt="Tailscale Original QR preview" class="hidden" />
+              <div class="mini" data-qr-role="empty">No QR image yet.</div>
+            </div>
+            <div class="qr-status" data-qr-role="status">Waiting for QR.</div>
+          </div>
+
+          <div class="qr-tool-card" data-qr-mode="tailscaleKids">
+            <div>
+              <div class="qr-title">Tailscale Kid Safe QR</div>
+              <div class="qr-sub">Uses <code>tailscaleip.txt</code> + <code>/index.html?l</code>. Saves as <code>tailscale-kids-qr.png</code>.</div>
+            </div>
+            <div class="row">
+              <button type="button" data-qr-action="use-source">Use Tailscale IP</button>
+              <button type="button" class="secondary" data-qr-action="generate">Generate this QR</button>
+            </div>
+            <div class="field compact">
+              <label>Upload QR image</label>
+              <div class="dropzone" data-qr-role="dropzone" tabindex="0" role="button" aria-label="Drop or choose QR image">
+                <img class="dz-preview hidden" data-qr-role="dropPreview" alt="QR preview" />
+                <div class="dz-name">Drop PNG here</div>
+                <div class="dz-meta">Or click to choose a file.</div>
+                <input type="file" accept="image/*" data-qr-field="file" />
+              </div>
+            </div>
+            <div class="qr-preview">
+              <img data-qr-role="preview" alt="Tailscale Kid Safe QR preview" class="hidden" />
+              <div class="mini" data-qr-role="empty">No QR image yet.</div>
+            </div>
+            <div class="qr-status" data-qr-role="status">Waiting for QR.</div>
+          </div>
+        </div>
+
+        <iframe id="qrHelperFrame" class="qr-iframe" src="six-two-qr.html" title="QR helper" aria-hidden="true" tabindex="-1"></iframe>
+      </div>
+
+      <div data-flow-step="review" class="flow-stage">
+        <div class="section-title">Review and export</div>
+        <div class="flow-summary" id="summaryBox"></div>
+        <div class="section-title">Generated files and QR images and QR images</div>
+        <div class="review-grid" id="reviewGrid"></div>
+        <div class="small-actions" style="margin-top:14px;">
+          <button type="button" id="downloadAllBtn">Download all files</button>
+          <button type="button" class="secondary" id="updateServerBtn">Update Server</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="outputPanel">
+    <div class="head">
+      <h2>Output</h2>
+      <p>Switch between the generated files, copy the contents, or save them to the server.</p>
+    </div>
+    <div class="body">
+      <div class="output-tabs" id="outputTabs"></div>
+      <div class="field">
+        <label for="outputText">Generated content</label>
+        <textarea id="outputText" class="code-output" readonly></textarea>
+      </div>
+      <div class="row">
+        <button type="button" id="copyBtn" class="secondary">Copy</button>
+        <button type="button" id="downloadBtn">Download</button>
+        <button type="button" id="uploadBtn" class="secondary">Upload</button>
+      </div>
+      <div class="footer-note" id="outputStatus">Ready.</div>
+    </div>
+  </section>
+</main>
+
+<template id="profileTemplate">
+  <div class="item-card" data-profile-card>
+    <div class="item-head">
+      <div>
+        <div class="item-title">Profile</div>
+        <div class="item-sub">Fill the name, choose an image, and export the profile entry.</div>
+      </div>
+      <div class="row">
+        <button type="button" class="secondary" data-action="up">↑</button>
+        <button type="button" class="secondary" data-action="down">↓</button>
+        <button type="button" class="danger" data-action="remove">Remove</button>
+      </div>
+    </div>
+
+    <div class="profile-preview-row" style="margin-bottom:12px;">
+      <img class="profile-thumb" data-role="thumb" alt="Profile preview" />
+      <div>
+        <div class="mini" data-role="imageHint">Drop an image onto this card or choose a file.</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <label>Name</label>
+        <input type="text" data-field="name" placeholder="Guest" />
+        <div class="mini">Saves as <strong data-role="derivedPath"></strong></div>
+      </div>
+      <div class="field">
+        <label>Image file</label>
+        <div class="dropzone" data-role="dropzone" tabindex="0" role="button" aria-label="Drop or choose image">
+          <img class="dz-preview hidden" data-role="dropPreview" alt="Image preview" />
+          <div class="dz-name">Drop image here</div>
+          <div class="dz-meta">Or click to choose a file.</div>
+          <input type="file" accept="image/*" data-field="file" />
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+(() => {
+  const FLOW_PARAMS = new URLSearchParams(window.location.search || '');
+  const FLOW_MODE = FLOW_PARAMS.has('flow');
+  document.body.classList.toggle('flow-mode', FLOW_MODE);
+
+  const el = (id) => document.getElementById(id);
+  const flowSetupPanel = () => document.querySelector('main.app > section.panel:first-child');
+  const flowOutputPanel = () => document.getElementById('outputPanel');
+  function syncFlowPanels() {
+    if (!FLOW_MODE) return;
+    const setupPanel = flowSetupPanel();
+    if (setupPanel) setupPanel.hidden = true;
+    const outputPanel = flowOutputPanel();
+    if (outputPanel) outputPanel.hidden = state.flowStep !== 'review';
+  }
+  const state = {
+    flowStep: 'server',
+    serverTitle: '',
+    platform: 'windows',
+    serverIp: '',
+    tailscaleIp: '',
+    profiles: [blankProfile(0)],
+    qrHelperUrl: 'six-two-qr.html',
+    activeOutput: 'platform.txt',
+    draftKey: 'setupWizardDraft_v1',
+    qrTargets: {
+      regular: {
+        mode: 'regular',
+        source: 'server',
+        label: 'Original QR',
+        fileName: 'regular-qr.png',
+        url: '',
+        dataUrl: '',
+        file: null,
+        status: 'Waiting for QR'
+      },
+      kids: {
+        mode: 'kids',
+        source: 'server',
+        label: 'Kid Safe QR',
+        fileName: 'kids-qr.png',
+        url: '',
+        dataUrl: '',
+        file: null,
+        status: 'Waiting for QR'
+      },
+      tailscaleRegular: {
+        mode: 'tailscaleRegular',
+        source: 'tailscale',
+        label: 'Tailscale Original QR',
+        fileName: 'tailscale-regular-qr.png',
+        url: '',
+        dataUrl: '',
+        file: null,
+        status: 'Waiting for QR'
+      },
+      tailscaleKids: {
+        mode: 'tailscaleKids',
+        source: 'tailscale',
+        label: 'Tailscale Kid Safe QR',
+        fileName: 'tailscale-kids-qr.png',
+        url: '',
+        dataUrl: '',
+        file: null,
+        status: 'Waiting for QR'
+      }
+    }
+  };
+
+  const stepList = [
+    { key: 'server', label: '1', main: 'Server details', sub: 'platform and IP files.' },
+    { key: 'profiles', label: '2', main: 'Profiles', sub: 'Add names and images.' },
+    { key: 'qrs', label: '3', main: 'QR codes', sub: 'Generate or upload four QR images.' },
+    { key: 'review', label: '4', main: 'Update Server', sub: 'Upload everything at the end.' }
+  ];
+
+  function blankProfile(index) {
+    const name = index === 0 ? 'Guest' : `Profile ${index + 1}`;
+    return {
+      name,
+      imageFile: null,
+      imagePath: profileImagePathForName(name),
+      imagePreview: '',
+      imageName: '',
+      lastStatus: 'Waiting for image'
+    };
+  }
+
+  function slugify(str) {
+    return String(str ?? '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s-]/g, '')
+      .trim()
+      .replace(/[\s_-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
+  function profileImagePathForName(name) {
+    const cleanName = String(name || '').trim() || 'Guest';
+    return `./Profiles/${cleanName}.jpg`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function normalizeIpLike(value) {
+    return String(value ?? '').trim();
+  }
+
+  function setStatus(message, kind = '') {
+    const node = el('outputStatus');
+    if (!node) return;
+    node.textContent = message;
+    node.className = `footer-note${kind ? ' status ' + kind : ''}`;
+  }
+
+  function readStateFromUi() {
+    state.serverTitle = el('serverTitle').value.trim();
+    state.platform = el('platformSelect').value.trim() || 'windows';
+    state.serverIp = normalizeIpLike(el('serverIp').value);
+    state.tailscaleIp = normalizeIpLike(el('tailscaleIp').value);
+
+    const cards = Array.from(document.querySelectorAll('[data-profile-card]'));
+    cards.forEach((card, index) => {
+      const profile = state.profiles[index];
+      if (!profile) return;
+      const nameInput = card.querySelector('[data-field="name"]');
+      const name = String(nameInput?.value ?? profile.name ?? '');
+      profile.name = name;
+      profile.imagePath = profileImagePathForName(name);
+    });
+
+    state.profiles.forEach(profile => updateProfileDerived(profile));
+  }
+
+  function syncUiFromState() {
+    el('serverTitle').value = state.serverTitle;
+    el('platformSelect').value = state.platform;
+    el('serverIp').value = state.serverIp;
+    el('tailscaleIp').value = state.tailscaleIp;
+    el('profileCount').value = state.profiles.length;
+  }
+
+  function updateProfileDerived(profile) {
+    const cleanName = String(profile.name || '');
+    profile.imagePath = profileImagePathForName(cleanName);
+    if (!profile.imageName) {
+      profile.imageName = profile.imagePath.split('/').pop();
+    }
+  }
+
+  function syncProfileCardView(index) {
+    const profile = state.profiles[index];
+    if (!profile) return;
+    const card = document.querySelector(`[data-profile-card][data-profile-index="${index}"]`);
+    if (!card) return;
+
+    const thumb = card.querySelector('[data-role="thumb"]');
+    const imageHint = card.querySelector('[data-role="imageHint"]');
+    const derivedPathEl = card.querySelector('[data-role="derivedPath"]');
+    const dropPreview = card.querySelector('[data-role="dropPreview"]');
+    const nameInput = card.querySelector('[data-field="name"]');
+
+    if (nameInput && nameInput.value !== profile.name) nameInput.value = profile.name;
+    if (derivedPathEl) derivedPathEl.textContent = profile.imagePath || profileImagePathForName(profile.name);
+
+    const previewSrc = profile.imagePreview || profile.imagePath || '';
+    if (thumb) {
+      if (previewSrc) {
+        thumb.src = previewSrc;
+        thumb.alt = `${profile.name} preview`;
+      } else {
+        thumb.removeAttribute('src');
+        thumb.alt = 'Profile preview';
+      }
+    }
+
+    if (dropPreview) {
+      if (previewSrc) {
+        dropPreview.src = previewSrc;
+        dropPreview.classList.remove('hidden');
+      } else {
+        dropPreview.classList.add('hidden');
+        dropPreview.removeAttribute('src');
+      }
+    }
+
+    if (imageHint) {
+      imageHint.textContent = profile.imageFile
+        ? profile.imageFile.name
+        : (profile.imagePreview ? 'Using your dropped image preview.' : 'Preview from the server image.');
+    }
+  }
+
+  function renderStatusChips() {
+    readStateFromUi();
+    const chips = [];
+    chips.push({ text: `${state.profiles.length} profile${state.profiles.length === 1 ? '' : 's'}` });
+    chips.push({ text: state.serverTitle ? `Title set` : `Title empty` });
+    chips.push({ text: state.serverIp ? `LAN IP set` : `LAN IP empty` });
+    chips.push({ text: state.tailscaleIp ? `Tailscale set` : `Tailscale empty` });
+    chips.push({ text: `Flow: ${FLOW_MODE ? 'on' : 'off'}` });
+    const box = el('statusChips');
+    box.innerHTML = '';
+    chips.forEach(chip => {
+      const span = document.createElement('span');
+      span.className = 'chip';
+      span.textContent = chip.text;
+      box.appendChild(span);
+    });
+  }
+
+  function setFlowStep(stepKey) {
+    state.flowStep = stepKey;
+    document.body.classList.toggle('flow-output-visible', FLOW_MODE && state.flowStep === 'review');
+    syncFlowPanels();
+    document.querySelectorAll('[data-flow-step]').forEach(node => {
+      node.classList.toggle('flow-active', node.dataset.flowStep === state.flowStep);
+    });
+
+    document.querySelectorAll('.flow-stepchip').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.step === state.flowStep);
+    });
+
+    const idx = stepList.findIndex(s => s.key === state.flowStep);
+    const step = stepList[idx] || stepList[0];
+    const nextBtn = el('flowNextBtn');
+    const backBtn = el('flowBackBtn');
+    if (nextBtn) nextBtn.textContent = idx >= stepList.length - 1 ? 'Finish' : 'Next';
+    if (backBtn) backBtn.disabled = idx <= 0;
+    el('flowStepMain').textContent = step.main;
+    el('flowStepSub').textContent = step.sub;
+    el('flowStepKicker').textContent = FLOW_MODE ? 'Flow mode' : 'Editor mode';
+  }
+
+
+  function requestSetupClose() {
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'setup-close-request' }, '*');
+        setTimeout(() => {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'setup-finished' }, '*');
+          }
+        }, 50);
+        return;
+      }
+    } catch (e) {}
+
+    try { window.close(); } catch (e) {}
+  }
+
+  async function finishSetupFlow() {
+    try {
+      readStateFromUi();
+      renderReview();
+    } catch (e) {}
+
+    if (!state.serverIp) {
+      setStatus('Server IP is required before finishing.', 'bad');
+      return false;
+    }
+
+    try {
+      setStatus('Uploading setup files...', 'good');
+      const ok = await uploadAllFiles();
+      if (!ok) {
+        setStatus('Upload failed. Fix the server connection or endpoint, then try again.', 'bad');
+        return false;
+      }
+    } catch (e) {
+      console.warn('finishSetupFlow upload error', e);
+      setStatus(e?.message || 'Upload failed. Fix the server connection or endpoint, then try again.', 'bad');
+      return false;
+    }
+
+    setStatus('Setup uploaded. Closing setup overlay...', 'good');
+    requestSetupClose();
+    return true;
+  }
+
+  function renderFlowNav() {
+    const bar = el('flowStepBar');
+    bar.innerHTML = '';
+    stepList.forEach(step => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'flow-stepchip' + (step.key === state.flowStep ? ' active' : '');
+      btn.dataset.step = step.key;
+      btn.textContent = `${step.label}. ${step.main}`;
+      btn.addEventListener('click', () => setFlowStep(step.key));
+      bar.appendChild(btn);
+    });
+
+    el('flowBackBtn').addEventListener('click', () => {
+      const idx = stepList.findIndex(s => s.key === state.flowStep);
+      if (idx > 0) setFlowStep(stepList[idx - 1].key);
+    });
+
+    el('flowNextBtn').addEventListener('click', async () => {
+      const idx = stepList.findIndex(s => s.key === state.flowStep);
+      if (idx < stepList.length - 1) {
+        setFlowStep(stepList[idx + 1].key);
+        return;
+      }
+
+      await finishSetupFlow();
+    });
+
+    setFlowStep(state.flowStep);
+  }
+
+  function addProfile(initial = {}) {
+    const index = state.profiles.length;
+    const p = {
+      ...blankProfile(index),
+      ...initial
+    };
+    updateProfileDerived(p);
+    state.profiles.push(p);
+    renderProfiles();
+    saveDraft();
+    renderAllOutputs();
+  }
+
+  function removeProfile(index) {
+    state.profiles.splice(index, 1);
+    if (state.profiles.length === 0) state.profiles.push(blankProfile(0));
+    renderProfiles();
+    saveDraft();
+    renderAllOutputs();
+  }
+
+  function moveProfile(index, delta) {
+    const next = index + delta;
+    if (next < 0 || next >= state.profiles.length) return;
+    const copy = state.profiles.slice();
+    const tmp = copy[index];
+    copy[index] = copy[next];
+    copy[next] = tmp;
+    state.profiles = copy;
+    renderProfiles();
+    saveDraft();
+    renderAllOutputs();
+  }
+
+  function handleProfileNameChange(index, value) {
+    state.profiles[index].name = value;
+    updateProfileDerived(state.profiles[index]);
+    renderProfiles(false);
+    saveDraft();
+    renderAllOutputs();
+  }
+
+  function setProfileImageFromFile(index, file) {
+    const p = state.profiles[index];
+    if (!p || !file) return;
+
+    if (p.imagePreview && String(p.imagePreview).startsWith('blob:')) {
+      try { URL.revokeObjectURL(p.imagePreview); } catch (e) {}
+    }
+
+    p.imageFile = file;
+    p.imageName = file.name;
+    p.imagePath = profileImagePathForName(p.name);
+    p.imagePreview = '';
+
+    const finishPreview = (value) => {
+      p.imagePreview = value || '';
+      syncProfileCardView(index);
+      saveDraft();
+      renderAllOutputs();
+    };
+
+    try {
+      const blobUrl = URL.createObjectURL(file);
+      finishPreview(blobUrl);
+    } catch (e) {
+      const reader = new FileReader();
+      reader.onload = () => finishPreview(String(reader.result || ''));
+      reader.readAsDataURL(file);
+      return;
+    }
+  }
+
+  function renderProfiles(resetHandlers = true) {
+    const list = el('profilesList');
+    list.innerHTML = '';
+
+    state.profiles.forEach((profile, index) => {
+      updateProfileDerived(profile);
+      const template = el('profileTemplate');
+      const node = template.content.firstElementChild.cloneNode(true);
+      node.dataset.profileIndex = String(index);
+
+      const thumb = node.querySelector('[data-role="thumb"]');
+      const nameInput = node.querySelector('[data-field="name"]');
+      const fileInput = node.querySelector('[data-field="file"]');
+      const dropzone = node.querySelector('[data-role="dropzone"]');
+      const dropPreview = node.querySelector('[data-role="dropPreview"]');
+
+      nameInput.value = profile.name;
+      const derivedPathEl = node.querySelector('[data-role="derivedPath"]');
+      if (derivedPathEl) derivedPathEl.textContent = profile.imagePath || profileImagePathForName(profile.name);
+
+      const previewSrc = profile.imagePreview || profile.imagePath || '';
+      if (previewSrc) {
+        thumb.src = previewSrc;
+        thumb.alt = `${profile.name} preview`;
+        dropPreview.src = previewSrc;
+        dropPreview.classList.remove('hidden');
+      } else {
+        thumb.removeAttribute('src');
+        thumb.alt = 'Profile preview';
+        dropPreview.classList.add('hidden');
+        dropPreview.removeAttribute('src');
+      }
+
+      const imageHint = node.querySelector('[data-role="imageHint"]');
+      if (imageHint) {
+        imageHint.textContent = profile.imageFile
+          ? profile.imageFile.name
+          : (profile.imagePreview ? 'Using your dropped image preview.' : 'Preview from the server image.');
+      }
+
+      nameInput.addEventListener('input', (ev) => {
+        profile.name = ev.target.value;
+        updateProfileDerived(profile);
+        syncProfileCardView(index);
+        renderSummary();
+        renderOutputText();
+        renderReview();
+        saveDraft();
+      });
+
+      fileInput.addEventListener('change', (ev) => {
+        const file = ev.target.files && ev.target.files[0];
+        if (file) setProfileImageFromFile(index, file);
+      });
+
+      dropzone.addEventListener('click', () => fileInput.click());
+      dropzone.addEventListener('dragover', (ev) => {
+        ev.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+      dropzone.addEventListener('drop', (ev) => {
+        ev.preventDefault();
+        dropzone.classList.remove('dragover');
+        const file = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+        if (file) setProfileImageFromFile(index, file);
+      });
+      dropzone.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          fileInput.click();
+        }
+      });
+
+      node.querySelector('[data-action="remove"]').addEventListener('click', () => removeProfile(index));
+      node.querySelector('[data-action="up"]').addEventListener('click', () => moveProfile(index, -1));
+      node.querySelector('[data-action="down"]').addEventListener('click', () => moveProfile(index, 1));
+
+      list.appendChild(node);
+    });
+
+    el('profileCount').value = state.profiles.length;
+    renderStatusChips();
+  }
+
+  function generateProfilesJs() {
+    readStateFromUi();
+    const safeProfiles = state.profiles.map(profile => {
+      const cleanName = String(profile.name || 'Guest').trim() || 'Guest';
+      const cleanImage = profileImagePathForName(cleanName);
+      return {
+        name: cleanName,
+        image: cleanImage,
+        bgColors: []
+      };
+    });
+
+    const profilesJson = JSON.stringify(safeProfiles, null, 2);
+    const titleString = state.serverTitle ? String(state.serverTitle) : '';
+    return `/* Generated by setup.html */
+
+window.profiles = ${profilesJson};
+window._customServerTitle = ${JSON.stringify(titleString)};
+
+(function setServerTitle(){
+  const el = document.getElementById('siteTitle');
+  if (!el) return;
+  const img = el.querySelector('img');
+  const imgHtml = img ? img.outerHTML : '';
+  const safeTitle = (typeof window._customServerTitle === 'string' && window._customServerTitle.length)
+    ? window._customServerTitle
+    : '';
+  el.innerHTML = safeTitle + ' ' + imgHtml;
+  try { document.title = safeTitle; } catch(e){}
+})();
+`;
+  }
+
+  function generateOutputs() {
+    readStateFromUi();
+    return {
+      'platform.txt': `${state.platform}
+`,
+      'serverip.txt': `${state.serverIp}
+`,
+      'tailscaleip.txt': `${state.tailscaleIp}
+`,
+      'profiles.js': generateProfilesJs()
+    };
+  }
+
+  function getQrModeData(mode) {
+    return state.qrTargets[mode] || null;
+  }
+
+  function normalizeServerBase() {
+    const raw = String(state.serverIp || '').trim();
+    if (!raw) return '';
+    const clean = raw.replace(/\/+$/, '');
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(clean)) return clean;
+    return `http://${clean}`;
+  }
+
+  function getQrConfig(mode) {
+    const configs = {
+      regular: {
+        source: 'server',
+        label: 'Original QR',
+        description: 'Uses serverip.txt + /index.html?I',
+        fileName: 'regular-qr.png'
+      },
+      kids: {
+        source: 'server',
+        label: 'Kid Safe QR',
+        description: 'Uses serverip.txt + /index.html?l',
+        fileName: 'kids-qr.png'
+      },
+      tailscaleRegular: {
+        source: 'tailscale',
+        label: 'Tailscale Original QR',
+        description: 'Uses tailscaleip.txt + /index.html?I',
+        fileName: 'tailscale-regular-qr.png'
+      },
+      tailscaleKids: {
+        source: 'tailscale',
+        label: 'Tailscale Kid Safe QR',
+        description: 'Uses tailscaleip.txt + /index.html?l',
+        fileName: 'tailscale-kids-qr.png'
+      }
+    };
+    return configs[mode] || null;
+  }
+
+  function qrRouteSuffix(mode) {
+    return String(mode).toLowerCase().includes('kids') ? 'l' : 'I';
+  }
+
+  function normalizeHostBase(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const clean = raw.replace(/\/+$/, '');
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(clean)) return clean;
+    return `http://${clean}`;
+  }
+
+  function defaultQrUrl(mode) {
+    const config = getQrConfig(mode);
+    const base = config?.source === 'tailscale'
+      ? normalizeHostBase(state.tailscaleIp)
+      : normalizeHostBase(state.serverIp);
+    if (!base) return '';
+    return `${base}/index.html?${qrRouteSuffix(mode)}`;
+  }
+
+  function syncQrInputsFromState() {
+    document.querySelectorAll('[data-qr-mode]').forEach(card => {
+      const mode = card.dataset.qrMode;
+      const data = getQrModeData(mode);
+      if (!data) return;
+      const status = card.querySelector('[data-qr-role="status"]');
+      if (status) status.textContent = data.status || 'Waiting for QR.';
+      const preview = card.querySelector('[data-qr-role="preview"]');
+      const empty = card.querySelector('[data-qr-role="empty"]');
+      const src = data.dataUrl || '';
+      if (src) {
+        preview.classList.remove('hidden');
+        empty.classList.add('hidden');
+        preview.src = src;
+      } else {
+        preview.classList.add('hidden');
+        empty.classList.remove('hidden');
+        preview.removeAttribute('src');
+      }
+    });
+  }
+
+  async function svgElementToPngDataUrl(svgEl) {
+    const serializer = new XMLSerializer();
+    const svgText = serializer.serializeToString(svgEl);
+    const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = url;
+      });
+
+      const width = Math.max(1, img.naturalWidth || (svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.width) || 512);
+      const height = Math.max(1, img.naturalHeight || (svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.height) || width);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      return canvas.toDataURL('image/png');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    const match = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) throw new Error('Invalid data URL');
+    const mime = match[1];
+    const bin = atob(match[2]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+
+  function setQrStatus(mode, message, kind = '') {
+    const data = getQrModeData(mode);
+    if (!data) return;
+    data.status = message;
+    const card = document.querySelector(`[data-qr-mode="${mode}"]`);
+    if (!card) return;
+    const status = card.querySelector('[data-qr-role="status"]');
+    if (status) {
+      status.textContent = message;
+      status.className = `qr-status${kind ? ' ' + kind : ''}`;
+    }
+  }
+
+  function setQrUrl(mode, value) {
+    const data = getQrModeData(mode);
+    if (!data) return;
+    data.url = String(value || '').trim();
+  }
+
+  function setQrImageFromFile(mode, file) {
+    const data = getQrModeData(mode);
+    if (!data || !file) return;
+    data.file = file;
+    data.dataUrl = '';
+    const card = document.querySelector(`[data-qr-mode="${mode}"]`);
+    if (!card) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      data.dataUrl = String(reader.result || '');
+      setQrStatus(mode, `Loaded ${file.name}.`, 'good');
+      renderReview();
+      syncQrInputsFromState();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function captureQrFromHelper(mode) {
+    const data = getQrModeData(mode);
+    if (!data) return false;
+
+    const targetUrl = String(data.url || defaultQrUrl(mode)).trim();
+    if (!targetUrl) throw new Error('Set a server address first.');
+
+    const helperUrl = String(state.qrHelperUrl || 'six-two-qr.html').trim() || 'six-two-qr.html';
+    state.qrHelperUrl = helperUrl;
+
+    const iframe = el('qrHelperFrame');
+    if (!iframe) throw new Error('QR helper frame not found');
+
+    if ((iframe.getAttribute('src') || '') !== helperUrl) {
+      iframe.src = helperUrl;
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('QR helper did not load.')), 5000);
+        iframe.addEventListener('load', () => {
+          clearTimeout(timer);
+          resolve();
+        }, { once: true });
+      });
+    } else {
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+    const requestId = `qr-${mode}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const png = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        window.removeEventListener('message', onMsg);
+        reject(new Error('The QR helper did not return a snapshot.'));
+      }, 2500);
+
+      function onMsg(event) {
+        const msg = event.data || {};
+        if (!msg || typeof msg !== 'object') return;
+        if (msg.type !== 'six-two-qr:snapshot' || msg.requestId !== requestId) return;
+        clearTimeout(timer);
+        window.removeEventListener('message', onMsg);
+        if (msg.dataUrl) resolve(msg.dataUrl);
+        else reject(new Error('The QR helper returned an empty snapshot.'));
+      }
+
+      window.addEventListener('message', onMsg);
+      try {
+        const win = iframe.contentWindow;
+        if (!win) throw new Error('QR helper window is unavailable.');
+        win.postMessage({ type: 'six-two-qr:set-text', text: targetUrl }, '*');
+        setTimeout(() => {
+          try {
+            win.postMessage({ type: 'six-two-qr:export-png', requestId, filename: data.fileName }, '*');
+          } catch (e) {
+            clearTimeout(timer);
+            window.removeEventListener('message', onMsg);
+            reject(e);
+          }
+        }, 120);
+      } catch (e) {
+        clearTimeout(timer);
+        window.removeEventListener('message', onMsg);
+        reject(e);
+      }
+    });
+
+    if (!png) throw new Error('The QR helper did not render a QR code.');
+
+    data.dataUrl = png;
+    data.file = null;
+    setQrStatus(mode, `Generated ${data.fileName}.`, 'good');
+    syncQrInputsFromState();
+    renderReview();
+    return true;
+  }
+
+  async function generateBothQrs() {
+    try {
+      const modes = ['regular', 'kids', 'tailscaleRegular', 'tailscaleKids'];
+      for (const mode of modes) {
+        setQrUrl(mode, defaultQrUrl(mode));
+        setQrStatus(mode, 'Generating QR...');
+      }
+      for (const mode of modes) {
+        await captureQrFromHelper(mode);
+      }
+      saveDraft();
+      renderAllOutputs();
+      setStatus('All QR images are ready.', 'good');
+    } catch (e) {
+      console.warn('QR generation failed', e);
+      const message = e?.message || 'QR generation failed.';
+      for (const mode of ['regular', 'kids', 'tailscaleRegular', 'tailscaleKids']) {
+        setQrStatus(mode, message, 'bad');
+      }
+      setStatus(message, 'bad');
+    }
+  }
+
+  function downloadDataUrl(filename, dataUrl) {
+    if (!dataUrl) return false;
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    a.click();
+    return true;
+  }
+
+  function downloadQrAsset(mode) {
+    const data = getQrModeData(mode);
+    if (!data || (!data.dataUrl && !data.file)) {
+      setStatus(`No ${data?.fileName || mode} image to download.`, 'warn');
+      return;
+    }
+    const src = data.dataUrl || URL.createObjectURL(data.file);
+    downloadDataUrl(data.fileName, src);
+    setStatus(`Prepared ${data.fileName} for download.`, 'good');
+  }
+
+  async function uploadQrAsset(mode) {
+    const data = getQrModeData(mode);
+    if (!data) return;
+    let blob = null;
+    if (data.dataUrl) blob = dataUrlToBlob(data.dataUrl);
+    else if (data.file) blob = data.file;
+    if (!blob) {
+      setStatus(`No ${data.fileName} image to upload.`, 'warn');
+      return;
+    }
+    const ok = await uploadFileToServer(blob, `/Images/${data.fileName}`);
+    setStatus(ok ? `Uploaded ${data.fileName}.` : `Upload failed for ${data.fileName}.`, ok ? 'good' : 'bad');
+  }
+
+  function buildSummaryLines() {
+    readStateFromUi();
+    return [
+      ['Server title', state.serverTitle || 'Not set'],
+      ['Platform', state.platform || 'Not set'],
+      ['Server IP', state.serverIp || 'Not set'],
+      ['Tailscale IP', state.tailscaleIp || 'Not set'],
+      ['Profiles', `${state.profiles.length}`],
+      ['Server Original QR', (state.qrTargets.regular.dataUrl || state.qrTargets.regular.file) ? 'Ready' : 'Not ready'],
+      ['Server Kid Safe QR', (state.qrTargets.kids.dataUrl || state.qrTargets.kids.file) ? 'Ready' : 'Not ready'],
+      ['Tailscale Original QR', (state.qrTargets.tailscaleRegular.dataUrl || state.qrTargets.tailscaleRegular.file) ? 'Ready' : 'Not ready'],
+      ['Tailscale Kid Safe QR', (state.qrTargets.tailscaleKids.dataUrl || state.qrTargets.tailscaleKids.file) ? 'Ready' : 'Not ready']
+    ];
+  }
+
+  function renderSummary() {
+
+    const box = el('summaryBox');
+    box.innerHTML = '';
+    buildSummaryLines().forEach(([label, value]) => {
+      const row = document.createElement('div');
+      row.className = 'summary-line';
+      row.innerHTML = `<span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span>`;
+      box.appendChild(row);
+    });
+  }
+
+  function renderReview() {
+    const outputs = generateOutputs();
+    const grid = el('reviewGrid');
+    grid.innerHTML = '';
+
+    const order = ['platform.txt', 'serverip.txt', 'tailscaleip.txt', 'profiles.js'];
+    order.forEach(filename => {
+      const content = outputs[filename];
+      const card = document.createElement('div');
+      card.className = 'review-card';
+      card.innerHTML = `
+        <div class="review-head">
+          <div class="review-title">${escapeHtml(filename)}</div>
+          <div class="review-path">${escapeHtml(filename)}</div>
+        </div>
+        <div class="mini">${filename === 'profiles.js' ? 'Contains the profile list and server title.' : 'Plain text file.'}</div>
+        <div class="small-actions">
+          <button type="button" data-file="${escapeHtml(filename)}" data-action="download">Download</button>
+          <button type="button" class="secondary" data-file="${escapeHtml(filename)}" data-action="upload">Upload</button>
+        </div>
+      `;
+      card.querySelector('[data-action="download"]').addEventListener('click', () => downloadText(filename, content));
+      card.querySelector('[data-action="upload"]').addEventListener('click', () => uploadGeneratedFile(filename, content));
+      grid.appendChild(card);
+    });
+
+    [
+      ['regular', 'Original QR', 'regular-qr.png'],
+      ['kids', 'Kid Safe QR', 'kids-qr.png'],
+      ['tailscaleRegular', 'Tailscale Original QR', 'tailscale-regular-qr.png'],
+      ['tailscaleKids', 'Tailscale Kid Safe QR', 'tailscale-kids-qr.png']
+    ].forEach(([mode, title, filename]) => {
+      const data = getQrModeData(mode);
+      const config = getQrConfig(mode);
+      const card = document.createElement('div');
+      card.className = 'review-card';
+      const hasImage = !!(data && (data.dataUrl || data.file));
+      card.innerHTML = `
+        <div class="review-head">
+          <div class="review-title">${escapeHtml(filename)}</div>
+          <div class="review-path">${escapeHtml(config?.description || defaultQrUrl(mode) || '')}</div>
+        </div>
+        <div class="mini">${escapeHtml(title)} image for the player.</div>
+        <div class="qr-preview" style="min-height:180px; margin:10px 0;">
+          ${hasImage ? `<img src="${escapeHtml(data.dataUrl)}" alt="${escapeHtml(title)}">` : '<div class="mini">No image ready yet.</div>'}
+        </div>
+        <div class="small-actions">
+          <button type="button" data-file="${escapeHtml(filename)}" data-action="download">Download</button>
+          <button type="button" class="secondary" data-file="${escapeHtml(filename)}" data-action="upload">Upload</button>
+        </div>
+      `;
+      card.querySelector('[data-action="download"]').addEventListener('click', () => downloadQrAsset(mode));
+      card.querySelector('[data-action="upload"]').addEventListener('click', () => uploadQrAsset(mode));
+      grid.appendChild(card);
+    });
+  }
+
+  function renderOutputTabs() {
+
+
+    const tabs = el('outputTabs');
+    tabs.innerHTML = '';
+    const files = Object.keys(generateOutputs());
+    files.forEach(file => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = file;
+      btn.className = file === state.activeOutput ? 'active' : 'secondary';
+      btn.addEventListener('click', () => {
+        state.activeOutput = file;
+        renderOutputTabs();
+        renderOutputText();
+      });
+      tabs.appendChild(btn);
+    });
+  }
+
+  function renderOutputText() {
+    const outputs = generateOutputs();
+    el('outputText').value = outputs[state.activeOutput] || '';
+  }
+
+  function renderAllOutputs() {
+    syncQrInputsFromState();
+    renderSummary();
+    renderReview();
+    renderOutputTabs();
+    renderOutputText();
+  }
+
+  function downloadText(filename, text) {
+    const blob = new Blob([text], { type: filename.endsWith('.js') ? 'application/javascript' : 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setStatus(`Prepared ${filename} for download.`, 'good');
+  }
+
+  async function uploadTextToServer(targetPath, text) {
+    const blob = new Blob([text], { type: targetPath.endsWith('.js') ? 'application/javascript' : 'text/plain' });
+
+    try {
+      const form = new FormData();
+      form.append('files[]', blob, targetPath.split('/').pop());
+      const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form });
+      if (r && r.ok) return true;
+    } catch (e) {}
+
+    try {
+      const r2 = await fetch(encodeURI(targetPath + `?_=${Date.now()}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': blob.type },
+        body: text,
+        credentials: 'include'
+      });
+      if (r2 && r2.ok) return true;
+    } catch (e) {}
+
+    return false;
+  }
+
+  async function uploadFileToServer(file, targetPath) {
+    try {
+      const form = new FormData();
+      form.append('files[]', file, targetPath.split('/').pop());
+      const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form });
+      if (r && r.ok) return true;
+    } catch (e) {}
+    try {
+      const r2 = await fetch(targetPath + `?_=${Date.now()}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: file,
+        credentials: 'include'
+      });
+      if (r2 && r2.ok) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  async function uploadGeneratedFile(filename, content) {
+    const ok = await uploadTextToServer(`/${filename}`, content);
+    setStatus(ok ? `Uploaded ${filename}.` : `Upload failed for ${filename}.`, ok ? 'good' : 'bad');
+  }
+
+  async function uploadAllFiles() {
+    readStateFromUi();
+    const outputs = generateOutputs();
+    const items = [
+      ['platform.txt', `/platform.txt`],
+      ['serverip.txt', `/serverip.txt`],
+      ['tailscaleip.txt', `/tailscaleip.txt`],
+      ['profiles.js', `/profiles.js`]
+    ];
+
+    for (const [filename, target] of items) {
+      setStatus(`Uploading ${filename}...`);
+      const ok = await uploadTextToServer(target, outputs[filename]);
+      if (!ok) {
+        setStatus(`Upload failed for ${filename}.`, 'bad');
+        return false;
+      }
+    }
+
+    for (const profile of state.profiles) {
+      if (profile.imageFile) {
+        const targetPath = `/Profiles/${String(profile.name || 'Guest').trim() || 'Guest'}.jpg`;
+        setStatus(`Uploading ${targetPath}...`);
+        const ok = await uploadFileToServer(profile.imageFile, targetPath);
+        if (!ok) {
+          setStatus(`Image upload failed for ${profile.name}.`, 'bad');
+          return false;
+        }
+      }
+    }
+
+    for (const mode of Object.keys(state.qrTargets)) {
+      const data = getQrModeData(mode);
+      const blob = data?.dataUrl ? dataUrlToBlob(data.dataUrl) : data?.file || null;
+      if (blob) {
+        const fileName = data.fileName;
+        setStatus(`Uploading /Images/${fileName}...`);
+        const ok = await uploadFileToServer(blob, `/Images/${fileName}`);
+        if (!ok) {
+          setStatus(`QR upload failed for ${fileName}.`, 'bad');
+          return false;
+        }
+      }
+    }
+
+    setStatus('Server updated with all files and QR images.', 'good');
+    return true;
+  }
+
+  function saveDraft() {
+    readStateFromUi();
+    const payload = {
+      serverTitle: state.serverTitle,
+      platform: state.platform,
+      serverIp: state.serverIp,
+      tailscaleIp: state.tailscaleIp,
+      profiles: state.profiles.map(p => ({
+        name: p.name,
+        imagePath: p.imagePath,
+        imageName: p.imageName
+      })),
+      qrTargets: Object.fromEntries(Object.entries(state.qrTargets).map(([mode, data]) => [mode, {
+        url: data.url,
+        dataUrl: data.dataUrl,
+        fileName: data.fileName
+      }]))
+    };
+    try {
+      localStorage.setItem(state.draftKey, JSON.stringify(payload));
+      setStatus('Draft saved locally.', 'good');
+    } catch (e) {
+      setStatus('Could not save draft locally.', 'bad');
+    }
+  }
+
+  function loadDraft() {
+    try {
+      const raw = localStorage.getItem(state.draftKey);
+      if (!raw) {
+        setStatus('No saved draft found.', 'warn');
+        return;
+      }
+      const data = JSON.parse(raw);
+      state.serverTitle = data.serverTitle || '';
+      state.platform = data.platform || 'windows';
+      state.serverIp = data.serverIp || '';
+      state.tailscaleIp = data.tailscaleIp || '';
+      state.profiles = Array.isArray(data.profiles) && data.profiles.length
+        ? data.profiles.map((p, i) => ({
+            name: p.name || `Profile ${i + 1}`,
+            imageFile: null,
+            imagePath: profileImagePathForName(p.name || `Profile ${i + 1}`),
+            imagePreview: '',
+            imageName: p.imageName || '',
+            lastStatus: 'Loaded draft'
+          }))
+        : [blankProfile(0)];
+
+      if (data.qrTargets) {
+        for (const [mode, info] of Object.entries(data.qrTargets)) {
+          if (state.qrTargets[mode]) {
+            state.qrTargets[mode].url = info.url || '';
+            state.qrTargets[mode].dataUrl = info.dataUrl || '';
+          }
+        }
+      }
+
+      syncUiFromState();
+      syncQrInputsFromState();
+      renderProfiles();
+      renderAllOutputs();
+      setStatus('Draft loaded.', 'good');
+    } catch (e) {
+      setStatus('Could not load draft.', 'bad');
+    }
+  }
+
+  function resetAll() {
+    state.serverTitle = '';
+    state.platform = 'windows';
+    state.serverIp = '';
+    state.tailscaleIp = '';
+    state.profiles = [blankProfile(0)];
+    for (const mode of Object.keys(state.qrTargets)) {
+      state.qrTargets[mode].url = defaultQrUrl(mode);
+      state.qrTargets[mode].dataUrl = '';
+      state.qrTargets[mode].file = null;
+    }
+    syncUiFromState();
+    syncQrInputsFromState();
+    renderProfiles();
+    renderAllOutputs();
+    setStatus('Reset complete.', 'warn');
+  }
+
+  function setCount(count) {
+
+    count = Math.max(1, Math.min(50, Number(count) || 1));
+    while (state.profiles.length < count) state.profiles.push(blankProfile(state.profiles.length));
+    while (state.profiles.length > count) state.profiles.pop();
+    renderProfiles();
+    renderAllOutputs();
+    saveDraft();
+  }
+
+  function wireTopInputs() {
+    ['serverTitle','platformSelect','serverIp','tailscaleIp'].forEach(id => {
+      el(id).addEventListener('input', () => {
+        renderStatusChips();
+        renderSummary();
+        renderOutputText();
+        renderReview();
+        if (id === 'serverIp' || id === 'tailscaleIp') {
+          for (const mode of Object.keys(state.qrTargets)) {
+            setQrUrl(mode, defaultQrUrl(mode));
+          }
+          syncQrInputsFromState();
+        }
+      });
+      el(id).addEventListener('change', () => {
+        saveDraft();
+        renderAllOutputs();
+      });
+    });
+
+    document.querySelectorAll('[data-qr-mode]').forEach(card => {
+      const mode = card.dataset.qrMode;
+      const fileInput = card.querySelector('[data-qr-field="file"]');
+      const dropzone = card.querySelector('[data-qr-role="dropzone"]');
+      const useBtn = card.querySelector('[data-qr-action="use-source"]');
+      const generateBtn = card.querySelector('[data-qr-action="generate"]');
+
+      fileInput?.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) setQrImageFromFile(mode, file);
+        saveDraft();
+      });
+
+      dropzone?.addEventListener('click', () => fileInput?.click());
+      dropzone?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          fileInput?.click();
+        }
+      });
+      dropzone?.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+      dropzone?.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+      dropzone?.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const file = e.dataTransfer?.files?.[0];
+        if (file) setQrImageFromFile(mode, file);
+        saveDraft();
+      });
+
+      useBtn?.addEventListener('click', () => {
+        const url = defaultQrUrl(mode);
+        setQrUrl(mode, url);
+        saveDraft();
+        renderReview();
+        setStatus(`Filled ${getQrConfig(mode)?.label || mode} from its source address.`, 'good');
+      });
+
+      generateBtn?.addEventListener('click', async () => {
+        try {
+          setQrUrl(mode, state.qrTargets[mode].url || defaultQrUrl(mode));
+          setQrStatus(mode, 'Generating via the hidden helper...');
+          await captureQrFromHelper(mode);
+          saveDraft();
+          renderAllOutputs();
+        } catch (e) {
+          console.warn('QR generation failed', e);
+          setQrStatus(mode, e?.message || 'QR generation failed.', 'bad');
+          setStatus(e?.message || 'QR generation failed.', 'bad');
+        }
+      });
+    });
+
+    el('generateAllQrBtn')?.addEventListener('click', generateBothQrs);
+    el('fillAllQrUrlsBtn')?.addEventListener('click', () => {
+      for (const mode of Object.keys(state.qrTargets)) {
+        setQrUrl(mode, defaultQrUrl(mode));
+      }
+      saveDraft();
+      renderReview();
+      setStatus('Filled all QR URLs from the current addresses.', 'good');
+    });
+  }
+
+  el('addProfileBtn').addEventListener('click', () => addProfile());
+
+  el('resetBtn').addEventListener('click', resetAll);
+  el('saveDraftBtn').addEventListener('click', saveDraft);
+  el('loadDraftBtn').addEventListener('click', loadDraft);
+  el('setCountBtn').addEventListener('click', () => setCount(el('profileCount').value));
+  el('downloadAllBtn').addEventListener('click', () => {
+    const outputs = generateOutputs();
+    Object.entries(outputs).forEach(([name, content]) => downloadText(name, content));
+    setStatus('All files prepared for download.', 'good');
+  });
+  el('updateServerBtn').addEventListener('click', async () => {
+    if (FLOW_MODE) {
+      await finishSetupFlow();
+      return;
+    }
+    const ok = await uploadAllFiles();
+    setStatus(ok ? 'Server updated with all files and QR images.' : 'Upload failed. Fix the server connection or endpoint, then try again.', ok ? 'good' : 'bad');
+  });
+  el('copyBtn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(el('outputText').value || '');
+      setStatus('Copied to clipboard.', 'good');
+    } catch (e) {
+      setStatus('Copy failed.', 'bad');
+    }
+  });
+  el('downloadBtn').addEventListener('click', () => downloadText(state.activeOutput, el('outputText').value || ''));
+  el('uploadBtn').addEventListener('click', () => uploadGeneratedFile(state.activeOutput, el('outputText').value || ''));
+
+  wireTopInputs();
+  syncUiFromState();
+  renderProfiles();
+  renderAllOutputs();
+  syncFlowPanels();
+  renderFlowNav();
+  renderStatusChips();
+  renderSummary();
+  renderReview();
+
+  const saved = localStorage.getItem(state.draftKey);
+  if (saved) {
+    try { loadDraft(); } catch (e) {}
+  } else {
+    setFlowStep(state.flowStep);
+  }
+
+  setInterval(() => {
+    renderOutputText();
+    renderSummary();
+  }, 1500);
+})();
+</script>
+</body>
+</html>

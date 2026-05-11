@@ -1,0 +1,2327 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📚 Library Manager</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #111827;
+      --panel2: #0f172a;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --line: #253046;
+      --accent: #6ee7b7;
+      --accent2: #60a5fa;
+      --warn: #f59e0b;
+      --danger: #fb7185;
+      --ok: #34d399;
+      --chip: #1f2937;
+      --radius: 16px;
+      --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: radial-gradient(1000px 500px at 20% 0%, rgba(96,165,250,.08), transparent 55%),
+                  radial-gradient(1000px 500px at 80% 10%, rgba(110,231,183,.08), transparent 50%),
+                  var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1600px; margin: 0 auto; }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 24px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 4px; }
+    .title-line { display: inline-flex; align-items: center; gap: 10px; }
+    .title-switcher { transform: translateY(-1px); }
+    .title-switcher:hover { transform: translateY(-1px) scale(1.06); }
+    .sub { color: var(--muted); font-size: 14px; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .btn {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 40px;
+      font-weight: 500;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary { background: linear-gradient(145deg, rgba(110,231,183,0.12), rgba(110,231,183,0.04)); border-color: rgba(110,231,183,0.45); }
+    .btn-warn { background: linear-gradient(145deg, rgba(245,158,11,0.1), rgba(245,158,11,0.02)); border-color: rgba(245,158,11,0.4); }
+    .btn-small { padding: 4px 10px; font-size: 11px; }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.2); }
+    .btn:disabled { opacity: 0.5; pointer-events: none; transform: none; }
+    .stats-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 22px;
+      flex: 1 1 180px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .stat-card.clickable:hover {
+      background: rgba(255,255,255,0.03);
+      border-color: var(--accent2);
+    }
+    .stat-label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .stat-value { font-size: 36px; font-weight: 700; line-height: 1.2; }
+    .progress-container {
+      margin: 20px 0 16px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 40px;
+      height: 10px;
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      transition: width 0.2s;
+    }
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      margin: 16px 0 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 250px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 12px 18px;
+      border-radius: 40px;
+      font-size: 15px;
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(96,165,250,0.2); }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--chip);
+      border: 1px solid var(--line);
+    }
+    .badge.ok { background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.5); color: var(--ok); }
+    .badge.warn { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.5); color: var(--warn); }
+    .badge.danger { background: rgba(251,113,133,0.15); border-color: rgba(251,113,133,0.5); color: var(--danger); }
+    .badge.muted { color: var(--muted); }
+    .tree-container {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 8px 0;
+      max-height: calc(100vh - 380px);
+      overflow-y: auto;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    .tree { padding: 0 8px; }
+    .node { user-select: none; }
+    .node-header {
+      display: flex;
+      align-items: center;
+      padding: 8px 8px 8px 4px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .node-header:hover { background: rgba(255,255,255,0.04); }
+    .toggle {
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .node-icon { width: 24px; margin-right: 4px; opacity: 0.7; }
+    .node-title { font-weight: 500; margin-right: 12px; }
+    .node-actions { display: flex; gap: 4px; margin-left: 8px; }
+    .node-stats { display: flex; gap: 8px; margin-left: auto; font-size: 12px; }
+    .children { margin-left: 28px; border-left: 1px dashed var(--line); padding-left: 8px; }
+    .episode-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 8px 8px 8px 32px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .episode-row:hover { background: rgba(255,255,255,0.02); }
+    .ep-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .ep-file-name {
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .ep-episode-title {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .ep-status {
+      display: flex;
+      gap: 16px;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    .ep-actions {
+      display: flex;
+      gap: 4px;
+      margin-left: 8px;
+      flex-shrink: 0;
+    }
+    .path-preview {
+      display: none;
+    }
+    .empty-message { padding: 40px; text-align: center; color: var(--muted); }
+    .footnote { margin-top: 12px; font-size: 13px; color: var(--muted); }
+    .flex { display: flex; gap: 8px; align-items: center; }
+    .divider { width: 1px; height: 24px; background: var(--line); margin: 0 8px; }
+
+
+    .library-switcher {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      margin-left: 2px;
+    }
+    .library-hub {
+      position: relative;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      line-height: 1;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      z-index: 2;
+      box-shadow: none;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    }
+    .library-hub:hover { filter: brightness(1.12); transform: scale(1.06); }
+    .library-wheel {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .library-wheel.open { pointer-events: auto; }
+    .library-wheel-btn {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.28);
+      opacity: 0;
+      transform: scale(0.6);
+      transition: transform 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
+      cursor: pointer;
+    }
+    .library-wheel.open .library-wheel-btn { opacity: 1; transform: scale(1); }
+    .library-wheel-btn:hover { filter: brightness(1.15); }
+    .library-wheel-btn[data-pos="nw"] { left: 50%; top: 50%; transform: translate(-50%, -50%) translate(-38px, -38px) scale(0.6); }
+    .library-wheel-btn[data-pos="ne"] { left: 50%; top: 50%; transform: translate(-50%, -50%) translate(38px, -38px) scale(0.6); }
+    .library-wheel-btn[data-pos="se"] { left: 50%; top: 50%; transform: translate(-50%, -50%) translate(38px, 38px) scale(0.6); }
+    .library-wheel-btn[data-pos="sw"] { left: 50%; top: 50%; transform: translate(-50%, -50%) translate(-38px, 38px) scale(0.6); }
+    .library-wheel.open .library-wheel-btn[data-pos="nw"] { transform: translate(-50%, -50%) translate(-38px, -38px) scale(1); }
+    .library-wheel.open .library-wheel-btn[data-pos="ne"] { transform: translate(-50%, -50%) translate(38px, -38px) scale(1); }
+    .library-wheel.open .library-wheel-btn[data-pos="se"] { transform: translate(-50%, -50%) translate(38px, 38px) scale(1); }
+    .library-wheel.open .library-wheel-btn[data-pos="sw"] { transform: translate(-50%, -50%) translate(-38px, 38px) scale(1); }
+    .library-wheel-btn.active {
+      border-color: rgba(96,165,250,0.6);
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.16), 0 8px 18px rgba(0,0,0,0.28);
+    }
+    .stat-card.hidden,
+    .btn.hidden,
+    .footnote.hidden { display: none !important; }
+
+
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      max-width: 700px;
+      width: 90%;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-header h3 { font-size: 18px; font-weight: 600; }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 8px;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body {
+      padding: 16px 22px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .missing-group {
+      margin-bottom: 20px;
+    }
+    .missing-group-title {
+      font-weight: 600;
+      color: var(--accent2);
+      margin-bottom: 8px;
+      font-size: 15px;
+      border-bottom: 1px dashed var(--line);
+      padding-bottom: 4px;
+    }
+    .missing-file-list {
+      list-style: none;
+      padding-left: 8px;
+    }
+    .missing-file-list li {
+      padding: 6px 0;
+      font-family: 'SF Mono', monospace;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      word-break: break-all;
+    }
+
+    .repair-modal {
+      max-width: 1100px;
+      width: 96%;
+    }
+    .repair-frame {
+      width: 100%;
+      height: min(78vh, 920px);
+      border: 0;
+      display: block;
+      background: var(--panel);
+    }
+    .repair-note {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 10px 22px 14px;
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,0.01);
+    }
+    .add-modal {
+      max-width: 1180px;
+      width: 96%;
+    }
+    .add-frame {
+      width: 100%;
+      height: min(78vh, 920px);
+      border: 0;
+      display: block;
+      background: var(--panel);
+    }
+    .add-note {
+      white-space: normal;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <div class="title-line">
+        <div class="library-switcher" id="librarySwitcher">
+          <button class="library-hub" id="libraryHub" aria-label="Switch library" title="Switch library">📺</button>
+          <div class="library-wheel" id="libraryWheel" aria-hidden="true">
+            <button class="library-wheel-btn" data-library="video" data-pos="nw" title="Video">📺</button>
+            <button class="library-wheel-btn" data-library="music" data-pos="ne" title="Music">🎵</button>
+            <button class="library-wheel-btn" data-library="games" data-pos="se" title="Games">🎮</button>
+            <button class="library-wheel-btn" data-library="books" data-pos="sw" title="Books & Manga">📚</button>
+          </div>
+        </div>
+        <h1 id="libraryTitleText">Library Manager</h1>
+      </div>
+      <div class="sub" id="headerSubtitle">Video • Music • Games • Books & Manga • Pausable scans</div>
+    </div>
+    <div class="controls">
+
+      <button class="btn btn-primary hidden" id="nestCollectionBtn">Nest Collection</button>
+      <button class="btn btn-primary hidden" id="addContentBtn">➕ Add content</button>
+      <button class="btn" id="reloadBtn">🔄 Reload</button>
+      <div class="divider"></div>
+      <button class="btn btn-primary" id="scanAllVideosBtn">🎥 Scan all videos</button>
+      <button class="btn btn-warn" id="scanAllSubsBtn">📝 Scan all subs</button>
+      <div class="divider"></div>
+      <button class="btn" id="pauseResumeBtn" disabled>⏸️ Pause</button>
+      <button class="btn" id="stopScanBtn" disabled>⏹️ Stop</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total episodes</div>
+      <div class="stat-value" id="totalEpisodes">—</div>
+    </div>
+    <div class="stat-card clickable" id="missingVideosCard">
+      <div class="stat-label">Videos missing</div>
+      <div class="stat-value" id="missingVideos" style="color: var(--danger);">—</div>
+    </div>
+    <div class="stat-card clickable" id="missingSubsCard">
+      <div class="stat-label">Subtitles missing</div>
+      <div class="stat-value" id="missingSubtitles" style="color: var(--warn);">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Scanned / Total</div>
+      <div class="stat-value" id="scanProgress">0 / 0</div>
+    </div>
+  </div>
+
+  <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+  <div id="statusMessage" class="footnote" style="margin-bottom: 8px;">Ready. Load library and start scanning.</div>
+
+  <div class="toolbar">
+    <input type="text" id="searchInput" class="search-input" placeholder="🔎 Filter by show, season, or filename…" />
+    <button class="btn" id="expandAllBtn">📂 Expand all</button>
+    <button class="btn" id="collapseAllBtn">📁 Collapse all</button>
+    <span class="badge muted" id="visibleCount">—</span>
+  </div>
+
+  <div class="tree-container">
+    <div class="tree" id="tree"></div>
+  </div>
+  <div class="footnote">* Subtitle check replaces .mp4 with .vtt (same path)</div>
+</div>
+
+<!-- Modal for Manager list -->
+<div id="missingModal" class="modal-overlay" style="display: none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Manager</h3>
+      <button class="modal-close" id="closeModalBtn">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <!-- dynamic content -->
+    </div>
+  </div>
+</div>
+
+<!-- Modal for ffmpeg repair -->
+<div id="repairModal" class="modal-overlay" style="display: none;">
+  <div class="modal repair-modal">
+    <div class="modal-header">
+      <h3 id="repairModalTitle">Repair File</h3>
+      <button class="modal-close" id="closeRepairModalBtn">&times;</button>
+    </div>
+    <iframe id="repairFrame" class="repair-frame" src="about:blank" title="ffmpeg repair"></iframe>
+    <div class="repair-note">This opens the ffmpeg repair page for the selected episode and uploads the repaired output back to the same server path.</div>
+  </div>
+</div>
+
+
+<!-- Modal for add-content flow -->
+<div id="addContentModal" class="modal-overlay" style="display: none;">
+  <div class="modal add-modal">
+    <div class="modal-header">
+      <h3 id="addContentModalTitle">Add Content</h3>
+      <button class="modal-close" id="closeAddContentModalBtn">&times;</button>
+    </div>
+    <iframe id="addContentFrame" class="add-frame" src="about:blank" title="content flow"></iframe>
+    <div class="repair-note add-note">This opens the selected library in flow mode inside an iframe so you can add content without leaving the manager.</div>
+  </div>
+</div>
+
+
+
+<script>
+(function(){
+  const els = {
+    total: document.getElementById('totalEpisodes'),
+    missingPrimary: document.getElementById('missingVideos'),
+    missingSecondary: document.getElementById('missingSubtitles'),
+    progress: document.getElementById('scanProgress'),
+    progressBar: document.getElementById('progressBar'),
+    status: document.getElementById('statusMessage'),
+    search: document.getElementById('searchInput'),
+    tree: document.getElementById('tree'),
+    visibleCount: document.getElementById('visibleCount'),
+    nestCollectionBtn: document.getElementById('nestCollectionBtn'),
+    addContentBtn: document.getElementById('addContentBtn'),
+    reloadBtn: document.getElementById('reloadBtn'),
+    scanPrimaryBtn: document.getElementById('scanAllVideosBtn'),
+    scanSecondaryBtn: document.getElementById('scanAllSubsBtn'),
+    pauseBtn: document.getElementById('pauseResumeBtn'),
+    stopBtn: document.getElementById('stopScanBtn'),
+    expandAllBtn: document.getElementById('expandAllBtn'),
+    collapseAllBtn: document.getElementById('collapseAllBtn'),
+    missingModal: document.getElementById('missingModal'),
+    modalTitle: document.getElementById('modalTitle'),
+    modalBody: document.getElementById('modalBody'),
+    closeModalBtn: document.getElementById('closeModalBtn'),
+    missingPrimaryCard: document.getElementById('missingVideosCard'),
+    missingSecondaryCard: document.getElementById('missingSubsCard'),
+    repairModal: document.getElementById('repairModal'),
+    repairModalTitle: document.getElementById('repairModalTitle'),
+    repairFrame: document.getElementById('repairFrame'),
+    closeRepairModalBtn: document.getElementById('closeRepairModalBtn'),
+    addContentModal: document.getElementById('addContentModal'),
+    addContentModalTitle: document.getElementById('addContentModalTitle'),
+    addContentFrame: document.getElementById('addContentFrame'),
+    closeAddContentModalBtn: document.getElementById('closeAddContentModalBtn'),
+    headerTitleText: document.getElementById('libraryTitleText'),
+    headerSubtitle: document.getElementById('headerSubtitle'),
+    libraryHub: document.getElementById('libraryHub'),
+    libraryWheel: document.getElementById('libraryWheel'),
+    librarySwitcher: document.getElementById('librarySwitcher'),
+    footnote: document.querySelector('.footnote')
+  };
+
+  const STATUS = {
+    UNCHECKED: 'unchecked',
+    CHECKING: 'checking',
+    EXISTS: 'exists',
+    MISSING: 'missing',
+    ERROR: 'error',
+    NA: 'na'
+  };
+
+  const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+  const AUDIO_EXTS = ['.mp3', '.flac', '.m4a', '.wav', '.ogg', '.opus', '.aac', '.wma'];
+  const VIDEO_EXTS = ['.mp4', '.mkv', '.mov', '.webm', '.m4v', '.avi', '.bin', '.iso', '.chd', '.pbp'];
+  const SUB_EXTS = ['.vtt', '.srt', '.sub', '.txt'];
+  const BOOK_FILE_EXTS = ['.pdf', '.epub', '.cbz', '.cbr', '.mobi', '.azw', '.azw3', '.txt', '.md', '.zip'];
+
+
+  const LIBRARIES = {
+    video: {
+      key: 'video',
+      label: 'Video',
+      icon: '📺',
+      file: './library.js',
+      primaryLabel: 'Videos',
+      secondaryLabel: 'Subtitles',
+      primaryVerb: 'video',
+      secondaryVerb: 'subtitle',
+      primaryButton: '🎥 Scan all videos',
+      secondaryButton: '📝 Scan all subs',
+      footnote: '* Subtitle check uses the matching .vtt path by default.',
+      showRepair: true,
+      flowPage: './lib.html',
+      flowQuery: 'flow=1',
+      addButtonLabel: '➕ Add video',
+      loadData: loadVideoData,
+      build: buildVideoLibrary
+    },
+    music: {
+      key: 'music',
+      label: 'Music',
+      icon: '🎵',
+      file: './musiclibrary.js',
+      primaryLabel: 'Tracks',
+      secondaryLabel: 'Artwork',
+      primaryVerb: 'track',
+      secondaryVerb: 'art',
+      primaryButton: '🎵 Scan all tracks',
+      secondaryButton: '🖼️ Scan all art',
+      footnote: '* Artwork checks use the artist name when available.',
+      showRepair: false,
+      flowPage: './musiclib.html',
+      flowQuery: 'mflow=1',
+      addButtonLabel: '➕ Add music',
+      loadData: loadMusicData,
+      build: buildMusicLibrary
+    },
+    games: {
+      key: 'games',
+      label: 'Games',
+      icon: '🎮',
+      file: './games.js',
+      primaryLabel: 'ROMs',
+      secondaryLabel: 'Icons',
+      primaryVerb: 'rom',
+      secondaryVerb: 'icon',
+      primaryButton: '🎮 Scan all ROMs',
+      secondaryButton: '🖼️ Scan all icons',
+      footnote: '* ROM checks use the ?rom= target from each emulator link.',
+      showRepair: false,
+      flowPage: './gameslib.html',
+      flowQuery: 'flow=1',
+      addButtonLabel: '➕ Add game',
+      loadData: loadGamesData,
+      build: buildGamesLibrary
+    },
+    books: {
+      key: 'books',
+      label: 'Books & Manga',
+      icon: '📚',
+      files: ['./books.js', './manga.js', './guidebooks.js'],
+      primaryLabel: 'Files',
+      secondaryLabel: 'Images',
+      primaryVerb: 'file',
+      secondaryVerb: 'image',
+      primaryButton: '📚 Scan all files',
+      secondaryButton: '🖼️ Scan all images',
+      footnote: '* Books, manga, and guidebooks are grouped separately while staying in one manager.',
+      showRepair: false,
+      flowPage: './booklib.html',
+      flowQuery: 'flow=1',
+      addButtonLabel: '➕ Add book content',
+      loadData: loadBooksData,
+      build: buildBooksLibrary
+    }
+  };
+  let activeKey = 'video';
+  let activeConfig = LIBRARIES[activeKey];
+  let hierarchyRoots = [];
+  let flatItems = [];
+  let nodeMap = new Map();
+  let expandedNodes = new Set();
+  let scanQueue = [];
+  let scanIndex = 0;
+  let scanning = false;
+  let paused = false;
+  let activeWorkers = [];
+  let currentScanType = '';
+  let currentSource = '';
+  const CONCURRENCY = 6;
+  let uploadInput = null;
+
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  }
+
+  function safeDecode(value) {
+    const raw = String(value ?? '');
+    try { return decodeURIComponent(raw); } catch { return raw; }
+  }
+
+  function encodePathSegments(pathname) {
+    return String(pathname ?? '')
+      .split('/')
+      .map(seg => {
+        if (!seg) return '';
+        try { seg = decodeURIComponent(seg); } catch {}
+        return encodeURIComponent(seg);
+      })
+      .join('/');
+  }
+
+  function safeFileUrl(input, base = window.location.href) {
+    const raw = String(input ?? '').trim();
+    if (!raw) return '';
+    try {
+      const isAbsolute = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(raw) || raw.startsWith('//');
+      
+      // If relative, we handle '?' as a separator but keep '#' as part of the path
+      // because in library file contexts, '#' is usually a filename character.
+      if (!isAbsolute) {
+        const qIndex = raw.indexOf('?');
+        const pathPart = qIndex === -1 ? raw : raw.slice(0, qIndex);
+        const queryPart = qIndex === -1 ? '' : raw.slice(qIndex);
+        return new URL(encodePathSegments(pathPart) + queryPart, base).href;
+      }
+      
+      const u = new URL(raw, base);
+      // For absolute URLs, if there is a hash, it might actually be part of the filename.
+      // We re-encode the pathname specifically.
+      u.pathname = encodePathSegments(u.pathname);
+      return u.href;
+    } catch {
+      return raw;
+    }
+  }
+
+  function ensureTrailingSlash(s) {
+    s = String(s || '').trim();
+    if (!s) return '';
+    return s.endsWith('/') ? s : s + '/';
+  }
+
+  function slugify(str) {
+    return String(str || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s-]/g, '')
+      .trim()
+      .replace(/[\s_-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
+  function setStatus(text) {
+    els.status.textContent = text;
+  }
+
+  function setLibraryUI(key) {
+    activeKey = key;
+    activeConfig = LIBRARIES[key];
+    els.libraryHub.textContent = activeConfig.icon;
+    els.headerTitleText.textContent = `${activeConfig.label} Library Manager`;
+    els.headerSubtitle.textContent = `${activeConfig.primaryLabel}${activeConfig.secondaryLabel ? ' • ' + activeConfig.secondaryLabel : ''}`;
+    els.scanPrimaryBtn.textContent = activeConfig.primaryButton;
+    els.scanSecondaryBtn.textContent = activeConfig.secondaryButton;
+    if (els.addContentBtn || els.nestCollectionBtn) {
+      const hasFlowPage = !!activeConfig.flowPage;
+      const showNest = activeKey === 'video' && hasFlowPage;
+      if (els.nestCollectionBtn) {
+        els.nestCollectionBtn.classList.toggle('hidden', !showNest);
+        els.nestCollectionBtn.disabled = !showNest;
+      }
+      if (els.addContentBtn) {
+        els.addContentBtn.classList.toggle('hidden', !hasFlowPage);
+        els.addContentBtn.textContent = activeConfig.addButtonLabel || `➕ Add ${String(activeConfig.label || 'content').toLowerCase()}`;
+      }
+    }
+    els.missingPrimaryCard.querySelector('.stat-label').textContent = `${activeConfig.primaryLabel} missing`;
+    els.missingSecondaryCard.querySelector('.stat-label').textContent = `${activeConfig.secondaryLabel} missing`;
+    els.footnote.textContent = activeConfig.footnote;
+    document.title = `${activeConfig.label} Library Manager`;
+    const wheelBtns = els.libraryWheel.querySelectorAll('[data-library]');
+    wheelBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.library === activeKey));
+    updateActionVisibility();
+  }
+
+  function supportsSecondaryScan() {
+    return flatItems.some(item => item.secondaryCandidates && item.secondaryCandidates.length > 0);
+  }
+
+  function updateActionVisibility() {
+    const secondaryVisible = supportsSecondaryScan();
+    els.scanSecondaryBtn.classList.toggle('hidden', !secondaryVisible);
+    els.missingSecondaryCard.classList.toggle('hidden', !secondaryVisible);
+  }
+
+  async function readServerBaseFromTxt() {
+    try {
+      const res = await fetch('./serverip.txt', { cache: 'no-store' });
+      if (!res.ok) return '';
+      const txt = (await res.text()).trim();
+      if (!txt) return '';
+      if (txt.startsWith('http://') || txt.startsWith('https://')) return ensureTrailingSlash(txt);
+      if (/^[a-zA-Z0-9.-]+(:[0-9]+)?$/.test(txt)) return `http://${txt}/`;
+      return '';
+    } catch {
+      return '';
+    }
+  }
+
+  async function fetchLibraryResource(file) {
+    const candidates = [file];
+    const serverBase = await readServerBaseFromTxt();
+    if (serverBase) {
+      candidates.push(new URL(String(file).replace(/^\.\//, ''), serverBase).href);
+    }
+    let lastError = null;
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return { text: await res.text(), source: url, file };
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError || new Error(`${file} not found`);
+  }
+
+  async function fetchLibraryText(config) {
+    return fetchLibraryResource(config.file);
+  }
+
+  async function fetchLibraryBundle(config) {
+    const files = Array.isArray(config.files) && config.files.length ? config.files : [config.file];
+    const bundle = [];
+    for (const file of files) {
+      bundle.push(await fetchLibraryResource(file));
+    }
+    return bundle;
+  }
+
+  async function runLibrarySource(text, returnExpr) {
+    const fn = new Function('window', 'document', `${text}\nreturn (${returnExpr});`);
+    return fn(window, document);
+  }
+
+  function extractArrayLiteral(text, varName) {
+    const re = new RegExp(String.raw`(?:const|let|var)\s+${varName}\s*=\s*(\[[\s\S]*?\]);`);
+    const match = text.match(re);
+    if (!match) throw new Error(`Could not find ${varName} array in source`);
+    return match[1];
+  }
+
+  async function loadVideoData(text) {
+    try {
+      const data = await runLibrarySource(text, "typeof episodes !== 'undefined' ? episodes : window.episodes");
+      return data || window.episodes || null;
+    } catch {
+      const transformed = text.replace(/^\s*(?:const|let|var)\s+episodes\s*=\s*/m, 'window.episodes = ');
+      const data = await runLibrarySource(transformed, "window.episodes");
+      return data || window.episodes || null;
+    }
+  }
+
+  async function loadMusicData(text) {
+    try {
+      const data = await runLibrarySource(text, "typeof musicLibraryFlat !== 'undefined' && musicLibraryFlat.length ? musicLibraryFlat : (typeof musicLibrary !== 'undefined' ? musicLibrary : window.musicLibrary)");
+      return data || window.musicLibraryFlat || window.musicLibrary || [];
+    } catch {
+      return window.musicLibraryFlat || window.musicLibrary || [];
+    }
+  }
+
+  async function loadGamesData(text) {
+    const arr = extractArrayLiteral(text, 'games');
+    return new Function(`return (${arr});`)();
+  }
+
+  function inferSourceKeyFromPath(source) {
+    const base = String(source || '').split(/[\\/]/).pop() || '';
+    return base.replace(/\.[^.]+$/, '').trim().toLowerCase();
+  }
+
+  function deriveBookSourceLabel(source) {
+    const key = inferSourceKeyFromPath(source);
+    if (key.includes('manga')) return 'Manga';
+    if (key.includes('guide')) return 'Guidebooks';
+    if (key.includes('book')) return 'Books';
+    return key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Library';
+  }
+
+  function flattenBookSource(value) {
+    if (Array.isArray(value)) {
+      return value.flatMap(item => flattenBookSource(item));
+    }
+    if (!value || typeof value !== 'object') return [];
+    const directKeys = ['title', 'name', 'book', 'manga', 'guidebook', 'series', 'label', 'file', 'url', 'link', 'path', 'img', 'image', 'cover', 'art', 'thumbnail', 'thumb'];
+    const hasDirectFields = directKeys.some(k => Object.prototype.hasOwnProperty.call(value, k));
+    if (hasDirectFields) return [value];
+    return Object.entries(value).flatMap(([k, v]) => {
+      if (Array.isArray(v)) return flattenBookSource(v).map(item => (item && typeof item === 'object') ? { ...item, category: item.category || k } : item);
+      if (v && typeof v === 'object') return flattenBookSource(v).map(item => (item && typeof item === 'object') ? { ...item, category: item.category || k } : item);
+      if (typeof v === 'string') return [{ title: k, file: v, category: k }];
+      return [];
+    });
+  }
+
+  function normalizeBookEntry(entry, idx, sourceLabel) {
+    const raw = (entry && typeof entry === 'object') ? entry : { title: String(entry ?? '') };
+    const title = String(raw.title || raw.name || raw.book || raw.manga || raw.guidebook || raw.series || raw.label || `Item ${idx + 1}`).trim();
+    const groupKey = String(raw.category || raw.group || raw.series || raw.author || sourceLabel || 'General').trim() || 'General';
+
+    const roots = [...new Set([
+      ensureTrailingSlash(window.booksLibraryRoot || ''),
+      ensureTrailingSlash(window.bookLibraryRoot || ''),
+      ensureTrailingSlash(window.mangaLibraryRoot || ''),
+      ensureTrailingSlash(window.guidebooksLibraryRoot || ''),
+      './',
+      './Books/',
+      './Manga/',
+      './Guidebooks/'
+    ].filter(Boolean))];
+
+    const primaryFields = ['file', 'url', 'link', 'path', 'src', 'source', 'download', 'href', 'book', 'pdf', 'epub', 'cbz', 'cbr', 'mobi', 'azw', 'azw3'];
+    const secondaryFields = ['img', 'image', 'cover', 'art', 'thumbnail', 'thumb', 'poster', 'picture'];
+
+    const primaryCandidates = [];
+    const secondaryCandidates = [];
+
+    for (const field of primaryFields) {
+      const value = raw[field];
+      if (typeof value === 'string' && value.trim()) {
+        primaryCandidates.push(safeFileUrl(value.trim(), window.location.href));
+      }
+    }
+
+    for (const field of secondaryFields) {
+      const value = raw[field];
+      if (typeof value === 'string' && value.trim()) {
+        secondaryCandidates.push(safeFileUrl(value.trim(), window.location.href));
+      }
+    }
+
+    const baseVariants = [];
+    const addVariant = value => {
+      const base = normalizeBaseName(value);
+      if (base && !baseVariants.includes(base)) baseVariants.push(base);
+    };
+    addVariant(title);
+    addVariant(raw.file || raw.url || raw.link || raw.path || '');
+    if (raw.category) addVariant(raw.category);
+
+    for (const variant of baseVariants) {
+      for (const root of roots) {
+        for (const ext of BOOK_FILE_EXTS) {
+          primaryCandidates.push(safeFileUrl(root + variant + ext, window.location.href));
+        }
+        for (const ext of IMAGE_EXTS) {
+          secondaryCandidates.push(safeFileUrl(root + variant + ext, window.location.href));
+        }
+      }
+    }
+
+    const uniquePrimary = [...new Set(primaryCandidates.filter(Boolean))];
+    const uniqueSecondary = [...new Set(secondaryCandidates.filter(Boolean))];
+    return {
+      title,
+      groupKey,
+      primaryCandidates: uniquePrimary,
+      secondaryCandidates: uniqueSecondary,
+      primaryUrl: uniquePrimary[0] || '',
+      secondaryUrl: uniqueSecondary[0] || '',
+      primaryStatus: STATUS.UNCHECKED,
+      secondaryStatus: uniqueSecondary.length ? STATUS.UNCHECKED : STATUS.NA,
+      hasSecondary: uniqueSecondary.length > 0
+    };
+  }
+
+  async function loadBooksData(bundle) {
+    const items = Array.isArray(bundle) ? bundle : [];
+    const sections = [];
+
+    for (const item of items) {
+      const sourceFile = String(item?.file || item?.source || '').trim();
+      const sourceLabel = deriveBookSourceLabel(sourceFile);
+      let data = null;
+
+      try {
+        data = await runLibrarySource(item.text, 'window.libraryData || null');
+      } catch {
+        data = null;
+      }
+
+      if (data && typeof data === 'object') {
+        sections.push({
+          key: inferSourceKeyFromPath(sourceFile) || sourceLabel.toLowerCase().replace(/\s+/g, ''),
+          label: sourceLabel,
+          data
+        });
+      } else {
+        sections.push({
+          key: inferSourceKeyFromPath(sourceFile) || sourceLabel.toLowerCase().replace(/\s+/g, ''),
+          label: sourceLabel,
+          data: { title: sourceLabel, items: [] }
+        });
+      }
+    }
+
+    return sections;
+  }
+
+  function getBookChildren(raw) {
+    if (!raw || typeof raw !== 'object') return [];
+    const arrays = ['books', 'items', 'children', 'series', 'volumes'];
+    for (const key of arrays) {
+      if (Array.isArray(raw[key])) return raw[key];
+    }
+    return [];
+  }
+
+  function getBookTitle(raw, fallback) {
+    if (raw && typeof raw === 'object') {
+      return String(raw.title || raw.name || raw.label || fallback || 'Untitled').trim();
+    }
+    return String(raw || fallback || 'Untitled').trim();
+  }
+
+  function isBookGroup(raw) {
+    return !!(raw && typeof raw === 'object' && (raw.group || getBookChildren(raw).length));
+  }
+
+  function makeBookLeaf(raw, displayName, parentKey, sectionLabel, idxPath) {
+    const title = getBookTitle(raw, displayName);
+    const primaryCandidates = [];
+    const secondaryCandidates = [];
+
+    const primaryFields = ['file', 'url', 'link', 'path', 'src', 'source', 'href'];
+    const secondaryFields = ['cover', 'image', 'img', 'art', 'thumbnail', 'thumb', 'poster', 'picture'];
+
+    for (const field of primaryFields) {
+      const value = raw && typeof raw === 'object' ? raw[field] : '';
+      if (typeof value === 'string' && value.trim()) {
+        primaryCandidates.push(safeFileUrl(value.trim(), window.location.href));
+      }
+    }
+
+    for (const field of secondaryFields) {
+      const value = raw && typeof raw === 'object' ? raw[field] : '';
+      if (typeof value === 'string' && value.trim()) {
+        secondaryCandidates.push(safeFileUrl(value.trim(), window.location.href));
+      }
+    }
+
+    const item = {
+      id: `books:item:${idxPath.join('.')}`,
+      key: title,
+      type: 'leaf',
+      kind: 'book-item',
+      displayName: title,
+      primaryLabel: 'File',
+      secondaryLabel: 'Cover',
+      primaryUrl: primaryCandidates[0] || '',
+      secondaryUrl: secondaryCandidates[0] || '',
+      primaryCandidates,
+      secondaryCandidates,
+      primaryStatus: STATUS.UNCHECKED,
+      secondaryStatus: secondaryCandidates.length ? STATUS.UNCHECKED : STATUS.NA,
+      repairable: false,
+      hasSecondary: secondaryCandidates.length > 0,
+      parentKey,
+      groupLabel: sectionLabel,
+      category: sectionLabel
+    };
+    flatItems.push(item);
+    nodeMap.set(item.id, item);
+    return item;
+  }
+
+  function buildBookNode(raw, sectionLabel, parentKey, idxPath, fallbackTitle) {
+    const title = getBookTitle(raw, fallbackTitle);
+    if (!isBookGroup(raw)) {
+      return makeBookLeaf(raw, title, parentKey, sectionLabel, idxPath);
+    }
+
+    const node = {
+      id: `books:group:${idxPath.join('.')}`,
+      key: title,
+      type: 'group',
+      kind: parentKey ? 'books-subgroup' : 'books-group',
+      children: [],
+      episodes: [],
+      parentKey
+    };
+    nodeMap.set(node.id, node);
+
+    const children = getBookChildren(raw);
+    children.forEach((child, childIdx) => {
+      const childNode = buildBookNode(child, sectionLabel, node.id, idxPath.concat(childIdx), getBookTitle(child, `Item ${childIdx + 1}`));
+      if (childNode) node.children.push(childNode);
+    });
+
+    node.children.sort((a, b) => String(a.displayName || a.key || '').localeCompare(String(b.displayName || b.key || ''), undefined, { numeric: true, sensitivity: 'base' }));
+    return node;
+  }
+
+  function buildBooksLibrary(sections) {
+    flatItems = [];
+    nodeMap = new Map();
+    const roots = [];
+    const list = Array.isArray(sections) ? sections : [];
+
+    list.forEach((section, sectionIdx) => {
+      const sectionLabel = String(section?.label || `Section ${sectionIdx + 1}`).trim();
+      const sectionData = section?.data && typeof section.data === 'object' ? section.data : { title: sectionLabel, items: [] };
+      const root = {
+        id: `books:root:${sectionIdx}`,
+        key: sectionLabel,
+        type: 'group',
+        kind: 'books-root',
+        children: [],
+        episodes: [],
+        parentKey: null
+      };
+      nodeMap.set(root.id, root);
+
+      const sourceItems = Array.isArray(sectionData.items) ? sectionData.items : (Array.isArray(sectionData) ? sectionData : []);
+      sourceItems.forEach((entry, idx) => {
+        const node = buildBookNode(entry, sectionLabel, root.id, [sectionIdx, idx], getBookTitle(entry, `Item ${idx + 1}`));
+        if (node) root.children.push(node);
+      });
+
+      root.children.sort((a, b) => String(a.displayName || a.key || '').localeCompare(String(b.displayName || b.key || ''), undefined, { numeric: true, sensitivity: 'base' }));
+      roots.push(root);
+    });
+
+    roots.sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''), undefined, { numeric: true, sensitivity: 'base' }));
+    return roots;
+  }
+
+  function splitMusicOnLastDollar(raw) {
+    const clean = String(raw ?? '').trim();
+    if (!clean) return { base: '', code: '' };
+    const idx = clean.lastIndexOf('$');
+    if (idx === -1) return { base: clean, code: '' };
+    return {
+      base: clean.slice(0, idx).trim(),
+      code: clean.slice(idx + 1).trim()
+    };
+  }
+
+  function normalizeBaseName(raw) {
+    let s = String(raw ?? '').trim();
+    try { s = decodeURIComponent(s); } catch {}
+    s = s.split(/[\\/]/).pop();
+    s = s.replace(/\.(mp3|flac|wav|m4a|ogg|aac|opus|wma|alac|mp4|m4v|mov|webm|mkv|jpg|jpeg|png|webp|gif|zip|iso|bin|chd|pbp|gba|gb|gbc|nds|z64|n64|smd|md|sfc|smc)(\?.*)?$/i, '');
+    return s.trim();
+  }
+
+
+  function normalizeMusicScanBase(raw) {
+    let s = String(raw ?? '').trim();
+    if (!s) return '';
+    try { s = decodeURIComponent(s); } catch {}
+    s = s.split(/[\/]/).pop();
+    // Modified: Only strip query parameters ('?'), preserved '#' as it's common in music titles
+    s = s.replace(/\?.*$/, '');
+    s = s.replace(/\.(mp3|flac|wav|m4a|ogg|aac|opus|wma|alac)(\?.*)?$/i, '');
+    const dollar = s.lastIndexOf('$');
+    if (dollar !== -1) s = s.slice(0, dollar).trim();
+    return s.trim();
+  }
+
+  function parseMusicEntry(entry) {
+    const raw = String(entry ?? '').trim();
+    const split = splitMusicOnLastDollar(raw);
+    const base = normalizeBaseName(split.base || raw);
+    const code = String(split.code || '').trim();
+    let title = base;
+    let artist = '';
+    const splitTitle = base.split(/\s+-\s+/);
+    if (splitTitle.length >= 2) {
+      artist = splitTitle.pop().trim();
+      title = splitTitle.join(' - ').trim();
+    }
+    return { title, artist, base, code };
+  }
+
+  function buildTrackCandidates(trackTitle, rawEntry) {
+    const roots = [
+      ensureTrailingSlash(window.musicLibraryRoot || './Music/'),
+      'Music/',
+      '/Music/'
+    ];
+
+    const variants = [];
+    const addVariant = value => {
+      const base = normalizeMusicScanBase(value);
+      if (base && !variants.includes(base)) variants.push(base);
+    };
+
+    addVariant(trackTitle);
+
+    const raw = String(rawEntry ?? '').trim();
+    if (raw) {
+      addVariant(raw);
+      const lastDollar = raw.lastIndexOf('$');
+      if (lastDollar !== -1) addVariant(raw.slice(0, lastDollar));
+    }
+
+    const moreVariants = [];
+    for (const variant of variants) {
+      moreVariants.push(variant);
+      // Fallback specifically for titles with special characters like '#'
+      if (variant.includes('#')) {
+          moreVariants.push(variant.replace(/#/g, '%23'));
+      }
+      if (variant.includes(' - ')) {
+        const parts = variant.split(/\s+-\s+/);
+        const titlePart = parts.shift();
+        const artistPart = parts.join(' - ');
+        if (titlePart && artistPart) {
+          const dotlessArtist = artistPart.replace(/\.(?=\w)/g, '');
+          const recombined = `${titlePart} - ${dotlessArtist}`.trim();
+          if (recombined && recombined !== variant) moreVariants.push(recombined);
+        }
+      }
+    }
+
+    const finalVariants = [...new Set(moreVariants)];
+    const out = [];
+
+    for (const variant of finalVariants) {
+      for (const root of roots) {
+        // Try raw variant first, safeFileUrl handles the actual encoding
+        AUDIO_EXTS.forEach(ext => out.push(safeFileUrl(root + variant + ext, window.location.href)));
+        out.push(safeFileUrl(root + variant, window.location.href));
+      }
+    }
+
+    return [...new Set(out)];
+  }
+
+  function buildArtistArtCandidates(artist) {
+    const root = ensureTrailingSlash(window.musicLibraryArtistImageRoot || './Images/Artists/');
+    const clean = normalizeBaseName(artist || '');
+    if (!clean) return [];
+    const slug = slugify(clean);
+    const variants = new Set([
+      clean,
+      slug,
+      clean.replace(/\s+/g, '_'),
+      clean.replace(/\s+/g, '')
+    ].filter(Boolean));
+    const out = [];
+    for (const base of variants) {
+      for (const ext of IMAGE_EXTS) {
+        out.push(safeFileUrl(root + base + ext, window.location.href));
+      }
+    }
+    return [...new Set(out)];
+  }
+
+  function getGamesImageRoot() {
+    return ensureTrailingSlash(window.gamesImageRoot || './emulator/Images/');
+  }
+
+  function getGamesRomRoot() {
+    return ensureTrailingSlash(window.gamesRomRoot || './emulator/roms/');
+  }
+
+  function basenameFromPath(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    try {
+      const withoutQuery = raw.split('?')[0];
+      return withoutQuery.split('/').pop() || '';
+    } catch {
+      return raw.split('/').pop() || '';
+    }
+  }
+
+  function buildGameImageCandidates(img) {
+    const raw = String(img ?? '').trim();
+    if (!raw) return [];
+    const base = basenameFromPath(raw);
+    const roots = [
+      getGamesImageRoot(),
+      './emulator/Images/',
+      './Images/'
+    ];
+    const out = [];
+    if (base) {
+      for (const root of roots) {
+        out.push(safeFileUrl(root + base, window.location.href));
+      }
+    }
+    out.push(safeFileUrl(raw, window.location.href));
+    return [...new Set(out.filter(Boolean))];
+  }
+
+  function buildGameRomCandidates(link) {
+    const raw = String(link ?? '').trim();
+    if (!raw) return [];
+    const out = [];
+    try {
+      const page = new URL(raw, window.location.href);
+      const rom = String(page.searchParams.get('rom') || '').trim();
+
+      if (rom) {
+        const romRoot = getGamesRomRoot();
+        const isAbsolute = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(rom) || rom.startsWith('//');
+
+        if (!isAbsolute && !rom.startsWith('/')) {
+          out.push(safeFileUrl(romRoot + rom, window.location.href));
+        }
+
+        out.push(safeFileUrl(rom, page.href));
+        out.push(safeFileUrl(rom, window.location.href));
+      }
+
+      out.push(safeFileUrl(raw, window.location.href));
+    } catch {
+      out.push(safeFileUrl(raw, window.location.href));
+    }
+    return [...new Set(out.filter(Boolean))];
+  }
+
+  function parseRomUrlFromGameLink(link) {
+    const candidates = buildGameRomCandidates(link);
+    return candidates[0] || '';
+  }
+
+  function makeVideoLeaf(parentKey, idx, ep) {
+    const file = ep.file || ep.url || ep.video || '';
+    if (!file) return null;
+    const videoUrl = safeFileUrl(file, window.location.href);
+    const subtitleUrl = safeFileUrl(String(file || '').replace(/\.(mp4|m4v|mov|webm|mkv)$/i, '.vtt'), window.location.href);
+    return {
+      id: `${parentKey}:ep:${idx}`,
+      key: ep.name || ep.title || `Episode ${idx + 1}`,
+      type: 'leaf',
+      kind: 'video-episode',
+      displayName: ep.name || ep.title || `Episode ${idx + 1}`,
+      primaryLabel: 'Video',
+      secondaryLabel: 'Sub',
+      primaryUrl: videoUrl,
+      secondaryUrl: subtitleUrl,
+      primaryCandidates: [videoUrl],
+      secondaryCandidates: [subtitleUrl],
+      primaryStatus: STATUS.UNCHECKED,
+      secondaryStatus: STATUS.UNCHECKED,
+      repairable: true,
+      hasSecondary: true,
+      parentKey,
+      sourceOrder: idx
+    };
+  }
+
+  function buildVideoLibrary(libObj) {
+    flatItems = [];
+    nodeMap = new Map();
+    const roots = [];
+    const nodes = new Map();
+    const referenced = new Set();
+
+    if (Array.isArray(libObj)) {
+      const root = { id: 'video:root', key: 'Library', type: 'group', kind: 'video-root', children: [], episodes: [], parentKey: null };
+      nodes.set(root.id, root);
+      nodeMap.set(root.id, root);
+      libObj.forEach((ep, idx) => {
+        if (!ep || typeof ep !== 'object') return;
+        const leaf = makeVideoLeaf(root.id, idx, ep);
+        if (!leaf) return;
+        root.episodes.push(leaf);
+        flatItems.push(leaf);
+        nodeMap.set(leaf.id, leaf);
+      });
+      root.episodes.sort(compareLeafs);
+      roots.push(root);
+      return roots;
+    }
+
+    for (const key of Object.keys(libObj || {})) {
+      const node = {
+        id: key,
+        key,
+        type: 'group',
+        kind: 'video-folder',
+        children: [],
+        episodes: [],
+        parentKey: null,
+        rawValue: libObj[key]
+      };
+      nodes.set(key, node);
+      nodeMap.set(key, node);
+    }
+
+    for (const [key, node] of nodes) {
+      const value = node.rawValue;
+      if (!Array.isArray(value)) continue;
+
+      const hasEpisodes = value.some(item => item && typeof item === 'object' && (item.file || item.url || item.video));
+      if (hasEpisodes) {
+        node.kind = 'video-season';
+        value.forEach((ep, idx) => {
+          if (!ep || typeof ep !== 'object') return;
+          const leaf = makeVideoLeaf(key, idx, ep);
+          if (!leaf) return;
+          node.episodes.push(leaf);
+          flatItems.push(leaf);
+          nodeMap.set(leaf.id, leaf);
+        });
+        node.episodes.sort(compareLeafs);
+      } else {
+        value.forEach(refKey => {
+          if (typeof refKey === 'string' && nodes.has(refKey)) {
+            referenced.add(refKey);
+            const child = nodes.get(refKey);
+            child.parentKey = key;
+            node.children.push(child);
+          }
+        });
+      }
+    }
+
+    for (const [key, node] of nodes) {
+      if (!referenced.has(key)) roots.push(node);
+      if (Array.isArray(node.children)) node.children.sort(compareNodes);
+      if (Array.isArray(node.episodes)) node.episodes.sort(compareLeafs);
+    }
+    roots.sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''), undefined, { numeric: true, sensitivity: 'base' }));
+    return roots;
+  }
+
+  function buildMusicLibrary(raw) {
+    flatItems = [];
+    nodeMap = new Map();
+    const roots = [];
+    const groups = new Map();
+    const list = Array.isArray(raw) ? raw : [];
+    const genreMap = window.musicLibraryGenreMap || {};
+
+    list.forEach((entry, idx) => {
+      const parsed = parseMusicEntry(entry);
+      const groupLabel = parsed.code ? `${parsed.code} • ${genreMap[parsed.code] || parsed.code}` : 'Unsorted';
+      const artistCandidates = buildArtistArtCandidates(parsed.artist || parsed.title || parsed.base);
+      const item = {
+        id: `music:item:${idx}`,
+        key: parsed.title || parsed.base || `Track ${idx + 1}`,
+        type: 'leaf',
+        kind: 'music-track',
+        displayName: parsed.title || parsed.base || `Track ${idx + 1}`,
+        artist: parsed.artist || '',
+        genreCode: parsed.code || '',
+        genreName: parsed.code ? (genreMap[parsed.code] || parsed.code) : 'Unsorted',
+        primaryLabel: 'Track',
+        secondaryLabel: 'Art',
+        primaryUrl: '',
+        secondaryUrl: '',
+        primaryCandidates: buildTrackCandidates(parsed.base || parsed.title || entry, entry),
+        secondaryCandidates: artistCandidates,
+        primaryStatus: STATUS.UNCHECKED,
+        secondaryStatus: artistCandidates.length ? STATUS.UNCHECKED : STATUS.NA,
+        repairable: false,
+        hasSecondary: artistCandidates.length > 0,
+        parentKey: groupLabel
+      };
+      if (!groups.has(groupLabel)) {
+        const group = {
+          id: `music:group:${groupLabel}`,
+          key: groupLabel,
+          type: 'group',
+          kind: 'music-group',
+          children: [],
+          episodes: [],
+          parentKey: null
+        };
+        groups.set(groupLabel, group);
+        nodeMap.set(group.id, group);
+      }
+      const group = groups.get(groupLabel);
+      group.children.push(item);
+      flatItems.push(item);
+      nodeMap.set(item.id, item);
+    });
+
+    roots.push(...groups.values());
+    roots.sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''), undefined, { numeric: true, sensitivity: 'base' }));
+    roots.forEach(group => group.children.sort(compareLeafs));
+    return roots;
+  }
+
+  function buildGamesLibrary(raw) {
+    flatItems = [];
+    nodeMap = new Map();
+    const roots = [];
+    const groups = new Map();
+    const list = Array.isArray(raw) ? raw : [];
+
+    list.forEach((game, idx) => {
+      if (!game || typeof game !== 'object') return;
+      const name = String(game.name || `Game ${idx + 1}`).trim();
+      const platform = name.includes(',') ? name.split(',').pop().trim() : 'Other';
+      const romCandidates = buildGameRomCandidates(game.link || '');
+      const imgCandidates = buildGameImageCandidates(game.img || '');
+      const item = {
+        id: `games:item:${idx}`,
+        key: name,
+        type: 'leaf',
+        kind: 'game-item',
+        displayName: name,
+        platform,
+        primaryLabel: 'ROM',
+        secondaryLabel: 'Icon',
+        primaryUrl: romCandidates[0] || String(game.link || ''),
+        secondaryUrl: imgCandidates[0] || String(game.img || ''),
+        primaryCandidates: romCandidates.length ? romCandidates : [String(game.link || '')],
+        secondaryCandidates: imgCandidates.length ? imgCandidates : [String(game.img || '')],
+        primaryStatus: STATUS.UNCHECKED,
+        secondaryStatus: (imgCandidates.length || game.img) ? STATUS.UNCHECKED : STATUS.NA,
+        repairable: false,
+        hasSecondary: imgCandidates.length > 0,
+        parentKey: platform
+      };
+      if (!groups.has(platform)) {
+        const group = {
+          id: `games:group:${platform}`,
+          key: platform,
+          type: 'group',
+          kind: 'games-group',
+          children: [],
+          episodes: [],
+          parentKey: null
+        };
+        groups.set(platform, group);
+        nodeMap.set(group.id, group);
+      }
+      const group = groups.get(platform);
+      group.children.push(item);
+      flatItems.push(item);
+      nodeMap.set(item.id, item);
+    });
+
+    roots.push(...groups.values());
+    roots.sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''), undefined, { numeric: true, sensitivity: 'base' }));
+    roots.forEach(group => group.children.sort(compareLeafs));
+    return roots;
+  }
+
+  function compareLeafs(a, b) {
+    const fileNameFromUrl = (value) => {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      try {
+        const withoutQuery = raw.split('?')[0].split('#')[0];
+        const lastPart = withoutQuery.split('/').filter(Boolean).pop() || withoutQuery;
+        return decodeURIComponent(lastPart);
+      } catch (e) {
+        return raw.split('/').filter(Boolean).pop() || raw;
+      }
+    };
+
+    const sortValue = (node) => {
+      const fileName = fileNameFromUrl(node?.primaryUrl || node?.secondaryUrl || '');
+      if (fileName) return fileName;
+      return String(node?.displayName || node?.key || '');
+    };
+
+    const aValue = sortValue(a);
+    const bValue = sortValue(b);
+
+    const numA = (aValue.match(/\d+/g) || []).pop();
+    const numB = (bValue.match(/\d+/g) || []).pop();
+    if (numA != null || numB != null) {
+      const aNum = numA == null ? Number.POSITIVE_INFINITY : Number.parseInt(numA, 10);
+      const bNum = numB == null ? Number.POSITIVE_INFINITY : Number.parseInt(numB, 10);
+      if (aNum !== bNum) return aNum - bNum;
+    }
+
+    const aSource = Number.isFinite(a?.sourceOrder) ? a.sourceOrder : Number.POSITIVE_INFINITY;
+    const bSource = Number.isFinite(b?.sourceOrder) ? b.sourceOrder : Number.POSITIVE_INFINITY;
+    if (aSource !== bSource) return aSource - bSource;
+
+    return aValue.localeCompare(bValue, undefined, {
+      numeric: true,
+      sensitivity: 'base'
+    });
+  }
+
+  function compareNodes(a, b) {
+    return String(a.displayName || a.key || '').localeCompare(String(b.displayName || b.key || ''), undefined, {
+      numeric: true,
+      sensitivity: 'base'
+    });
+  }
+
+  function getUploadTarget(node, which) {
+    if (!node) return '';
+    if (which === 'primary') {
+      return (node.primaryCandidates && node.primaryCandidates[0]) || node.primaryUrl || '';
+    }
+    return (node.secondaryCandidates && node.secondaryCandidates[0]) || node.secondaryUrl || '';
+  }
+
+  function getUploadAccept(node, which) {
+    if (activeKey === 'video') {
+      return which === 'primary' ? VIDEO_EXTS.join(',') : SUB_EXTS.join(',');
+    }
+    if (activeKey === 'music') {
+      return which === 'primary' ? AUDIO_EXTS.join(',') : IMAGE_EXTS.join(',');
+    }
+    if (activeKey === 'books') {
+      return which === 'primary' ? BOOK_FILE_EXTS.join(',') : IMAGE_EXTS.join(',');
+    }
+    return which === 'primary' ? '.zip,.iso,.bin,.chd,.pbp,.z64,.n64,.gba,.gb,.gbc,.nds,.sfc,.smc,.smd,.md' : IMAGE_EXTS.join(',');
+  }
+
+  function statusChipHtml(node, which) {
+    const status = which === 'primary' ? node.primaryStatus : node.secondaryStatus;
+    const label = which === 'primary' ? activeConfig.primaryLabel : activeConfig.secondaryLabel;
+    const symbol = which === 'primary' ? activeConfig.icon : (activeKey === 'video' ? '📝' : '🖼️');
+
+    if (status === STATUS.EXISTS) {
+      return `<span class="badge ok">${escapeHtml(label)} ✓</span>`;
+    }
+    if (status === STATUS.CHECKING) {
+      return `<span class="badge" style="color:#60a5fa">${escapeHtml(label)} ⏳</span>`;
+    }
+    if (status === STATUS.ERROR || status === STATUS.MISSING) {
+      const target = getUploadTarget(node, which);
+      if (target) {
+        return `<button type="button" class="badge danger status-button" data-action="upload-${which}" data-node-id="${escapeHtml(node.id)}" title="Click to upload ${escapeHtml(label.toLowerCase())}">${escapeHtml(label)} ✖</button>`;
+      }
+      return `<span class="badge danger">${escapeHtml(label)} ✖</span>`;
+    }
+    return `<span class="badge muted">${escapeHtml(label)} ○</span>`;
+  }
+
+  function leafStatsHtml(node) {
+    let html = `<span class="ep-status">`;
+    html += `<span>${statusChipHtml(node, 'primary')}</span>`;
+    if (node.hasSecondary || node.secondaryStatus !== STATUS.NA) {
+      html += `<span>${statusChipHtml(node, 'secondary')}</span>`;
+    }
+    if (node.genreName) {
+      html += `<span class="badge muted">${escapeHtml(node.genreName)}</span>`;
+    }
+    if (node.platform) {
+      html += `<span class="badge muted">${escapeHtml(node.platform)}</span>`;
+    }
+    if (node.artist && activeKey === 'music') {
+      html += `<span class="badge muted">${escapeHtml(node.artist)}</span>`;
+    }
+    html += `</span>`;
+    return html;
+  }
+
+  function leafActionsHtml(node) {
+    const secondaryIcon = activeKey === 'video' ? '📝' : '🖼️';
+    let html = `<button class="btn btn-small" data-action="scan-leaf-primary" data-node-id="${escapeHtml(node.id)}" title="Check ${escapeHtml(activeConfig.primaryVerb)}">${activeConfig.icon}</button>`;
+    if (node.secondaryCandidates && node.secondaryCandidates.length) {
+      html += `<button class="btn btn-small btn-warn" data-action="scan-leaf-secondary" data-node-id="${escapeHtml(node.id)}" title="Check ${escapeHtml(activeConfig.secondaryVerb)}">${secondaryIcon}</button>`;
+    }
+    if (node.repairable && activeConfig.showRepair) {
+      html += `<button class="btn btn-small btn-primary" data-action="repair-leaf" data-node-id="${escapeHtml(node.id)}" title="Repair with ffmpeg">🛠️</button>`;
+    }
+    return html;
+  }
+
+  function groupActionsHtml(node) {
+    const counts = countNodeIssues(node);
+    if (!counts.total) return '';
+    let html = `<span class="node-actions">`;
+    html += `<button class="btn btn-small" data-action="scan-group-primary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.primaryLabel.toLowerCase())}">${activeConfig.icon}</button>`;
+    if (supportsSecondaryScan()) {
+      const secondaryIcon = activeKey === 'video' ? '📝' : '🖼️';
+      html += `<button class="btn btn-small btn-warn" data-action="scan-group-secondary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.secondaryLabel.toLowerCase())}">${secondaryIcon}</button>`;
+    }
+    html += `</span>`;
+    return html;
+  }
+
+  function renderLeaf(node) {
+    const title = escapeHtml(safeDecode(node.displayName || node.key || ''));
+    const subtitle = escapeHtml(
+      safeDecode(activeKey === 'music'
+        ? (node.artist || node.genreName || '')
+        : (node.platform || node.key || ''))
+    );
+    const fileName = activeKey === 'video'
+      ? escapeHtml(safeDecode((node.primaryUrl || '').split('/').pop() || node.displayName || node.key || ''))
+      : title;
+
+    return `
+      <div class="episode-row">
+        <span class="ep-name" title="${title}">
+          <span class="ep-file-name">${activeConfig.icon} ${fileName}</span>
+          <span class="ep-episode-title">${subtitle}</span>
+        </span>
+        ${leafStatsHtml(node)}
+        <div class="ep-actions">
+          ${leafActionsHtml(node)}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderGroup(node) {
+    const isExpanded = expandedNodes.has(node.id);
+    const hasKids = (node.children && node.children.length) || (node.episodes && node.episodes.length);
+    const counts = countNodeIssues(node);
+    const icon = node.kind === 'games-group'
+      ? '🎮'
+      : node.kind === 'music-group'
+        ? '🎵'
+        : node.kind === 'books-group' || node.kind === 'books-subgroup' || node.kind === 'books-root'
+          ? '📚'
+          : (activeKey === 'video' ? '📺' : '📁');
+
+    const kids = [...(node.children || []), ...(node.episodes || [])].sort((a, b) => {
+      if (a?.type === 'leaf' && b?.type === 'leaf') return compareLeafs(a, b);
+      if (a?.type === 'leaf') return 1;
+      if (b?.type === 'leaf') return -1;
+      return compareNodes(a, b);
+    });
+
+    const childrenHtml = isExpanded ? kids.map(renderNode).join('') : '';
+    const statsHtml = counts.total > 0 ? `
+      <span class="node-stats">
+        <span title="${escapeHtml(activeConfig.primaryLabel)} missing" style="color:${counts.primaryMissing ? 'var(--danger)' : 'var(--muted)'}">${escapeHtml(activeConfig.primaryLabel)} ${counts.primaryMissing}</span>
+        ${supportsSecondaryScan() ? `<span title="${escapeHtml(activeConfig.secondaryLabel)} missing" style="color:${counts.secondaryMissing ? 'var(--warn)' : 'var(--muted)'}">${escapeHtml(activeConfig.secondaryLabel)} ${counts.secondaryMissing}</span>` : ''}
+        <span class="badge muted">${counts.total}</span>
+      </span>
+    ` : '';
+
+    return `
+      <div class="node" data-id="${escapeHtml(node.id)}">
+        <div class="node-header" data-node-id="${escapeHtml(node.id)}">
+          <span class="toggle">${hasKids ? (isExpanded ? '▼' : '▶') : '○'}</span>
+          <span class="node-icon">${icon}</span>
+          <span class="node-title">${escapeHtml(node.key)}</span>
+          ${groupActionsHtml(node)}
+          ${statsHtml}
+        </div>
+        ${childrenHtml ? `<div class="children">${childrenHtml}</div>` : ''}
+      </div>
+    `;
+  }
+
+  function renderNode(node) {
+    if (!filterNode(node, els.search.value.trim().toLowerCase())) return '';
+    if (node.type === 'leaf') return renderLeaf(node);
+    return renderGroup(node);
+  }
+
+  function filterNode(node, term) {
+    if (!term) return true;
+    if (node.type === 'leaf') {
+      const fields = [
+        node.displayName,
+        node.key,
+        node.primaryUrl,
+        node.secondaryUrl,
+        node.genreName,
+        node.genreCode,
+        node.platform,
+        node.artist
+      ].filter(Boolean).join(' ').toLowerCase();
+      return fields.includes(term);
+    }
+    if ((node.key || '').toLowerCase().includes(term)) return true;
+    const kids = [...(node.children || []), ...(node.episodes || [])];
+    return kids.some(child => filterNode(child, term));
+  }
+
+  function renderTree() {
+    const term = els.search.value.trim().toLowerCase();
+    const visibleRoots = hierarchyRoots.filter(root => filterNode(root, term));
+    els.tree.innerHTML = visibleRoots.map(renderNode).join('') || '<div class="empty-message">No matching items</div>';
+    els.visibleCount.textContent = `${flatItems.filter(item => filterNode(item, term)).length} items shown`;
+    updateActionVisibility();
+  }
+
+  function countNodeIssues(node) {
+    if (!node) return { primaryMissing: 0, secondaryMissing: 0, total: 0 };
+    if (node.type === 'leaf') {
+      return {
+        primaryMissing: (node.primaryStatus === STATUS.MISSING || node.primaryStatus === STATUS.ERROR) ? 1 : 0,
+        secondaryMissing: ((node.secondaryStatus === STATUS.MISSING || node.secondaryStatus === STATUS.ERROR) && node.secondaryStatus !== STATUS.NA) ? 1 : 0,
+        total: 1
+      };
+    }
+    let primaryMissing = 0;
+    let secondaryMissing = 0;
+    let total = 0;
+    for (const child of [...(node.children || []), ...(node.episodes || [])]) {
+      const counts = countNodeIssues(child);
+      primaryMissing += counts.primaryMissing;
+      secondaryMissing += counts.secondaryMissing;
+      total += counts.total;
+    }
+    return { primaryMissing, secondaryMissing, total };
+  }
+
+  async function checkUrlExists(url) {
+    if (!url) return false;
+    try {
+      let res = await fetch(url, { method: 'HEAD', cache: 'no-store', mode: 'cors' });
+      if (res.ok || res.status === 204 || res.status === 206) return true;
+      if (res.status === 405 || res.status === 501) {
+        res = await fetch(url, { headers: { Range: 'bytes=0-0' }, cache: 'no-store', mode: 'cors' });
+        return res.ok || res.status === 206 || res.status === 416;
+      }
+      return false;
+    } catch {
+      try {
+        const res = await fetch(url, { headers: { Range: 'bytes=0-0' }, cache: 'no-store', mode: 'cors' });
+        return res.ok || res.status === 206 || res.status === 416;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  async function checkFirstExistingUrl(urls) {
+    for (const url of urls || []) {
+      if (await checkUrlExists(url)) return url;
+    }
+    return '';
+  }
+
+  async function scanLeaf(item, scanPrimary, scanSecondary) {
+    if (scanPrimary && item.primaryStatus === STATUS.UNCHECKED) {
+      item.primaryStatus = STATUS.CHECKING;
+      renderTree();
+      const found = item.primaryCandidates && item.primaryCandidates.length > 1
+        ? await checkFirstExistingUrl(item.primaryCandidates)
+        : (await checkUrlExists(item.primaryCandidates && item.primaryCandidates[0] ? item.primaryCandidates[0] : item.primaryUrl) ? (item.primaryCandidates && item.primaryCandidates[0] ? item.primaryCandidates[0] : item.primaryUrl) : '');
+      item.primaryStatus = found ? STATUS.EXISTS : STATUS.MISSING;
+      if (found) item.primaryUrl = found;
+    }
+
+    if (scanSecondary && item.secondaryCandidates && item.secondaryCandidates.length && item.secondaryStatus === STATUS.UNCHECKED) {
+      item.secondaryStatus = STATUS.CHECKING;
+      renderTree();
+      const found = item.secondaryCandidates.length > 1
+        ? await checkFirstExistingUrl(item.secondaryCandidates)
+        : (await checkUrlExists(item.secondaryCandidates[0] || item.secondaryUrl) ? (item.secondaryCandidates[0] || item.secondaryUrl) : '');
+      item.secondaryStatus = found ? STATUS.EXISTS : STATUS.MISSING;
+      if (found) item.secondaryUrl = found;
+    }
+
+    renderTree();
+    updateStats();
+  }
+
+  function collectLeavesUnderNode(node) {
+    if (!node) return [];
+    if (node.type === 'leaf') return [node];
+    let out = [];
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) out = out.concat(collectLeavesUnderNode(child));
+    }
+    if (Array.isArray(node.episodes)) {
+      for (const ep of node.episodes) out = out.concat(collectLeavesUnderNode(ep));
+    }
+    return out;
+  }
+
+  function startScan(nodes, scanPrimary, scanSecondary, force = false) {
+    const leaves = nodes.flatMap(collectLeavesUnderNode);
+    if (!leaves.length) return;
+
+    if (force) {
+      leaves.forEach(item => {
+        if (scanPrimary) item.primaryStatus = STATUS.UNCHECKED;
+        if (scanSecondary && item.secondaryCandidates && item.secondaryCandidates.length) item.secondaryStatus = STATUS.UNCHECKED;
+      });
+    }
+
+    const queue = leaves.filter(item => {
+      const p = scanPrimary && item.primaryStatus === STATUS.UNCHECKED;
+      const s = scanSecondary && item.secondaryCandidates && item.secondaryCandidates.length && item.secondaryStatus === STATUS.UNCHECKED;
+      return p || s;
+    });
+
+    if (!queue.length) {
+      setStatus('✨ No files to scan (everything already checked).');
+      return;
+    }
+
+    scanQueue = queue.map(node => ({ node, scanPrimary, scanSecondary }));
+    scanIndex = 0;
+    scanning = true;
+    paused = false;
+    currentScanType = [scanPrimary ? activeConfig.primaryVerb : null, scanSecondary ? activeConfig.secondaryVerb : null].filter(Boolean).join(' + ');
+    els.pauseBtn.disabled = false;
+    els.stopBtn.disabled = false;
+    els.pauseBtn.textContent = '⏸️ Pause';
+    els.scanPrimaryBtn.disabled = true;
+    els.scanSecondaryBtn.disabled = true;
+    setStatus(`Scanning ${scanQueue.length} ${currentScanType}…`);
+    updateProgress();
+
+    activeWorkers = Array(Math.min(CONCURRENCY, Math.max(1, scanQueue.length))).fill(0).map(() => processScanQueue());
+    Promise.all(activeWorkers).then(finishScan);
+  }
+
+  async function processScanQueue() {
+    while (scanIndex < scanQueue.length) {
+      if (paused) {
+        await new Promise(resolve => {
+          const tick = () => paused ? setTimeout(tick, 100) : resolve();
+          tick();
+        });
+      }
+      const item = scanQueue[scanIndex++];
+      await scanLeaf(item.node, item.scanPrimary, item.scanSecondary);
+      updateProgress();
+    }
+  }
+
+  function finishScan() {
+    scanning = false;
+    paused = false;
+    els.pauseBtn.disabled = true;
+    els.stopBtn.disabled = true;
+    els.scanPrimaryBtn.disabled = false;
+    els.scanSecondaryBtn.disabled = false;
+    setStatus('✅ Scan complete.');
+    updateProgress();
+    renderTree();
+    updateStats();
+  }
+
+  function pauseScan() {
+    paused = true;
+    els.pauseBtn.textContent = '▶️ Resume';
+    setStatus(`⏸️ Paused – ${scanIndex} / ${scanQueue.length} completed`);
+  }
+
+  function resumeScan() {
+    paused = false;
+    els.pauseBtn.textContent = '⏸️ Pause';
+    setStatus(`Scanning ${scanQueue.length} ${currentScanType}…`);
+  }
+
+  function stopScan() {
+    scanQueue = [];
+    scanIndex = 0;
+    scanning = false;
+    paused = false;
+    els.pauseBtn.disabled = true;
+    els.stopBtn.disabled = true;
+    els.scanPrimaryBtn.disabled = false;
+    els.scanSecondaryBtn.disabled = false;
+    setStatus('⏹️ Scan stopped.');
+    updateProgress();
+  }
+
+  function updateStats() {
+    const total = flatItems.length;
+    const primaryMissing = flatItems.filter(item => item.primaryStatus === STATUS.MISSING || item.primaryStatus === STATUS.ERROR).length;
+    const secondaryMissing = flatItems.filter(item => item.secondaryCandidates && item.secondaryCandidates.length && (item.secondaryStatus === STATUS.MISSING || item.secondaryStatus === STATUS.ERROR)).length;
+    const checked = flatItems.filter(item => item.primaryStatus !== STATUS.UNCHECKED || item.secondaryStatus !== STATUS.UNCHECKED).length;
+
+    els.total.textContent = total;
+    els.missingPrimary.textContent = primaryMissing;
+    els.missingSecondary.textContent = secondaryMissing;
+    els.progress.textContent = `${checked} / ${total}`;
+    els.progressBar.style.width = total ? `${(checked / total) * 100}%` : '0%';
+  }
+
+  function updateProgress() {
+    const total = flatItems.length;
+    const checked = flatItems.filter(item => item.primaryStatus !== STATUS.UNCHECKED || item.secondaryStatus !== STATUS.UNCHECKED).length;
+    els.progress.textContent = `${checked} / ${total}`;
+    els.progressBar.style.width = total ? `${(checked / total) * 100}%` : '0%';
+  }
+
+  function showMissingModal(which) {
+    const isPrimary = which === 'primary';
+    const label = isPrimary ? activeConfig.primaryLabel : activeConfig.secondaryLabel;
+    const missing = flatItems.filter(item => isPrimary
+      ? (item.primaryStatus === STATUS.MISSING || item.primaryStatus === STATUS.ERROR)
+      : (item.secondaryCandidates && item.secondaryCandidates.length && (item.secondaryStatus === STATUS.MISSING || item.secondaryStatus === STATUS.ERROR))
+    );
+
+    if (!missing.length) {
+      els.modalTitle.textContent = `No missing ${String(label || '').toLowerCase()}`;
+      els.modalBody.innerHTML = '<p class="empty-message" style="padding:20px">Everything is present! 🎉</p>';
+      els.missingModal.style.display = 'flex';
+      return;
+    }
+
+    els.modalTitle.textContent = `Missing ${label} (${missing.length})`;
+    const grouped = {};
+    missing.forEach(item => {
+      const group = getGroupPath(item);
+      if (!grouped[group]) grouped[group] = [];
+      grouped[group].push(item.displayName || item.key || '');
+    });
+
+    let html = '';
+    Object.keys(grouped).sort().forEach(group => {
+      const files = grouped[group].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+      html += `<div class="missing-group"><div class="missing-group-title">${escapeHtml(group)} (${files.length})</div><ul class="missing-file-list">`;
+      files.forEach(f => { html += `<li>${escapeHtml(f)}</li>`; });
+      html += `</ul></div>`;
+    });
+    els.modalBody.innerHTML = html;
+    els.missingModal.style.display = 'flex';
+  }
+
+  function hideModal() {
+    els.missingModal.style.display = 'none';
+  }
+
+  function hideRepairModal() {
+    els.repairModal.style.display = 'none';
+    try { els.repairFrame.src = 'about:blank'; } catch {}
+  }
+
+  function hideAddContentModal() {
+    els.addContentModal.style.display = 'none';
+    try { els.addContentFrame.src = 'about:blank'; } catch {}
+  }
+
+  window.addEventListener('message', async (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.type === 'lib-flow-complete') {
+      try {
+        await loadLibrary();
+      } catch (err) {
+        setStatus(`❌ Reload failed: ${err.message}`);
+      } finally {
+        hideAddContentModal();
+      }
+    }
+  });
+
+  function buildContentFlowUrl(mode = 'add') {
+    const page = activeConfig.flowPage || '';
+    if (!page) return '';
+    const url = new URL(page, window.location.href);
+    const params = new URLSearchParams(activeConfig.flowQuery || '');
+    if (!params.has('embed')) params.set('embed', '1');
+    if (mode === 'nest') params.set('NestCollection', '1');
+    url.search = params.toString();
+    return url.href;
+  }
+
+  function openAddContentModal(mode = 'add') {
+    const url = buildContentFlowUrl(mode);
+    if (!url) {
+      setStatus('❌ This library does not have an add-content flow.');
+      return;
+    }
+    els.addContentModalTitle.textContent = mode === 'nest' ? '🧺 Nest Collection' : `➕ Add ${activeConfig.label} content`;
+    els.addContentFrame.src = url;
+    els.addContentModal.style.display = 'flex';
+  }
+
+  function buildRepairPageUrl(ep) {
+    const sourceUrl = String(ep?.primaryUrl || '').trim();
+    const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
+    const outputName = decodeURIComponent(sourceUrl.split('/').pop() || 'video');
+    const params = new URLSearchParams({
+      source: sourceUrl,
+      name: outputName,
+      folder: folderUrl,
+      mode: 'seek-repair',
+      auto: '1'
+    });
+    return `/ffmpeg/repair.html?${params.toString()}`;
+  }
+
+  function openRepairModal(ep) {
+    if (!ep?.primaryUrl) return;
+    const outputName = decodeURIComponent(ep.primaryUrl.split('/').pop() || 'video');
+    els.repairModalTitle.textContent = `🛠️ Repair ${outputName}`;
+    els.repairFrame.src = buildRepairPageUrl(ep);
+    els.repairModal.style.display = 'flex';
+  }
+
+  function toggleWheel(force) {
+    const open = typeof force === 'boolean' ? force : !els.libraryWheel.classList.contains('open');
+    els.libraryWheel.classList.toggle('open', open);
+    els.libraryWheel.setAttribute('aria-hidden', String(!open));
+  }
+
+  function getGroupPath(node) {
+    const parts = [];
+    let parent = nodeMap.get(node.parentKey);
+    while (parent) {
+      parts.unshift(parent.key);
+      parent = nodeMap.get(parent.parentKey);
+    }
+    return parts.length ? parts.join(' › ') : (activeConfig.label || 'Library');
+  }
+
+  function expandAll() {
+    const allIds = new Set();
+    const walk = node => {
+      allIds.add(node.id);
+      if (node.children) node.children.forEach(walk);
+      if (node.episodes) node.episodes.forEach(walk);
+    };
+    hierarchyRoots.forEach(walk);
+    expandedNodes = allIds;
+    renderTree();
+  }
+
+  function collapseAll() {
+    expandedNodes = new Set();
+    renderTree();
+  }
+
+  function ensureUploadInput() {
+    if (uploadInput) return uploadInput;
+    uploadInput = document.createElement('input');
+    uploadInput.type = 'file';
+    uploadInput.style.display = 'none';
+    document.body.appendChild(uploadInput);
+    return uploadInput;
+  }
+
+  async function uploadFileToTarget(targetUrl, file) {
+    // Send raw bytes so the browser does not auto-attach a Content-Type header
+    // that would trigger a stricter CORS preflight on lightweight file servers.
+    const payload = await file.arrayBuffer();
+    const res = await fetch(targetUrl, {
+      method: 'PUT',
+      body: payload
+    });
+
+    if (!res.ok) {
+      throw new Error(`Upload failed: HTTP ${res.status}`);
+    }
+    return res;
+  }
+
+  async function promptUpload(node, which) {
+    const targetUrl = getUploadTarget(node, which);
+    if (!targetUrl) {
+      setStatus(`❌ No upload target found for this item.`);
+      return;
+    }
+    const input = ensureUploadInput();
+    input.accept = getUploadAccept(node, which);
+    input.value = '';
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      setStatus(`Uploading ${file.name}…`);
+      try {
+        await uploadFileToTarget(targetUrl, file);
+        if (which === 'primary') node.primaryStatus = STATUS.EXISTS;
+        else node.secondaryStatus = STATUS.EXISTS;
+        setStatus(`✅ Uploaded ${file.name}`);
+        renderTree();
+        updateStats();
+      } catch (err) {
+        setStatus(`❌ ${err.message}`);
+        renderTree();
+      }
+    };
+    input.click();
+  }
+
+  async function loadLibrary() {
+    const loadingName = Array.isArray(activeConfig.files) && activeConfig.files.length
+      ? activeConfig.files.map(file => String(file).split('/').pop()).join(' • ')
+      : activeConfig.file;
+    setStatus(`Loading ${loadingName}…`);
+
+    if (Array.isArray(activeConfig.files) && activeConfig.files.length) {
+      const bundle = await fetchLibraryBundle(activeConfig);
+      const raw = await activeConfig.loadData(bundle);
+      currentSource = bundle.map(item => item.source).join(' | ');
+      hierarchyRoots = activeConfig.build(raw);
+    } else {
+      const { text, source } = await fetchLibraryText(activeConfig);
+      const raw = await activeConfig.loadData(text);
+      currentSource = source;
+      hierarchyRoots = activeConfig.build(raw);
+    }
+
+    expandedNodes = new Set();
+    setLibraryUI(activeKey);
+    updateStats();
+    renderTree();
+    setStatus(`✅ Loaded ${flatItems.length} items from ${currentSource}`);
+  }
+
+  async function switchLibrary(key) {
+    if (!LIBRARIES[key] || key === activeKey) {
+      toggleWheel(false);
+      return;
+    }
+    scanQueue = [];
+    scanIndex = 0;
+    scanning = false;
+    paused = false;
+    els.pauseBtn.disabled = true;
+    els.stopBtn.disabled = true;
+    els.scanPrimaryBtn.disabled = false;
+    els.scanSecondaryBtn.disabled = false;
+    els.search.value = '';
+    activeKey = key;
+    activeConfig = LIBRARIES[key];
+    hierarchyRoots = [];
+    flatItems = [];
+    nodeMap = new Map();
+    expandedNodes = new Set();
+    els.tree.innerHTML = '<div class="empty-message">Loading…</div>';
+    toggleWheel(false);
+    await loadLibrary();
+  }
+
+  async function repairOrUploadFromAction(node, action) {
+    if (action === 'repair-leaf') {
+      openRepairModal(node);
+      return;
+    }
+    if (action === 'upload-primary') {
+      await promptUpload(node, 'primary');
+      return;
+    }
+    if (action === 'upload-secondary') {
+      await promptUpload(node, 'secondary');
+      return;
+    }
+  }
+
+  function getNodeById(id) {
+    return nodeMap.get(id);
+  }
+
+  els.tree.addEventListener('click', async (e) => {
+    const actionBtn = e.target.closest('[data-action]');
+    if (actionBtn) {
+      e.stopPropagation();
+      const action = actionBtn.dataset.action;
+      const node = getNodeById(actionBtn.dataset.nodeId);
+      if (!node) return;
+
+      if (action === 'scan-group-primary') {
+        startScan([node], true, false, true);
+      } else if (action === 'scan-group-secondary') {
+        startScan([node], false, true, true);
+      } else if (action === 'scan-leaf-primary') {
+        startScan([node], true, false, true);
+      } else if (action === 'scan-leaf-secondary') {
+        startScan([node], false, true, true);
+      } else if (action === 'repair-leaf') {
+        openRepairModal(node);
+      } else if (action === 'upload-primary' || action === 'upload-secondary') {
+        await repairOrUploadFromAction(node, action);
+      }
+      return;
+    }
+
+    const header = e.target.closest('[data-node-id]');
+    if (header) {
+      const nodeId = header.dataset.nodeId;
+      if (expandedNodes.has(nodeId)) expandedNodes.delete(nodeId);
+      else expandedNodes.add(nodeId);
+      renderTree();
+    }
+  });
+
+  els.search.addEventListener('input', renderTree);
+  els.expandAllBtn.addEventListener('click', expandAll);
+  els.collapseAllBtn.addEventListener('click', collapseAll);
+
+  els.reloadBtn.addEventListener('click', async () => {
+    try {
+      await loadLibrary();
+    } catch (err) {
+      setStatus(`❌ Load failed: ${err.message}`);
+    }
+  });
+
+  els.scanPrimaryBtn.addEventListener('click', () => startScan(flatItems, true, false, true));
+  els.scanSecondaryBtn.addEventListener('click', () => startScan(flatItems, false, true, true));
+
+  els.pauseBtn.addEventListener('click', () => {
+    if (!scanning) return;
+    if (paused) resumeScan();
+    else pauseScan();
+  });
+
+  els.stopBtn.addEventListener('click', () => stopScan());
+
+  els.missingPrimaryCard.addEventListener('click', () => showMissingModal('primary'));
+  els.missingSecondaryCard.addEventListener('click', () => showMissingModal('secondary'));
+  els.closeModalBtn.addEventListener('click', hideModal);
+  els.missingModal.addEventListener('click', e => {
+    if (e.target === els.missingModal) hideModal();
+  });
+
+  els.closeRepairModalBtn.addEventListener('click', hideRepairModal);
+  els.repairModal.addEventListener('click', e => {
+    if (e.target === els.repairModal) hideRepairModal();
+  });
+
+  els.closeAddContentModalBtn?.addEventListener('click', hideAddContentModal);
+  els.addContentModal?.addEventListener('click', e => {
+    if (e.target === els.addContentModal) hideAddContentModal();
+  });
+  els.nestCollectionBtn?.addEventListener('click', () => openAddContentModal('nest'));
+  els.addContentBtn?.addEventListener('click', () => openAddContentModal('add'));
+
+  els.libraryHub.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleWheel();
+  });
+
+  els.libraryWheel.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-library]');
+    if (!btn) return;
+    e.stopPropagation();
+    const lib = btn.dataset.library;
+    if (lib === 'close') {
+      toggleWheel(false);
+      return;
+    }
+    await switchLibrary(lib);
+  });
+
+  document.addEventListener('click', e => {
+    if (!els.librarySwitcher.contains(e.target)) toggleWheel(false);
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      toggleWheel(false);
+      hideModal();
+      hideRepairModal();
+      hideAddContentModal();
+    }
+  });
+
+  async function init() {
+    setLibraryUI(activeKey);
+    try {
+      await loadLibrary();
+    } catch (e) {
+      setStatus(`❌ ${e.message}`);
+      els.tree.innerHTML = '<div class="empty-message">Failed to load library file</div>';
+    }
+    updateStats();
+    renderTree();
+  }
+
+  init();
+})();
+</script>
+
+
+</body>
+</html>

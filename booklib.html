@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Book Library Manager</title>
+<style>
+  :root {
+    --bg: #0c1018;
+    --panel: #121826;
+    --panel2: #0f1521;
+    --line: rgba(255,255,255,.08);
+    --text: #ecf2ff;
+    --muted: #95a2bd;
+    --good: #7ee0c4;
+    --warn: #ffb36b;
+    --danger: #ff7f8b;
+    --radius: 20px;
+    --shadow: 0 20px 50px rgba(0,0,0,.28);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: radial-gradient(circle at top, rgba(126,224,196,.09), transparent 32%), var(--bg);
+    color: var(--text);
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 18px 16px 8px;
+  }
+  h1 { margin: 0; font-size: 24px; }
+  .pill {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: minmax(320px, 390px) minmax(460px, 1fr) minmax(360px, 520px);
+    gap: 16px;
+    padding: 16px;
+    align-items: start;
+  }
+  .panel {
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .head {
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    background: rgba(255,255,255,.02);
+  }
+  .head h2 { margin: 0; font-size: 17px; }
+  .head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .body { padding: 16px 18px 18px; }
+  .field { margin-bottom: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  input[type="text"], input[type="url"], select, textarea {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font: inherit;
+    outline: none;
+  }
+  textarea { min-height: 180px; resize: vertical; line-height: 1.45; }
+  button {
+    border: 0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, rgba(126,224,196,1), rgba(82,192,160,1));
+    color: #07110e;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button.secondary { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid var(--line); }
+  button.warn { background: rgba(255,179,107,.15); color: #ffd2a2; border: 1px solid rgba(255,179,107,.2); }
+  button.danger { background: rgba(255,127,139,.12); color: #ffb8c0; border: 1px solid rgba(255,127,139,.18); }
+  button:active { transform: translateY(1px); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .row.space { justify-content: space-between; }
+  .mini { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .section-title {
+    margin: 18px 0 10px;
+    font-size: 13px;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    color: #c3cbe0;
+  }
+  .preview-box, .box {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.03);
+    border-radius: 16px;
+    padding: 12px;
+  }
+  .item-list { display: grid; gap: 10px; }
+  .item-card {
+    border: 1px solid var(--line);
+    background: rgba(8,12,18,.45);
+    border-radius: 16px;
+    padding: 12px;
+  }
+  .item-card.group {
+    border-color: rgba(126,224,196,.22);
+  }
+  .item-card .item-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .item-card .item-title {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  .item-card .item-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .item-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1.2fr 1.1fr;
+    gap: 10px;
+  }
+  .item-grid.compact {
+    grid-template-columns: 1.15fr 1.15fr 1fr;
+  }
+  .group-box {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,.08);
+  }
+  .group-items {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .child-card {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.02);
+    border-radius: 14px;
+    padding: 10px;
+  }
+  .child-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .child-head .child-label {
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .chipbar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .type-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .flow-tile {
+    min-height: 108px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--text);
+    border-radius: 16px;
+    padding: 18px 12px 20px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+    transition: transform .12s ease, border-color .12s ease, background .12s ease;
+  }
+  .flow-tile:hover {
+    transform: translateY(-1px);
+    border-color: rgba(126,224,196,.35);
+    background: rgba(126,224,196,.08);
+  }
+  .flow-tile .kicker {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  .flow-tile .main {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .flow-tile.active {
+    border-color: rgba(126,224,196,.8);
+    background: linear-gradient(180deg, rgba(126,224,196,.18), rgba(82,192,160,.12));
+    box-shadow: 0 0 0 1px rgba(126,224,196,.12) inset;
+  }
+  .flow-nav {
+    display: none;
+    margin: 0 16px 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.03);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .flow-nav .flow-stepbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .flow-nav .flow-stepchip {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .flow-nav .flow-stepchip.active {
+    color: var(--text);
+    border-color: rgba(126,224,196,.8);
+    background: linear-gradient(180deg, rgba(126,224,196,.16), rgba(82,192,160,.10));
+  }
+  .flow-nav .flow-stepinfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 220px;
+  }
+  .flow-nav .flow-stepinfo .kicker {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .24px;
+  }
+  .flow-nav .flow-stepinfo .main {
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .flow-stage { display: block; }
+  .dropzone {
+    position: relative;
+    border: 1.5px dashed rgba(255,255,255,.14);
+    background: rgba(255,255,255,.03);
+    border-radius: 16px;
+    padding: 14px 14px;
+    min-height: 92px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: .15s ease;
+  }
+  .dropzone:hover,
+  .dropzone.dragover {
+    border-color: rgba(126,224,196,.65);
+    background: rgba(126,224,196,.08);
+    transform: translateY(-1px);
+  }
+  .dropzone input[type="file"] { display: none; }
+  .dropzone .dz-name { font-size: 13px; font-weight: 800; color: var(--text); }
+  .dropzone .dz-meta { font-size: 11px; line-height: 1.35; color: var(--muted); }
+  .field .dropzone { margin-bottom: 8px; }
+  .field.compact .dropzone { min-height: 72px; }
+  .field.compact .dropzone .dz-name { font-size: 12px; }
+  .field.compact .dropzone .dz-meta { font-size: 10px; }
+  .import-drop { margin-bottom: 12px; }
+  .import-drop .dropzone { min-height: 86px; }
+  body.flow-mode header { display: none; }
+  body.flow-mode .flow-nav { display: flex; }
+  body.flow-mode .app {
+    grid-template-columns: 1fr;
+    max-width: 1160px;
+    margin: 0 auto;
+  }
+  body.flow-mode .panel { max-width: none; }
+  body.flow-mode .body { padding: 14px; }
+  body.flow-mode .preview-box { display: none; }
+  body.flow-mode [data-flow-step] { display: none; }
+  body.flow-mode [data-flow-step].flow-active { display: block; }
+  body.flow-mode .flow-stage { margin-bottom: 12px; }
+  body.flow-mode .item-grid,
+  body.flow-mode .grid2,
+  body.flow-mode .grid3 { grid-template-columns: 1fr; }
+  .output-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .output-tabs button.active {
+    outline: 2px solid rgba(126,224,196,.26);
+    background: linear-gradient(180deg, rgba(126,224,196,1), rgba(82,192,160,1));
+    color: #04110d;
+  }
+  .footer-note { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .status.good { color: var(--good); }
+  .status.warn { color: var(--warn); }
+  .status.bad { color: var(--danger); }
+  .hidden { display: none !important; }
+  .code-output {
+    min-height: 330px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+  .import-box textarea { min-height: 250px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  body.flow-mode .app {
+    grid-template-columns: 1fr;
+    max-width: 1160px;
+    margin: 0 auto;
+  }
+  body.flow-mode .panel {
+    max-width: none;
+  }
+  body.flow-mode .body {
+    padding: 14px;
+  }
+  body.flow-mode .import-box,
+  body.flow-mode .preview-box,
+  body.flow-mode .section-title.secondary-only {
+    display: none;
+  }
+  @media (max-width: 1180px) {
+    .app { grid-template-columns: 1fr; }
+    .type-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .item-grid, .grid2, .grid3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1 id="pageTitle">Book Library Manager</h1>
+    <div class="mini" id="pageSubtitle">Choose a library type, add entries, then export the matching JavaScript file.</div>
+  </div>
+  <div class="pill" id="targetPill">Target: books.js</div>
+</header>
+
+<div class="flow-nav" id="flowNav">
+  <div class="flow-stepinfo">
+    <div class="kicker" id="flowStepKicker">Flow</div>
+    <div class="main" id="flowStepMain">Choose a step</div>
+    <div class="mini" id="flowStepSub">Use Back and Next to move through the book flow.</div>
+  </div>
+  <div class="flow-stepbar" id="flowStepBar"></div>
+  <div class="row">
+    <button id="flowBackBtn" class="secondary" type="button">Back</button>
+    <button id="flowNextBtn" type="button">Next</button>
+  </div>
+</div>
+
+<main class="app">
+  <section class="panel">
+    <div class="head">
+      <h2 id="flowHeadTitle">Choose what you are adding</h2>
+      <p id="flowHeadSub">This sets the target JavaScript file and the folder suggestions used for file and cover paths.</p>
+    </div>
+    <div class="body">
+      <div class="flow-stage" data-flow-step="kind">
+      <div class="type-grid">
+        <button class="flow-tile" data-kind-tile data-kind="books" type="button">
+          <span class="kicker">Book</span>
+          <span class="main">Books</span>
+        </button>
+        <button class="flow-tile" data-kind-tile data-kind="manga" type="button">
+          <span class="kicker">Manga</span>
+          <span class="main">Manga</span>
+        </button>
+        <button class="flow-tile" data-kind-tile data-kind="guidebooks" type="button">
+          <span class="kicker">Guidebook</span>
+          <span class="main">Guidebooks</span>
+        </button>
+      </div>
+    </div>
+
+      <div class="flow-stage" data-flow-step="details">
+      <div class="section-title">Library details</div>
+      <div class="grid2">
+        <div class="field">
+          <label for="libraryTitle">Library title</label>
+          <input id="libraryTitle" type="text" placeholder="Book Library" />
+        </div>
+        <div class="field">
+          <label for="libraryKind">Library type</label>
+          <select id="libraryKind">
+            <option value="books">Book</option>
+            <option value="manga">Manga</option>
+            <option value="guidebooks">Guidebook</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid3">
+        <div class="field">
+          <label for="fileRoot">File folder</label>
+          <input id="fileRoot" type="text" placeholder="./Books/" />
+        </div>
+        <div class="field">
+          <label for="coverRoot">Cover folder</label>
+          <input id="coverRoot" type="text" placeholder="./Covers/" />
+        </div>
+        <div class="field">
+          <label for="chapterRoot">Chapter JSON folder</label>
+          <input id="chapterRoot" type="text" placeholder="./Books/" />
+        </div>
+      </div>
+
+      <div class="row space">
+        <label style="display:flex; gap:8px; align-items:center; margin:0;">
+          <input id="markGroupByDefault" type="checkbox" />
+          <span>Default new entries to group mode</span>
+        </label>
+        <button id="addItemBtn" type="button">Add entry</button>
+      </div>
+
+      </div>
+    </div>
+
+      <div class="flow-stage" data-flow-step="entries">
+      <div class="section-title">Entries</div>
+      <div id="itemsList" class="item-list"></div>
+
+      </div>
+    </div>
+
+      <div class="flow-stage" data-flow-step="import">
+      <div class="section-title secondary-only">Import existing file</div>
+      <div class="box import-box secondary-only">
+        <div class="mini">Paste a current <code>books.js</code>, <code>manga.js</code>, or <code>guidebooks.js</code> block here to load and edit it before exporting.</div>
+        <label class="dropzone import-drop" id="importDropzone" for="importFileInput">
+          <input id="importFileInput" type="file" accept=".js,.txt,.json,application/javascript,text/plain,application/json" />
+          <span class="dz-name">Drop an existing library file</span>
+          <span class="dz-meta">Or click to load a pasted <code>libraryData</code> file straight into the import box.</span>
+        </label>
+        <div class="field" style="margin-top:10px;">
+          <textarea id="importText" placeholder="Paste window.libraryData = { ... }; here."></textarea>
+        </div>
+        <div class="row">
+          <button id="importBtn" class="secondary" type="button">Load pasted file</button>
+          <button id="loadSampleBtn" class="secondary" type="button">Load current file sample</button>
+          <button id="clearImportBtn" class="warn" type="button">Clear</button>
+        </div>
+        <div class="footer-note" id="importStatus"></div>
+      </div>
+
+      <div class="section-title secondary-only">Preview</div>
+      <div class="preview-box secondary-only">
+        <div class="row space">
+          <div>
+            <div style="font-size:15px;font-weight:800;" id="previewTitle">No entry selected</div>
+            <div class="mini" id="previewMeta">Use the cards above to build the new JS file.</div>
+          </div>
+          <div class="chipbar" id="previewChips"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" data-flow-step="export">
+    <div class="head">
+      <h2>Generated file</h2>
+      <p>The output is valid JavaScript for <code>reader.html</code>. Use it to replace the matching file on the server or download it locally.</p>
+    </div>
+    <div class="body">
+      <div class="output-tabs">
+        <button class="active" data-out-tab="output" type="button">JavaScript</button>
+        <button data-out-tab="summary" type="button">Summary</button>
+      </div>
+      <textarea id="outputText" class="code-output" spellcheck="false"></textarea>
+      <div class="footer-note" id="summaryBox"></div>
+      <div class="row" style="margin-top:10px;">
+        <button id="saveServerBtn" type="button">Update on server</button>
+        <button id="downloadBtn" class="secondary" type="button">Download file</button>
+        <button id="copyBtn" class="secondary" type="button">Copy output</button>
+        <button id="doneBtn" class="warn" type="button">Finish</button>
+      </div>
+
+      <div class="section-title">Server target</div>
+      <div class="grid2">
+        <div class="field">
+          <label for="serverBase">Server base</label>
+          <input id="serverBase" type="url" value="http://192.168.254.16:8080" />
+        </div>
+        <div class="field">
+          <label for="targetFile">Target file</label>
+          <input id="targetFile" type="text" readonly />
+        </div>
+      </div>
+      <div class="footer-note" id="saveStatus">Ready.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const FLOW_PARAMS = new URLSearchParams(window.location.search || '');
+  const FLOW_MODE = FLOW_PARAMS.has('embed') || FLOW_PARAMS.has('bflow') || FLOW_PARAMS.has('flow');
+  document.body.classList.toggle('flow-mode', FLOW_MODE);
+
+  const KIND_CONFIGS = {
+    books: {
+      title: 'Book Library',
+      targetFile: './books.js',
+      fileRoot: './Books/',
+      coverRoot: './Covers/',
+      chapterRoot: './Books/',
+      leafLabel: 'Book',
+      collectionLabel: 'Books'
+    },
+    manga: {
+      title: 'Manga Library',
+      targetFile: './manga.js',
+      fileRoot: './Manga/',
+      coverRoot: './Manga/',
+      chapterRoot: './Manga/',
+      leafLabel: 'Manga',
+      collectionLabel: 'Manga'
+    },
+    guidebooks: {
+      title: 'Guidebook Library',
+      targetFile: './guidebooks.js',
+      fileRoot: './Guidebooks/',
+      coverRoot: './Guidebooks/',
+      chapterRoot: './Guidebooks/',
+      leafLabel: 'Guidebook',
+      collectionLabel: 'Guidebooks'
+    }
+  };
+
+  const el = (id) => document.getElementById(id);
+
+  const state = {
+    kind: 'books',
+    libraryTitle: KIND_CONFIGS.books.title,
+    fileRoot: KIND_CONFIGS.books.fileRoot,
+    coverRoot: KIND_CONFIGS.books.coverRoot,
+    chapterRoot: KIND_CONFIGS.books.chapterRoot,
+    markGroupByDefault: false,
+    items: [blankItem(false)],
+    activeItem: 0,
+    activeChild: null,
+    outputMode: 'output',
+    flowStep: FLOW_MODE ? 'kind' : 'export',
+    importText: '',
+    saveStatus: 'Ready.'
+  };
+
+  function blankItem(asGroup = false) {
+    return {
+      title: '',
+      file: '',
+      cover: '',
+      chapters: '',
+      group: !!asGroup,
+      books: asGroup ? [blankItem(false)] : []
+    };
+  }
+
+  function cloneItem(item) {
+    return JSON.parse(JSON.stringify(item));
+  }
+
+  function slugify(str) {
+    return String(str ?? '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s-]/g, '')
+      .trim()
+      .replace(/[\s_-]+/g, '')
+      .replace(/^_+|_+$/g, '');
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function escapeHtmlAttr(value) {
+    return escapeHtml(value).replace(/`/g, '&#96;');
+  }
+
+  function currentConfig() {
+    return KIND_CONFIGS[state.kind] || KIND_CONFIGS.books;
+  }
+
+  function setKind(kind) {
+    state.kind = KIND_CONFIGS[kind] ? kind : 'books';
+    const cfg = currentConfig();
+    state.libraryTitle = cfg.title;
+    state.fileRoot = cfg.fileRoot;
+    state.coverRoot = cfg.coverRoot;
+    state.chapterRoot = cfg.chapterRoot;
+    el('libraryTitle').value = state.libraryTitle;
+    el('libraryKind').value = state.kind;
+    el('fileRoot').value = state.fileRoot;
+    el('coverRoot').value = state.coverRoot;
+    el('chapterRoot').value = state.chapterRoot;
+    el('targetFile').value = cfg.targetFile;
+    el('targetPill').textContent = `Target: ${cfg.targetFile.replace('./', '')}`;
+    el('pageTitle').textContent = `${cfg.leafLabel} Library Manager`;
+    el('pageSubtitle').textContent = `Choose a ${cfg.leafLabel.toLowerCase()} type, add entries, then export the matching JavaScript file.`;
+    el('flowHeadTitle').textContent = `Choose what you are adding`;
+    el('flowHeadSub').textContent = `This sets the target JavaScript file and folder suggestions for ${cfg.collectionLabel.toLowerCase()}.`;
+    renderKindTiles();
+    updateOutput();
+    renderItems();
+    renderFlowState();
+  }
+
+  function updateLibraryTitleFromKind() {
+    const cfg = currentConfig();
+    if (!state.libraryTitle || state.libraryTitle === KIND_CONFIGS.books.title || state.libraryTitle === KIND_CONFIGS.manga.title || state.libraryTitle === KIND_CONFIGS.guidebooks.title) {
+      state.libraryTitle = cfg.title;
+      el('libraryTitle').value = state.libraryTitle;
+    }
+  }
+
+  function fillSuggestionsForItem(item) {
+    const base = slugify(item.title || 'Untitled');
+    if (!item.file) item.file = `${state.fileRoot}${base}.pdf`;
+    if (!item.cover) item.cover = `${state.coverRoot}${base}.jpg`;
+    if (!item.chapters) item.chapters = `${state.chapterRoot}${base}.json`;
+  }
+
+  function flowSteps() {
+    return [
+      { key: 'kind', label: '1', main: 'Choose type', sub: 'Pick Books, Manga, or Guidebooks.' },
+      { key: 'details', label: '2', main: 'Set paths', sub: 'Tune the title and root folders.' },
+      { key: 'entries', label: '3', main: 'Build entries', sub: 'Add items and drop files in.' },
+      { key: 'import', label: '4', main: 'Import file', sub: 'Load an existing JS block or local file.' },
+      { key: 'export', label: '5', main: 'Export', sub: 'Copy or update the target library file.' }
+    ];
+  }
+
+  function currentFlowIndex() {
+    return Math.max(0, flowSteps().findIndex(step => step.key === state.flowStep));
+  }
+
+  function setFlowStep(step) {
+    const steps = flowSteps();
+    const found = steps.some(s => s.key === step) ? step : steps[0].key;
+    state.flowStep = found;
+    renderFlowState();
+  }
+
+  function renderFlowState() {
+    const steps = flowSteps();
+    const idx = Math.max(0, steps.findIndex(step => step.key === state.flowStep));
+    const bar = el('flowStepBar');
+    if (bar) {
+      bar.innerHTML = '';
+      steps.forEach((step, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `flow-stepchip ${i === idx ? 'active' : ''}`;
+        btn.textContent = `${step.label}. ${step.main}`;
+        btn.addEventListener('click', () => setFlowStep(step.key));
+        bar.appendChild(btn);
+      });
+    }
+    const headMain = el('flowStepMain');
+    const headSub = el('flowStepSub');
+    const headKicker = el('flowStepKicker');
+    if (headMain && headSub && headKicker) {
+      const step = steps[idx] || steps[0];
+      headMain.textContent = step.main;
+      headSub.textContent = step.sub;
+      headKicker.textContent = FLOW_MODE ? 'Flow mode' : 'Editor mode';
+    }
+    document.querySelectorAll('[data-flow-step]').forEach(node => {
+      node.classList.toggle('flow-active', node.dataset.flowStep === state.flowStep);
+    });
+    const backBtn = el('flowBackBtn');
+    const nextBtn = el('flowNextBtn');
+    if (backBtn) backBtn.disabled = idx <= 0;
+    if (nextBtn) nextBtn.textContent = idx >= steps.length - 1 ? 'Finish' : 'Next';
+    if (nextBtn) nextBtn.disabled = false;
+  }
+
+  function suggestPathFromFile(file, field, item) {
+    const name = String(file?.name || '').trim();
+    const ext = name.includes('.') ? `.${name.split('.').pop()}`.toLowerCase() : '';
+    const base = slugify((item && item.title) || name.replace(/\.[^.]+$/, '') || 'Untitled');
+    if (field === 'cover') return `${state.coverRoot}${base}${ext || '.jpg'}`;
+    if (field === 'chapters') return `${state.chapterRoot}${base}.json`;
+    return `${state.fileRoot}${base}${ext || '.pdf'}`;
+  }
+
+  function applyDroppedFileToItem(itemIdx, field, file, childIdx = null) {
+    const target = childIdx == null ? state.items[itemIdx] : state.items[itemIdx]?.books?.[childIdx];
+    const path = suggestPathFromFile(file, field, target);
+    updateItemValue(itemIdx, field, path, childIdx);
+    renderItems();
+    const status = `${file.name} → ${field}: ${path}`;
+    if (el('importStatus') && state.flowStep === 'import') el('importStatus').textContent = status;
+  }
+
+  async function readLocalFileToText(file) {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('Failed to read file.'));
+      reader.readAsText(file);
+    });
+  }
+
+  function renderKindTiles() {
+    document.querySelectorAll('[data-kind-tile]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.kind === state.kind);
+    });
+  }
+
+  function renderItems() {
+    const list = el('itemsList');
+    if (!list) return;
+    list.innerHTML = '';
+    state.items.forEach((item, idx) => {
+      list.appendChild(renderItemCard(item, idx));
+    });
+    if (!state.items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'box';
+      empty.innerHTML = `<div class="mini">No entries yet. Use <strong>Add entry</strong> to start a new book, manga volume, or guidebook entry.</div>`;
+      list.appendChild(empty);
+    }
+    renderPreview();
+    updateOutput();
+    renderFlowState();
+  }
+
+  function pathDropzoneMarkup({ label, hint, field, itemIdx, childIdx = null, accept }) {
+    const childAttr = childIdx == null ? '' : ` data-child-index="${childIdx}"`;
+    return `
+      <label class="dropzone" data-dropzone data-drop-field="${field}" data-item-index="${itemIdx}"${childAttr}>
+        <input type="file" data-file-drop="${field}" accept="${accept}" />
+        <span class="dz-name">${label}</span>
+        <span class="dz-meta">${hint}</span>
+      </label>`;
+  }
+
+  function renderItemCard(item, idx, childIdx = null) {
+    const wrap = document.createElement('div');
+    wrap.className = `item-card ${item.group ? 'group' : ''}`;
+    wrap.dataset.itemIndex = String(idx);
+    if (childIdx !== null) wrap.dataset.childIndex = String(childIdx);
+    const cfg = currentConfig();
+    const title = item.group ? `${item.title || `${cfg.collectionLabel} ${idx + 1}`}` : `${item.title || `${cfg.leafLabel} ${idx + 1}`}`;
+    wrap.innerHTML = `
+      <div class="item-head">
+        <div>
+          <div class="item-title">${item.group ? 'Group' : cfg.leafLabel} ${idx + 1}</div>
+          <div class="item-sub">${item.group ? 'Nested books, manga, or guidebook volumes.' : 'Single entry used directly by reader.html.'}</div>
+        </div>
+        <div class="row">
+          <label style="display:flex; gap:8px; align-items:center; margin:0;">
+            <input type="checkbox" data-action="toggle-group" ${item.group ? 'checked' : ''} />
+            <span>Group</span>
+          </label>
+          <button class="secondary" type="button" data-action="fill-suggested">Suggest paths</button>
+          <button class="warn" type="button" data-action="remove-item">Remove</button>
+        </div>
+      </div>
+
+      <div class="item-grid">
+        <div class="field">
+          <label>Title</label>
+          <input type="text" data-field="title" value="${escapeHtmlAttr(item.title || '')}" placeholder="${escapeHtmlAttr(title)}" />
+        </div>
+        <div class="field compact">
+          ${pathDropzoneMarkup({
+            label: 'Drop book file',
+            hint: 'Choose a PDF, EPUB, MOBI, CBZ, CBR, TXT, MD, or ZIP file.',
+            field: 'file',
+            itemIdx: idx,
+            accept: '.pdf,.epub,.mobi,.azw,.azw3,.cbz,.cbr,.txt,.md,.zip,application/pdf,application/epub+zip,text/plain,application/zip'
+          })}
+          <input type="text" data-field="file" value="${escapeHtmlAttr(item.file || '')}" placeholder="${escapeHtmlAttr(`${state.fileRoot}${slugify(item.title || title)}.pdf`)}" />
+        </div>
+        <div class="field compact">
+          ${pathDropzoneMarkup({
+            label: 'Drop cover image',
+            hint: 'Choose a JPG, PNG, WEBP, or GIF cover.',
+            field: 'cover',
+            itemIdx: idx,
+            accept: 'image/*'
+          })}
+          <input type="text" data-field="cover" value="${escapeHtmlAttr(item.cover || '')}" placeholder="${escapeHtmlAttr(`${state.coverRoot}${slugify(item.title || title)}.jpg`)}" />
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field compact">
+          ${pathDropzoneMarkup({
+            label: 'Drop chapter JSON',
+            hint: 'Optional: load a JSON chapter list.',
+            field: 'chapters',
+            itemIdx: idx,
+            accept: '.json,application/json,text/plain'
+          })}
+          <input type="text" data-field="chapters" value="${escapeHtmlAttr(item.chapters || '')}" placeholder="${escapeHtmlAttr(`${state.chapterRoot}${slugify(item.title || title)}.json`)}" />
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <div class="mini">Reader uses <code>title</code>, <code>file</code>, <code>cover</code>, and optional <code>chapters</code>. Groups use <code>books</code>.</div>
+        </div>
+      </div>
+
+      <div class="group-box ${item.group ? '' : 'hidden'}" data-group-box>
+        <div class="row space">
+          <div>
+            <div style="font-size:14px;font-weight:800;">Group volumes</div>
+            <div class="mini">Each child becomes a clickable book tile inside the group.</div>
+          </div>
+          <button class="secondary" type="button" data-action="add-child">Add child</button>
+        </div>
+        <div class="group-items" data-child-list></div>
+      </div>
+    `;
+
+    if (item.group) {
+      const childList = wrap.querySelector('[data-child-list]');
+      item.books.forEach((child, cIdx) => {
+        childList.appendChild(renderChildCard(child, idx, cIdx));
+      });
+      if (!item.books.length) {
+        const empty = document.createElement('div');
+        empty.className = 'box';
+        empty.innerHTML = `<div class="mini">No child books yet. Add one to make the group usable in <code>reader.html</code>.</div>`;
+        childList.appendChild(empty);
+      }
+    }
+
+    return wrap;
+  }
+
+  function renderChildCard(child, idx, cIdx) {
+    const card = document.createElement('div');
+    card.className = 'child-card';
+    card.dataset.itemIndex = String(idx);
+    card.dataset.childIndex = String(cIdx);
+    const title = child.title || `Child ${cIdx + 1}`;
+    card.innerHTML = `
+      <div class="child-head">
+        <div class="child-label">Volume ${cIdx + 1}</div>
+        <div class="row">
+          <button class="secondary" type="button" data-action="fill-child-suggested">Suggest paths</button>
+          <button class="warn" type="button" data-action="remove-child">Remove child</button>
+        </div>
+      </div>
+      <div class="item-grid compact">
+        <div class="field">
+          <label>Title</label>
+          <input type="text" data-child-field="title" value="${escapeHtmlAttr(child.title || '')}" placeholder="${escapeHtmlAttr(title)}" />
+        </div>
+        <div class="field compact">
+          ${pathDropzoneMarkup({
+            label: 'Drop book file',
+            hint: 'Choose a PDF, EPUB, MOBI, CBZ, CBR, TXT, MD, or ZIP file.',
+            field: 'file',
+            itemIdx: idx,
+            childIdx: cIdx,
+            accept: '.pdf,.epub,.mobi,.azw,.azw3,.cbz,.cbr,.txt,.md,.zip,application/pdf,application/epub+zip,text/plain,application/zip'
+          })}
+          <input type="text" data-child-field="file" value="${escapeHtmlAttr(child.file || '')}" placeholder="${escapeHtmlAttr(`${state.fileRoot}${slugify(child.title || title)}.pdf`)}" />
+        </div>
+        <div class="field compact">
+          ${pathDropzoneMarkup({
+            label: 'Drop cover image',
+            hint: 'Choose a JPG, PNG, WEBP, or GIF cover.',
+            field: 'cover',
+            itemIdx: idx,
+            childIdx: cIdx,
+            accept: 'image/*'
+          })}
+          <input type="text" data-child-field="cover" value="${escapeHtmlAttr(child.cover || '')}" placeholder="${escapeHtmlAttr(`${state.coverRoot}${slugify(child.title || title)}.jpg`)}" />
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field compact">
+          ${pathDropzoneMarkup({
+            label: 'Drop chapter JSON',
+            hint: 'Optional: load a JSON chapter list.',
+            field: 'chapters',
+            itemIdx: idx,
+            childIdx: cIdx,
+            accept: '.json,application/json,text/plain'
+          })}
+          <input type="text" data-child-field="chapters" value="${escapeHtmlAttr(child.chapters || '')}" placeholder="${escapeHtmlAttr(`${state.chapterRoot}${slugify(child.title || title)}.json`)}" />
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <div class="mini">Reader uses child <code>title</code>, <code>file</code>, <code>cover</code>, and optional <code>chapters</code>.</div>
+        </div>
+      </div>
+    `;
+    return card;
+  }
+
+  function setGroup(idx, isGroup) {
+    const item = state.items[idx];
+    if (!item) return;
+    item.group = isGroup;
+    if (isGroup && !Array.isArray(item.books)) item.books = [blankItem(false)];
+    if (!isGroup) item.books = [];
+    renderItems();
+  }
+
+  function addItem(asGroup = false) {
+    state.items.push(blankItem(asGroup || state.markGroupByDefault));
+    state.activeItem = state.items.length - 1;
+    renderItems();
+  }
+
+  function addChild(idx) {
+    const item = state.items[idx];
+    if (!item) return;
+    item.group = true;
+    if (!Array.isArray(item.books)) item.books = [];
+    item.books.push(blankItem(false));
+    renderItems();
+  }
+
+  function removeItem(idx) {
+    state.items.splice(idx, 1);
+    if (!state.items.length) state.items.push(blankItem(false));
+    renderItems();
+  }
+
+  function removeChild(idx, childIdx) {
+    const item = state.items[idx];
+    if (!item || !Array.isArray(item.books)) return;
+    item.books.splice(childIdx, 1);
+    if (!item.books.length) item.books.push(blankItem(false));
+    renderItems();
+  }
+
+  function autoFillItem(idx, childIdx = null) {
+    if (childIdx == null) {
+      const item = state.items[idx];
+      if (!item) return;
+      fillSuggestionsForItem(item);
+    } else {
+      const child = state.items[idx]?.books?.[childIdx];
+      if (!child) return;
+      fillSuggestionsForItem(child);
+    }
+    renderItems();
+  }
+
+  function renderPreview() {
+    const previewTitle = el('previewTitle');
+    const previewMeta = el('previewMeta');
+    const previewChips = el('previewChips');
+    const first = state.items[0];
+    previewChips.innerHTML = '';
+    if (!first) {
+      previewTitle.textContent = 'No entry selected';
+      previewMeta.textContent = 'Use the cards above to build the new JS file.';
+      return;
+    }
+    previewTitle.textContent = first.title || 'Untitled entry';
+    previewMeta.textContent = first.group
+      ? `Group with ${first.books.length} child item(s).`
+      : `File: ${first.file || '(not set)'} • Cover: ${first.cover || '(not set)'}${first.chapters ? ' • Chapters: ' + first.chapters : ''}`;
+    const chips = [
+      state.kind,
+      first.group ? 'group' : 'single',
+      currentConfig().targetFile.replace('./', '')
+    ];
+    chips.forEach(text => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = text;
+      previewChips.appendChild(chip);
+    });
+  }
+
+  function cleanItem(item) {
+    const out = {
+      title: String(item.title || '').trim(),
+      file: String(item.file || '').trim(),
+      cover: String(item.cover || '').trim()
+    };
+    const chapters = String(item.chapters || '').trim();
+    if (chapters) out.chapters = chapters;
+    if (item.group || (Array.isArray(item.books) && item.books.length)) {
+      out.group = true;
+      out.books = (item.books || []).map(cleanItem);
+    }
+    return out;
+  }
+
+  function buildDataObject() {
+    return {
+      title: String(state.libraryTitle || currentConfig().title).trim() || currentConfig().title,
+      items: state.items.map(cleanItem)
+    };
+  }
+
+  function generateOutput() {
+    const data = buildDataObject();
+    return `window.libraryData = ${JSON.stringify(data, null, 2)};\n`;
+  }
+
+  function updateOutput() {
+    el('outputText').value = generateOutput();
+    el('summaryBox').textContent = summarizeData();
+    el('targetFile').value = currentConfig().targetFile;
+  }
+
+  function summarizeData() {
+    const data = buildDataObject();
+    const leaves = countLeaves(data.items);
+    const groups = data.items.filter(item => item.group).length;
+    return `${data.title} · ${data.items.length} root item(s) · ${groups} group(s) · ${leaves} reader tile(s)`;
+  }
+
+  function countLeaves(items) {
+    let total = 0;
+    for (const item of items || []) {
+      if (item && item.group && Array.isArray(item.books)) total += countLeaves(item.books);
+      else total += 1;
+    }
+    return total;
+  }
+
+  function importFromText(text) {
+    const raw = String(text || '').trim();
+    if (!raw) throw new Error('Paste a file block first.');
+    const match = raw.match(/window\.libraryData\s*=\s*([\s\S]*?);\s*$/i) || raw.match(/window\.libraryData\s*=\s*([\s\S]*)$/i);
+    const expr = match ? match[1] : raw;
+    const data = Function(`"use strict"; return (${expr});`)();
+    if (!data || typeof data !== 'object' || !Array.isArray(data.items)) {
+      throw new Error('That text did not contain a valid libraryData.items array.');
+    }
+    state.libraryTitle = String(data.title || currentConfig().title).trim() || currentConfig().title;
+    state.items = data.items.map(item => cloneItem(item));
+    if (!state.items.length) state.items = [blankItem(false)];
+    el('libraryTitle').value = state.libraryTitle;
+    renderItems();
+    updateOutput();
+  }
+
+  async function copyOutput() {
+    const text = el('outputText').value;
+    await navigator.clipboard.writeText(text);
+    setStatus('Copied to clipboard.');
+  }
+
+  async function updateServer() {
+    const base = String(el('serverBase').value || '').trim().replace(/\/+$/, '');
+    const target = currentConfig().targetFile.replace(/^\.\//, '');
+    const url = base ? `${base}/${target}` : target;
+    const text = el('outputText').value;
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+      body: text
+    });
+    if (!res.ok) {
+      throw new Error(`Server returned HTTP ${res.status}`);
+    }
+    setStatus(`Updated ${target} on server.`);
+    return url;
+  }
+
+  function setStatus(text, kind = 'good') {
+    state.saveStatus = text;
+    const box = el('saveStatus');
+    box.textContent = text;
+    box.className = `footer-note status ${kind}`;
+  }
+
+  function wireEvents() {
+    el('libraryTitle').addEventListener('input', (e) => {
+      state.libraryTitle = e.target.value;
+      updateOutput();
+    });
+    el('libraryKind').addEventListener('change', (e) => {
+      setKind(e.target.value);
+      updateOutput();
+    });
+    el('fileRoot').addEventListener('input', (e) => {
+      state.fileRoot = e.target.value;
+      updateOutput();
+    });
+    el('coverRoot').addEventListener('input', (e) => {
+      state.coverRoot = e.target.value;
+      updateOutput();
+    });
+    el('chapterRoot').addEventListener('input', (e) => {
+      state.chapterRoot = e.target.value;
+      updateOutput();
+    });
+    el('markGroupByDefault').addEventListener('change', (e) => {
+      state.markGroupByDefault = e.target.checked;
+    });
+
+    const importFileInput = el('importFileInput');
+    if (importFileInput) {
+      importFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+          el('importText').value = await readLocalFileToText(file);
+          el('importStatus').textContent = `Loaded ${file.name}.`;
+          if (FLOW_MODE) setFlowStep('import');
+        } catch (err) {
+          el('importStatus').textContent = `❌ ${err.message}`;
+        } finally {
+          importFileInput.value = '';
+        }
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const kindTile = e.target.closest('[data-kind-tile]');
+      if (kindTile) {
+        setKind(kindTile.dataset.kind);
+        updateOutput();
+        if (FLOW_MODE) setFlowStep('details');
+        return;
+      }
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const itemCard = btn.closest('.item-card');
+      const childCard = btn.closest('.child-card');
+      const itemIdx = itemCard ? Number(itemCard.dataset.itemIndex) : -1;
+      const childIdx = childCard ? Number(childCard.dataset.childIndex) : null;
+
+      switch (btn.dataset.action) {
+        case 'toggle-group':
+          setGroup(itemIdx, btn.checked);
+          break;
+        case 'fill-suggested':
+          autoFillItem(itemIdx);
+          break;
+        case 'add-child':
+          addChild(itemIdx);
+          break;
+        case 'remove-item':
+          removeItem(itemIdx);
+          break;
+        case 'fill-child-suggested':
+          autoFillItem(itemIdx, childIdx);
+          break;
+        case 'remove-child':
+          removeChild(itemIdx, childIdx);
+          break;
+      }
+    });
+
+    document.addEventListener('input', (e) => {
+      const field = e.target.closest('[data-field]');
+      const childField = e.target.closest('[data-child-field]');
+      if (field) {
+        const itemCard = field.closest('.item-card');
+        const idx = Number(itemCard.dataset.itemIndex);
+        updateItemValue(idx, field.dataset.field, e.target.value, null);
+      } else if (childField) {
+        const childCard = childField.closest('.child-card');
+        const idx = Number(childCard.dataset.itemIndex);
+        const childIdx = Number(childCard.dataset.childIndex);
+        updateItemValue(idx, childField.dataset.childField, e.target.value, childIdx);
+      }
+    });
+
+    el('addItemBtn').addEventListener('click', () => {
+      addItem(false);
+      if (FLOW_MODE) setFlowStep('entries');
+    });
+    el('importBtn').addEventListener('click', () => {
+      try {
+        importFromText(el('importText').value);
+        el('importStatus').textContent = 'Loaded pasted file.';
+        if (FLOW_MODE) setFlowStep('export');
+      } catch (err) {
+        el('importStatus').textContent = `❌ ${err.message}`;
+      }
+    });
+    el('loadSampleBtn').addEventListener('click', () => {
+      el('importText').value = generateOutput();
+      el('importStatus').textContent = 'Current output copied into the import box.';
+      if (FLOW_MODE) setFlowStep('import');
+    });
+    el('clearImportBtn').addEventListener('click', () => {
+      el('importText').value = '';
+      el('importStatus').textContent = '';
+    });
+    document.querySelectorAll('[data-out-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-out-tab]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.outputMode = btn.dataset.outTab;
+        if (state.outputMode === 'summary') {
+          el('outputText').value = summarizeData();
+        } else {
+          updateOutput();
+        }
+      });
+    });
+    el('saveServerBtn').addEventListener('click', async () => {
+      try {
+        await updateServer();
+      } catch (err) {
+        setStatus(`❌ ${err.message}`, 'bad');
+      }
+    });
+    el('downloadBtn').addEventListener('click', () => {
+      const blob = new Blob([el('outputText').value], { type: 'application/javascript;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = currentConfig().targetFile.replace('./', '');
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+    el('copyBtn').addEventListener('click', async () => {
+      try {
+        await copyOutput();
+      } catch (err) {
+        setStatus(`❌ ${err.message}`, 'bad');
+      }
+    });
+
+    const backBtn = el('flowBackBtn');
+    const nextBtn = el('flowNextBtn');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        const steps = flowSteps();
+        const idx = currentFlowIndex();
+        setFlowStep(steps[Math.max(0, idx - 1)].key);
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        const steps = flowSteps();
+        const idx = currentFlowIndex();
+        const next = steps[Math.min(steps.length - 1, idx + 1)];
+        setFlowStep(next.key);
+      });
+    }
+
+    document.addEventListener('dragover', (e) => {
+      const zone = e.target.closest && e.target.closest('[data-dropzone]');
+      if (!zone) return;
+      e.preventDefault();
+      zone.classList.add('dragover');
+    });
+    document.addEventListener('dragleave', (e) => {
+      const zone = e.target.closest && e.target.closest('[data-dropzone]');
+      if (!zone) return;
+      zone.classList.remove('dragover');
+    });
+    document.addEventListener('drop', async (e) => {
+      const zone = e.target.closest && e.target.closest('[data-dropzone]');
+      if (!zone) return;
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      const input = zone.querySelector('input[type="file"][data-file-drop]');
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!input || !file) return;
+      const itemIdx = Number(zone.dataset.itemIndex);
+      const childIdx = zone.dataset.childIndex != null ? Number(zone.dataset.childIndex) : null;
+      const field = input.dataset.fileDrop;
+      if (field === 'chapters') {
+        try {
+          const text = await readLocalFileToText(file);
+          updateItemValue(itemIdx, field, text.trim(), childIdx);
+          renderItems();
+        } catch (err) {
+          setStatus(`❌ ${err.message}`, 'bad');
+        }
+      } else {
+        applyDroppedFileToItem(itemIdx, field, file, childIdx);
+      }
+    });
+    document.addEventListener('change', async (e) => {
+      const input = e.target.closest && e.target.closest('[data-file-drop]');
+      if (!input) return;
+      const zone = input.closest('[data-dropzone]');
+      if (zone) zone.classList.remove('dragover');
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const itemIdx = Number(input.closest('[data-dropzone]').dataset.itemIndex);
+      const childIdx = input.closest('[data-dropzone]').dataset.childIndex != null ? Number(input.closest('[data-dropzone]').dataset.childIndex) : null;
+      const field = input.dataset.fileDrop;
+      if (field === 'chapters') {
+        try {
+          const text = await readLocalFileToText(file);
+          updateItemValue(itemIdx, field, text.trim(), childIdx);
+          renderItems();
+        } catch (err) {
+          setStatus(`❌ ${err.message}`, 'bad');
+        }
+      } else {
+        applyDroppedFileToItem(itemIdx, field, file, childIdx);
+      }
+      input.value = '';
+    });
+
+    el('doneBtn').addEventListener('click', async () => {
+      try {
+        await updateServer();
+      } catch {}
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'lib-flow-complete', kind: state.kind, file: currentConfig().targetFile }, window.location.origin);
+      }
+    });
+  }
+
+  function seedIfNeeded() {
+    updateLibraryTitleFromKind();
+    renderItems();
+    updateOutput();
+    renderFlowState();
+  }
+
+  setKind(state.kind);
+  wireEvents();
+  seedIfNeeded();
+  setStatus('Ready.');
+})();
+</script>
+</body>
+</html>

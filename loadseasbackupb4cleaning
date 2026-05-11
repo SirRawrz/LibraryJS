@@ -1,0 +1,4500 @@
+//----------------------------------------
+// EXTENDED
+
+//
+//
+// EXTENDED End
+//
+//
+//
+/* loadseasonfunctions.js */
+
+// ----------------------
+// Kids-mode seasons helper
+// ----------------------
+// URL?I is original mode ---- URL?l is kids mode!
+// ----------------------
+
+function normalizeSeasonsArrayInPlace(arr) {
+  if (!Array.isArray(arr)) return;
+
+  const urlParams = new URLSearchParams(window.location.search || '');
+  const kidsMode = urlParams.has('l');
+
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const v = arr[i];
+    if (typeof v !== 'string') continue;
+
+    const isAdult = v.indexOf('*') !== -1;
+    const cleaned = v.replace(/\*/g, '').trim();
+
+    if (kidsMode && isAdult) {
+      arr.splice(i, 1);
+    } else {
+      arr[i] = cleaned;
+    }
+  }
+}// ----------------------
+// Example season loader pattern (original behavior)
+// ----------------------
+
+//function loadExampleSeasons() {
+//  folderContainer.innerHTML = "";
+
+ // const seasons = [
+//   "Example Season 1",
+//    "Example Season 2",
+ //   "Example Movie 1*"
+ // ];
+
+ // normalizeSeasonsArrayInPlace(seasons);
+
+//  episodes["Example"] = seasons;
+
+//  createSeasonButtons(seasons, "Example");}
+function loadAmericanDadSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "American Dad Season 1",
+        "American Dad Season 2",
+       "American Dad Season 3",
+    "American Dad Season 4",
+      "American Dad Season 5",
+      "American Dad Season 6",
+     "American Dad Season 7",
+     "American Dad Season 8",
+        "American Dad Season 9",
+        "American Dad Season 10",
+        "American Dad Season 11",
+        "American Dad Season 12",
+       "American Dad Season 13",
+        "American Dad Season 14",
+        "American Dad Season 15",
+        "American Dad Season 16",
+       "American Dad Season 17",
+        "American Dad Season 18",
+       "American Dad Season 19",
+        "American Dad Season 20",
+        "American Dad Season 21",
+		 "American Dad Season 22"
+    ];
+
+    episodes["American Dad"] = seasons;
+    createSeasonButtons(seasons, "American Dad");
+}function loadArcherSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Archer Season 1",
+        "Archer Season 2",
+       "Archer Season 3",
+    "Archer Season 4",
+      "Archer Season 5",
+      "Archer Season 6",
+     "Archer Season 7",
+     "Archer Season 8",
+        "Archer Season 9",
+        "Archer Season 10",
+        "Archer Season 11",
+        "Archer Season 12",
+       "Archer Season 13",
+        "Archer Season 14"
+    ];
+
+    episodes["Archer"] = seasons;
+    createSeasonButtons(seasons, "Archer");
+}
+function loadFuturamaSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Futurama Season 1",
+        "Futurama Season 2",
+         "Futurama Season 3",
+         "Futurama Season 4",
+         "Futurama Season 5",
+         "Futurama Season 6",
+         "Futurama Season 7",
+         "Futurama Season 8",
+         "Futurama Season 9",
+         "Futurama Season 10",
+         "Futurama Season 11",
+        "Futurama Season 12",
+        "Futurama Season 13",
+		"Futurama - Benders Big Score",
+		"Futurama - The Beast with a Billion Backs",
+		"Futurama - Into the Wild Green Yonder",
+        "Futurama - Benders Game"
+    ];
+
+    episodes["Futurama"] = seasons;
+    createSeasonButtons(seasons, "Futurama");
+}function loadFamilyGuySeasons() {
+     folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+    const seasons = [
+        "Family Guy Season 1",
+        "Family Guy Season 2",
+         "Family Guy Season 3",
+         "Family Guy Season 4",
+         "Family Guy Season 5",
+         "Family Guy Season 6",
+         "Family Guy Season 7",
+         "Family Guy Season 8",
+         "Family Guy Season 9",
+         "Family Guy Season 10",
+         "Family Guy Season 11",
+         "Family Guy Season 12",
+         "Family Guy Season 13",
+         "Family Guy Season 14",
+         "Family Guy Season 15",
+         "Family Guy Season 16",
+         "Family Guy Season 17",
+         "Family Guy Season 18",
+         "Family Guy Season 19",
+         "Family Guy Season 20",
+         "Family Guy Season 21",
+        "Family Guy Season 22",
+        "Family Guy Season 23",
+        "Family Guy Season 24"
+    ];
+
+    episodes["Family Guy"] = seasons;
+    createSeasonButtons(seasons, "Family Guy");
+}
+function loadBloodOfZeusSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Blood of Zeus Season 1",
+        "Blood of Zeus Season 2",
+        "Blood of Zeus Season 3"
+    ];
+
+    episodes["Blood of Zeus"] = seasons;
+    createSeasonButtons(seasons, "Blood of Zeus");
+
+}function loadSonsofAnarchySeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Sons of Anarchy Season 1",
+        "Sons of Anarchy Season 2",
+        "Sons of Anarchy Season 3",
+        "Sons of Anarchy Season 4",
+        "Sons of Anarchy Season 5",
+        "Sons of Anarchy Season 6",
+        "Sons of Anarchy Season 7"
+    ];
+    episodes["Sons of Anarchy"] = seasons;
+    createSeasonButtons(seasons, "Sons of Anarchy");
+}
+function loadCloakAmPeRsAnDDaggerSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Cloak & Dagger Season 1",
+        "Cloak & Dagger Season 2"
+    ];
+    episodes["Cloak & Dagger"] = seasons;
+    createSeasonButtons(seasons, "Cloak & Dagger");
+}function loadGinnyAmPeRsAnDGeorgiaSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Ginny & Georgia Season 1",
+        "Ginny & Georgia Season 2",
+        "Ginny & Georgia Season 3"
+    ];
+    episodes["Ginny & Georgia"] = seasons;
+    createSeasonButtons(seasons, "Ginny & Georgia");
+}// 
+function loadTheSandmanSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Sandman Season 1",
+        "The Sandman Season 2"
+    ];
+
+    episodes["The Sandman"] = seasons;
+    createSeasonButtons(seasons, "The Sandman");
+}function loadDandadanSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Dandadan Season 1",
+        "Dandadan Season 2"
+    ];
+
+    episodes["Dandadan"] = seasons;
+    createSeasonButtons(seasons, "Dandadan");
+}
+
+function loadMarvelsWhatIfSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Marvels What If Season 1",
+        "Marvels What If Season 2",
+        "Marvels What If Season 3"
+    ];
+
+    episodes["Marvels What If"] = seasons;
+
+    // generate the season buttons
+    createSeasonButtons(seasons, "Marvels What If");
+ }function loadBladeCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Blade",
+        "Blade II",
+        "Blade Trinity"
+    ];
+
+    
+    episodes["Blade Collection"] = seasons;
+
+    // generate the season buttons
+    createSeasonButtons(seasons, "Blade Collection");
+ }
+ 
+ function loadMazeRunnerCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Maze Runner",
+        "Maze Runner - The Scorch Trials",
+        "Maze Runner - The Death Cure"
+    ];
+
+    episodes["Maze Runner Collection"] = seasons;
+
+    // generate the season buttons
+    createSeasonButtons(seasons, "Maze Runner Collection");
+}function loadRickandMortySeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Rick and Morty Season 1",
+        "Rick and Morty Season 2",
+        "Rick and Morty Season 3",
+        "Rick and Morty Season 4",
+        "Rick and Morty Season 5",
+        "Rick and Morty Season 6",
+        "Rick and Morty Season 7",
+        "Rick and Morty Season 8"
+    ];
+    episodes["Rick and Morty"] = seasons;
+    createSeasonButtons(seasons, "Rick and Morty");
+}
+
+function loadTokyoGhoulSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Tokyo Ghoul Season 1",
+        "Tokyo Ghoul √A"
+    ];
+
+    episodes["Tokyo Ghoul"] = seasons;
+    createSeasonButtons(seasons, "Tokyo Ghoul");
+}function loadTokyoGhoulHyPhEnreSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Tokyo Ghoul-re Season 1",
+        "Tokyo Ghoul-re Season 2"
+    ];
+
+    episodes["Tokyo Ghoul-re"] = seasons;
+    createSeasonButtons(seasons, "Tokyo Ghoul-re");
+}
+
+function loadMashleMagicandMusclesSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Mashle Magic and Muscles Season 1",
+        "Mashle Magic and Muscles Season 2"
+    ];
+    episodes["Mashle Magic and Muscles"] = seasons;
+    createSeasonButtons(seasons, "Mashle Magic and Muscles");
+}function loadYellowstoneSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Yellowstone Season 1",
+        "Yellowstone Season 2",
+        "Yellowstone Season 3",
+        "Yellowstone Season 4",
+        "Yellowstone Season 5"
+    ];
+    episodes["Yellowstone"] = seasons;
+    createSeasonButtons(seasons, "Yellowstone");
+}
+
+function loadTheEminenceinShadowSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Eminence in Shadow Season 1", "The Eminence in Shadow Season 2"
+    ];
+
+    episodes["The Eminence in Shadow"] = seasons;
+    createSeasonButtons(seasons, "The Eminence in Shadow");
+}function loadGoosebumpsSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Goosebumps Season 1"//, "Goosebumps Season 2","Goosebumps Season 3", "Goosebumps Season 4"
+    ];
+
+    episodes["Goosebumps"] = seasons;
+createSeasonButtons(seasons, "Goosebumps");
+}
+
+function loadHelluvaBossSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Helluva Boss Season 1",
+        "Helluva Boss Season 2"
+    ];
+
+    episodes["Helluva Boss"] = seasons;
+    createSeasonButtons(seasons, "Helluva Boss");
+}function loadArcaneSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Arcane Season 1",
+        "Arcane Season 2"
+    ];
+
+    episodes["Arcane"] = seasons;
+    createSeasonButtons(seasons, "Arcane");
+}
+function loadLeverageSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+
+    ];
+
+    episodes["Leverage"] = seasons;
+    createSeasonButtons(seasons, "Leverage");
+}//   "Leverage Season 1",
+//        "Leverage Season 2",
+//        "Leverage Season 3",
+ //       "Leverage Season 4",
+//        "Leverage Season 5"
+function loadMyHeroAcademiaSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+          "My Hero Academia Season 1",
+  "My Hero Academia Season 2",
+  "My Hero Academia Movie 1 - Two Heroes",
+  "My Hero Academia Season 3",
+  "My Hero Academia Movie 2 - Heroes Rising",
+  "My Hero Academia Season 4",
+  "My Hero Academia Season 5",
+  "My Hero Academia Movie 3 - World Heroes Mission",
+  "My Hero Academia Season 6",
+  "My Hero Academia Season 7",
+  "My Hero Academia Final Season"
+    ];
+
+    episodes["My Hero Academia"] = seasons;
+createSeasonButtons(seasons, "My Hero Academia");
+}function loadIveBeenKillingSlimesfor300YearsandMaxedOutMyLevelSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Ive Been Killing Slimes for 300 Years and Maxed Out My Level Season 1",
+        "Ive Been Killing Slimes for 300 Years and Maxed Out My Level Season 2"
+    ];
+
+    episodes["Ive Been Killing Slimes for 300 Years and Maxed Out My Level"] = seasons;
+    createSeasonButtons(
+        seasons,
+        "Ive Been Killing Slimes for 300 Years and Maxed Out My Level"
+    );
+}
+function loadRecordofRagnarokSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Record of Ragnarok Season 1",
+        "Record of Ragnarok Season 2",
+		 "Record of Ragnarok Season 3"
+    ];
+
+    episodes["Record of Ragnarok"] = seasons;
+    createSeasonButtons(seasons, "Record of Ragnarok");
+}function loadTheBoondocksSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Boondocks Season 1",
+        "The Boondocks Season 2",
+        "The Boondocks Season 3",
+        "The Boondocks Season 4"
+    ];
+
+    episodes["The Boondocks"] = seasons;
+    createSeasonButtons(seasons, "The Boondocks");
+}
+function loadFrierenBeyondJourneysEndSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Frieren Beyond Journeys End Season 1", "Frieren Beyond Journeys End Season 2"
+    ];
+
+    episodes["Frieren Beyond Journeys End"] = seasons;
+createSeasonButtons(seasons, "Frieren Beyond Journeys End");
+}function loadLokiSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Loki Season 1", "Loki Season 2"
+    ];
+
+    episodes["Loki"] = seasons;
+createSeasonButtons(seasons, "Loki");
+}
+function loadTheGiftedSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Gifted Season 1", "The Gifted Season 2"
+    ];
+
+    episodes["The Gifted"] = seasons;
+createSeasonButtons(seasons, "The Gifted");
+}function loadSmilingFriendsSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Smiling Friends Season 1", "Smiling Friends Season 2",  "Smiling Friends Season 3"
+    ];
+
+    episodes["Smiling Friends"] = seasons;
+createSeasonButtons(seasons, "Smiling Friends");
+}
+function loadDisenchantmentSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Disenchantment Season 1", "Disenchantment Season 2",  "Disenchantment Season 3"
+    ];
+
+    episodes["Disenchantment"] = seasons;
+createSeasonButtons(seasons, "Disenchantment");
+}function loadBoJackHorsemanSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "BoJack Horseman Season 1", "BoJack Horseman Season 2",  "BoJack Horseman Season 3",  "BoJack Horseman Season 4",
+		"BoJack Horseman Season 5",  "BoJack Horseman Season 6"
+    ];
+
+    episodes["BoJack Horseman"] = seasons;
+createSeasonButtons(seasons, "BoJack Horseman");
+}
+function loadHellsParadiseSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Hell's Paradise Season 1", "Hell's Paradise Season 2"
+    ];
+
+    episodes["Hell's Paradise"] = seasons;
+createSeasonButtons(seasons, "Hell's Paradise");
+}function loadTheApothecaryDiariesSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Apothecary Diaries Season 1", "The Apothecary Diaries Season 2"
+    ];
+
+    episodes["The Apothecary Diaries"] = seasons;
+createSeasonButtons(seasons, "The Apothecary Diaries");
+}
+function loadMagiSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Magi Season 1 - The Labyrinth of Magic", "Magi Season 2 - The Kingdom of Magic"
+    ];
+
+    episodes["Magi"] = seasons;
+createSeasonButtons(seasons, "Magi");
+}function loadHamatoraTheAnimationSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Hamatora The Animation Season 1", "Hamatora The Animation Season 2"
+    ];
+
+    episodes["Hamatora The Animation"] = seasons;
+createSeasonButtons(seasons, "Hamatora The Animation");
+}
+
+function loadGhostInTheShellSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Ghost in the Shell Movie 1",
+        "Ghost in the Shell Movie 2",
+        "Ghost in the Shell - Stand Alone Complex Season 1",
+        "Ghost in the Shell - Stand Alone Complex Season 2",
+        "Ghost in the Shell Movie 3",
+        "Ghost in the Shell - Arise",
+        "Ghost in the Shell - SAC 2045 Part 1",
+        "Ghost in the Shell - SAC 2045 Part 2"
+    ];
+
+    episodes["Ghost in the Shell"] = seasons;
+    createSeasonButtons(seasons, "Ghost in the Shell");
+}function loadTheDragonPrinceSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Dragon Prince Season 1",
+        "The Dragon Prince Season 2",
+        "The Dragon Prince Season 3",
+        "The Dragon Prince Season 4",
+        "The Dragon Prince Season 5",
+        "The Dragon Prince Season 6",
+        "The Dragon Prince Season 7"
+    ];
+
+    episodes["The Dragon Prince"] = seasons;
+    createSeasonButtons(seasons, "The Dragon Prince");
+}
+function loadHowaRealistHeroRebuilttheKingdomSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "How a Realist Hero Rebuilt the Kingdom Season 1", "How a Realist Hero Rebuilt the Kingdom Season 2"
+    ];
+
+    episodes["How a Realist Hero Rebuilt the Kingdom"] = seasons;
+createSeasonButtons(seasons, "How a Realist Hero Rebuilt the Kingdom");
+}function loadGoldenKamuySeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Golden Kamuy Season 1", "Golden Kamuy Season 2",
+		"Golden Kamuy Season 3", "Golden Kamuy Season 4",
+		"Golden Kamuy Season 5"
+    ];
+
+    episodes["Golden Kamuy"] = seasons;
+createSeasonButtons(seasons, "Golden Kamuy");
+}
+function loadJoJosBizarreAdventureSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "JoJo's Bizarre Adventure Season 1 - Phantom Blood & Battle Tendency",
+    "JoJo's Bizarre Adventure Season 2 - Stardust Crusaders",
+    "JoJo's Bizarre Adventure Season 3 - Diamond Is Unbreakable",
+    "JoJo's Bizarre Adventure Season 4 - Golden Wind",
+    "JoJo's Bizarre Adventure Season 5 - Stone Ocean"
+    ];
+
+    episodes["JoJos Bizarre Adventure"] = seasons;
+createSeasonButtons(seasons, "JoJos Bizarre Adventure");
+}function loadKrapopolisSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Krapopolis Season 1", "Krapopolis Season 2", "Krapopolis Season 3"
+    ];
+
+    episodes["Krapopolis"] = seasons;
+createSeasonButtons(seasons, "Krapopolis");
+}
+function loadMayorofKingstownSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Mayor of Kingstown Season 1", "Mayor of Kingstown Season 2",
+		"Mayor of Kingstown Season 3", "Mayor of Kingstown Season 4"
+    ];
+
+    episodes["Mayor of Kingstown"] = seasons;
+createSeasonButtons(seasons, "Mayor of Kingstown");
+}function loadSpiceandWolfSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Spice and Wolf Season 1", "Spice and Wolf Season 2"
+    ];
+
+    episodes["Spice and Wolf"] = seasons;
+createSeasonButtons(seasons, "Spice and Wolf");
+}
+
+ 
+  function loadWistoriaHyPhEnWandandSwordSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Wistoria - Wand and Sword Season 1", "Wistoria - Wand and Sword Season 2"
+    ];
+
+    episodes["Wistoria - Wand and Sword"] = seasons;
+createSeasonButtons(seasons, "Wistoria - Wand and Sword");
+}function loadSoloLevelingSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Solo Leveling Season 1", "Solo Leveling Season 2"
+    ];
+
+    episodes["Solo Leveling"] = seasons;
+createSeasonButtons(seasons, "Solo Leveling");
+}
+function loadMyNextLifeasaVillainessHyPhEnAllRoutesLeadtoDoomSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "My Next Life as a Villainess - All Routes Lead to Doom Season 1", "My Next Life as a Villainess - All Routes Lead to Doom Season 2"
+    ];
+
+    episodes["My Next Life as a Villainess - All Routes Lead to Doom"] = seasons;
+createSeasonButtons(seasons, "My Next Life as a Villainess - All Routes Lead to Doom");
+}function loadMyHeroAcademiaHyPhEnVigilantesSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "My Hero Academia - Vigilantes Season 1", "My Hero Academia - Vigilantes Season 2"
+    ];
+
+    episodes["My Hero Academia - Vigilantes"] = seasons;
+createSeasonButtons(seasons, "My Hero Academia - Vigilantes");
+}
+function loadLogHorizonSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Log Horizon Season 1", "Log Horizon Season 2", "Log Horizon Season 3"
+    ];
+
+    episodes["Log Horizon"] = seasons;
+createSeasonButtons(seasons, "Log Horizon");
+}function loadTheVentureBrosSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Venture Bros Season 1",
+        "The Venture Bros Season 2",
+        "The Venture Bros Season 3",
+        "The Venture Bros Season 4",
+        "The Venture Bros Season 5",
+        "The Venture Bros Season 6",
+        "The Venture Bros Season 7"
+    ];
+
+    episodes["The Venture Bros"] = seasons;
+    createSeasonButtons(seasons, "The Venture Bros");
+}
+function loadTsubasaRESERVoirCHRoNiCLESeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Tsubasa RESERVoir CHRoNiCLE Season 1", "Tsubasa RESERVoir CHRoNiCLE Season 2", "Tsubasa RESERVoir CHRoNiCLE - Tokyo Revelations"
+    ];
+
+    episodes["Tsubasa RESERVoir CHRoNiCLE"] = seasons;
+createSeasonButtons(seasons, "Tsubasa RESERVoir CHRoNiCLE");
+}function loadBigMouthSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Big Mouth Season 1",
+        "Big Mouth Season 2",
+        "Big Mouth Season 3",
+        "Big Mouth Season 4",
+        "Big Mouth Season 5",
+        "Big Mouth Season 6",
+        "Big Mouth Season 7",
+        "Big Mouth Season 8"
+    ];
+
+    episodes["Big Mouth"] = seasons;
+    createSeasonButtons(seasons, "Big Mouth");
+}
+// trick for fixing the "—" and "-" causing issues in search. add an exception in loadmainfolders.js to redirect with the capitalized version
+// "Pirates of the Caribbean": () => { loadPiratesOfTheCaribbeanSeasons(); },
+function loadPiratesOfTheCaribbeanSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Pirates of the Caribbean - The Curse of the Black Pearl",
+        "Pirates of the Caribbean - Dead Man's Chest",
+        "Pirates of the Caribbean - At World's End",
+		"Pirates of the Caribbean - On Stranger Tides",
+		"Pirates of the Caribbean - Dead Men Tell No Tales"
+    ];
+
+    episodes["Pirates of the Caribbean"] = seasons;
+    createSeasonButtons(seasons, "Pirates of the Caribbean");
+}function loadNarutoMoviesSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Naruto the Movie - Ninja Clash in the Land of Snow",
+        "Naruto the Movie 2 - Legend of the Stone of Gelel",
+        "Naruto the Movie 3 - Guardians of the Crescent Moon Kingdom",
+        "Naruto Shippuden the Movie",
+        "Naruto Shippuden the Movie - Bonds",
+        "Naruto Shippuden the Movie - The Will of Fire",
+        "Naruto Shippuden the Movie - The Lost Tower",
+        "Naruto Shippuden the Movie - Blood Prison",
+        "Road to Ninja - Naruto the Movie",
+        "The Last - Naruto the Movie",
+        "Boruto - Naruto the Movie"
+    ];
+
+    episodes["Naruto Movies"] = seasons;
+    createSeasonButtons(seasons, "Naruto Movies");
+}
+
+function loadGenVSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Gen V Season 1", "Gen V Season 2"
+    ];
+
+    episodes["Gen V"] = seasons;
+createSeasonButtons(seasons, "Gen V");
+}function loadPeacemakerSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Peacemaker Season 1", "Peacemaker Season 2"
+    ];
+
+    episodes["Peacemaker"] = seasons;
+createSeasonButtons(seasons, "Peacemaker");
+}
+function loadFireForceSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Fire Force Season 1", "Fire Force Season 2", "Fire Force Season 3"
+    ];
+
+    episodes["Fire Force"] = seasons;
+createSeasonButtons(seasons, "Fire Force");
+}function loadDrawnTogetherseasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Drawn Together Season 1", "Drawn Together Season 2", "Drawn Together Season 3"
+    ];
+
+    episodes["Drawn Together"] = seasons;
+createSeasonButtons(seasons, "Drawn Together");
+}
+function loadMushiHyPhEnShiSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Mushi-Shi Season 1"//,
+       // "Mushi-Shi Season 1.5"//,
+     //   "Mushi-Shi Season 2"
+    ];
+
+    episodes["Mushi-Shi"] = seasons;
+    createSeasonButtons(seasons, "Mushi-Shi");
+}function loadHazbinHotelSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Hazbin Hotel Season 1",
+        "Hazbin Hotel Season 2"
+    ];
+
+    episodes["Hazbin Hotel"] = seasons;
+    createSeasonButtons(seasons, "Hazbin Hotel");
+}
+
+function loadInvincibleSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Invincible Season 1",
+        "Invincible Season 2",
+        "Invincible Season 3",
+		"Invincible Season 4",
+		"Invincible - Atom Eve"
+    ];
+
+    episodes["Invincible"] = seasons;
+    createSeasonButtons(seasons, "Invincible");
+}function loadDarkerthanBlackSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Darker than Black Season 1"//,
+        //"Darker than Black - Gaiden",
+     //   "Darker than Black - Gemini of the Meteor",
+	 // "Darker than Black - Special"
+    ];
+
+    episodes["Darker than Black"] = seasons;
+    createSeasonButtons(seasons, "Darker than Black");
+}
+
+function loadIshuraSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Ishura Season 1", "Ishura Season 2"
+    ];
+
+    episodes["Ishura"] = seasons;
+createSeasonButtons(seasons, "Ishura");
+}function loadChainsawManSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Chainsaw Man Season 1", "Chainsaw Man - The Movie - Reze Arc"
+    ];
+
+    episodes["Chainsaw Man"] = seasons;
+createSeasonButtons(seasons, "Chainsaw Man");
+}
+function loadInsideJobSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Inside Job Season 1", "Inside Job Season 2"
+    ];
+
+    episodes["Inside Job"] = seasons;
+createSeasonButtons(seasons, "Inside Job");
+}function loadTheCaseStudyofVanitasSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Case Study of Vanitas Season 1",
+        "The Case Study of Vanitas Season 2"
+    ];
+
+    episodes["The Case Study of Vanitas"] = seasons;
+    createSeasonButtons(seasons, "The Case Study of Vanitas");
+}
+
+function loadTowerOfDruagaSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Tower of Druaga - The Aegis of Uruk",
+        "Tower of Druaga - The Sword of Uruk"
+    ];
+
+    episodes["Tower of Druaga"] = seasons;
+    createSeasonButtons(seasons, "Tower of Druaga");
+}function loadSolarOppositesSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Solar Opposites Season 1",
+        "Solar Opposites Season 2",
+        "Solar Opposites Season 3",
+        "Solar Opposites Season 4",
+        "Solar Opposites Season 5",
+        "Solar Opposites Season 6"
+    ];
+
+    episodes["Solar Opposites"] = seasons;
+    createSeasonButtons(seasons, "Solar Opposites");
+}
+
+function load1923Seasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "1923 Season 1", "1923 Season 2"
+    ];
+
+    episodes["1923"] = seasons;
+    createSeasonButtons(seasons, "1923");
+}function loadIsItWrongtoTrytoPickUpGirlsinaDungeonSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Is It Wrong to Try to Pick Up Girls in a Dungeon Season 1",
+        "Is It Wrong to Try to Pick Up Girls in a Dungeon Season 2",
+        "Is It Wrong to Try to Pick Up Girls in a Dungeon Season 3",
+        "Is It Wrong to Try to Pick Up Girls in a Dungeon Season 4",
+        "Is It Wrong to Try to Pick Up Girls in a Dungeon Season 5"
+    ];
+
+    episodes["Is It Wrong to Try to Pick Up Girls in a Dungeon"] = seasons;
+    createSeasonButtons(seasons, "Is It Wrong to Try to Pick Up Girls in a Dungeon");
+}
+
+function loadThePromisedNeverlandSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Promised Neverland Season 1",
+        "The Promised Neverland Season 2"
+    ];
+
+    episodes["The Promised Neverland"] = seasons;
+    createSeasonButtons(seasons, "The Promised Neverland");
+}function loadCampfireCookinginAnotherWorldwithMyAbsurdSkillSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Campfire Cooking in Another World with My Absurd Skill Season 1", 
+ "Campfire Cooking in Another World with My Absurd Skill Season 2"
+    ];
+
+    episodes["Campfire Cooking in Another World with My Absurd Skill"] = seasons;
+createSeasonButtons(seasons, "Campfire Cooking in Another World with My Absurd Skill");
+}
+function loadRecordofLodossWarSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Record of Lodoss War Season 1",
+        "Record of Lodoss War Season 2 - Chronicles of the Heroic Knight"
+    ];
+
+    episodes["Record of Lodoss War"] = seasons;
+    createSeasonButtons(seasons, "Record of Lodoss War");
+}function loadGameofThronesSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Game of Thrones Season 1",
+        "Game of Thrones Season 2",
+        "Game of Thrones Season 3",
+        "Game of Thrones Season 4",
+        "Game of Thrones Season 5",
+        "Game of Thrones Season 6",
+        "Game of Thrones Season 7",
+        "Game of Thrones Season 8"
+    ];
+
+    episodes["Game of Thrones"] = seasons;
+    createSeasonButtons(seasons, "Game of Thrones");
+}
+
+function loadOnceUponaTimeSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Once Upon a Time Season 1"//,
+     //   "Once Upon a Time Season 2",
+    //    "Once Upon a Time Season 3",
+    //    "Once Upon a Time Season 4",
+   //     "Once Upon a Time Season 5",
+    //    "Once Upon a Time Season 6",
+    //    "Once Upon a Time Season 7"
+    ];
+
+    episodes["Once Upon a Time"] = seasons;
+    createSeasonButtons(seasons, "Once Upon a Time");
+}function loadLoveDeathAmPeRsAnDRobotsSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Love Death & Robots Season 1",
+        "Love Death & Robots Season 2",
+        "Love Death & Robots Season 3",
+        "Love Death & Robots Season 4"
+    ];
+
+    episodes["Love Death & Robots"] = seasons;
+    createSeasonButtons(seasons, "Love Death & Robots");
+}
+function loadVinlandSagaSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Vinland Saga Season 1", "Vinland Saga Season 2"
+    ];
+
+    episodes["Vinland Saga"] = seasons;
+    createSeasonButtons(seasons, "Vinland Saga");
+}function loadSheHyPhEnRaAndThePrincessesOfPowerSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "She-Ra and the Princesses of Power Season 1",
+        "She-Ra and the Princesses of Power Season 2",
+        "She-Ra and the Princesses of Power Season 3",
+        "She-Ra and the Princesses of Power Season 4",
+        "She-Ra and the Princesses of Power Season 5"
+    ];
+
+    episodes["She-Ra and the Princesses of Power"] = seasons;
+    createSeasonButtons(seasons, "She-Ra and the Princesses of Power");
+}
+function loadDorohedoroSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Dorohedoro Season 1", "Dorohedoro Season 2"
+    ];
+
+    episodes["Dorohedoro"] = seasons;
+createSeasonButtons(seasons, "Dorohedoro");
+}function loadJessicaJonesSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Jessica Jones Season 1", "Jessica Jones Season 2", "Jessica Jones Season 3"
+    ];
+
+    episodes["Jessica Jones"] = seasons;
+createSeasonButtons(seasons, "Jessica Jones");
+}
+
+function loadMyStarSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "My Star Season 1", "My Star Season 2", "My Star Season 3"
+    ];
+
+    episodes["My Star"] = seasons;
+createSeasonButtons(seasons, "My Star");
+}function loadShangriHyPhEnLaFrontierSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Shangri-La Frontier Season 1", "Shangri-La Frontier Season 2"
+    ];
+
+    episodes["Shangri-La Frontier"] = seasons;
+createSeasonButtons(seasons, "Shangri-La Frontier");
+}
+function loadTheSaintsMagicPowerisOmnipotentSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Saints Magic Power is Omnipotent Season 1",
+        "The Saints Magic Power is Omnipotent Season 2"
+    ];
+
+    episodes["The Saints Magic Power is Omnipotent"] = seasons;
+    createSeasonButtons(seasons, "The Saints Magic Power is Omnipotent");
+}function loadReZEROHyPhEnStartingLifeinAnotherWorldSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "ReZERO - Starting Life in Another World Season 1",
+        "ReZERO - Starting Life in Another World - The Frozen Bond",
+        "ReZERO - Starting Life in Another World Season 2",
+        "ReZERO - Starting Life in Another World Season 3",
+		"ReZERO - Starting Life in Another World Season 4"
+    ];
+    episodes["ReZERO - Starting Life in Another World"] = seasons;
+    createSeasonButtons(seasons, "ReZERO - Starting Life in Another World");
+}
+
+function loadOddTaxiSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Odd Taxi Season 1",
+        "Odd Taxi - In the Woods"
+    ];
+
+    episodes["Odd Taxi"] = seasons;
+    createSeasonButtons(seasons, "Odd Taxi");
+}function loadDragonQuestSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+   
+    ];
+
+    episodes["Dragon Quest"] = seasons;
+    createSeasonButtons(seasons, "Dragon Quest");
+}
+    // "Dragon Quest - Legend of the Hero Abel (1989)",
+    //    "Dragon Quest - The Adventure of Dai (1991)"//,
+    //    "Dragon Quest - The Adventure of Dai (2020)"
+function loadWeedsSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Weeds Season 1", "Weeds Season 2", "Weeds Season 3", "Weeds Season 4",
+        "Weeds Season 5", "Weeds Season 6", "Weeds Season 7", "Weeds Season 8"
+    ];
+
+    episodes["Weeds"] = seasons;
+    createSeasonButtons(seasons, "Weeds");
+}function loadHeroesSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Heroes Season 1", 
+		"Heroes Season 2", 
+		"Heroes Season 3", 
+		"Heroes Season 4"
+    ];
+
+    episodes["Heroes"] = seasons;
+createSeasonButtons(seasons, "Heroes");
+}
+function loadDemonSlayerSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Demon Slayer Season 1 - Tanjiro Kamado Unwavering Resolve Arc",
+        "Demon Slayer The Movie - Mugen Train",
+        "Demon Slayer Season 2 - Entertainment District",
+        "Demon Slayer Season 3 - Swordsmith Village Arc",
+        "Demon Slayer Season 4 - Hashira Training Arc",
+		"Demon Slayer Kimetsu no Yaiba Infinity Castle"
+    ];
+
+    episodes["Demon Slayer"] = seasons;
+    createSeasonButtons(seasons, "Demon Slayer");
+}function loadVioletEvergardenSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+  "Violet Evergarden Season 1",
+  "Violet Evergarden Specials",
+  "Violet Evergarden – The Movie"
+    ];
+
+    episodes["Violet Evergarden"] = seasons;
+    createSeasonButtons(seasons, "Violet Evergarden");
+}
+
+function loadDeadLikeMeSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Dead Like Me Season 1",
+        "Dead Like Me Season 2",
+        "Dead Like Me – Life After Death"
+    ];
+
+    episodes["Dead Like Me"] = seasons;
+    createSeasonButtons(seasons, "Dead Like Me");
+}function loadNeonGenesisEvangelionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Neon Genesis Evangelion Season 1", "Neon Genesis Evangelion Movie - The End of Evangelion", "Neon Genesis Evangelion - Death & Rebirth"
+    ];
+
+    episodes["Neon Genesis Evangelion"] = seasons;
+    createSeasonButtons(seasons, "Neon Genesis Evangelion");
+}
+
+function loadLittleWitchAcademiaSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+          "Little Witch Academia Season 1",
+  "Little Witch Academia - The Movie",
+  "Little Witch Academia - The Movie 2 - The Enchanted Parade"
+    ];
+
+    episodes["Little Witch Academia"] = seasons;
+    createSeasonButtons(seasons, "Little Witch Academia");
+}function loadBlueExorcistSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Blue Exorcist Season 1",
+        "Blue Exorcist The Movie"
+    ];
+
+    episodes["Blue Exorcist"] = seasons;
+    createSeasonButtons(seasons, "Blue Exorcist");
+}
+function loadTheSagaOfTanyatheEvilSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Saga of Tanya the Evil Season 1",
+        "Saga of Tanya the Evil - The Movie"
+    ];
+
+    episodes["The Saga of Tanya the Evil"] = seasons;
+    createSeasonButtons(seasons, "The Saga of Tanya the Evil");
+}function loadSpyxFamilySeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+  "Spy x Family Season 1",
+  "Spy x Family Season 2",
+  "Spy x Family Season 3"
+
+    ];
+
+    episodes["Spy x Family"] = seasons;
+    createSeasonButtons(seasons, "Spy x Family");
+}
+function loadNoGameNoLifeSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+  "No Game No Life Season 1",
+  "No Game No Life - Zero"
+
+    ];
+
+    episodes["No Game No Life"] = seasons;
+    createSeasonButtons(seasons, "No Game No Life");
+}function loadTheBigCSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Big C Season 1",
+        "The Big C Season 2",
+        "The Big C Season 3",
+        "The Big C Season 4"
+    ];
+
+    episodes["The Big C"] = seasons;
+    createSeasonButtons(seasons, "The Big C");
+}
+
+// trick for fixing the "—" and "-" causing issues in search. add an exception in loadmainfolders.js to redirect with the capitalized version
+// "Fate stay night": () => { loadFateStayNightSeasons(); },
+function loadFateStayNightSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Fate stay night — Fate Route",
+        "Fate stay night — Unlimited Blade Works",
+        "Fate stay night — Heavens Feel"
+    ];
+
+    episodes["Fate stay night"] = seasons;
+    createSeasonButtons(seasons, "Fate stay night");
+}function loadMononokeSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Mononoke Season 1",
+        "Mononoke the Movie - Phantom in the Rain",
+		"Mononoke the Movie II - The Ashes of Rage"
+    ];
+
+    episodes["Mononoke"] = seasons;
+    createSeasonButtons(seasons, "Mononoke");
+}
+function loadCowboyBebopSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Cowboy Bebop Season 1",
+        "Cowboy Bebop The Movie"
+    ];
+
+    episodes["Cowboy Bebop"] = seasons;
+    createSeasonButtons(seasons, "Cowboy Bebop");
+}function loadTrigunSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Trigun Season 1",
+        "Trigun - Badlands Rumble"
+    ];
+
+    episodes["Trigun"] = seasons;
+    createSeasonButtons(seasons, "Trigun");
+}
+
+function loadBungoStrayDogsSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Bungo Stray Dogs Season 1",
+        "Bungo Stray Dogs Season 2",
+        "Bungo Stray Dogs Season 3",
+        "Bungo Stray Dogs Season 4",
+        "Bungo Stray Dogs Season 5",
+        "Bungo Stray Dogs - Dead Apple"
+    ];
+
+    episodes["Bungo Stray Dogs"] = seasons;
+    createSeasonButtons(seasons, "Bungo Stray Dogs");
+}function loadKaijuNo8Seasons() {
+  // clear UI
+  folderContainer.innerHTML = "";
+
+  // season list (from the JSON you created)
+  const seasons = [
+    "Kaiju No 8 Season 1",
+    "Kaiju No 8 Season 2",
+    "Kaiju No 8 The Movie"
+  ];
+
+  // update data model and render UI
+  episodes["Kaiju No 8"] = seasons;
+  createSeasonButtons(seasons, "Kaiju No 8");
+}
+
+function loadBobsBurgersSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+	"The Bob's Burgers Movie",
+    "Bob's Burgers Season 1",
+    "Bob's Burgers Season 2",
+    "Bob's Burgers Season 3",
+    "Bob's Burgers Season 4",
+    "Bob's Burgers Season 5",
+    "Bob's Burgers Season 6",
+    "Bob's Burgers Season 7",
+    "Bob's Burgers Season 8",
+    "Bob's Burgers Season 9",
+	    "Bob's Burgers Season 10",
+		 "Bob's Burgers Season 11",
+    "Bob's Burgers Season 12",
+    "Bob's Burgers Season 13",
+    "Bob's Burgers Season 14",
+    "Bob's Burgers Season 15",
+	"Bob's Burgers Season 16"
+    ];
+
+    episodes["Bob's Burgers"] = seasons;
+    createSeasonButtons(seasons, "Bob's Burgers");
+}function loadBleachThousandHyPhEnYearBloodWarSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Bleach Thousand-Year Blood War - The Blood Warfare",
+        "Bleach Thousand-Year Blood War - The Separation",
+        "Bleach Thousand-Year Blood War - The Conflict"
+    ];
+
+    episodes["Bleach Thousand-Year Blood War"] = seasons;
+    createSeasonButtons(seasons, "Bleach Thousand-Year Blood War");
+}
+
+function loadBleachSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+               "Bleach Season 1"//,
+      //  "Bleach Season 2",
+   //     "Bleach Season 3",
+   //     "Bleach Season 4",
+   //     "Bleach Season 5",
+   //     "Bleach Season 6",
+   //     "Bleach Season 7",
+    //    "Bleach Season 8",
+    //    "Bleach Season 9",
+    //    "Bleach Season 10",
+    //    "Bleach Season 11",
+    //    "Bleach Season 12",
+    //    "Bleach Season 13",
+    //    "Bleach Season 14",
+    //    "Bleach Season 15",
+    //    "Bleach Season 16"
+    ];
+
+    episodes["Bleach"] = seasons;
+createSeasonButtons(seasons, "Bleach");
+}function loadOnePunchManSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "One Punch Man Season 1", "One Punch Man Season 2", "One Punch Man Season 3"
+    ];
+
+    episodes["One Punch Man"] = seasons;
+    createSeasonButtons(seasons, "One Punch Man");
+}
+
+function loadNarutoSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Naruto Season 1",
+        "Naruto Season 2",
+		        "Naruto Season 3",
+        "Naruto Season 4",
+		        "Naruto Season 5"
+    ];
+
+    episodes["Naruto"] = seasons;
+    createSeasonButtons(seasons, "Naruto");
+}function loadBofuriHyPhEnIDontWantToGetHurtSoIllMaxOutMyDefenseSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Bofuri - I Don't Want to Get Hurt, so I'll Max Out My Defense Season 1",
+        "Bofuri - I Don't Want to Get Hurt, so I'll Max Out My Defense Season 2"
+    ];
+
+    episodes["Bofuri - I Don't Want to Get Hurt, so I'll Max Out My Defense"] = seasons;
+    createSeasonButtons(seasons, "Bofuri - I Don't Want to Get Hurt, so I'll Max Out My Defense");
+}
+
+function loadMobPsycho100Seasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Mob Psycho 100 Season 1", "Mob Psycho 100 Season 2", "Mob Psycho 100 Season 3"
+    ];
+
+    episodes["Mob Psycho 100"] = seasons;
+createSeasonButtons(seasons, "Mob Psycho 100");
+}function loadAssassinationClassroomSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Assassination Classroom Season 1",
+        "Assassination Classroom Season 2"
+    ];
+
+    episodes["Assassination Classroom"] = seasons;
+    createSeasonButtons(seasons, "Assassination Classroom");
+}
+
+function loadWednesdaySeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Wednesday Season 1", "Wednesday Season 2"
+    ];
+
+    episodes["Wednesday"] = seasons;
+    createSeasonButtons(seasons, "Wednesday");
+}function loadSchittsCreekSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Schitts Creek Season 1",
+        "Schitts Creek Season 2",
+        "Schitts Creek Season 3",
+        "Schitts Creek Season 4",
+        "Schitts Creek Season 5",
+        "Schitts Creek Season 6"
+    ];
+
+    episodes["Schitts Creek"] = seasons;
+    createSeasonButtons(seasons, "Schitts Creek");
+}
+function loadTheGoldenGirlsSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Golden Girls Season 1",
+        "The Golden Girls Season 2",
+        "The Golden Girls Season 3",
+        "The Golden Girls Season 4",
+        "The Golden Girls Season 5",
+        "The Golden Girls Season 6",
+		"The Golden Girls Season 7"
+    ];
+
+    episodes["The Golden Girls"] = seasons;
+    createSeasonButtons(seasons, "The Golden Girls");
+}function loadSense8Seasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Sense8 Season 1",
+        "Sense8 Season 2"
+    ];
+
+    episodes["Sense8"] = seasons;
+    createSeasonButtons(seasons, "Sense8");
+}
+
+function loadMarvelsRunawaysSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Marvels Runaways Season 1",
+        "Marvels Runaways Season 2",
+        "Marvels Runaways Season 3"
+    ];
+
+    episodes["Marvels Runaways"] = seasons;
+    createSeasonButtons(seasons, "Marvels Runaways");
+}function loadIWasReincarnatedasthe7thPrincesoICanTakeMyTimePerfectingMyMagicalAbilitySeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "I Was Reincarnated as the 7th Prince so I Can Take My Time Perfecting My Magical Ability Season 1",
+        "I Was Reincarnated as the 7th Prince so I Can Take My Time Perfecting My Magical Ability Season 2"
+    ];
+    episodes["I Was Reincarnated as the 7th Prince so I Can Take My Time Perfecting My Magical Ability"] = seasons;
+    createSeasonButtons(seasons, "I Was Reincarnated as the 7th Prince so I Can Take My Time Perfecting My Magical Ability");
+}
+
+function loadDPeRiOdGrayHyPhEnManSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "D.Gray-man Season 1",
+        "D.Gray-man Season 2"
+    ];
+    episodes["D.Gray-man"] = seasons;
+    createSeasonButtons(seasons, "D.Gray-man");
+}function loadAmericanHorrorStorySeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+           "American Horror Story Season 1", 
+    "American Horror Story Season 2", 
+    "American Horror Story Season 3", 
+    "American Horror Story Season 4",
+    "American Horror Story Season 5",
+    "American Horror Story Season 6",
+    "American Horror Story Season 7",
+    "American Horror Story Season 8",
+  "American Horror Story Season 9",
+  "American Horror Story Season 10",
+  "American Horror Story Season 11",
+  "American Horror Story Season 12"
+    ];
+
+    episodes["American Horror Story"] = seasons;
+createSeasonButtons(seasons, "American Horror Story");
+}
+
+function loadThatTimeIgotReincarnatedasaSlimeSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "That Time I got Reincarnated as a Slime Season 1",
+        "That Time I got Reincarnated as a Slime Season 2",
+        "That Time I got Reincarnated as a Slime Season 3",
+        "That Time I got Reincarnated as a Slime the Movie - Scarlet Bond",
+        "That Time I got Reincarnated as a Slime Season 4"
+    ];
+    episodes["That Time I got Reincarnated as a Slime"] = seasons;
+    createSeasonButtons(seasons, "That Time I got Reincarnated as a Slime");
+}function loadPantheonSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Pantheon Season 1", "Pantheon Season 2"
+    ];
+
+    episodes["Pantheon"] = seasons;
+createSeasonButtons(seasons, "Pantheon");
+}
+
+function loadTheRisingoftheShieldHeroSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "The Rising of the Shield Hero Season 1",
+        "The Rising of the Shield Hero Season 2",
+        "The Rising of the Shield Hero Season 3",
+        "The Rising of the Shield Hero Season 4"
+    ];
+    episodes["The Rising of the Shield Hero"] = seasons;
+    createSeasonButtons(seasons, "The Rising of the Shield Hero");
+}function loadStrangerThingsSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Stranger Things Season 1",
+        "Stranger Things Season 2",
+        "Stranger Things Season 3",
+        "Stranger Things Season 4"
+			,"Stranger Things Season 5"
+    ];
+
+    episodes["Stranger Things"] = seasons;
+    createSeasonButtons(seasons, "Stranger Things");
+}
+
+function loadMadeinAbyssSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Made in Abyss Season 1",
+        "Made in Abyss Season 2"
+    ];
+    episodes["Made in Abyss"] = seasons;
+    createSeasonButtons(seasons, "Made in Abyss");
+}function loadDoctorWhoSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Doctor Who Season 1",
+        "Doctor Who Season 2",
+        "Doctor Who Season 3",
+        "Doctor Who Season 4",
+        "Doctor Who Season 5",
+        "Doctor Who Season 6",
+        "Doctor Who Season 7",
+        "Doctor Who Season 8",
+        "Doctor Who Season 9",
+        "Doctor Who Season 10",
+        "Doctor Who Season 11",
+        "Doctor Who Season 12",
+        "Doctor Who Season 13"
+    ];
+
+    episodes["Doctor Who"] = seasons;
+    createSeasonButtons(seasons, "Doctor Who");
+}
+function loadGATESeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "GATE Season 1",
+        "GATE Season 2"
+    ];
+    episodes["GATE"] = seasons;
+    createSeasonButtons(seasons, "GATE");
+}function loadOnePieceSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+      //  ,"One Piece - Movies",
+	//	"One Piece - Season 1",
+	//	"One Piece - Season 2",
+	//	"One Piece - Season 3",
+	//	"One Piece - Season 4",
+	//	"One Piece - Season 5",
+	//	"One Piece - Season 6",
+	//	"One Piece - Season 7",
+	//	"One Piece - Season 8",
+	//	"One Piece - Season 9",
+	//	"One Piece - Season 10",
+	//	"One Piece - Season 11",
+	//	"One Piece - Season 12",
+	//	"One Piece - Season 13",
+	//	"One Piece - Season 14",
+	//	"One Piece - Season 15",
+	//	"One Piece - Season 16",
+	//	"One Piece - Season 17",
+	//	"One Piece - Season 18",
+	//	"One Piece - Season 19",
+	//	"One Piece - Season 20",
+	//	"One Piece - Season 21"
+    ];
+
+    episodes["One Piece"] = seasons;
+createSeasonButtons(seasons, "One Piece");
+}
+
+function loadOnePieceHyPhEnLiveActionSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "One Piece - Live Action Season 1", "One Piece - Live Action Season 2"
+
+    ];
+
+    episodes["One Piece - Live Action"] = seasons;
+createSeasonButtons(seasons, "One Piece - Live Action");
+}function loadAscendanceofaBookwormSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Ascendance of a Bookworm Season 1",
+        "Ascendance of a Bookworm Season 2",
+        "Ascendance of a Bookworm Season 3",
+        "Ascendance of a Bookworm Season 4"
+    ];
+    episodes["Ascendance of a Bookworm"] = seasons;
+    createSeasonButtons(seasons, "Ascendance of a Bookworm");
+}
+
+function loadMushokuTenseiHyPhEnJoblessReincarnationSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Mushoku Tensei - Jobless Reincarnation Season 1",
+        "Mushoku Tensei - Jobless Reincarnation Season 2"
+//        "Mushoku Tensei - Jobless Reincarnation Season 3"
+    ];
+
+    episodes["Mushoku Tensei - Jobless Reincarnation"] = seasons;
+    createSeasonButtons(seasons, "Mushoku Tensei - Jobless Reincarnation");
+}function loadRageOfBahamutSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Rage of Bahamut - Genesis",
+        "Rage of Bahamut - Virgin Soul"
+    ];
+
+    createSeasonButtons(seasons, "Rage of Bahamut");
+}
+
+function loadKonosubaSeasons() {
+  folderContainer.innerHTML = "";
+
+  const seasons = ["Konosuba Season 1", "Konosuba - Gods Blessing on This Wonderful World - Legend of Crimson", "Konosuba Season 2", "Konosuba Season 3", "Konosuba - An Explosion on This Wonderful World"];
+  episodes["Konosuba"] = seasons;
+  createSeasonButtons(seasons, "Konosuba");
+}function loadAvatarTheLastAirbenderSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Avatar The Last Airbender - Book One - Water",
+        "Avatar The Last Airbender - Book Two - Earth",
+        "Avatar The Last Airbender - Book Three - Fire"
+    ];
+
+    episodes["Avatar The Last Airbender"] = seasons;
+    createSeasonButtons(seasons, "Avatar The Last Airbender");
+}
+
+function loadAvatarTheLegendOfKorraSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Avatar The Legend of Korra - Book One - Air",
+        "Avatar The Legend of Korra - Book Two - Spirits",
+        "Avatar The Legend of Korra - Book Three - Change",
+        "Avatar The Legend of Korra - Book Four - Balance"
+    ];
+
+    episodes["Avatar The Legend of Korra"] = seasons;
+    createSeasonButtons(seasons, "Avatar The Legend of Korra");
+}function loadDotaHyPhEnDragonsBloodSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Dota - Dragons Blood Season 1",
+        "Dota - Dragons Blood Season 2",
+        "Dota - Dragons Blood Season 3"
+    ];
+
+    episodes["Dota - Dragons Blood"] = seasons;
+    createSeasonButtons(seasons, "Dota - Dragons Blood");
+}
+
+function loadTheLegendofVoxMachinaSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "The Legend of Vox Machina Season 1",
+        "The Legend of Vox Machina Season 2",
+        "The Legend of Vox Machina Season 3"
+    ];
+    episodes["The Legend of Vox Machina"] = seasons;
+    createSeasonButtons(seasons, "The Legend of Vox Machina");
+}function loadToYourEternitySeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "To Your Eternity Season 1", "To Your Eternity Season 2", "To Your Eternity Season 3"
+    ];
+
+    
+episodes["To Your Eternity"] = seasons;
+createSeasonButtons(seasons, "To Your Eternity");
+}
+function loadLegionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Legion Season 1", "Legion Season 2", "Legion Season 3"
+    ];
+
+    episodes["Legion"] = seasons;
+    createSeasonButtons(seasons, "Legion");
+}function loadTsukimichiHyPhEnMoonlitFantasySeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Tsukimichi - Moonlit Fantasy Season 1", "Tsukimichi - Moonlit Fantasy Season 2"
+    ];
+
+    episodes["Tsukimichi - Moonlit Fantasy"] = seasons;
+createSeasonButtons(seasons, "Tsukimichi - Moonlit Fantasy");
+}
+
+function loadStevenUniverseSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Steven Universe Season 1", "Steven Universe Season 2", "Steven Universe Season 3",
+        "Steven Universe Season 4", "Steven Universe Season 5", "Steven Universe The Movie", "Steven Universe Future"
+    ];
+
+    createSeasonButtons(seasons, "Steven Universe");
+}function loadOverlordSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Overlord Season 1",
+        "Overlord Season 2",
+        "Overlord Season 3",
+        "Overlord Season 4",
+        "Overlord - The Sacred Kingdom"
+    ];
+
+    createSeasonButtons(seasons, "Overlord");
+}
+
+function loadFarawayPaladinSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "The Faraway Paladin Season 1",
+        "The Faraway Paladin Season 2"
+    ];
+    episodes["The Faraway Paladin"] = seasons;
+    createSeasonButtons(seasons, "The Faraway Paladin");
+}function loadSavingGraceSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Saving Grace Season 1",
+        "Saving Grace Season 2",
+        "Saving Grace Season 3"
+    ];
+    episodes["Saving Grace"] = seasons;
+    createSeasonButtons(seasons, "Saving Grace");
+}
+
+function loadCentaurworldSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = ["Centaurworld Season 1", "Centaurworld Season 2"];
+
+    createSeasonButtons(seasons, "Centaurworld");
+}function loadFullmetalAlchemistSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+	    "Fullmetal Alchemist (Original)",
+		"Fullmetal Alchemist Brotherhood",
+        "Fullmetal Alchemist Movie - The Sacred Star of Milos",
+        "Fullmetal Alchemist The Movie - Conqueror of Shamballa"
+    ];
+
+    episodes["Fullmetal Alchemist"] = seasons;
+createSeasonButtons(seasons, "Fullmetal Alchemist");
+}
+
+function loadTheWitcherSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "The Witcher Season 1",
+        "The Witcher Season 2",
+        "The Witcher Season 3",
+		"The Witcher Season 4",
+        "The Witcher - Nightmare of the Wolf",
+        "The Witcher - Sirens of the Deep"
+    ];
+
+    episodes["The Witcher"] = seasons;
+    createSeasonButtons(seasons, "The Witcher");
+}function loadDisneyClassicsSeasons() {
+    folderContainer.innerHTML = "";
+	// Back to title selection at the beginning button
+   const backButton = document.createElement("button");
+        backButton.className = "return-button";
+        backButton.innerText = "Back to Title Selection";
+        backButton.onclick = () => {
+            folderContainer.innerHTML = "";
+            loadMainFolders();
+        };
+        folderContainer.appendChild(backButton);
+    const seasons = [
+        "101 Dalmatians",
+        "The Adventures of Ichabod and MrToad",
+        "A Goofy Movie",
+        "Aladdin",
+        "Alice in Wonderland",
+        "The Aristocats",
+        "Atlantis The Lost Empire",
+        "Bambi",
+        "Beauty and the Beast",
+        "The BFG",
+        "Big Hero 6",
+        "The Black Cauldron",
+        "Bolt",
+        "Brother Bear",
+        "Chicken Little",
+        "Cinderella",
+        "Dinosaur",
+        "Ducktales The Movie Treasure of the Lost Lamp",
+        "Dumbo",
+        "The Emperors New Groove",
+        "Encanto",
+        "Fantasia",
+        "The Fox and the Hound",
+        "Frozen",
+        "Frozen II",
+        "Fun and Fancy Free",
+        "The Great Mouse Detective",
+        "Hercules",
+        "Hocus Pocus",
+        "Hocus Pocus 2",
+        "Home on the Range",
+        "Homeward Bound The Incredible Journey",
+        "The Hunchback of Notre Dame",
+        "The Jungle Book",
+        "Lady and the Tramp",
+        "Lilo and Stitch",
+        "The Lion King",
+        "The Lion King 1½",
+        "The Lion King 2 - Simba's Pride",
+        "The Little Mermaid",
+        "The Little Mermaid 2",
+        "The Many Adventures of Winnie The Pooh",
+        "Mary Poppins",
+        "Meet the Robinsons",
+        "Moana",
+        "Moana 2",
+        "Mulan",
+        "The Nightmare Before Christmas",
+        "Oliver and Company",
+        "Oz the Great and Powerful",
+        "Peter Pan",
+        "Pinocchio",
+        "Pocahontas",
+        "The Princess and the Frog",
+        "Ralph Breaks the Internet",
+        "The Rescuers",
+        "The Rescuers Down Under",
+        "Robin Hood",
+        "Sleeping Beauty",
+        "Snow White and the Seven Dwarfs",
+        "The Sword in the Stone",
+        "Tangled",
+        "Tarzan",
+        "Treasure Planet",
+        "Winnie the Pooh",
+        "Wish",
+        "Wreck-It Ralph",
+        "Zootopia",
+        "Zootopia 2"
+    ];
+ episodes["Disney Classics"] = seasons;
+    createSeasonButtons(seasons, "Disney Classics");
+}
+
+function loadCodeGeassSeasons() {
+    folderContainer.innerHTML = "";
+	// Back to title selection at the beginning button
+ const backButton = document.createElement("button");
+        backButton.className = "return-button";
+        backButton.innerText = "Back to Title Selection";
+        backButton.onclick = () => {
+            folderContainer.innerHTML = "";
+            loadMainFolders();
+        };
+    const seasons = [
+	"Code Geass - Lelouch of the Rebellion",
+"Code Geass - Lelouch of the Rebellion R2"
+ ];
+
+   episodes["Code Geass"] = seasons;
+createSeasonButtons(seasons, "Code Geass");
+}function loadChillingAdventuresofSabrinaSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Chilling Adventures of Sabrina - Part One",
+        "Chilling Adventures of Sabrina - Part Two",
+        "Chilling Adventures of Sabrina - Part Three",
+        "Chilling Adventures of Sabrina - Part Four"
+    ];
+    episodes["Chilling Adventures of Sabrina"] = seasons;
+    createSeasonButtons(seasons, "Chilling Adventures of Sabrina");
+}
+
+function loadSimsalaGrimmSeasons() {
+    folderContainer.innerHTML = "";
+
+    // Back to title selection at the beginning button
+    const backButton = document.createElement("button");
+    backButton.className = "return-button";
+    backButton.innerText = "Back to Title Selection";
+    backButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(backButton);
+
+    const seasons = [
+        "Simsala Grimm Season 1",
+        "Simsala Grimm Season 2",
+        "Simsala Grimm Season 3"
+    ];
+
+    episodes["Simsala Grimm"] = seasons;
+    createSeasonButtons(seasons, "Simsala Grimm");
+}function loadBeanstalkVideosSeasons() {
+    folderContainer.innerHTML = "";
+    
+    // Back to title selection button
+    const backButton = document.createElement("button");
+    backButton.className = "return-button";
+    backButton.innerText = "Back to Title Selection";
+    backButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(backButton);
+
+        const seasons = [
+		"Simsala Grimm",
+        "Jack and the Beanstalk (1902)",
+    //    "Jack and the Beanstalk (1922)",
+        "Jack and the Beanstalk (1933)",
+        "Jack and the Beanstalk (1952)",
+        "Jack and the Beanstalk (1955)",
+ //       "Jack and the Beanstalk (1967)",
+//        "Jack and the Beanstalk (1974)",
+ //       "Jack and the Beanstalk (1994)",
+        "Jack and the Beanstalk (2009)",
+        "Jack and the Beanstalk The Real Story",
+		"Jack the Giant Slayer",
+        "Mickey and the Beanstalk (1957)",
+        "Beanstalk Bunny",
+        "Betty Boop and the Beanstalk",
+  //      "Barney and Friends and the Beanstalk",
+        "Blues Cave Kids - Beanstalk Blues",
+        "Dennis and the Beanstalk",
+        "Dino Babies - Dak and the Beanstalk",
+        "Dragontales Zak and the Beanstalk",
+        "Faerie Tale Theatre - Jack And The Beanstalk",
+        "Fairy Tales for Kids - Jack and the Beanstalk",
+        "Fabled Cottage - Jack and Beanstalk",
+        "Johnny Test - Johnny and the Beanstalk",
+        "Larva lava - Beanstalk",
+        "Little Einsteins - Annie and the Beanstalk",
+        "Mario and the Beanstalk",
+        "Pocket Dragon Adventures- Blink and the Beanstalk",
+        "Rugrats Tales of the Crib - Rugrats and the Beanstalk",
+//        "Soras Adventures of Mickey and the Beanstalk",
+        "Super Why PBS - Jack and the Beanstalk",
+        "Tales Of Magic - Jack and the Beanstalk",
+        "The Addams Family - Jack and Jill and the Beanstalk",
+        "Tweety and the Beanstalk",
+        "Witch And Giant Stories - Hansel and Gretel & Jack and the Beanstalk",
+        "Best Childrens Classics - Jack and the Beanstalk"
+    ];
+   seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+        seasonDiv.innerHTML = `
+            <img src='./Beanstalk Videos/${season}/${season}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+        seasonDiv.onclick = () => {
+            switch (season) {
+                case "Simsala Grimm":
+                    loadSimsalaGrimmSeasons();
+                    break;
+                case "Placeholder 2":
+                    loadPlaceholder2Seasons();
+                    break;
+                default:
+                    loadEpisodes(season);
+            }
+        };
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    // 🔽 Bottom Back Button
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}
+
+function loadMarvelMoviesSeasons() {
+    folderContainer.innerHTML = "";
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.addEventListener("click", () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    });
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+       "Iron Man",
+"The Invincible Iron Man",
+"Iron Man 2",
+"The Incredible Hulk",
+"Thor",
+"Thor - The Dark World",
+"Thor Ragnarok",
+"Thor Love and Thunder",
+"Captain America The First Avenger",
+"Captain America The Winter Soldier",
+"Captain America Civil War",
+"Captain America - Brave New World",
+"Avengers",
+"Avengers Age of Ultron",
+"Avengers Infinity War",
+"Avengers Endgame",
+"Thunderbolts",
+"Guardians of the Galaxy",
+"Guardians of the Galaxy Vol 2",
+"Guardians of the Galaxy Vol. 3",
+"Ant-Man",
+"Ant-Man and the Wasp",
+"Ant-Man and the Wasp Quantumania",
+"Spider-Man Homecoming",
+"Spider-Man Far from Home",
+"Spider-Man No Way Home",
+"Spider-Man Into the Spider-Verse",
+"Spider-Man Across the Spider-Verse",
+"Black Panther",
+"Black Panther - Wakanda Forever",
+"Doctor Strange",
+"Doctor Strange in the Multiverse of Madness",
+"Captain Marvel",
+"The Fantastic 4 - First Steps",
+"The Marvels",
+"Shang-Chi and the Legend of the Ten Rings",
+"Eternals",
+"Black Widow",
+"Logan",
+"Deadpool",
+"Deadpool 2",
+"Once Upon a Deadpool",
+"Deadpool and Wolverine",
+"Venom",
+"Venom - Let There Be Carnage",
+"Venom - The Last Dance",
+"Blade Collection"
+    ];
+
+    // small helper to convert a title into a safe folder/file name if needed
+    function safeName(name) {
+    return String(name || "")
+        .replace(/[\/\\:\*\?"<>\|]/g, "")
+        .replace(/['’]/g, "")
+        .trim();
+}
+
+    // map of special collections that need their own loader functions
+    const specialCollections = {
+        "Blade Collection": typeof loadBladeCollectionSeasons === "function" ? loadBladeCollectionSeasons : null
+        // add other mappings here if needed, e.g. "Some Collection": loadSomeCollectionSeasons
+    };
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+
+        // construct path using safeName() in case some filenames are slightly different
+        const safe = safeName(season);
+        const img = document.createElement("img");
+        img.alt = season;
+        img.src = `./Marvel Movies/${safe}/${safe}.jpg`;
+
+        // fallback poster
+        img.onerror = () => {
+            img.onerror = null;
+            img.src = './Marvel Movies/placeholder.jpg';
+        };
+
+        const p = document.createElement("p");
+        p.textContent = season;
+
+        seasonDiv.appendChild(img);
+        seasonDiv.appendChild(p);
+
+        // Default: open episodes, but handle special collections like Blade Collection
+        seasonDiv.addEventListener("click", () => {
+            const handler = specialCollections[season];
+            if (handler) {
+                // If a placeholder episodes entry exists and interferes, remove it
+                if (typeof episodes !== "undefined" && episodes && episodes[season]) {
+                    delete episodes[season];
+                }
+                handler();
+            } else {
+                loadEpisodes(season);
+            }
+        });
+
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    // 🔽 Bottom Back Button
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.addEventListener("click", () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    });
+    folderContainer.appendChild(bottomBackButton);
+}function loadStudioGhibliFilmsSeasons() {
+    folderContainer.innerHTML = "";
+    
+    // Back to title selection at the beginning button
+    const backButton = document.createElement("button");
+    backButton.className = "return-button";
+    backButton.innerText = "Back to Title Selection";
+    backButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(backButton);
+
+    const seasons = [
+        "Castle in the Sky",
+        "From up on Poppy Hill",
+        "Grave of the Fireflies",
+        "Howls Moving Castle",
+        "Kikis Delivery Service",
+        "My Neighbor Totoro",
+        "Nausicaa of the Valley of the Wind",
+        "Ponyo",
+        "Princess Mononoke",
+        "Spirited Away",
+        "The Boy and the Heron",
+        "The Secret World of Arrietty",
+        "The Tale of the Princess Kaguya",
+        "The Wind Rises"
+    ];
+
+    episodes["Studio Ghibli Films"] = seasons;
+createSeasonButtons(seasons, "Studio Ghibli Films");
+}
+
+function loadPixarCollectionSeasons() {
+    folderContainer.innerHTML = "";
+	// Back to title selection at the beginning button
+   const backButton = document.createElement("button");
+        backButton.className = "return-button";
+        backButton.innerText = "Back to Title Selection";
+        backButton.onclick = () => {
+            folderContainer.innerHTML = "";
+            loadMainFolders();
+        };
+        folderContainer.appendChild(backButton);
+    const seasons = [
+        "A Bugs Life",
+        "Brave",
+        "Cars",
+        "Coco",
+        "Finding Nemo",
+		"The Good Dinosaur",
+		"The Incredibles",
+		"The Incredibles 2",
+        "Inside Out",
+		"Inside Out 2",
+        "Monsters Inc",
+        "Monsters University",
+        "Ratatouille",
+        "Toy Story",
+		"Turning Red",
+		"Up",
+		"Wall-E"
+    ];
+
+    episodes["Pixar Collection"] = seasons;
+    createSeasonButtons(seasons, "Pixar Collection");
+}function loadOrangeisthenewBlackSeasons() {
+    folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Orange is the new Black Season 1", "Orange is the new Black Season 2",
+        "Orange is the new Black Season 3", "Orange is the new Black Season 4",
+        "Orange is the new Black Season 5", "Orange is the new Black Season 6",
+        "Orange is the new Black Season 7"
+    ];
+
+    episodes["Orange is the new Black"] = seasons;
+    createSeasonButtons(seasons, "Orange is the new Black");
+}
+
+function loadCharmedSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Charmed Season 1", "Charmed Season 2", "Charmed Season 3",
+        "Charmed Season 4", "Charmed Season 5", "Charmed Season 6",
+        "Charmed Season 7", "Charmed Season 8"
+    ];
+
+    episodes["Charmed"] = seasons;
+createSeasonButtons(seasons, "Charmed");
+}function loadNCISSeasons() {
+    folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "NCIS Season 1", "NCIS Season 2", "NCIS Season 3", "NCIS Season 4", "NCIS Season 5", "NCIS Season 6",
+        "NCIS Season 7", 
+		"NCIS Season 8", "NCIS Season 9", "NCIS Season 10", "NCIS Season 11", "NCIS Season 12",
+        "NCIS Season 13", "NCIS Season 14", "NCIS Season 15", "NCIS Season 16", "NCIS Season 17", "NCIS Season 18",
+        "NCIS Season 19", "NCIS Season 20", 
+	 "NCIS Season 21", "NCIS Season 22"
+    ];
+
+    episodes["NCIS"] = seasons;
+    createSeasonButtons(seasons, "NCIS");
+}
+function loadDrStoneSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+           "Dr. Stone Season 1",
+    "Dr. Stone Season 2",
+    "Dr. Stone - Ryusui",
+    "Dr. Stone Season 3",
+    "Dr. Stone Season 4"
+    ];
+
+    episodes["Dr. Stone"] = seasons;
+    createSeasonButtons(seasons, "Dr. Stone");
+}function loadGreysAnatomySeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+ const seasons = [
+    "Grey's Anatomy Season 1", 
+    "Grey's Anatomy Season 2",
+    "Grey's Anatomy Season 3",
+    "Grey's Anatomy Season 4",
+    "Grey's Anatomy Season 5",
+    "Grey's Anatomy Season 6",
+    "Grey's Anatomy Season 7",
+    "Grey's Anatomy Season 8",
+    "Grey's Anatomy Season 9",
+    "Grey's Anatomy Season 10",
+    "Grey's Anatomy Season 11",
+   "Grey's Anatomy Season 12",
+    "Grey's Anatomy Season 13",
+    "Grey's Anatomy Season 14",
+    "Grey's Anatomy Season 15",
+    "Grey's Anatomy Season 16",
+    "Grey's Anatomy Season 17",
+    "Grey's Anatomy Season 18",
+    "Grey's Anatomy Season 19",
+    "Grey's Anatomy Season 20",
+    "Grey's Anatomy Season 21"
+];
+
+    episodes["Grey's Anatomy"] = seasons;
+    createSeasonButtons(seasons, "Grey's Anatomy");
+}
+
+function loadHarryPotterSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Harry Potter and the Philosophers Stone",
+        "Harry Potter and the Chamber of Secrets",
+        "Harry Potter and the Prisoner of Azkaban",
+        "Harry Potter and the Goblet of Fire",
+        "Harry Potter and the Order of the Phoenix",
+        "Harry Potter and the Half-Blood Prince",
+        "Harry Potter and the Deathly Hallows - Part 1",
+        "Harry Potter and the Deathly Hallows - Part 2"
+    ];
+
+episodes["Harry Potter"] = seasons;
+createSeasonButtons(seasons, "Harry Potter");
+}function loadTheLordOfTheRingsSeasons() {
+    folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "The Lord of the Rings - The Fellowship of the Ring",
+        "The Lord of the Rings - The Two Towers",
+        "The Lord of the Rings - The Return of the King"
+    ];
+
+    episodes["The Lord of the Rings"] = seasons;
+    createSeasonButtons(seasons, "The Lord of the Rings");
+}
+function loadTheHobbitSeasons() {
+    folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "The Hobbit - An Unexpected Journey",
+        "The Hobbit - The Desolation of Smaug",
+        "The Hobbit - The Battle of the Five Armies"
+    ];
+
+    episodes["The Hobbit"] = seasons;
+    createSeasonButtons(seasons, "The Hobbit");
+}function loadStarWarsCollectionSeasons() {
+    folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Star Wars Episode I - The Phantom Menace",
+        "Star Wars Episode II - Attack of the Clones",
+        "Star Wars Episode III - Revenge of the Sith",
+        "Star Wars Episode IV - A New Hope",
+        "Star Wars Episode V - The Empire Strikes Back",
+        "Star Wars Episode VI - Return of the Jedi",
+        "Star Wars Episode VII - The Force Awakens",
+        "Star Wars Episode VIII - The Last Jedi",
+        "Star Wars Episode IX - The Rise of Skywalker"
+    ];
+
+    episodes["Star Wars Collection"] = seasons;
+    createSeasonButtons(seasons, "Star Wars Collection");
+}
+
+function loadTheHungerGamesCollectionSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "The Hunger Games",
+        "The Hunger Games Catching Fire",
+        "The Hunger Games Mockingjay - Part 1",
+        "The Hunger Games Mockingjay - Part 2",
+        "The Hunger Games The Ballad of Sonbirds & Snakes"
+    ];
+
+episodes["The Hunger Games Collection"] = seasons;
+createSeasonButtons(seasons, "The Hunger Games Collection");
+}function loadFantasticBeastsCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    // list of all films in order
+    const seasons = [
+        "Fantastic Beasts and Where to Find Them",
+        "Fantastic Beasts - The Crimes of Grindelwald",
+        "Fantastic Beasts - The Secrets of Dumbledore"
+    ];
+
+episodes["Fantastic Beasts Collection"] = seasons;
+createSeasonButtons(seasons, "Fantastic Beasts Collection");
+}
+function loadHorrorMoviesSeasons() {
+    folderContainer.innerHTML = "";
+
+    // Back to title selection at the beginning button
+    const backButton = document.createElement("button");
+    backButton.className = "return-button";
+    backButton.innerText = "Back to Title Selection";
+    backButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(backButton);
+
+const seasons = [
+        "Alien",
+        "A Quiet Place",
+        "A Quiet Place Day One",
+        "A Quiet Place Part II",
+        "Bird Box",
+        "The Cabin in the Woods",
+        "The Conjuring",
+        "The Conjuring 2",
+        "The Conjuring 3",
+        "Darkness Falls",
+        "The Descent",
+        "The Descent Part 2",
+        "Doctor Sleep",
+        "Final Destination",
+        "Frankenstein",
+        "Get Out",
+        "I Know What You Did Last Summer",
+        "Insidious",
+        "It",
+        "It (2017)",
+        "It - Chapter Two",
+        "Jeepers Creepers",
+        "Joshua",
+        "Leprechaun",
+        "Misery",
+        "The Possession",
+        "Rose Red",
+        "The Shining",
+        "Sinister",
+        "Sinister 2",
+        "The Sixth Sense",
+        "The Skeleton Key",
+        "The Thing",
+        "Weapons",
+        "White Noise",
+        "The Witch",
+        "World War Z"
+    ];
+
+    episodes["Horror Movies"] = seasons;
+createSeasonButtons(seasons, "Horror Movies");
+}function loadDexterSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Dexter Original Sin", "Dexter Season 1", "Dexter Season 2", "Dexter Season 3",
+        "Dexter Season 4", "Dexter Season 5", "Dexter Season 6", "Dexter Season 7",
+        "Dexter Season 8", "Dexter New Blood", "Dexter Resurrection"
+    ];
+
+    episodes["Dexter"] = seasons;
+createSeasonButtons(seasons, "Dexter");
+}
+
+function loadAttackOnTitanSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Attack on Titan Season 1",
+        "Attack on Titan Season 2",
+        "Attack on Titan Season 3",
+        "Attack on Titan Season 4"
+   //     "Attack on Titan OVA - Movies"
+    ];
+
+    episodes["Attack on Titan"] = seasons;
+createSeasonButtons(seasons, "Attack on Titan");
+}function loadTheBigBangTheorySeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+  //      "The Big Bang Theory Season 1", "The Big Bang Theory Season 2", "The Big Bang Theory Season 3",
+   //     "The Big Bang Theory Season 4", "The Big Bang Theory Season 5", "The Big Bang Theory Season 6",
+   //     "The Big Bang Theory Season 7", "The Big Bang Theory Season 8", "The Big Bang Theory Season 9",
+ //       "The Big Bang Theory Season 10", "The Big Bang Theory Season 11", "The Big Bang Theory Season 12"
+    ];
+
+    episodes["The Big Bang Theory"] = seasons;
+createSeasonButtons(seasons, "The Big Bang Theory");
+}
+
+function loadCastlevaniaSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Castlevania Season 1",
+        "Castlevania Season 2",
+        "Castlevania Season 3",
+        "Castlevania Season 4"
+    ];
+
+    episodes["Castlevania"] = seasons;
+createSeasonButtons(seasons, "Castlevania");
+}function loadCastlevaniaNocturneSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = ["Castlevania Nocturne Season 1", "Castlevania Nocturne Season 2"];
+
+    episodes["Castlevania Nocturne"] = seasons;
+createSeasonButtons(seasons, "Castlevania Nocturne");
+}
+function loadGaryandHisDemonsSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Gary and His Demons Season 1",
+        "Gary and His Demons Season 2"
+    ];
+
+    episodes["Gary and His Demons"] = seasons;
+    createSeasonButtons(seasons, "Gary and His Demons");
+}function loadTedSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Ted Season 1",
+        "Ted Season 2"
+    ];
+
+    episodes["Ted"] = seasons;
+    createSeasonButtons(seasons, "Ted");
+}
+function loadTheFamiliarofZeroSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "The Familiar of Zero Season 1"
+		//,
+        //"The Familiar of Zero Season 2 - Knight of the Twin Moons",
+        //"The Familiar of Zero Season 3 - Rondo of Princesses",
+        //"The Familiar of Zero Season 4 - F"
+    ];
+    episodes["The Familiar of Zero"] = seasons;
+    createSeasonButtons(seasons, "The Familiar of Zero");
+}function loadAnimatedMoviesSeasons() {
+    folderContainer.innerHTML = "";
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "AKIRA*",
+        "Angels Egg*",
+        "A Silent Voice",
+        "Balto",
+        "The BFG - The Big Friendly Giant",
+        "The Boss Baby Collection",
+        "Bubble",
+        "Chicken Run",
+        "Children of the Sea",
+        "Coraline",
+        "Corpse Bride",
+        "Digimon",
+        "Disney Classics",
+        "Dungeon Soup - Chaotic Good Barbarian*",
+        "ELDEN RING - Ode to Miquella, Nate Sandhart - Mastermind, Taylor Swift",
+        "FernGully The Last Rainforest",
+        "Fortune Favors Lady Nikuko",
+        "GOAT",
+        "Guillermo del Toros Pinocchio*",
+        "Happy Feet",
+        "Hoppers",
+        "Hotel Transylvania",
+        "Hotel Transylvania Transformania",
+        "Ice Age",
+        "The Iron Giant",
+        "James and the Giant Peach",
+        "Josee, the Tiger and the Fish",
+        "KPop Demon Hunters",
+        "The Land Before Time Collection",
+        "The Last Unicorn",
+        "The Legend of Aang - The Last Airbender",
+        "The Legend of Hei",
+        "Madagascar",
+        "Mary and the Witchs Flower",
+        "Megamind",
+        "The Mitchells vs The Machines",
+        "Ne Zha",
+        "Ne Zha 2",
+        "Nimona",
+        "The Pagemaster",
+        "Paprika",
+        "ParaNorman",
+        "Perfect Blue*",
+        "Pixar Collection",
+        "Pokemon Movies",
+        "The Prince of Egypt",
+        "Puss in Boots",
+        "Puss in Boots - The Last Wish",
+        "Rainbow Brite",
+        "Rainbow Brite and the Star Stealer",
+        "Robots",
+        "Rock-A-Doodle",
+        "Rugrats Go Wild",
+        "Rugrats in Paris The Movie",
+        "The Rugrats Movie",
+        "Shrek",
+        "Shrek 2",
+        "The Simpsons Movie",
+        "Sing",
+        "Sing 2",
+        "Space Jam",
+        "Studio Ghibli Films",
+        "The Super Mario Galaxy Movie",
+        "Swapped",
+        "Tokyo Godfathers*",
+        "The Wild Thornberrys Movie",
+        "The Willoughbys",
+        "Your Name"
+    ];
+    normalizeSeasonsArrayInPlace(seasons);
+  seasons.forEach(season => {
+    const seasonDiv = document.createElement("div");
+    seasonDiv.className = "folder";
+
+    const assetSeason = season
+        .replace(/\*/g, "")
+        .replace(/['’]/g, "")
+        .trim();
+
+    seasonDiv.innerHTML = `
+    <img
+        src="./Animated Movies/${assetSeason}/${assetSeason}.jpg"
+        alt="${season}"
+        onerror="
+            if (!this.attempt) this.attempt = 1;
+
+            if (this.attempt === 1) {
+                // Attempt 2: Try the path without the 'Animated Movies' prefix
+                this.attempt = 2;
+                this.src = './${assetSeason}/${assetSeason}.jpg';
+            } else if (this.attempt === 2) {
+                // Attempt 3: Try the root Animated Movies folder (flat file)
+                this.attempt = 3;
+                this.src = './Animated Movies/${assetSeason}.jpg';
+            } else {
+                // Final Fallback: Placeholder
+                this.src = './Images/placeholder.jpg';
+                this.onerror = null;
+            }
+        "
+    >
+    <p>${season}</p>
+`;
+    seasonDiv.onclick = () => {
+        switch (season) {
+            case "Disney Classics":
+                loadDisneyClassicsSeasons();
+                break;
+            case "Pixar Collection":
+                loadPixarCollectionSeasons();
+                break;
+            case "Pokemon Movies":
+                loadPokemonMoviesSeasons();
+                break;
+            case "The Land Before Time Collection":
+                loadTheLandBeforeTimeCollectionSeasons();
+                break;
+            case "Studio Ghibli Films":
+                loadStudioGhibliFilmsSeasons();
+                break;
+            case "Placeholder 2":
+                loadPlaceholder2Seasons();
+                break;
+                case "The Boss Baby Collection":
+                    loadTheBossBabyCollectionSeasons();
+                    break;
+
+            default:
+                loadEpisodes(season);
+        }
+    };
+
+    folderContainer.appendChild(seasonDiv);
+});
+
+    // 🔽 Bottom Back Button
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}
+function loadJujutsuKaisenSeasons() {
+        const videoPlayer = document.getElementById("videoPlayer");
+        const episodeList = document.getElementById("episodeList");
+        folderContainer.innerHTML = ""; // Clear existing content
+
+        const seasons = [
+            "Jujutsu Kaisen Season 1", "Jujutsu Kaisen Movie 0", "Jujutsu Kaisen Season 2", "Jujutsu Kaisen Season 3 - The Culling Game Part 1",
+            // Add additional seasons as needed...
+        ];
+episodes["Jujutsu Kaisen"] = seasons;
+        seasons.forEach(season => {
+            const seasonDiv = document.createElement("div");
+            seasonDiv.className = "folder";
+            seasonDiv.innerHTML = `
+                <img src='./Jujutsu Kaisen/${season}/${season}.jpg' alt='${season}'>
+                <p>${season}</p>
+            `;
+            seasonDiv.onclick = () => loadEpisodes(season);
+            folderContainer.appendChild(seasonDiv);
+        });
+
+        const backButton = document.createElement("button");
+        backButton.className = "return-button";
+        backButton.innerText = "Back to Title Selection";
+        backButton.onclick = () => {
+            folderContainer.innerHTML = "";
+            loadMainFolders();
+        };
+        folderContainer.appendChild(backButton);
+    }function loadTheLandBeforeTimeCollectionSeasons() {
+        const videoPlayer = document.getElementById("videoPlayer");
+        const episodeList = document.getElementById("episodeList");
+        folderContainer.innerHTML = ""; // Clear existing content
+
+        const seasons = [
+           "The Land Before Time",
+"The Land Before Time II - The Great Valley Adventure",
+"The Land Before Time III - The Time of the Great Giving",
+"The Land Before Time IV - Journey Through the Mists",
+"The Land Before Time IX - Journey to Big Water",
+"The Land Before Time V - The Mysterious Island",
+"The Land Before Time VI - The Secret of Saurus Rock",
+"The Land Before Time VII - The Stone of Cold Fire",
+"The Land Before Time VIII - The Big Freeze",
+"The Land Before Time X - The Great Longneck Migration",
+"The Land Before Time XI - Invasion of the Tinysauruses",
+"The Land Before Time XII - The Great Day of the Flyers",
+"The Land Before Time XIII - The Wisdom of Friends",
+"The Land Before Time XIV - Journey of the Brave"
+        ];
+
+        seasons.forEach(season => {
+            const seasonDiv = document.createElement("div");
+            seasonDiv.className = "folder";
+            seasonDiv.innerHTML = `
+                <img src='./The Land Before Time Collection/${season}/${season}.jpg' alt='${season}'>
+                <p>${season}</p>
+            `;
+            seasonDiv.onclick = () => loadEpisodes(season);
+            folderContainer.appendChild(seasonDiv);
+        });
+
+        const backButton = document.createElement("button");
+        backButton.className = "return-button";
+        backButton.innerText = "Back to Title Selection";
+        backButton.onclick = () => {
+            folderContainer.innerHTML = "";
+            loadMainFolders();
+        };
+        folderContainer.appendChild(backButton);
+    }
+function loadTwilightSagaSeasons() {
+        const videoPlayer = document.getElementById("videoPlayer");
+        const episodeList = document.getElementById("episodeList");
+        folderContainer.innerHTML = ""; // Clear existing content
+
+        const seasons = [
+            "Twilight", "New Moon", "Eclipse", "Breaking Dawn - Part 1", "Breaking Dawn - Part 2"
+            // Add additional seasons as needed...
+        ];
+episodes["Twilight Saga"] = seasons;
+        seasons.forEach(season => {
+            const seasonDiv = document.createElement("div");
+            seasonDiv.className = "folder";
+            seasonDiv.innerHTML = `
+                <img src='./Twilight Saga/${season}/${season}.jpg' alt='${season}'>
+                <p>${season}</p>
+            `;
+            seasonDiv.onclick = () => loadEpisodes(season);
+            folderContainer.appendChild(seasonDiv);
+        });
+
+        const backButton = document.createElement("button");
+        backButton.className = "return-button";
+        backButton.innerText = "Back to Title Selection";
+        backButton.onclick = () => {
+            folderContainer.innerHTML = "";
+            loadMainFolders();
+        };
+        folderContainer.appendChild(backButton);
+    }function loadInuyashaSeasons() {
+    const videoPlayer = document.getElementById("videoPlayer");
+    const episodeList = document.getElementById("episodeList");
+    folderContainer.innerHTML = ""; // Clear existing content
+
+    const seasons = [
+  //      "Inuyasha Season 1",
+ //       "Inuyasha Season 2",
+  //      "Inuyasha Season 3",
+  //      "Inuyasha Season 4",
+  //      "Inuyasha Season 5",
+   //     "Inuyasha Season 6",
+    //    "Inuyasha Season 7",
+   //     "Inuyasha Season 8",
+        "Inuyasha the Movie - Affections Touching Across Time",
+        "Inuyasha the Movie - The Castle Beyond the Looking Glass",
+        "Inuyasha the Movie - Swords of an Honorable Ruler",
+        "Inuyasha the Movie - Fire on the Mystic Island"
+    ];
+episodes["Inuyasha"] = seasons;
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+        seasonDiv.innerHTML = `
+            <img src='./Inuyasha/${season}/${season}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+        seasonDiv.onclick = () => loadEpisodes(season);
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    const backButton = document.createElement("button");
+    backButton.className = "return-button";
+    backButton.innerText = "Back to Title Selection";
+    backButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(backButton);
+}
+function loadGayRomancesSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+	"A Nice Indian Boy",
+    "Benjamin",
+    "Brokeback Mountain",
+    "Call Me By Your Name",
+    "Gods Own Country",
+    "Handsome Devil",
+	"Heated Rivalry",
+    "Latter Days",
+    "Love, Simon",
+    "Maurice",
+    "Moonlight",
+	"Spoiler Alert",
+    "Stranger by the Shore"
+];
+episodes["Gay Romances"] = seasons;
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+        seasonDiv.innerHTML = `
+            <img src='./Gay Romances/${season}/${season}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+        seasonDiv.onclick = () => loadEpisodes(season);
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    // Add Back Button
+    const backButton = document.createElement("button");
+    backButton.className = "return-button";
+    backButton.innerText = "Back to Title Selection";
+    backButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(backButton);
+}function loadFinalFantasyMoviesSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Brotherhood Final Fantasy XV",
+        "Final Fantasy Advent Children",
+        "Kingsglaive Final Fantasy XV",
+        "Legend of the Crystals Final Fantasy"
+    ];
+    episodes["Final Fantasy Movies"] = seasons;
+    createSeasonButtons(seasons, "Final Fantasy Movies");
+}
+function loadPokemonMoviesSeasons() {
+    const videoPlayer = document.getElementById("videoPlayer");
+    const episodeList = document.getElementById("episodeList");
+    folderContainer.innerHTML = "";
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Pokemon The First Movie – Mewtwo Strikes Back",
+        "Pokemon the Movie 2000 – The Power of One",
+        "Pokemon 3 The Movie – Spell of the Unown",
+        "Pokemon 4Ever Celebi – Voice of the Forest",
+        "Pokemon Heroes Latios and Latias",
+        "Pokemon Jirachi – Wish Maker",
+        "Pokemon Destiny Deoxys",
+        "Pokemon Lucario and the Mystery of Mew",
+        "Pokemon Ranger and the Temple of the Sea",
+        "Pokemon The Rise of Darkrai",
+        "Pokemon Giratina and the Sky Warrior",
+        "Pokemon Arceus and the Jewel of Life",
+        "Pokemon – Zoroark Master of Illusions",
+        "Pokemon the Movie Black – Victini and Reshiram",
+        "Pokemon the Movie White – Victini and Zekrom",
+        "Pokemon the Movie Kyurem vs the Sword of Justice",
+        "Pokemon the Movie Genesect and the Legend Awakened",
+        "Pokemon the Movie Diancie and the Cocoon of Destruction",
+        "Pokemon the Movie Hoopa and the Clash of Ages",
+        "Pokemon the Movie Volcanion and the Mechanical Marvel",
+        "Pokemon the Movie I Choose You",
+        "Pokemon the Movie The Power of Us",
+        "Pokemon Mewtwo Strikes Back – Evolution",
+        "Pokemon the Movie Secrets of the Jungle",
+        "Pokemon The Arceus Chronicles",
+        "Pokemon Detective Pikachu"
+    ];
+
+    episodes["Pokemon Movies"] = seasons;
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+        seasonDiv.innerHTML = `
+            <img src='./Pokemon Movies/${season}/${season}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+        seasonDiv.onclick = () => loadEpisodes(season);
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    // 🔽 Bottom Back Button
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}function loadShamelessSeasons() {
+ folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "Shameless Season 1", "Shameless Season 2", "Shameless Season 3", "Shameless Season 4",
+        "Shameless Season 5", "Shameless Season 6", "Shameless Season 7", "Shameless Season 8",
+        "Shameless Season 9", "Shameless Season 10", "Shameless Season 11"
+    ];
+
+    episodes["Shameless"] = seasons;
+    createSeasonButtons(seasons, "Shameless");
+}
+function loadPsychoHyPhEnPassSeasons() {
+        const videoPlayer = document.getElementById("videoPlayer");
+        const episodeList = document.getElementById("episodeList");
+        folderContainer.innerHTML = ""; // Clear existing content
+
+        const seasons = [
+            "Psycho-Pass Season 1",
+            "Psycho-Pass Season 2",
+			"Psycho-Pass Season 3",
+            "Psycho-Pass The Movie",
+            "Psycho-Pass The Movie Providence"
+        ];
+
+        seasons.forEach(season => {
+            const seasonDiv = document.createElement("div");
+            seasonDiv.className = "folder";
+            seasonDiv.innerHTML = `
+                <img src='./Psycho-Pass/${season}/${season}.jpg' alt='${season}'>
+                <p>${season}</p>
+            `;
+            seasonDiv.onclick = () => loadEpisodes(season);
+            folderContainer.appendChild(seasonDiv);
+        });
+
+        const backButton = document.createElement("button");
+        backButton.className = "return-button";
+        backButton.innerText = "Back to Title Selection";
+        backButton.onclick = () => {
+            folderContainer.innerHTML = "";
+            loadMainFolders();
+        };
+        folderContainer.appendChild(backButton);
+    }function loadTheFarawayPaladinSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "The Faraway Paladin Season 1",
+        "The Faraway Paladin Season 2"
+    ];
+    episodes["The Faraway Paladin"] = seasons;
+    createSeasonButtons(seasons, "The Faraway Paladin");
+}
+function loadMashleMagicSeasons() {
+    folderContainer.innerHTML = "";
+    const seasons = [
+        "Mashle Magic and Muscles Season 1",
+        "Mashle Magic and Muscles Season 2"
+    ];
+    episodes["Mashle Magic and Muscles"] = seasons;
+    createSeasonButtons(seasons, "Mashle Magic and Muscles");
+}function loadTheMagiciansSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Magicians Season 1",
+        "The Magicians Season 2",
+        "The Magicians Season 3",
+        "The Magicians Season 4",
+        "The Magicians Season 5"
+    ];
+
+    episodes["The Magicians"] = seasons;
+    createSeasonButtons(seasons, "The Magicians");
+}
+function loadMastersoftheUniverseSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+    "Masters of the Universe Season 1 Revelation",
+  "Masters of the Universe Season 2 Revolution"
+    ];
+
+    episodes["Masters of the Universe"] = seasons;
+    createSeasonButtons(seasons, "Masters of the Universe");
+}function loadSwordArtOnlineSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+      "Sword Art Online Season 1",
+  "Sword Art Online Season 2",
+  "Sword Art Online Alicization"
+    ];
+
+    episodes["Sword Art Online"] = seasons;
+    createSeasonButtons(seasons, "Sword Art Online");
+}
+function loadFalloutSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Fallout Season 1", "Fallout Season 2"
+    ];
+
+    episodes["Fallout"] = seasons;
+createSeasonButtons(seasons, "Fallout");
+}function loadPrimalSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Primal Season 1",
+        "Primal Season 2",
+		"Primal Season 3"
+    ];
+
+    episodes["Primal"] = seasons;
+    createSeasonButtons(seasons, "Primal");
+}
+function loadAbbottElementarySeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Abbott Elementary Season 1",
+        "Abbott Elementary Season 2",
+		"Abbott Elementary Season 3",
+        "Abbott Elementary Season 4",
+		"Abbott Elementary Season 5"
+    ];
+
+    episodes["Abbott Elementary"] = seasons;
+    createSeasonButtons(seasons, "Abbott Elementary");
+}function loadTheGoodPlaceSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Good Place Season 1",
+        "The Good Place Season 2",
+		  "The Good Place Season 3",
+        "The Good Place Season 4"
+    ];
+
+    episodes["The Good Place"] = seasons;
+    createSeasonButtons(seasons, "The Good Place");
+}
+function loadTheBoysseasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "The Boys Season 1", "The Boys Season 2", "The Boys Season 3", "The Boys Season 4", "The Boys Season 5"
+    ];
+
+    episodes["The Boys"] = seasons;
+createSeasonButtons(seasons, "The Boys");
+}function loadPuellaMagiMadokaMagicaSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Puella Magi Madoka Magica Season 1",
+        "Puella Magi Madoka Magica Movie I - Beginnings",
+        "Puella Magi Madoka Magica Movie II - Eternal",
+        "Puella Magi Madoka Magica Movie III - Rebellion"
+    ];
+
+    episodes["Puella Magi Madoka Magica"] = seasons;
+    createSeasonButtons(seasons, "Puella Magi Madoka Magica");
+}
+function loadGoblinSlayerSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+        "Goblin Slayer Season 1",
+        "Goblin Slayer Movie - Goblin's Crown",
+        "Goblin Slayer Season 2"
+    ];
+
+    episodes["Goblin Slayer"] = seasons;
+    createSeasonButtons(seasons, "Goblin Slayer");
+}function loadImStandingOnAMillionLivesSeasons() {
+  folderContainer.innerHTML = "";
+
+  const seasons = [
+    "I'm Standing on a Million Lives Season 1",
+    "I'm Standing on a Million Lives Season 2"
+  ];
+
+  episodes["I'm Standing on a Million Lives"] = seasons;
+  createSeasonButtons(seasons, "I'm Standing on a Million Lives");
+}
+function loadRebornAsAVendingMachineINowWanderTheDungeonSeasons() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+    "Reborn as a Vending Machine, I Now Wander the Dungeon Season 1",
+    "Reborn as a Vending Machine, I Now Wander the Dungeon Season 2",
+    "Reborn as a Vending Machine, I Now Wander the Dungeon Season 3"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+    episodes["Reborn as a Vending Machine, I Now Wander the Dungeon"] = seasons;
+    createSeasonButtons(seasons, "Reborn as a Vending Machine, I Now Wander the Dungeon");
+}function loadBurnTheWitchSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Burn the Witch Season 1",
+    "Burn the Witch #0.8"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["Burn the Witch"] = seasons;
+    createSeasonButtons(seasons, "Burn the Witch");
+}
+function loadDisneyClassicsSeasons() {
+    folderContainer.innerHTML = "";
+	// Back to title selection at the beginning button
+   const backButton = document.createElement("button");
+        backButton.className = "return-button";
+        backButton.innerText = "Back to Title Selection";
+        backButton.onclick = () => {
+            folderContainer.innerHTML = "";
+            loadMainFolders();
+        };
+        folderContainer.appendChild(backButton);
+    const seasons = [
+        "101 Dalmatians",
+        "The Adventures of Ichabod and MrToad",
+        "A Goofy Movie",
+        "Aladdin",
+        "Alice in Wonderland",
+        "The Aristocats",
+        "Atlantis The Lost Empire",
+        "Bambi",
+        "Beauty and the Beast",
+        "The BFG",
+        "Big Hero 6",
+        "The Black Cauldron",
+        "Bolt",
+        "Brother Bear",
+        "Chicken Little",
+        "Cinderella",
+        "Dinosaur",
+        "Ducktales The Movie Treasure of the Lost Lamp",
+        "Dumbo",
+        "The Emperors New Groove",
+        "Encanto",
+        "Fantasia",
+        "The Fox and the Hound",
+        "Frozen",
+        "Frozen II",
+        "Fun and Fancy Free",
+        "The Great Mouse Detective",
+        "Hercules",
+        "Hocus Pocus",
+        "Hocus Pocus 2",
+        "Home on the Range",
+        "Homeward Bound The Incredible Journey",
+        "The Hunchback of Notre Dame",
+        "The Jungle Book",
+        "Lady and the Tramp",
+        "Lilo and Stitch",
+        "The Lion King",
+        "The Lion King 1½",
+        "The Lion King 2 - Simba's Pride",
+        "The Little Mermaid",
+        "The Little Mermaid 2",
+        "The Many Adventures of Winnie The Pooh",
+        "Mary Poppins",
+        "Meet the Robinsons",
+        "Moana",
+        "Moana 2",
+        "Mulan",
+        "The Nightmare Before Christmas",
+        "Oliver and Company",
+        "Oz the Great and Powerful",
+        "The Parent Trap",
+        "Peter Pan",
+        "Pinocchio",
+        "Pocahontas",
+        "The Princess and the Frog",
+        "Ralph Breaks the Internet",
+        "The Rescuers",
+        "The Rescuers Down Under",
+        "Robin Hood",
+        "Sleeping Beauty",
+        "Snow White and the Seven Dwarfs",
+        "The Sword in the Stone",
+        "Tangled",
+        "Tarzan",
+        "Treasure Planet",
+        "Winnie the Pooh",
+        "Wish",
+        "Wreck-It Ralph",
+        "Zootopia",
+        "Zootopia 2"
+    ];
+ episodes["Disney Classics"] = seasons;
+    createSeasonButtons(seasons, "Disney Classics");
+}function loadNichijouHyPhEnMyOrdinaryLifeSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Nichijou - My Ordinary Life Season 1",
+    "Nichijou - Episode 0"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["Nichijou - My Ordinary Life"] = seasons;
+    createSeasonButtons(seasons, "Nichijou - My Ordinary Life");
+}
+function loadTheMostHereticalLastBossQueenHyPhEnFromVillainessToSaviorSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "The Most Heretical Last Boss Queen – From Villainess to Savior Season 1",
+    "The Most Heretical Last Boss Queen – From Villainess to Savior Season 2"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["The Most Heretical Last Boss Queen – From Villainess to Savior"] = seasons;
+    createSeasonButtons(seasons, "The Most Heretical Last Boss Queen – From Villainess to Savior");
+}function loadTheDisastrousLifeOfSaikiKPeRiOdSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "The Disastrous Life of Saiki K. Season 1",
+    "The Disastrous Life of Saiki K. Season 2",
+    "The Disastrous Life of Saiki K. Final Arc",
+    "The Disastrous Life of Saiki K. Reawakened"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["The Disastrous Life of Saiki K."] = seasons;
+    createSeasonButtons(seasons, "The Disastrous Life of Saiki K.");
+}
+function loadDespicableMeCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Despicable Me",
+    "Despicable Me 2",
+    "Despicable Me 3",
+    "Despicable Me 4",
+    "Minions",
+    "Minions - The Rise of Gru"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["Despicable Me Collection"] = seasons;
+    createSeasonButtons(seasons, "Despicable Me Collection");
+}function loadTheMummyCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "The Mummy",
+        "The Mummy Returns",
+        "The Mummy - Tomb of the Dragon Emperor"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+
+        const assetSeason = season
+            .replace(/\*/g, "")
+            .replace(/['’]/g, "")
+            .trim();
+
+        seasonDiv.innerHTML = `
+            <img src='./The Mummy Collection/${assetSeason}/${assetSeason}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+
+        seasonDiv.onclick = () => {
+            switch (season) {
+                default:
+                    loadEpisodes(season);
+            }
+        };
+
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}
+function loadJohnWickCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "John Wick",
+    "John Wick - Chapter 2",
+    "John Wick - Chapter 3 - Parabellum",
+    "John Wick - Chapter 4"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+
+        const assetSeason = season
+            .replace(/\*/g, "")
+            .replace(/['’]/g, "")
+            .trim();
+
+        seasonDiv.innerHTML = `
+            <img src='./John Wick Collection/${assetSeason}/${assetSeason}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+
+        seasonDiv.onclick = () => {
+            switch (season) {
+                default:
+                    loadEpisodes(season);
+            }
+        };
+
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}function loadFarmingLifeInAnotherWorldSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Farming Life in Another World Season 1",
+    "Farming Life in Another World Season 2"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["Farming Life in Another World"] = seasons;
+    createSeasonButtons(seasons, "Farming Life in Another World");
+}
+function loadResidentEvilCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Resident Evil",
+    "Resident Evil - Afterlife",
+    "Resident Evil - Apocalypse",
+    "Resident Evil - Extinction",
+    "Resident Evil - Retribution",
+    "Resident Evil - The Final Chapter"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+
+        const assetSeason = season
+            .replace(/\*/g, "")
+            .replace(/['’]/g, "")
+            .trim();
+
+        seasonDiv.innerHTML = `
+            <img src='./Resident Evil Collection/${assetSeason}/${assetSeason}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+
+        seasonDiv.onclick = () => {
+            switch (season) {
+                default:
+                    loadEpisodes(season);
+            }
+        };
+
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}function loadADogsPurposeCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "A Dog's Journey",
+    "A Dog's Purpose"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+
+        const assetSeason = season
+            .replace(/\*/g, "")
+            .replace(/['’]/g, "")
+            .trim();
+
+        seasonDiv.innerHTML = `
+            <img src='./A Dogs Purpose Collection/${assetSeason}/${assetSeason}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+
+        seasonDiv.onclick = () => {
+            switch (season) {
+                default:
+                    loadEpisodes(season);
+            }
+        };
+
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}
+function loadAvatarCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    // list of all films in order
+    const seasons = [
+        "Avatar",
+        "Avatar - The Way of Water",
+       "Avatar - Fire and Ash"
+    ];
+
+    episodes["Avatar Collection"] = seasons;
+    createSeasonButtons(seasons, "Avatar Collection");
+}function loadTheBossBabyCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "The Boss Baby",
+    "The Boss Baby and Tim's Treasure Hunt Through Time"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+
+        const assetSeason = season
+            .replace(/\*/g, "")
+            .replace(/['’]/g, "")
+            .trim();
+
+        seasonDiv.innerHTML = `
+            <img src='./The Boss Baby Collection/${assetSeason}/${assetSeason}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+
+        seasonDiv.onclick = () => {
+            switch (season) {
+                default:
+                    loadEpisodes(season);
+            }
+        };
+
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+folderContainer.appendChild(bottomBackButton);}
+function loadItsAlwaysSunnyInPhiladelphiaSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "It's Always Sunny in Philadelphia Season 1",
+    "It's Always Sunny in Philadelphia Season 2",
+    "It's Always Sunny in Philadelphia Season 3",
+    "It's Always Sunny in Philadelphia Season 4",
+    "It's Always Sunny in Philadelphia Season 5",
+    "It's Always Sunny in Philadelphia Season 6",
+    "It's Always Sunny in Philadelphia Season 7",
+    "It's Always Sunny in Philadelphia Season 8",
+    "It's Always Sunny in Philadelphia Season 9",
+    "It's Always Sunny in Philadelphia Season 10",
+    "It's Always Sunny in Philadelphia Season 11",
+    "It's Always Sunny in Philadelphia Season 12",
+    "It's Always Sunny in Philadelphia Season 13",
+    "It's Always Sunny in Philadelphia Season 14",
+    "It's Always Sunny in Philadelphia Season 15",
+    "It's Always Sunny in Philadelphia Season 16",
+    "It's Always Sunny in Philadelphia Season 17"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["It's Always Sunny in Philadelphia"] = seasons;
+    createSeasonButtons(seasons, "It's Always Sunny in Philadelphia");
+}function loadDesperateHousewivesSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Desperate Housewives Season 1",
+    "Desperate Housewives Season 2",
+    "Desperate Housewives Season 3",
+    "Desperate Housewives Season 4",
+    "Desperate Housewives Season 5",
+    "Desperate Housewives Season 6",
+    "Desperate Housewives Season 7",
+    "Desperate Housewives Season 8"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["Desperate Housewives"] = seasons;
+    createSeasonButtons(seasons, "Desperate Housewives");
+}
+
+function loadAustinPowersCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Austin Powers in Goldmember",
+    "Austin Powers - International Man of Mystery",
+    "Austin Powers - The Spy Who Shagged Me"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+
+        const assetSeason = season
+            .replace(/\*/g, "")
+            .replace(/['’]/g, "")
+            .trim();
+
+        seasonDiv.innerHTML = `
+            <img src='./Austin Powers Collection/${assetSeason}/${assetSeason}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+
+        seasonDiv.onclick = () => {
+            switch (season) {
+                default:
+                    loadEpisodes(season);
+            }
+        };
+
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}function loadParksAndRecreationSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Parks and Recreation Season 1",
+    "Parks and Recreation Season 2",
+    "Parks and Recreation Season 3",
+    "Parks and Recreation Season 4",
+    "Parks and Recreation Season 5",
+    "Parks and Recreation Season 6",
+    "Parks and Recreation Season 7",
+    "A Parks and Recreation Special"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["Parks and Recreation"] = seasons;
+    createSeasonButtons(seasons, "Parks and Recreation");
+}
+
+function loadParksAndRecreationSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Parks and Recreation Season 1",
+    "Parks and Recreation Season 2",
+    "Parks and Recreation Season 3",
+    "Parks and Recreation Season 4",
+    "Parks and Recreation Season 5",
+    "Parks and Recreation Season 6",
+    "Parks and Recreation Season 7",
+    "A Parks and Recreation Special"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    episodes["Parks and Recreation"] = seasons;
+    createSeasonButtons(seasons, "Parks and Recreation");
+}function loadUnbreakableTrilogySeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Glass",
+    "Split",
+    "Unbreakable"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+
+        const assetSeason = season
+            .replace(/\*/g, "")
+            .replace(/['’]/g, "")
+            .trim();
+
+        seasonDiv.innerHTML = `
+            <img src='./Unbreakable Trilogy/${assetSeason}/${assetSeason}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+
+        seasonDiv.onclick = () => {
+            switch (season) {
+                default:
+                    loadEpisodes(season);
+            }
+        };
+
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}
+
+function loadTakenCollectionSeasons() {
+    folderContainer.innerHTML = "";
+
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+    "Taken",
+    "Taken 2",
+    "Taken 3"
+    ];
+
+    normalizeSeasonsArrayInPlace(seasons);
+
+    seasons.forEach(season => {
+        const seasonDiv = document.createElement("div");
+        seasonDiv.className = "folder";
+
+        const assetSeason = season
+            .replace(/\*/g, "")
+            .replace(/['’]/g, "")
+            .trim();
+
+        seasonDiv.innerHTML = `
+            <img src='./Taken Collection/${assetSeason}/${assetSeason}.jpg' alt='${season}'>
+            <p>${season}</p>
+        `;
+
+        seasonDiv.onclick = () => {
+            switch (season) {
+                default:
+                    loadEpisodes(season);
+            }
+        };
+
+        folderContainer.appendChild(seasonDiv);
+    });
+
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}function loadMoviesSeasons() {
+    folderContainer.innerHTML = ""; // Clear existing content
+
+    // 🔼 Top Back Button
+    const topBackButton = document.createElement("button");
+    topBackButton.className = "return-button";
+    topBackButton.innerText = "Back to Title Selection";
+    topBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(topBackButton);
+
+    const seasons = [
+        "1408*",
+        "50 First Dates",
+        "A Beautiful Mind",
+        "A Dog's Purpose Collection",
+        "All of Us Strangers*",
+        "Austin Powers Collection*",
+        "Avatar Collection*",
+        "Beetlejuice",
+        "Beetlejuice Beetlejuice",
+        "Big Fish",
+        "Braveheart*",
+        "Bridge to Terabithia",
+        "Bruce Almighty",
+        "The Butterfly Effect*",
+        "Chaos Walking",
+        "Click",
+        "The Craft*",
+        "The Dark Knight*",
+        "The Day After Tomorrow",
+        "Death Becomes Her*",
+        "The Devil Wears Prada",
+        "Dinner for Schmucks",
+        "Dirty Dancing",
+        "Disenchanted",
+        "DodgeBall - A True Underdog Story",
+        "DogMan*",
+        "Donnie Darko*",
+        "Dont Look Up",
+        "Dungeons & Dragons - Honor Among Thieves*",
+        "Easy A*",
+        "Edward Scissorhands",
+        "Ella Enchanted",
+        "Eternal Sunshine of the Spotless Mind",
+        "Everything Everywhere All at Once",
+        "Fantastic Beasts Collection",
+        "Fight Club*",
+        "Forest Gump*",
+        "Gladiator*",
+        "The Godfather*",
+        "The Golden Compass",
+        "The Goonies",
+        "The Green Mile",
+        "Hamilton",
+        "Harry Potter",
+        "The Help*",
+        "The Hitchhiker's Guide to the Galaxy (2005)",
+        "Horror Movies*",
+        "How the Grinch Stole Christmas",
+        "How to Train Your Dragon",
+        "The Hunger Games Collection",
+        "Identity*",
+        "Identity Thief",
+        "Idiocracy",
+        "Interstellar",
+        "I, Robot",
+        "John Wick Collection*",
+        "Joker*",
+        "Justice League",
+        "Kill Bill Volume 1*",
+        "Kill Bill Volume 2*",
+        "Labyrinth",
+        "Last Holiday",
+        "Legally Blonde",
+        "Legally Blonde 2 - Red White Blonde",
+        "Lemony Snickets A Series of Unfortunate Events",
+        "The Lord of the Rings",
+        "The Lovely Bones",
+        "Lucy",
+        "Maleficent",
+        "Maleficent - Mistress of Evil",
+        "Marvel Movies",
+        "Matilda",
+        "The Matrix",
+        "Maze Runner Collection",
+        "Mean Girls",
+        "Me Before You",
+        "Miss Peregrines Home for Peculiar Children",
+        "Monty Python and the Holy Grail",
+        "Mrs. Doubtfire",
+        "The Mummy Collection",
+        "Mysterious Skin*",
+        "Mystery Men",
+        "Next",
+        "The Notebook*",
+        "The Number 23",
+        "O Brother Where Art Thou",
+        "October Sky",
+        "Odessa",
+        "Pans Labyrinth*",
+        "Party Monster*",
+        "Pay It Forward",
+        "The Perks of Being a Wallflower",
+        "Places in the Heart",
+        "Practical Magic",
+        "Precious",
+        "Project Hail Mary*",
+        "The Proposal",
+        "Quiz Lady",
+        "Requiem for a Dream*",
+        "Resident Evil Collection*",
+        "The Rocky Horror Picture Show*",
+        "Running with Scissors",
+        "Saltburn*",
+        "Schindlers List*",
+        "Secondhand Lions",
+        "The Shawshank Redemption*",
+        "Shutter Island*",
+        "Spun*",
+        "Star Wars Collection",
+        "Steel Magnolias (1989)",
+        "Steel Magnolias (2012)",
+        "The Suicide Squad*",
+        "Superman (2025)",
+        "Sweet Home Alabama",
+        "Ted The Movie*",
+        "Temple Grandin",
+        "Terri Joe - Missionary in Miami*",
+        "Thunder Force",
+        "Tim Burtons - Alice in Wonderland",
+        "Tim Burtons - Alice Through the Looking Glass",
+        "The Time Travelers Wife",
+        "Titanic",
+        "Totally Killer*",
+        "To Wong Foo, Thanks for Everything! Julie Newmar*",
+        "The Truman Show",
+        "Twilight Saga",
+        "Twinless*",
+        "Uptown Girls",
+        "V for Vendetta*",
+        "Where The Wild Things Are",
+        "White Chicks",
+        "Who Framed Roger Rabbit",
+        "Wicked",
+        "Wicked For Good",
+        "Willy Wonka and the Chocolate Factory",
+        "The Witches of Eastwick*",
+        "Wonder Woman",
+        "Wonder Woman 1984",
+        "X-Men Apocalypse",
+        "X-Men - Days of Future Past",
+        "Youre Not You*"
+    ];
+    normalizeSeasonsArrayInPlace(seasons);
+seasons.forEach(season => {
+    const seasonDiv = document.createElement("div");
+    seasonDiv.className = "folder";
+
+    // Keep the title exactly as-is, but sanitize the folder/image path.
+    const assetSeason = season
+        .replace(/\*/g, "")
+        .replace(/['’]/g, "")
+        .trim();
+
+seasonDiv.innerHTML = `
+    <img
+        src="./Movies/${assetSeason}/${assetSeason}.jpg"
+        alt="${season}"
+        onerror="
+            if (!this.attempt) this.attempt = 1;
+
+            if (this.attempt === 1) {
+                // Attempt 2: Try the path without the 'Movies' prefix
+                this.attempt = 2;
+                this.src = './${assetSeason}/${assetSeason}.jpg';
+            } else if (this.attempt === 2) {
+                // Attempt 3: Try the root Movies folder (flat file)
+                this.attempt = 3;
+                this.src = './Movies/${assetSeason}.jpg';
+            } else {
+                // Final Fallback: Placeholder
+                this.src = './Images/placeholder.jpg';
+                this.onerror = null;
+            }
+        "
+    >
+    <p>${season}</p>
+`;
+    seasonDiv.onclick = () => {
+        switch (season) {
+			case "The Mummy Collection":
+                loadTheMummyCollectionSeasons();
+                break;
+            case "Twilight Saga":
+                loadTwilightSagaSeasons();
+                break;
+            case "Harry Potter":
+                loadHarryPotterSeasons();
+                break;
+            case "Marvel Movies":
+                loadMarvelMoviesSeasons();
+                break;
+            case "Horror Movies":
+                loadHorrorMoviesSeasons();
+                break;
+            case "Fantastic Beasts Collection":
+                loadFantasticBeastsCollectionSeasons();
+                break;
+            case "The Hunger Games Collection":
+                loadTheHungerGamesCollectionSeasons();
+                break;
+            case "Star Wars Collection":
+                loadStarWarsCollectionSeasons();
+                break;
+            case "The Lord of the Rings":
+                loadTheLordOfTheRingsSeasons();
+                break;
+                case "Resident Evil Collection":
+                    loadResidentEvilCollectionSeasons();
+                    break;
+                case "Maze Runner Collection":
+                    loadMazeRunnerCollectionSeasons();
+                    break;
+                case "John Wick Collection":
+                    loadJohnWickCollectionSeasons();
+                    break;
+                case "A Dog's Purpose Collection":
+                    loadADogsPurposeCollectionSeasons();
+                    break;
+					case "Austin Powers Collection":
+                    loadAustinPowersCollectionSeasons();
+                    break;
+
+            default:
+                loadEpisodes(season);
+        }
+    };
+
+    folderContainer.appendChild(seasonDiv);
+});
+
+    // 🔽 Bottom Back Button
+    const bottomBackButton = document.createElement("button");
+    bottomBackButton.className = "return-button";
+    bottomBackButton.innerText = "Back to Title Selection";
+    bottomBackButton.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    folderContainer.appendChild(bottomBackButton);
+}

@@ -1,0 +1,3053 @@
+
+
+
+
+
+
+
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<style>
+/* Bookmark Dialog Styling */
+#bookmarkDialog {
+  background-color: #333;
+  color: white;
+}
+#bookmarkDialog .bookmark-note {
+  margin-top: 4px;
+  padding-left: 8px;
+  font-size: 0.9em;
+  color: #ccc;
+}
+/* Add to existing bookmark dialog styling */
+
+
+.bookmark-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+#bookmarkDialog ul li {
+  display: flex;
+  flex-direction: column;    /* stack header + note vertically */
+  align-items: stretch;
+  padding: 6px;
+  margin: 4px 0;
+  background-color: #444;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+
+.bookmark-page {
+  font-weight: bold;
+}
+
+.bookmark-note {
+  text-align: center;
+  margin: 4px 0;
+  padding: 4px;
+  color: #ccc;
+  font-size: 0.9em;
+  word-break: break-word;
+}
+
+#bookmarkDialog button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  margin: 4px 0;
+}
+#bookmarkDialog button#btnCloseDialog {
+  background-color: #777;
+}
+#bookmarkDialog ul li {
+  display: flex;
+  flex-direction: column;    /* stack header + note vertically */
+  align-items: stretch;
+  padding: 6px;
+  margin: 4px 0;
+  background-color: #444;
+  border-radius: 6px;
+  cursor: pointer;
+}
+#bookmarkDialog ul li:hover {
+  background-color: #555;
+}
+#bookmarkDialog ul li button.remove-btn {
+  background-color: red;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  padding: 0;
+  font-weight: bold;
+  cursor: pointer;
+}
+</style>
+
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Book Library</title>
+
+<script>
+(function () {
+  const lib = new URLSearchParams(window.location.search).get('lib') || 'books';
+  const map = {
+    books: './books.js',
+    manga: './manga.js',
+    guidebooks: './guidebooks.js'
+  };
+  const src = map[lib] || map.books;
+  document.write('<script src="' + src + '"><\/script>');
+})();
+</script>
+
+<style>
+    .bookmark-button {
+      position: absolute;
+      top: 2px;
+      left: 80px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      z-index: 1001;
+      cursor: pointer;
+    }
+    .bookmark-button:hover {
+      background-color: #45a049;
+    }
+    .bookmark-dialog {
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      color: black;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 10010;
+      display: none;
+      width: 300px;
+    }
+    .bookmark-dialog.dark-mode {
+      background: #333;
+      color: white;
+    }
+    .bookmark-dialog h3 {
+      margin-top: 0;
+    }
+    .bookmark-dialog ul {
+      max-height: 150px;
+      overflow-y: auto;
+      list-style: none;
+      padding: 0;
+    }
+    .bookmark-dialog li {
+      margin-bottom: 10px;
+    }
+.page-indicator {
+  position: absolute;
+  top: 40px;
+  right: 75px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  z-index: 10003;
+}
+
+/* Tile indicator styles */
+.tile-indicator {
+  position: absolute;
+  top: 65px;
+  right: 75px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 3px;
+  width: 40px;
+  height: 40px;
+  z-index: 10003;
+}
+
+.tile {
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.tile.active {
+  background-color: #4CAF50;
+  border-color: white;
+}
+/* Move the 2nd tile down into the bottom‑left */
+.tile-indicator .tile:nth-child(2) {
+  grid-column: 1;
+  grid-row:    2;
+}
+
+/* Move the 3rd tile up into the top‑right */
+.tile-indicator .tile:nth-child(3) {
+  grid-column: 2;
+  grid-row:    1;
+}
+
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #883c71;
+      margin: 0;
+      padding: 20px;
+    }
+    body.dark-mode {
+      background-color: #222; /* Dark background for dark mode */
+      color: white; /* White text for dark mode */
+    }
+    body.light-mode {
+      background-color: #f7f7f7; /* Light background for light mode */
+      color: black; /* Black text for light mode */
+    }
+    #reader-container.dark-mode {
+      background-color: #333; /* Dark background for the reader container */
+    }
+    #reader-container.light-mode {
+      background-color: #f7f7f7; /* Light background for the reader container */
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .book, .group-header {
+      text-align: center;
+      width: 150px;
+      cursor: pointer;
+    }
+    .book img, .group-header img {
+      width: 150px;
+      height: 210px;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .book p, .group-header p {
+      margin: 10px 0 0;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .group-container {
+      width: 100%;
+      display: none; /* Hidden by default; toggled when group header is clicked */
+      margin-top: 10px;
+      padding-left: 20px;
+      border-left: 2px solid #ccc;
+    }
+    #reader-container {
+      display: none;
+      position: fixed;
+      top: 1px; position: fixed;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      z-index: 1;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 30px;
+    }
+    #viewer {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      justify-content: center;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      margin-bottom: 0px;
+    }
+    
+    #viewer canvas {
+      height: 100%;
+      width: auto;
+    }
+
+    .controls,
+    .close-button,
+    .toggle-button,
+    .fullscreen-button,
+    .backup-button,
+    .restore-button {
+      z-index: 1001;
+    }
+.controls {
+  position: fixed;                /* stick to viewport */
+  top: 50%;                       /* middle vertically */
+  left: 0;                        /* start at very left */
+  width: 100vw !important;        /* FORCE it to be as wide as the viewport */
+  display: flex !important;
+  justify-content: space-between !important;
+  padding: 0 20px;                /* small gap from edges */
+  transform: translateY(-50%);    /* vertically center */
+  z-index: 10001;
+  /* debug background so you can see its edges—remove once it’s working */
+  /* background: rgba(255,0,0,0.1); */
+}
+
+
+
+.controls button {
+  /* give both buttons the same width */
+  flex: 0 0 75px;         /* fixed width of 140px—tweak as needed */
+  text-align: center;      /* center the label */
+  padding: 8px 0;         /* vertical padding only */
+  font-size: 16px;
+  cursor: pointer;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.controls button:hover {
+  background-color: #45a049;
+  transform: translateY(-3px);
+}
+
+.controls button:active {
+  background-color: #388e3c;
+  transform: translateY(-1px);
+}
+
+    .close-button {
+      position: absolute;
+      right: 60px;
+      top: 5px;
+      background: red;
+      color: white;
+      border: none;
+      padding: 5px 15px; /* Adjusted padding for consistency */
+      border-radius: 5px; /* Boxy look */
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Added shadow for consistency */
+    }
+   .toggle-button,
+.page-mode-toggle,
+.fullscreen-button,
+.backup-button,
+.restore-button {
+      position: absolute;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      z-index: 1001;
+      cursor: pointer;
+    }
+	.toggle-button {
+	      top: 7px;
+      right: 94px;
+  padding: 4px 10px;       /* less “clickable” padding */
+  font-size: 0.8rem;      /* smaller icon size */
+  line-height: 1;         /* tighten up vertical spacing */
+  border-radius: 3px;     /* optional: a bit less rounded */
+}
+.page-mode-toggle {
+  top: 3px;
+  right: 134px;    /* ← tweak this value to adjust the gap */
+}
+    .toggle-button:hover {
+      background-color: #45a049;
+    }
+    .toggle-button:active {
+      background-color: #388e3c;
+    }
+    .fullscreen-button {
+      top: 2px;
+      left: 125px;
+    }
+    .fullscreen-button:hover {
+      background-color: #45a049;
+    }
+    .fullscreen-button:active {
+      background-color: #388e3c;
+    }
+    .backup-button {
+      top: 2px;
+      left: 119px;
+    }
+    .backup-button:hover {
+      background-color: #45a049;
+    }
+    .backup-button:active {
+      background-color: #388e3c;
+    }
+    .restore-button {
+      top: 2px;
+      right: 195px;
+    }
+    .restore-button:hover {
+      background-color: #45a049;
+    }
+    .restore-button:active {
+      background-color: #388e3c;
+    }
+    .centered-title {
+      text-align: center; /* Centers the title text horizontally */
+      width: 100%;        /* Makes sure it spans the full width of the container */
+      margin: 0 auto;     /* Ensures the title is in the center */
+    }
+  
+    /* Reader Container */
+    #reader-container {
+      display: none;
+      position: fixed;
+      top: 1px; position: fixed;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      z-index: 10000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 30px;
+      background-color: inherit; /* keep original dark/light container bg */
+      overflow: hidden;
+    }
+    /* Top Buttons Overlay */
+    .buttons-container {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 10001;
+    }
+    /* Hide original buttons-container in favor of overlay inside reader */
+    .reader-buttons {
+      position: absolute;
+      top: 1px; position: fixed;
+      left: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 10001;
+    }
+    /* Adjust z-index: lower main-buttons, raise reader overlay buttons */
+    .reader-buttons.main-buttons {
+      z-index: 1000 !important;
+    }
+    #reader-container .reader-buttons {
+      z-index: 10002 !important;
+    }
+    /* Ensure close button clickable above viewer */
+    #viewer {
+      pointer-events: none !important;
+    }
+    #viewer canvas {
+      pointer-events: auto !important;
+    }
+
+    .reader-buttons button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .reader-buttons button:hover {
+      background-color: #45a049;
+    }
+    .reader-buttons .close-button {
+      background-color: red;
+    }
+    /* Viewer */
+    #viewer {
+      position: absolute;
+      top: 1px; position: fixed;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0;
+      background-color: transparent;
+      overflow: hidden;
+    }
+    #viewer canvas {
+      height: 100vh;
+      width: auto;
+      margin: 0;
+    }
+    /* Bottom Controls */
+    .controls {
+      position: absolute;
+      bottom: 65px;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      gap: 20px;
+      padding: 10px;
+      z-index: 10001;
+    }
+
+/* Styled controls and reader buttons */
+.reader-buttons button, .controls button, .reader-buttons .home-button {
+    background-color: rgba(128, 128, 128, 0.7) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 5px !important;
+    padding: 5px 10px !important;
+    font-size: 1rem;
+}
+.reader-buttons button:hover, .controls button:hover, .reader-buttons .home-button:hover {
+    background-color: rgba(128, 128, 128, 0.9) !important;
+}
+.reader-buttons button:active, .controls button:active, .reader-buttons .home-button:active {
+    background-color: rgba(128, 128, 128, 1) !important;
+}
+.reader-buttons .home-button {
+    margin-right: 0 !important;
+}
+
+/* Main-screen controls: left-aligned */
+.reader-buttons.main-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-start;
+}
+</style>
+
+<script src="./js/pdf.min.js">
+  document.getElementById('btnSearch').onclick = function searchPDF() {
+    const term = document.getElementById('searchTerm').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsList');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResults').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.onclick = () => { pageNum = i; renderDoublePage(i); document.getElementById('searchResults').style.display = 'none'; };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+// 00000000000000000
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+</head>
+<body class="dark-mode">
+  <!-- Bookmark Dialog -->
+  <div id="bookmarkDialog" class="bookmark-dialog" style="text-align:center;">
+  <!-- dynamically-updated title -->
+  <h3 id="bookmarkTitle" style="text-align:center; margin-bottom:12px;"></h3>
+
+  <!-- bookmark button -->
+  
+    <!-- Chapters dropdown -->
+    <select id="chapterSelect" style="display:block; margin:8px auto; padding:6px; width:80%; border-radius:4px; border:1px solid #555; background:#444; color:white;">
+      <option value="">Select Chapter</option>
+    </select>
+    <button id="btnChapterGo" style="display:block; margin:4px auto; padding:8px 12px; border-radius:8px;">Go to Chapter</button>
+
+  <!-- Dialog Search controls -->
+  <div id="searchControlsDialog" style="margin-bottom:8px;">
+    <input type="text" id="searchTermDialog" placeholder="Search text..." style="width:80%; padding:4px; border-radius:4px; border:1px solid #555;"> <button id="btnClearSearchDialog" style="padding:4px 8px; margin-left:4px;">X</button> 
+    <button id="btnSearchDialog" style="padding:4px 8px; margin-left:4px;">Search</button>
+  </div>
+  <div id="searchResultsDialog" style="display:none; max-height:100px; overflow-y:auto; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:4px;">
+    <ul id="resultsListDialog" style="list-style:none; padding:0; margin:0;"></ul>
+  </div>
+<button id="btnAddBookmark" style="display:block; margin:8px auto;">
+    Bookmark this Page
+  </button>
+
+  <!-- note input -->
+  <input type="text" id="bookmarkNote"
+         placeholder="Add note (optional)"
+         style="display:block; margin:8px auto; padding:6px;
+                width:80%; border-radius:4px;
+                border:1px solid #555;
+                background:#444; color:white;">
+
+  <!-- go-to page controls -->
+  <div style="text-align:center; margin:10px 0;">
+    <input type="number" id="inputPageNumber"
+           placeholder="Go to page #"
+           style="padding:5px; width:40%; margin-right:8px;">
+    <button id="btnGoPage">Go</button>
+  </div>
+
+  <!-- your list of bookmarks (left-aligned) -->
+  <ul id="bookmarkList"
+      style="list-style:none; padding:0;
+             width:80%; margin:0 auto;
+             text-align:left;">
+  </ul>
+
+  <!-- close dialog -->
+  <button id="btnCloseDialog" style="display:block; margin:10px auto;">
+    Close
+  </button>
+</div>
+
+  <!-- Main-screen controls (Home / Profile / Fullscreen / Light Mode) -->
+    <!-- Main-screen controls (Home / Profile / Fullscreen / Light Mode) -->
+  <!-- <div id="bookmarkDialog" class="bookmark-dialog dark-mode">
+    <h3>Bookmarks</h3>
+    <button onclick="newBookmark()">New Bookmark</button>
+    <ul id="bookmarkList"></ul>
+    <button onclick="manageBookmarks()">Manage Bookmarks</button>
+    <button onclick="closeBookmarks()">Close</button>
+  </div> -->
+
+  <div class="reader-buttons main-buttons">
+
+  <!--  <button class="bookmark-button" onclick="openBookmarks()">Bookmarks</button> -->
+  
+    <button class="toggle-button" onclick="toggleMode()">🌗</button>
+    <button class="fullscreen-button" onclick="toggleFullscreen()">Fullscreen</button>
+    <button class="home-button" onclick="window.location.href='./index.html'">Home</button>
+    <img
+      alt="Profile"
+      class="profile-icon"
+      src="./Profiles/Guest.jpg"
+      style="width:32px; height:32px; border-radius:8px; cursor:pointer; margin-left: -4px;"
+      onclick="window.location.href='./profile.html';"
+      tabindex="0"
+    />
+  </div>
+  <h1 class="centered-title">Book Library</h1>
+  <div class="container" id="bookContainer"></div>
+  <div class="dark-mode" id="reader-container">
+    <div class="reader-buttons">
+      <!--  <button class="bookmark-button" onclick="openBookmarks()">Bookmarks</button>-->
+      <button class="fullscreen-button" onclick="toggleFullscreen()">Fullscreen</button>
+      
+      <div class="home-group" style="display:flex; align-items:center; gap:8px;">
+        <button class="home-button" onclick="window.location.href='./index.html'" style="margin:0;">
+          Home
+        </button>
+        <img
+          alt="Profile"
+          class="profile-icon"
+          src="./Profiles/Guest.jpg"
+          style="width:32px; height:32px; border-radius:8px; cursor:pointer;"
+          onclick="window.location.href='./profile.html';"
+          tabindex="0"
+        />
+      </div>
+
+      <!-- Page‑mode toggle moved to the left of the 🌗 invert button -->
+      <button
+        class="page-mode-toggle"
+        id="pageModeToggle"
+        data-mode="double"
+       onclick="togglePageMode()"
+       style="position: relative; left: -120px;"
+      >
+        Half‑Page
+      </button>
+      <button class="toggle-button" onclick="toggleMode()">🌗</button>
+      <button class="close-button" onclick="closeReader()">×</button>
+    </div>
+
+    <div id="viewer" style=""></div>
+
+
+<div class="controls">
+  <!-- Prev/Next (wired to nextPage()/prevPage()) -->
+  <button id="prevBtn" onclick="prevPage()" aria-label="Previous page">Previous</button>
+  <button id="nextBtn" onclick="nextPage()" aria-label="Next page">Next</button>
+</div>
+
+
+<script>
+  let currentBookTitle = "";
+  let pdfDoc = null;
+  let pageNum = 1;
+  let pageRendering = false;
+  let pageNumPending = null;
+  let isDarkMode = false;    // Default to light mode off
+  let isFullscreen = false;  // Track fullscreen state
+  let currentBook = "";      // To track the current book file
+
+
+
+const items = (window.libraryData && window.libraryData.items) || [];
+
+   document.addEventListener("DOMContentLoaded", function() {
+  const container = document.getElementById('bookContainer');
+
+  // Create the "Back to Title Selection" button
+  const backButton = document.createElement('button');
+  backButton.className = 'return-button';
+  backButton.innerText = 'Back to Title Selection';
+  backButton.onclick = () => {
+    window.location.href = './index.html';
+  };
+  container.appendChild(backButton);
+
+  // Loop through each item (book or group)
+  items.forEach(item => {
+    if (item.group) {
+      // Create group header
+      const groupHeader = document.createElement('div');
+      groupHeader.classList.add('group-header');
+      groupHeader.innerHTML = `
+        <img src="${item.cover}" alt="${item.title}">
+        <p>${item.title}</p>
+      `;
+      groupHeader.onclick = () => {
+        const groupContainer = groupHeader.nextElementSibling;
+        groupContainer.style.display =
+          groupContainer.style.display === 'flex' ? 'none' : 'flex';
+      };
+      container.appendChild(groupHeader);
+
+      // Create a container for the group's books
+      const groupContainer = document.createElement('div');
+      groupContainer.classList.add('group-container');
+      groupContainer.style.display = 'none';
+
+      item.books.forEach(book => {
+        const bookDiv = document.createElement('div');
+        bookDiv.classList.add('book');
+        bookDiv.innerHTML = `
+          <img src="${book.cover}" alt="${book.title}">
+          <p>${book.title}</p>
+        `;
+        bookDiv.onclick = () => { openPDF(book.file, book.title); };
+        groupContainer.appendChild(bookDiv);
+      });
+      container.appendChild(groupContainer);
+
+    } else {
+      const bookDiv = document.createElement('div');
+      bookDiv.classList.add('book');
+      bookDiv.innerHTML = `
+        <img src="${item.cover}" alt="${item.title}">
+        <p>${item.title}</p>
+      `;
+      bookDiv.onclick = () => { openPDF(item.file, item.title); };
+      container.appendChild(bookDiv);
+    }
+  });
+
+  // -------- Deep‑link handling starts here --------
+  const params = new URLSearchParams(window.location.search);
+  const target = params.get('Guidebook');
+  if (target) {
+    const decoded = decodeURIComponent(target);
+    // normalize: remove spaces and hyphens, lowercase
+    const norm = decoded.replace(/[\s\-]/g, '').toLowerCase();
+    let found = false;
+
+    for (const item of items) {
+      if (!item.group) {
+       if (item.title.replace(/[\s\-]/g, '').toLowerCase() === norm) {
+          openPDF(item.file, item.title);
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      for (const item of items) {
+        if (item.group) {
+          for (const Guidebook of item.books) {
+  if (Guidebook.title.replace(/[\s\-]/g, '').toLowerCase() === norm) {
+              // expand and open
+              document.querySelectorAll('.group-header').forEach(hdr => {
+                if (hdr.textContent.trim() === item.title)
+                  hdr.nextElementSibling.style.display = 'flex';
+              });
+              openPDF(Guidebook.file, Guidebook.title);
+              found = true;
+              break;
+            }
+          }
+        }
+        if (found) break;
+      }
+    }
+
+    if (!found) {
+      console.warn(`Guidebook "${decoded}" not found in items.`);
+    }
+  }
+  // -------- Deep‑link handling ends here --------
+    // -------- Deep‑link handling ends here --------
+	  // -------- Deep‑link handling ends here ------
+	      // -------- Deep‑link handling ends here --------
+	  // -------- Deep‑link handling ends here --------
+	    // -------- Deep‑link handling ends here --------
+		  // -------- Deep‑link handling ends here --------
+		    // -------- Deep‑link handling ends here --------
+			  // -------- Deep‑link handling ends here --------  // -------- Deep‑link handling ends here --------
+
+
+});
+    function toggleMode() {
+      const body = document.body;
+      const readerContainer = document.getElementById('reader-container');
+      const toggleButton = document.querySelector('.toggle-button');
+
+      if (isDarkMode) {
+        body.classList.remove('dark-mode');
+        body.classList.add('light-mode');
+        readerContainer.classList.remove('dark-mode');
+        readerContainer.classList.add('light-mode');
+        toggleButton.textContent = '🌗';
+      } else {
+        body.classList.remove('light-mode');
+        body.classList.add('dark-mode');
+        readerContainer.classList.remove('light-mode');
+        readerContainer.classList.add('dark-mode');
+        toggleButton.textContent = '🌗';
+      }
+
+      isDarkMode = !isDarkMode;
+      // Re-render the current page in the new mode
+      renderDoublePage(pageNum);
+    }
+    updateButtonZ();
+
+    function openPDF(url, title, startPage = null) {
+      currentBookTitle = title;
+      document.getElementById('reader-container').style.display = 'flex';
+      // Hide main screen behind reader
+      document.querySelector('.main-buttons').style.display = 'none';
+      document.querySelector('h1.centered-title').style.display = 'none';
+      document.getElementById('bookContainer').style.display = 'none';
+
+      currentBook = url;
+
+      // Load last page number for this book and profile, or start at 1 if not set
+      const profile = getActiveProfile();
+      const savedPage = localStorage.getItem(`bookPage-${profile}-${currentBook}`);
+      const explicitStartPage = Number.isFinite(startPage) && startPage > 0 ? startPage : null;
+      pageNum = explicitStartPage || (savedPage ? parseInt(savedPage) : 1);
+
+      pdfjsLib.getDocument(url).promise.then(pdf => {
+        pdfDoc = pdf;
+        renderDoublePage(pageNum);
+      });
+    }
+function renderDoublePage(num) {
+  if (!pdfDoc) return;
+  pageRendering = true;
+
+  const leftPageNum = num;
+  const rightPageNum = num + 1;
+
+  const canvasLeft = document.createElement('canvas');
+  const canvasRight = document.createElement('canvas');
+  const ctxLeft = canvasLeft.getContext('2d');
+  const ctxRight = canvasRight.getContext('2d');
+
+  // ✅ Mark canvases as allowed for page navigation (not focusable)
+  canvasLeft.setAttribute('data-allow-page-nav', '1');
+  canvasRight.setAttribute('data-allow-page-nav', '1');
+
+  // Render left page
+  pdfDoc.getPage(leftPageNum).then(page => {
+    const scale = 1.5;
+    const viewportLeft = page.getViewport({ scale: scale });
+
+    canvasLeft.height = viewportLeft.height;
+    canvasLeft.width = viewportLeft.width;
+
+    const renderContextLeft = {
+      canvasContext: ctxLeft,
+      viewport: viewportLeft
+    };
+
+    page.render(renderContextLeft).promise.then(() => {
+      if (rightPageNum <= pdfDoc.numPages) {
+        pdfDoc.getPage(rightPageNum).then(page => {
+          const viewportRight = page.getViewport({ scale: scale });
+
+          canvasRight.height = viewportRight.height;
+          canvasRight.width = viewportRight.width;
+
+          const renderContextRight = {
+            canvasContext: ctxRight,
+            viewport: viewportRight
+          };
+
+          page.render(renderContextRight).promise.then(() => {
+            const viewer = document.getElementById('viewer');
+            viewer.innerHTML = '';
+            viewer.appendChild(canvasLeft);
+            viewer.appendChild(canvasRight);
+
+            // Apply filters based on mode
+            if (isDarkMode) {
+              canvasLeft.style.filter = 'invert(1)';
+              canvasRight.style.filter = 'invert(1)';
+            } else {
+              canvasLeft.style.filter = 'none';
+              canvasRight.style.filter = 'none';
+            }
+
+            pageRendering = false;
+
+            // Save the current page number for this book
+            localStorage.setItem(`bookPage_${currentBook}`, pageNum);
+
+            if (pageNumPending !== null) {
+              renderDoublePage(pageNumPending);
+              pageNumPending = null;
+            }
+          });
+        });
+      }
+    });
+  });
+}
+
+    function nextPage() {
+      if (pdfDoc && pageNum < pdfDoc.numPages) {
+        pageNum += 2;
+        renderDoublePage(pageNum);
+      }
+    }
+
+    function prevPage() {
+      if (pageNum > 1) {
+        pageNum -= 2;
+        renderDoublePage(pageNum);
+      }
+    }
+
+    function closeReader() {
+    // show main-screen controls
+    document.querySelector('.main-buttons').style.display = 'flex';
+      document.getElementById('reader-container').style.display = 'none';
+    
+      document.querySelector('h1.centered-title').style.display = 'block';
+      document.getElementById('bookContainer').style.display = 'flex';
+
+    }
+
+    function toggleFullscreen() {
+      if (!isFullscreen) {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen();
+        } else if (document.documentElement.mozRequestFullScreen) {
+          document.documentElement.mozRequestFullScreen();
+        } else if (document.documentElement.webkitRequestFullscreen) {
+          document.documentElement.webkitRequestFullscreen();
+        } else if (document.documentElement.msRequestFullscreen) {
+          document.documentElement.msRequestFullscreen();
+        }
+        document.querySelector('.fullscreen-button').textContent = 'Fullscreen';
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+        document.querySelector('.fullscreen-button').textContent = 'Fullscreen';
+      }
+      isFullscreen = !isFullscreen;
+    
+      updateButtonZ();}
+
+    // Backup function: creates a JSON string with all keys from localStorage that start with "bookPage_"
+    function backupProgress() {
+      const backupData = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('bookPage_')) {
+          backupData[key] = localStorage.getItem(key);
+        }
+      }
+      const backupText = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([backupText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'book_backup.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Restore function: reads a backup file and updates localStorage accordingly
+    function restoreProgress(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const backupData = JSON.parse(e.target.result);
+          for (const key in backupData) {
+            if (backupData.hasOwnProperty(key)) {
+              localStorage.setItem(key, backupData[key]);
+            }
+          }
+          alert('Progress restored successfully!');
+        } catch (error) {
+          alert('Failed to restore progress: invalid file format.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+// Conditional left/right page navigation:
+// only advance pages when focus is on prev/next buttons OR inside #viewer OR on elements explicitly allowing page nav.
+document.addEventListener('keydown', (e) => {
+  const reader = document.getElementById('reader-container');
+  if (!reader || reader.style.display !== 'flex') return;
+
+  // Only care about left/right
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+
+  const active = document.activeElement;
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  // helper — returns true if an element is allowed to trigger page nav
+  const isAllowedForPageNav = (el) => {
+    if (!el) return false;
+    if (el === prevBtn || el === nextBtn) return true;
+    if (el.closest && el.closest('#viewer')) return true;              // e.g. focused canvas inside viewer
+    if (el.hasAttribute && el.hasAttribute('data-allow-page-nav')) return true;
+    return false;
+  };
+
+  if (!isAllowedForPageNav(active)) {
+    // Not allowed: let the key event do normal focus movement (don't preventDefault)
+    return;
+  }
+
+  // allowed: flip pages and consume the event
+  e.preventDefault();
+  if (e.key === 'ArrowLeft') prevPage();
+  if (e.key === 'ArrowRight') nextPage();
+});
+
+  
+    // Update z-index of fullscreen and toggle buttons so active is on top
+    function updateButtonZ() {
+      const fs = document.querySelector('.fullscreen-button');
+      const tm = document.querySelector('.toggle-button');
+      if (isFullscreen) {
+        fs.style.zIndex = 10003;
+        tm.style.zIndex = 10002;
+      } else {
+        tm.style.zIndex = 10003;
+        fs.style.zIndex = 10002;
+      }
+    }
+
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+<script>
+    function useProfile(profileName) {
+      localStorage.setItem("activeProfile", profileName);
+      updateActiveProfileIcon();
+      loadMainFolders();
+    }
+
+    function updateActiveProfileIcon() {
+      const img = document.getElementById("activeProfileIcon");
+      const nameSpan = document.getElementById("activeProfileName");
+      const profile = localStorage.getItem("activeProfile");
+
+      if (profile) {
+        img.src = `./Profiles/${profile}.jpg`;
+        img.alt = profile;
+        img.style.display = "block";
+
+        nameSpan.textContent = profile;
+        nameSpan.style.display = "block";
+      } else {
+        img.style.display = "none";
+        nameSpan.style.display = "none";
+      }
+    }
+
+    // Initialize icon on load
+    document.addEventListener('DOMContentLoaded', updateActiveProfileIcon);
+    
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+<script>
+function toggleMode() {
+      const body=document.body, reader=document.getElementById('reader-container'),
+            btn=document.querySelector('.toggle-button');
+      if (isDarkMode) {
+        body.classList.replace('dark-mode','light-mode');
+        reader.classList.replace('dark-mode','light-mode');
+        btn.textContent='🌗';
+      }
+
+function toggleFullscreen() {
+      if (!isFullscreen) {
+        document.documentElement.requestFullscreen?.() || document.body.webkitRequestFullscreen?.();
+        document.querySelector('.fullscreen-button').textContent='Fullscreen';
+      }
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+
+  
+  <!-- Active Profile Loader (from radio.html), updated for multiple icons -->
+  <script>
+    (async () => {
+      const profile = localStorage.getItem("activeProfile") || "Guest";
+      document.querySelectorAll(".profile-icon").forEach(img => {
+        img.src = `./Profiles/${profile}.jpg`;
+        img.alt = profile;
+        img.style.display = "block";
+        img.addEventListener('click', () => {
+          window.location.href = `./profile.html?profile=${profile}`;
+        });
+      });
+    })();
+  
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+<script>
+// Bookmark functionality
+function openBookmarks() {
+  const dialog = document.getElementById('bookmarkDialog');
+  dialog.style.display = 'block';
+  loadBookmarks();
+}
+function closeBookmarks() {
+  document.getElementById('bookmarkDialog').style.display = 'none';
+}
+function newBookmark() {
+  const note = prompt('Enter a note for this bookmark:');
+  if (note !== null) {
+    const profile = localStorage.getItem("activeProfile") || "Guest";
+    const key = `bookmark-${profile}-${currentBook}-${pageNum}`;
+    const value = JSON.stringify({ page: pageNum, note, timestamp: Date.now() });
+    localStorage.setItem(key, value);
+    backupBookmarkToProfile(profile, key, value);
+    loadBookmarks();
+  }
+}
+
+function manageBookmarks() {
+    const profile = localStorage.getItem("activeProfile") || "Guest";
+  const confirmDelete = confirm('Delete all bookmarks?');
+  if (confirmDelete) {
+    const profile = localStorage.getItem("activeProfile") || "Guest";
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(`bookmark-${profile})) {
+        localStorage.removeItem(key);
+      }
+    });
+    loadBookmarks();
+  }
+}
+// Backup bookmark to server
+function backupBookmarkToProfile(profile, key, value) {
+  const payload = `[[[${JSON.stringify({ [key]: value })}]]]`;
+  const blob = new Blob([payload], { type: "application/json" });
+  const form = new FormData();
+  form.append("files[]", blob, `${profile}-BookBookmark`);
+  fetch(`/api/file/upload?path=${encodeURIComponent("/Books/progress/")}`, {
+    method: 'PUT',
+    body: form
+  }).catch(err => console.error('Bookmark upload failed:', err));
+}
+// Page indicator update
+
+// Hook into renderDoublePage
+// Hook into renderDoublePage
+
+function handleIndicatorClick() {
+  const action = prompt("Enter 'b' to bookmark this page, or enter a page number to go to:", "");
+  if (action === null) return;
+  if (action.toLowerCase() === 'b') {
+    newBookmark();
+  } else {
+    let p = parseInt(action);
+    if (isNaN(p)) {
+      alert("Invalid page number");
+      return;
+    }
+    if (p % 2 === 0) p--;
+    if (p < 1) p = 1;
+    if (pdfDoc && p > pdfDoc.numPages) {
+      p = pdfDoc.numPages - (pdfDoc.numPages % 2 === 0 ? 1 : 0);
+    }
+    pageNum = p;
+    renderDoublePage(pageNum);
+  }
+}
+
+const originalRender = renderDoublePage;
+renderDoublePage = function(num) {
+  originalRender(num);
+  updatePageIndicator();
+};
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+<script>
+
+// Add bookmark with optional note
+
+
+function loadBookmarks() {
+    const profile = localStorage.getItem("activeProfile") || "Guest";
+  const list = document.getElementById('bookmarkList');
+  list.innerHTML = '';
+  Object.keys(localStorage).forEach(k => {
+    if(k.startsWith(`bookmark-${profile}-${currentBook}-`))) {
+      try {
+        const { page, note } = JSON.parse(localStorage.getItem(k));
+        const li = document.createElement('li');
+        li.onclick = () => { pageNum = page; renderDoublePage(pageNum); closeBookmarkDialog(); };
+        const text = note ? `Page ${page} - ${note}` : `Page ${page}`;
+        li.textContent = text;
+        const btn = document.createElement('button');
+        btn.textContent = '×';
+        btn.className = 'remove-btn';
+        btn.onclick = e => { e.stopPropagation(); localStorage.removeItem(k); loadBookmarks(); };
+        li.appendChild(btn);
+        list.appendChild(li);
+      } catch(e){}
+    }
+  });
+}
+
+  });
+}
+function goToPage() {
+  let p = parseInt(document.getElementById('inputPageNumber').value);
+  if (isNaN(p) || p < 1) return;
+  if (p % 2 === 0) p--;
+  pageNum = p;
+  renderDoublePage(pageNum);
+  closeBookmarkDialog();
+}
+
+// Override indicator click
+function updatePageIndicator() {
+  let indicator = document.querySelector('.page-indicator');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.className = 'page-indicator';
+    document.getElementById('reader-container').appendChild(indicator);
+  }
+  indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
+  indicator.style.cursor = 'pointer';
+  indicator.onclick = openBookmarkDialog;
+}
+
+// Hook into renderDoublePage
+const _origRender = renderDoublePage;
+renderDoublePage = function(num) {
+  _origRender(num);
+  updatePageIndicator();
+  // Save current page progress per profile
+  const profile = getActiveProfile();
+  localStorage.setItem(`bookPage-${profile}-${currentBook}`, pageNum);
+};
+
+// Dialog button handlers
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnAddBookmark').onclick = addBookmark;
+  document.getElementById('btnGoPage').onclick = goToPage;
+  document.getElementById('btnCloseDialog').onclick = closeBookmarkDialog;
+});
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+
+<script>
+// Bookmark dialog functionality
+
+
+function addBookmark() {
+  const noteInput = document.getElementById('bookmarkNote');
+  const note = noteInput.value.trim();
+  const key = `bookmark-${currentBook}-${pageNum}`;
+  
+  // Store both page number and note
+  const data = { page: pageNum, note };
+  localStorage.setItem(key, JSON.stringify(data));
+  
+  // Clear the note input after bookmarking
+  noteInput.value = '';
+  
+  loadBookmarks();
+}
+
+function loadBookmarks() {
+    const profile = localStorage.getItem("activeProfile") || "Guest";
+  const list = document.getElementById('bookmarkList');
+  list.innerHTML = '';
+  
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith(`bookmark-${profile}-${currentBook}-`))) {
+      const value = localStorage.getItem(k);
+      let data;
+      
+      try {
+        data = JSON.parse(value);
+        // Handle old format where only page number was stored
+        if (typeof data === 'number') {
+          data = { page: data, note: '' };
+        }
+      } catch (e) {
+        data = { page: parseInt(value, 10), note: '' };
+      }
+
+      const li = document.createElement('li');
+      
+      // Top row: Page number and remove button
+      const topRow = document.createElement('div');
+      topRow.style.display = 'flex';
+      topRow.style.justifyContent = 'space-between';
+      topRow.style.alignItems = 'center';
+      
+      const pageSpan = document.createElement('span');
+      pageSpan.textContent = `Page ${data.page}`;
+      
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = '×';
+      removeBtn.className = 'remove-btn';
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        localStorage.removeItem(k);
+        loadBookmarks();
+      };
+      
+      topRow.appendChild(pageSpan);
+      topRow.appendChild(removeBtn);
+      li.appendChild(topRow);
+      
+      // Add note if exists
+      if (data.note) {
+        const noteDiv = document.createElement('div');
+        noteDiv.className = 'bookmark-note';
+        noteDiv.textContent = data.note;
+        li.appendChild(noteDiv);
+      }
+      
+      li.onclick = () => {
+        pageNum = data.page;
+        renderDoublePage(pageNum);
+        closeBookmarkDialog();
+      };
+      
+      list.appendChild(li);
+    }
+  });
+}
+function goToPage() {
+  let p = parseInt(document.getElementById('inputPageNumber').value);
+  if (isNaN(p) || p < 1) return;
+  if (p % 2 === 0) p--;
+  pageNum = p;
+  renderDoublePage(pageNum);
+  closeBookmarkDialog();
+}
+function updatePageIndicator() {
+  let indicator = document.querySelector('.page-indicator');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.className = 'page-indicator';
+    document.getElementById('reader-container').appendChild(indicator);
+  }
+  indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
+  indicator.style.cursor = 'pointer';
+  indicator.onclick = openBookmarkDialog;
+}
+// Hook into renderDoublePage
+const _orig = renderDoublePage;
+renderDoublePage = function(num) {
+  _orig(num);
+  updatePageIndicator();
+};
+// Enter key to go
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnAddBookmark').onclick = addBookmark;
+  document.getElementById('btnGoPage').onclick = goToPage;
+  document.getElementById('btnCloseDialog').onclick = closeBookmarkDialog;
+  document.getElementById('inputPageNumber').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      goToPage();
+    }
+  });
+});
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+
+<script>
+// Get active profile with Guest as default
+function getActiveProfile() {
+  return localStorage.getItem("activeProfile") || "Guest";
+}
+
+// Bookmark dialog functionality
+function openBookmarkDialog() {
+  // set the dynamic title
+  document.getElementById('bookmarkTitle').textContent = `${currentBookTitle}'s Bookmarks`;
+
+  // show dialog & reload list
+  document.getElementById('bookmarkDialog').style.display = 'block';
+  loadBookmarks();
+}
+
+function closeBookmarkDialog() {
+  document.getElementById('bookmarkDialog').style.display = 'none';
+}
+
+function addBookmark() {
+  const noteInput = document.getElementById('bookmarkNote');
+  const note = noteInput.value.trim();
+  const profile = getActiveProfile();
+  const key = `bookmark-${profile}-${currentBook}-${pageNum}`;
+
+  // Store both page number and note
+  const data = { page: pageNum, note };
+  localStorage.setItem(key, JSON.stringify(data));
+
+  // Clear the note input after bookmarking
+  noteInput.value = '';
+
+  loadBookmarks();
+}
+
+function loadBookmarks() {
+  const list = document.getElementById('bookmarkList');
+  list.innerHTML = '';
+  const profile = getActiveProfile();
+  const prefix = `bookmark-${profile}-${currentBook}-`;
+
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith(prefix)) {
+      const value = localStorage.getItem(k);
+      let data;
+
+      try {
+        data = JSON.parse(value);
+        // Handle old format where only page number was stored
+        if (typeof data === 'number') {
+          data = { page: data, note: '' };
+        }
+      } catch (e) {
+        data = { page: parseInt(value, 10), note: '' };
+      }
+
+      const li = document.createElement('li');
+
+      // Top row: Page number and remove button
+      const topRow = document.createElement('div');
+      topRow.style.display = 'flex';
+      topRow.style.justifyContent = 'space-between';
+      topRow.style.alignItems = 'center';
+
+      const pageSpan = document.createElement('span');
+      pageSpan.textContent = `Page ${data.page}`;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = '×';
+      removeBtn.className = 'remove-btn';
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        localStorage.removeItem(k);
+        loadBookmarks();
+      };
+
+      topRow.appendChild(pageSpan);
+      topRow.appendChild(removeBtn);
+      li.appendChild(topRow);
+
+      // Add note if exists
+      if (data.note) {
+        const noteDiv = document.createElement('div');
+        noteDiv.className = 'bookmark-note';
+        noteDiv.textContent = data.note;
+        li.appendChild(noteDiv);
+      }
+
+      li.onclick = () => {
+        pageNum = data.page;
+        renderDoublePage(pageNum);
+        closeBookmarkDialog();
+      };
+
+      list.appendChild(li);
+    }
+  });
+}
+
+function goToPage() {
+  let p = parseInt(document.getElementById('inputPageNumber').value);
+  if (isNaN(p) || p < 1) return;
+  if (p % 2 === 0) p--;
+  pageNum = p;
+  renderDoublePage(pageNum);
+  closeBookmarkDialog();
+}
+
+function updatePageIndicator() {
+  let indicator = document.querySelector('.page-indicator');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.className = 'page-indicator';
+    document.getElementById('reader-container').appendChild(indicator);
+  }
+  indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
+  indicator.style.cursor = 'pointer';
+  indicator.onclick = openBookmarkDialog;
+
+  // Display saved note under the indicator
+  let existingNote = document.getElementById('pageNoteDisplay');
+  if (existingNote) existingNote.remove();
+
+  // Retrieve note for current page using active profile
+  const profile = getActiveProfile();
+  const noteKey = `bookmark-${profile}-${currentBook}-${pageNum}`;
+  const bookmarkData = JSON.parse(localStorage.getItem(noteKey) || '{}');
+
+  if (bookmarkData.note) {
+    const noteEl = document.createElement('div');
+    noteEl.id = 'pageNoteDisplay';
+    noteEl.style.cssText = 'text-align:center; margin-top:4px; color:white; font-style:italic;';
+    noteEl.textContent = bookmarkData.note;
+    indicator.parentNode.appendChild(noteEl);
+  }
+}
+
+// Hook into renderDoublePage
+const _origRender = renderDoublePage;
+renderDoublePage = function(num) {
+  _origRender(num);
+  updatePageIndicator();
+  // Save current page progress per profile
+  const profile = getActiveProfile();
+  localStorage.setItem(`bookPage-${profile}-${currentBook}`, pageNum);
+};
+
+// Initialize bookmark functionality
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnAddBookmark').onclick = addBookmark;
+  document.getElementById('btnGoPage').onclick = goToPage;
+  document.getElementById('btnCloseDialog').onclick = closeBookmarkDialog;
+  document.getElementById('inputPageNumber').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      goToPage();
+    }
+  });
+});
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+
+<script>
+  // ==== SERVER-BASED PROGRESS MANAGEMENT ====
+  const PROGRESS_PATH = '/Books/progress/';
+  function wrapPayload(obj) {
+    return `[[[${JSON.stringify(obj)}]]]`;
+  }
+  async function uploadPageProgress(profile, bookKey, page) {
+    console.log('Uploading page', page);
+    const blob = new Blob([wrapPayload({ [bookKey]: page })], { type: 'application/json' });
+    const form = new FormData();
+    form.append('files[]', blob, `${profile}-${bookKey}`);
+    try {
+      await fetch(`/api/file/upload?path=${encodeURIComponent(PROGRESS_PATH)}`, { method: 'PUT', body: form });
+      console.log('Progress uploaded.');
+    } catch (err) {
+      console.error('Progress upload failed:', err);
+    }
+  }
+  async function loadPageProgress(profile, bookKey) {
+    console.log('Loading progress for', bookKey);
+    try {
+      const res = await fetch(`${PROGRESS_PATH}${encodeURIComponent(profile + '-' + bookKey)}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No server save');
+      const txt = await res.text();
+      const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
+      if (!m) throw new Error('Bad payload');
+      const parsed = JSON.parse(m[1]);
+      console.log('Server progress loaded:', parsed[bookKey]);
+      return parsed[bookKey] || null;
+    } catch (err) {
+      console.warn('Could not load server progress:', err);
+      return null;
+    }
+  }
+  // Override openPDF to load server progress
+  (function(){
+    const origOpen = window.openPDF;
+    window.openPDF = async function(url, title) {
+      origOpen(url, title);
+      const profile = localStorage.getItem('activeProfile') || 'Guest';
+      const bookKey = url.replace(/[^a-z0-9]/gi, '_');
+      const serverPage = await loadPageProgress(profile, bookKey);
+      if (serverPage !== null) {
+        pageNum = serverPage;
+        renderDoublePage(pageNum);
+      }
+    };
+  })();
+  // Hook into page rendering
+  const origRender = window.renderDoublePage;
+  window.renderDoublePage = function(num) {
+    origRender(num);
+    const profile = localStorage.getItem('activeProfile') || 'Guest';
+    const bookKey = currentBook.replace(/[^a-z0-9]/gi, '_');
+    localStorage.setItem(`bookPage-${profile}-${bookKey}`, num);
+    uploadPageProgress(profile, bookKey, num);
+  };
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+
+<script>
+// ==== SERVER-BASED BOOKMARK MANAGEMENT ====
+const BOOKMARK_PATH = '/Books/progress/';
+
+function wrapPayload(obj) {
+  return `[[[${JSON.stringify(obj)}]]]`;
+}
+async function uploadBookmarks(profile, bookKey, bookmarks) {
+  const payload = wrapPayload(bookmarks);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const form = new FormData();
+  form.append('files[]', blob, `${profile}-${bookKey}-Bookmarks`);
+  try {
+    await fetch(`/api/file/upload?path=${encodeURIComponent(BOOKMARK_PATH)}`, {
+      method: 'PUT',
+      body: form
+    });
+    console.log('Bookmarks uploaded');
+  } catch (err) {
+    console.error('Bookmark upload failed:', err);
+  }
+}
+async function loadServerBookmarks(profile, bookKey) {
+  try {
+    const res = await fetch(`${BOOKMARK_PATH}${encodeURIComponent(profile + '-' + bookKey + '-Bookmarks')}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('No server save');
+    const txt = await res.text();
+    const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
+    if (!m) throw new Error('Bad payload');
+    return JSON.parse(m[1]);
+  } catch (err) {
+    console.warn('Could not load server bookmarks:', err);
+    return null;
+  }
+}
+function getBookKey(bookUrl) {
+  return bookUrl.replace(/[^a-z0-9]/gi, '_');
+}
+
+// Bookmark dialog functionality
+function openBookmarkDialog() {
+  const dlg = document.getElementById('bookmarkDialog');
+  if (dlg) {
+    document.getElementById('bookmarkTitle').textContent = `${currentBookTitle}'s Bookmarks`;
+    dlg.style.display = 'block';
+    loadBookmarks();
+  }
+}
+function closeBookmarkDialog() {
+  const dlg = document.getElementById('bookmarkDialog');
+  if (dlg) dlg.style.display = 'none';
+}
+async function addBookmark() {
+  const noteInput = document.getElementById('bookmarkNote');
+  const note = noteInput ? noteInput.value.trim() : '';
+  const profile = getActiveProfile();
+  const bookKey = getBookKey(currentBook);
+  const key = `bookmark-${profile}-${bookKey}-${pageNum}`;
+  const data = { page: pageNum, note };
+  localStorage.setItem(key, JSON.stringify(data));
+  const bookmarks = await getAllBookmarksForBook(profile, bookKey);
+  bookmarks[pageNum] = note;
+  await uploadBookmarks(profile, bookKey, bookmarks);
+  if (noteInput) noteInput.value = '';
+  loadBookmarks();
+}
+async function getAllBookmarksForBook(profile, bookKey) {
+  const prefix = `bookmark-${profile}-${bookKey}-`;
+  const bookmarks = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k.startsWith(prefix)) {
+      const page = k.split('-').pop();
+      try {
+        const data = JSON.parse(localStorage.getItem(k));
+        bookmarks[page] = data.note;
+      } catch (e) {
+        console.warn('Invalid bookmark format', k);
+      }
+    }
+  }
+  return bookmarks;
+}
+async function loadBookmarks() {
+  const list = document.getElementById('bookmarkList');
+  if (!list) return;
+  list.innerHTML = '';
+  const profile = getActiveProfile();
+  const bookKey = getBookKey(currentBook);
+  const serverBookmarks = await loadServerBookmarks(profile, bookKey);
+  if (serverBookmarks) {
+    for (const [page, note] of Object.entries(serverBookmarks)) {
+      const key = `bookmark-${profile}-${bookKey}-${page}`;
+      localStorage.setItem(key, JSON.stringify({ page: parseInt(page), note }));
+    }
+  }
+  const prefix = `bookmark-${profile}-${bookKey}-`;
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k.startsWith(prefix)) {
+      let data;
+      try {
+        data = JSON.parse(localStorage.getItem(k));
+        if (typeof data === 'number') {
+          data = { page: data, note: '' };
+        }
+      } catch (e) {
+        data = { page: parseInt(localStorage.getItem(k), 10), note: '' };
+      }
+      const li = document.createElement('li');
+      const topRow = document.createElement('div');
+      topRow.style.display = 'flex';
+      topRow.style.justifyContent = 'space-between';
+      topRow.style.alignItems = 'center';
+      const pageSpan = document.createElement('span');
+      pageSpan.textContent = `Page ${data.page}`;
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = '×';
+      removeBtn.className = 'remove-btn';
+      removeBtn.onclick = async (e) => {
+        e.stopPropagation();
+        localStorage.removeItem(k);
+        const all = await getAllBookmarksForBook(profile, bookKey);
+        delete all[data.page];
+        await uploadBookmarks(profile, bookKey, all);
+        loadBookmarks();
+      };
+      topRow.appendChild(pageSpan);
+      topRow.appendChild(removeBtn);
+      li.appendChild(topRow);
+      if (data.note) {
+        const noteDiv = document.createElement('div');
+        noteDiv.className = 'bookmark-note';
+        noteDiv.textContent = data.note;
+        li.appendChild(noteDiv);
+      }
+      li.onclick = () => {
+        pageNum = data.page;
+        if (typeof renderDoublePage === 'function') renderDoublePage(pageNum);
+        closeBookmarkDialog();
+      };
+      list.appendChild(li);
+    }
+  }
+}
+function updatePageIndicator() {
+  // Remove any old indicators
+  document.querySelector('.page-indicator')?.remove();
+  document.querySelector('.tile-indicator')?.remove();
+
+  const container = document.getElementById('reader-container');
+
+  if (window.halfMode) {
+    // --- Tile indicator (as before) ---
+  const tileIndicator = document.createElement('div');
+    tileIndicator.className = 'tile-indicator';
+    // ↑ add some space below the tiles so they don't overlap the page‑indicator
+    tileIndicator.style.marginBottom = '1em';
+    for (let i = 1; i <= 4; i++) {
+      const tile = document.createElement('div');
+      tile.className = `tile ${i === currentTile ? 'active' : ''}`;
+      tile.dataset.tile = i;
+      tile.addEventListener('click', () => {
+        currentTile = i;
+        renderHalfPage(pageNum, currentTile);
+        updatePageIndicator();
+      });
+      tileIndicator.appendChild(tile);
+    }
+    container.appendChild(tileIndicator);
+
+    // --- Pg. X‑Y indicator (new for halfMode) ---
+    const indicator = document.createElement('div');
+    indicator.className = 'page-indicator';
+    indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
+    indicator.style.cursor = 'pointer';
+    indicator.onclick = openBookmarkDialog;
+    container.appendChild(indicator);
+
+  } else {
+    // --- Normal two‑page indicator (unchanged) ---
+    const indicator = document.createElement('div');
+    indicator.className = 'page-indicator';
+    indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
+    indicator.style.cursor = 'pointer';
+    indicator.onclick = openBookmarkDialog;
+    container.appendChild(indicator);
+
+    // (Existing server‑note logic can remain here)
+    const profile = getActiveProfile();
+    const bookKey = getBookKey(currentBook);
+    (async () => {
+      const serverBookmarks = await loadServerBookmarks(profile, bookKey);
+      const note = serverBookmarks?.[pageNum] || '';
+      if (note) {
+        const noteEl = document.createElement('div');
+        noteEl.id = 'pageNoteDisplay';
+        noteEl.style.cssText = 'text-align:center; margin-top:4px; color:white; font-style:italic;';
+        noteEl.textContent = note;
+        indicator.parentNode.appendChild(noteEl);
+      }
+    })();
+  }
+}
+
+
+// Hook into renderDoublePage to save progress and update indicator
+if (typeof renderDoublePage === 'function') {
+  const originalRender = renderDoublePage;
+  window.renderDoublePage = async function(num) {
+    originalRender(num);
+    updatePageIndicator();
+    const profile = getActiveProfile();
+    const bookKey = getBookKey(currentBook);
+    localStorage.setItem(`bookPage-${profile}-${bookKey}`, pageNum);
+  };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btnAdd = document.getElementById('btnAddBookmark');
+  if (btnAdd) btnAdd.onclick = addBookmark;
+  const btnClose = document.getElementById('btnCloseDialog');
+  if (btnClose) btnClose.onclick = closeBookmarkDialog;
+  const btnGo = document.getElementById('btnGoPage');
+  if (btnGo) btnGo.onclick = () => {
+    let p = parseInt(document.getElementById('inputPageNumber').value);
+    if (isNaN(p) || p < 1) return;
+    if (p % 2 === 0) p--;
+    pageNum = p;
+    if (typeof renderDoublePage === 'function') renderDoublePage(pageNum);
+    closeBookmarkDialog();
+  };
+});
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const chapterSelect = document.getElementById('chapterSelect');
+    const btnChapterGo = document.getElementById('btnChapterGo');
+    const item = items.find(i => i.title.startsWith("Naruto"));
+    fetch(item.chapters)
+      .then(res => res.json())
+      .then(data => {
+        // Clear existing options to avoid duplicates
+        chapterSelect.innerHTML = '';
+        data.forEach(chap => {
+          const opt = document.createElement('option');
+          opt.value = chap.page;
+          opt.textContent = `Pg. ${chap.page} - ${chap.title}`;
+          chapterSelect.appendChild(opt);
+        });
+      })
+      .catch(err => console.error('Fetch/JSON error', err));
+    btnChapterGo.addEventListener('click', () => {
+      const page = parseInt(chapterSelect.value);
+      if (!isNaN(page)) renderDoublePage(page);
+    });
+  });
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+
+<script>
+function openBookmarkDialog() {
+  document.getElementById('bookmarkTitle').textContent = `${currentBookTitle}'s Bookmarks`;
+  const dialog = document.getElementById('bookmarkDialog');
+  dialog.style.display = 'block';
+  loadBookmarks();
+  // Dynamic chapters
+  const chapterSelect = document.getElementById('chapterSelect');
+  const btnChapterGo = document.getElementById('btnChapterGo');
+  const item = items.find(i => i.title === currentBookTitle);
+  if (item && item.chapters) {
+    chapterSelect.style.display = 'block';
+    btnChapterGo.style.display = 'block';
+    chapterSelect.innerHTML = '<option value="">Select Chapter</option>';
+    fetch(item.chapters).then(res => res.json()).then(data => {
+      data.forEach(chap => {
+        const opt = document.createElement('option');
+        opt.value = chap.page;
+        opt.textContent = `Pg. ${chap.page} - ${chap.title}`;
+        chapterSelect.appendChild(opt);
+      });
+    }).catch(err => console.error(err));
+  } else {
+    chapterSelect.style.display = 'none';
+    btnChapterGo.style.display = 'none';
+  }
+}
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+
+
+<!-- Auto-open based on query parameters -->
+<script>
+function normalizeTitleKey(value) {
+  return (value || '').replace(/[\s\-]/g, '').toLowerCase();
+}
+
+function readStartPageFromQuery(params) {
+  const candidates = ['page', 'pageNum', 'startPage'];
+  for (const key of candidates) {
+    const raw = params.get(key);
+    if (raw) {
+      const num = parseInt(raw, 10);
+      if (!Number.isNaN(num) && num > 0) return num;
+    }
+  }
+  return null;
+}
+
+function findLibraryItemByTitle(queryTitle) {
+  const normalized = normalizeTitleKey(decodeURIComponent(queryTitle));
+  for (const item of items) {
+    if (item && !item.group && normalizeTitleKey(item.title) === normalized) {
+      return item;
+    }
+    if (item && item.group && Array.isArray(item.books)) {
+      for (const book of item.books) {
+        if (normalizeTitleKey(book.title) === normalized) {
+          return book;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  const libraryTitle = (window.libraryData && window.libraryData.title) || 'Book Library';
+  document.title = libraryTitle;
+  const heading = document.querySelector('h1.centered-title');
+  if (heading) heading.textContent = libraryTitle;
+
+  const params = new URLSearchParams(window.location.search);
+  const requestedTitle = params.get('Book') || params.get('Guidebook') || params.get('title');
+  if (!requestedTitle) return;
+
+  const found = findLibraryItemByTitle(requestedTitle);
+  if (!found) return;
+
+  const startPage = readStartPageFromQuery(params);
+  openPDF(found.file, found.title, startPage);
+});
+</script>
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Clear dialog search
+  const clearBtn = document.getElementById('btnClearSearchDialog');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      document.getElementById('searchTermDialog').value = '';
+      const list = document.getElementById('resultsListDialog');
+      if (list) list.innerHTML = '';
+      document.getElementById('searchResultsDialog').style.display = 'none';
+    });
+  }
+});
+</script>
+
+<script>
+window.addEventListener("DOMContentLoaded", function() {
+  // Clear dialog search on X button click
+  const clearBtn = document.getElementById('btnClearSearchDialog');
+  const searchInput = document.getElementById('searchTermDialog');
+  const resultsDiv = document.getElementById('searchResultsDialog');
+  const resultsList = document.getElementById('resultsListDialog');
+  if (clearBtn && searchInput && resultsDiv && resultsList) {
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      resultsList.innerHTML = '';
+      resultsDiv.style.display = 'none';
+      searchInput.focus();
+    });
+  }
+  // Close bookmark dialog when clicking outside its content
+  const dialog = document.getElementById('bookmarkDialog');
+  if (dialog) {
+    dialog.addEventListener('click', function(e) {
+      if (e.target === dialog) {
+        closeBookmarkDialog();
+      }
+    });
+  }
+});
+</script>
+
+</body>
+
+
+
+</html>
+
+<!-- ==== SERVER-BASED PROGRESS MANAGEMENT AND BOOKMARK MANAGEMENT ====
+     Using only server; no localStorage. Cancelling previous uploads with AbortController. -->
+<script>
+const PROGRESS_PATH = '/Books/progress/';
+const BOOKMARK_PATH = '/Books/progress/';
+const uploadControllers = {};
+
+function wrapPayload(obj) {
+  return `[[[${JSON.stringify(obj)}]]]`;
+}
+
+async function uploadWithCancel(path, payloadObj, filename) {
+  // Cancel previous for this filename
+  if (uploadControllers[filename]) {
+    uploadControllers[filename].abort();
+  }
+  const controller = new AbortController();
+  uploadControllers[filename] = controller;
+
+  const blob = new Blob([wrapPayload(payloadObj)], { type: 'application/json' });
+  const form = new FormData();
+  form.append('files[]', blob, filename);
+
+  try {
+    await fetch(path + '?path=' + encodeURIComponent(path), {
+      method: 'PUT',
+      body: form,
+      signal: controller.signal
+    });
+    console.log('Upload success', filename);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.log('Upload aborted', filename);
+    } else {
+      console.error('Upload failed', err);
+    }
+  } finally {
+    delete uploadControllers[filename];
+  }
+}
+
+async function uploadPageProgress(profile, bookKey, page) {
+  await uploadWithCancel('/api/file/upload', { [bookKey]: page }, `${profile}-${bookKey}`);
+}
+
+async function loadPageProgress(profile, bookKey) {
+  try {
+    const res = await fetch(PROGRESS_PATH + encodeURIComponent(profile + '-' + bookKey), { cache: 'no-store' });
+    if (!res.ok) throw new Error();
+    const txt = await res.text();
+    const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
+    if (!m) throw new Error();
+    const parsed = JSON.parse(m[1]);
+    return parsed[bookKey] || 1;
+  } catch {
+    return 1;
+  }
+}
+
+(async function(){
+  const origOpen = window.openPDF;
+  window.openPDF = async function(url, title) {
+    origOpen(url, title);
+    const profile = getActiveProfile();
+    const bookKey = url.replace(/[^a-z0-9]/gi, '_');
+    const serverPage = await loadPageProgress(profile, bookKey);
+    pageNum = serverPage;
+    renderDoublePage(pageNum);
+  };
+})();
+
+(function(){
+  const origRender = window.renderDoublePage;
+  window.renderDoublePage = async function(num) {
+    origRender(num);
+    const profile = getActiveProfile();
+    const bookKey = currentBook.replace(/[^a-z0-9]/gi, '_');
+    await uploadPageProgress(profile, bookKey, num);
+  };
+})();
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const chapterSelect = document.getElementById('chapterSelect');
+    const btnChapterGo = document.getElementById('btnChapterGo');
+    const item = items.find(i => i.title.startsWith("Naruto"));
+    fetch(item.chapters)
+      .then(res => res.json())
+      .then(data => {
+        // Clear existing options to avoid duplicates
+        chapterSelect.innerHTML = '';
+        data.forEach(chap => {
+          const opt = document.createElement('option');
+          opt.value = chap.page;
+          opt.textContent = `Pg. ${chap.page} - ${chap.title}`;
+          chapterSelect.appendChild(opt);
+        });
+      })
+      .catch(err => console.error('Fetch/JSON error', err));
+    btnChapterGo.addEventListener('click', () => {
+      const page = parseInt(chapterSelect.value);
+      if (!isNaN(page)) renderDoublePage(page);
+    });
+  });
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+
+</script>
+
+
+<script>
+function openBookmarkDialog() {
+  document.getElementById('bookmarkTitle').textContent = `${currentBookTitle}'s Bookmarks`;
+  const dialog = document.getElementById('bookmarkDialog');
+  dialog.style.display = 'block';
+  loadBookmarks();
+  // Dynamic chapters
+  const chapterSelect = document.getElementById('chapterSelect');
+  const btnChapterGo = document.getElementById('btnChapterGo');
+  const item = items.find(i => i.title === currentBookTitle);
+  if (item && item.chapters) {
+    chapterSelect.style.display = 'block';
+    btnChapterGo.style.display = 'block';
+    chapterSelect.innerHTML = '<option value="">Select Chapter</option>';
+    fetch(item.chapters).then(res => res.json()).then(data => {
+      data.forEach(chap => {
+        const opt = document.createElement('option');
+        opt.value = chap.page;
+        opt.textContent = `Pg. ${chap.page} - ${chap.title}`;
+        chapterSelect.appendChild(opt);
+      });
+    }).catch(err => console.error(err));
+  } else {
+    chapterSelect.style.display = 'none';
+    btnChapterGo.style.display = 'none';
+  }
+}
+
+  // Bookmark Dialog Search Functionality
+  document.getElementById('btnSearchDialog').onclick = function() {
+    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+    if (!pdfDoc || !term) return;
+    const resultsList = document.getElementById('resultsListDialog');
+    resultsList.innerHTML = '';
+    document.getElementById('searchResultsDialog').style.display = 'block';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      pdfDoc.getPage(i).then(page => {
+        page.getTextContent().then(tc => {
+          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+          if (text.includes(term)) {
+      const li = document.createElement('li');
+      const idx = text.indexOf(term);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + term.length + 30);
+      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+            li.style.cursor = 'pointer';
+            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            resultsList.appendChild(li);
+          }
+        });
+      });
+    }
+  };
+// ────────────────────────────────────────────────────────────────
+// 1) Wire up the toggle button:
+const toggleBtn = document.getElementById('pageModeToggle');
+if (toggleBtn) {
+  window.pageViewMode = window.pageViewMode || 'double'; // double | half | single
+
+  const syncToggleLabel = () => {
+    const mode = window.pageViewMode || 'double';
+
+    if (mode === 'double') {
+      toggleBtn.textContent = 'Half-Page';
+      toggleBtn.dataset.mode = 'double';
+      toggleBtn.classList.remove('active');
+    } else if (mode === 'half') {
+      toggleBtn.textContent = 'Single';
+      toggleBtn.dataset.mode = 'half';
+      toggleBtn.classList.add('active');
+    } else {
+      toggleBtn.textContent = 'Two-Page';
+      toggleBtn.dataset.mode = 'single';
+      toggleBtn.classList.add('active');
+    }
+  };
+
+  const renderOnePage = function (num) {
+    if (!pdfDoc) return;
+    pageRendering = true;
+
+    pdfDoc.getPage(num).then(page => {
+      const scale = 1.5;
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.setAttribute('data-allow-page-nav', '1');
+
+      page.render({ canvasContext: ctx, viewport }).promise.then(() => {
+        const viewer = document.getElementById('viewer');
+        viewer.innerHTML = '';
+        viewer.appendChild(canvas);
+
+        canvas.style.filter = isDarkMode ? 'invert(1)' : '';
+        pageRendering = false;
+
+        localStorage.setItem(
+          `bookPage-${getActiveProfile()}-${currentBook}`,
+          num
+        );
+
+        updatePageIndicator();
+      });
+    });
+  };
+
+  const renderCurrent = () => {
+    if (!pdfDoc) return;
+    const mode = window.pageViewMode || 'double';
+
+    if (mode === 'half') {
+      if (typeof renderHalfPage !== 'function') {
+        initHalfPageMode();
+        return;
+      }
+      window.halfMode = true;
+      renderHalfPage(pageNum, currentTile || 1);
+    } else if (mode === 'single') {
+      window.halfMode = false;
+      renderOnePage(pageNum);
+    } else {
+      window.halfMode = false;
+      renderDoublePage(pageNum);
+    }
+
+    updatePageIndicator();
+  };
+
+  const syncNav = () => {
+    window.nextPage = () => {
+      const mode = window.pageViewMode || 'double';
+
+      if (mode === 'half') {
+        return typeof nextHalf === 'function' ? nextHalf() : null;
+      }
+
+      if (!pdfDoc) return;
+
+      pageNum = Math.min(pdfDoc.numPages, pageNum + (mode === 'single' ? 1 : 2));
+      renderCurrent();
+    };
+
+    window.prevPage = () => {
+      const mode = window.pageViewMode || 'double';
+
+      if (mode === 'half') {
+        return typeof prevHalf === 'function' ? prevHalf() : null;
+      }
+
+      if (!pdfDoc) return;
+
+      pageNum = Math.max(1, pageNum - (mode === 'single' ? 1 : 2));
+      renderCurrent();
+    };
+  };
+
+  const setMode = (mode) => {
+    window.pageViewMode = mode;
+    window.halfMode = mode === 'half';
+    syncToggleLabel();
+    syncNav();
+    renderCurrent();
+  };
+
+  toggleBtn.addEventListener('click', () => {
+    const mode = window.pageViewMode || 'double';
+    const nextMode = mode === 'double' ? 'half' : mode === 'half' ? 'single' : 'double';
+    setMode(nextMode);
+  });
+
+  window.applyPageMode = setMode;
+
+  // 2) Half-Page bootstrap (runs once, on demand)
+  function initHalfPageMode() {
+    window.pageNum     = window.pageNum     || 1;
+    window.currentTile = window.currentTile || 1;
+    window.halfMode    = true;
+
+    window.renderHalfPage = function (pageNum, tile) {
+      if (!pdfDoc) return;
+      pageRendering = true;
+      let targetPage = (tile <= 2) ? pageNum : pageNum + 1;
+
+      pdfDoc.getPage(targetPage).then(page => {
+        const isTopTile = (tile % 2 === 1);
+        const baseScale = 1.5;
+        const fullVp    = page.getViewport({ scale: baseScale });
+
+        // off-screen
+        const offCanvas = document.createElement('canvas');
+        const offCtx    = offCanvas.getContext('2d');
+        offCanvas.width  = Math.round(fullVp.width);
+        offCanvas.height = Math.round(fullVp.height);
+
+        page.render({ canvasContext: offCtx, viewport: fullVp }).promise.then(() => {
+          const isOddPage = (targetPage % 2 === 1);
+          const hCrop = {
+            left:  isOddPage ? 0    : 0.01,
+            right: isOddPage ? 0.01 : 0
+          };
+          const vCrop = isTopTile
+            ? { yStart: 0.04, height: 0.47 }
+            : { yStart: 0.50, height: 0.47 };
+
+          const cropX = Math.round(fullVp.width  * hCrop.left);
+          const cropW = Math.round(fullVp.width  * (1 - hCrop.left - hCrop.right));
+          const cropY = Math.round(fullVp.height * vCrop.yStart);
+          const cropH = Math.round(fullVp.height * vCrop.height);
+
+          // clear and draw
+          const viewer = document.getElementById('viewer');
+          viewer.innerHTML = '';
+          const canvas = document.createElement('canvas');
+          canvas.width  = cropW;
+          canvas.height = cropH;
+          canvas.style.filter = isDarkMode ? 'invert(1)' : '';
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = false;
+
+          ctx.drawImage(
+            offCanvas,
+            cropX, cropY, cropW, cropH,
+            0,    0,     cropW, cropH
+          );
+          viewer.appendChild(canvas);
+          pageRendering = false;
+
+          if (tile === 1) {
+            localStorage.setItem(
+              `bookPage-${getActiveProfile()}-${currentBook}`,
+              pageNum
+            );
+          }
+          updatePageIndicator();
+        });
+      });
+    };
+
+    // c) nextHalf / prevHalf
+    window.nextHalf = function() {
+      if (!pdfDoc) return;
+      if (currentTile < 4) {
+        currentTile++;
+      } else {
+        if (pageNum + 2 <= pdfDoc.numPages) pageNum += 2;
+        currentTile = 1;
+      }
+      window.pageNum = pageNum;
+      renderHalfPage(pageNum, currentTile);
+      updatePageIndicator();
+    };
+
+    window.prevHalf = function() {
+      if (!pdfDoc) return;
+      if (currentTile > 1) {
+        currentTile--;
+      } else {
+        if (pageNum - 2 >= 1) pageNum -= 2;
+        currentTile = 4;
+      }
+      window.pageNum = pageNum;
+      renderHalfPage(pageNum, currentTile);
+      updatePageIndicator();
+    };
+
+    // d) override Next/Prev globally
+    const _origNext = window.nextPage;
+    const _origPrev = window.prevPage;
+    window.nextPage = () => window.pageViewMode === 'half' ? nextHalf() : _origNext();
+    window.prevPage = () => window.pageViewMode === 'half' ? prevHalf() : _origPrev();
+
+    // e) initial draw
+    renderHalfPage(pageNum, currentTile);
+    updatePageIndicator();
+  }
+
+  window.initHalfPageMode = initHalfPageMode;
+
+  const originalRenderDoublePage = window.renderDoublePage;
+  window.renderDoublePage = function (num) {
+    const mode = window.pageViewMode || 'double';
+    pageNum = num;
+
+    if (mode === 'half') {
+      if (typeof renderHalfPage !== 'function') {
+        initHalfPageMode();
+        return;
+      }
+      window.halfMode = true;
+      return renderHalfPage(num, currentTile || 1);
+    }
+
+    if (mode === 'single') {
+      window.halfMode = false;
+      return renderOnePage(num);
+    }
+
+    window.halfMode = false;
+    return originalRenderDoublePage(num);
+  };
+
+  syncNav();
+  syncToggleLabel();
+}
+
+// ────────────────────────────────────────────────────────────────
+// 3) Ensure default is Two-Page on load:
+window.addEventListener('load', () => {
+  window.pageViewMode = window.pageViewMode || 'double';
+  renderDoublePage(window.pageNum || 1);
+});
+</script>
+
+
+<!-- Auto-open Book based on query parameter -->
+<script>
+window.addEventListener("DOMContentLoaded", function() {
+  const params = new URLSearchParams(window.location.search);
+  const gb = params.get("Book");
+  if (gb) {
+    const item = items.find(i => i.title.replace(/\s+/g, '') === gb);
+    if (item) {
+      openPDF(item.file, item.title);
+    }
+  }
+});
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Clear dialog search
+  const clearBtn = document.getElementById('btnClearSearchDialog');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      document.getElementById('searchTermDialog').value = '';
+      const list = document.getElementById('resultsListDialog');
+      if (list) list.innerHTML = '';
+      document.getElementById('searchResultsDialog').style.display = 'none';
+    });
+  }
+});
+</script>
+
+<script>
+window.addEventListener("DOMContentLoaded", function() {
+  // Clear dialog search on X button click
+  const clearBtn = document.getElementById('btnClearSearchDialog');
+  const searchInput = document.getElementById('searchTermDialog');
+  const resultsDiv = document.getElementById('searchResultsDialog');
+  const resultsList = document.getElementById('resultsListDialog');
+  if (clearBtn && searchInput && resultsDiv && resultsList) {
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      resultsList.innerHTML = '';
+      resultsDiv.style.display = 'none';
+      searchInput.focus();
+    });
+  }
+  // Close bookmark dialog when clicking outside its content
+  const dialog = document.getElementById('bookmarkDialog');
+  if (dialog) {
+    dialog.addEventListener('click', function(e) {
+      if (e.target === dialog) {
+        closeBookmarkDialog();
+      }
+    });
+  }
+});
+</script>
+
+
+<script>
+(function () {
+  function initReaderLock() {
+    const reader = document.getElementById('reader-container');
+    if (!reader || document.getElementById('readerLockBtn')) return;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      #readerLockBtn {
+        position: fixed;
+        right: 14px;
+        bottom: 14px;
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.35);
+        color: #fff;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        line-height: 1;
+        opacity: 0.5;
+        cursor: pointer;
+        z-index: 10020;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+        pointer-events: auto;
+      }
+      #readerLockBtn.is-locked {
+        background: rgba(255, 215, 0, 0.45);
+      }
+      #reader-container.reader-locked .reader-buttons {
+        display: none !important;
+      }
+      #reader-container.reader-locked .controls button {
+        opacity: 0.2 !important;
+      }
+      #reader-container.reader-locked .controls button:hover {
+        opacity: 0.2 !important;
+        transform: none !important;
+      }
+      #reader-container.reader-locked #readerLockBtn {
+        opacity: 0.5 !important;
+        display: flex !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    const lockBtn = document.createElement('button');
+    lockBtn.id = 'readerLockBtn';
+    lockBtn.type = 'button';
+    lockBtn.setAttribute('aria-label', 'Lock reader controls');
+    lockBtn.setAttribute('title', 'Lock reader controls');
+    lockBtn.textContent = '🔓';
+    reader.appendChild(lockBtn);
+
+    let locked = false;
+
+    function sync() {
+      const readerVisible = reader.style.display === 'flex';
+      reader.classList.toggle('reader-locked', locked);
+      lockBtn.classList.toggle('is-locked', locked);
+      lockBtn.textContent = locked ? '🔒' : '🔓';
+      lockBtn.style.display = readerVisible ? 'flex' : 'none';
+    }
+
+    function setLocked(next) {
+      locked = !!next;
+      sync();
+    }
+
+    function toggleLocked() {
+      setLocked(!locked);
+    }
+
+    lockBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleLocked();
+    });
+
+    function wrap(name, fn) {
+      const original = window[name];
+      if (typeof original !== 'function') return;
+      window[name] = function (...args) {
+        const result = original.apply(this, args);
+        queueMicrotask(sync);
+        return result;
+      };
+      window[name]._original = original;
+    }
+
+    wrap('openPDF');
+    wrap('closeReader');
+    wrap('renderDoublePage');
+
+    const observer = new MutationObserver(sync);
+    observer.observe(reader, { attributes: true, attributeFilter: ['style', 'class'] });
+
+    sync();
+    window.__readerLockSync = sync;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initReaderLock);
+  } else {
+    initReaderLock();
+  }
+})();
+</script>
+
+</body>
