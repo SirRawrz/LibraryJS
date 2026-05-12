@@ -1,0 +1,380 @@
+(async function() {
+    const scripts = [
+        "emulator.js",
+        "nipplejs.js",
+        "shaders.js",
+        "storage.js",
+        "gamepad.js",
+        "GameManager.js",
+        "socket.io.min.js",
+        "compression.js"
+    ];
+
+    const folderPath = (path) => path.substring(0, path.length - path.split('/').pop().length);
+    let scriptPath = (typeof window.EJS_pathtodata === "string") ? window.EJS_pathtodata : folderPath((new URL(document.currentScript.src)).pathname);
+    if (!scriptPath.endsWith('/')) scriptPath+='/';
+    //console.log(scriptPath);
+    function loadScript(file) {
+        return new Promise(function (resolve, reject) {
+            let script = document.createElement('script');
+            script.src = function() {
+                if ('undefined' != typeof EJS_paths && typeof EJS_paths[file] === 'string') {
+                    return EJS_paths[file];
+                } else if (file.endsWith("emulator.min.js")) {
+                    return scriptPath + file;
+                } else {
+                    return scriptPath + "src/" + file;
+                }
+            }();
+            script.onload = resolve;
+            script.onerror = () => {
+                filesmissing(file).then(e => resolve());
+            }
+            document.head.appendChild(script);
+        })
+    }
+    
+    function loadStyle(file) {
+        return new Promise(function(resolve, reject) {
+            let css = document.createElement('link');
+            css.rel = 'stylesheet';
+            css.href = function() {
+                if ('undefined' != typeof EJS_paths && typeof EJS_paths[file] === 'string') {
+                    return EJS_paths[file];
+                } else {
+                    return scriptPath+file;
+                }
+            }();
+            css.onload = resolve;
+            css.onerror = () => {
+                filesmissing(file).then(e => resolve());
+            }
+            document.head.appendChild(css);
+        })
+    }
+
+    async function filesmissing(file) {
+        console.error("Failed to load " + file);
+        let minifiedFailed = file.includes(".min.") && !file.includes("socket");
+        console[minifiedFailed?"warn":"error"]("Failed to load " + file + " beacuse it's likly that the minified files are missing.\nTo fix this you have 3 options:\n1. You can download the zip from the latest release here: https://github.com/EmulatorJS/EmulatorJS/releases/latest - Stable\n2. You can download the zip from here: https://cdn.emulatorjs.org/latest/data/emulator.min.zip and extract it to the data/ folder. (easiest option) - Beta\n3. You can build the files by running `npm i && npm run build` in the data/minify folder. (hardest option) - Beta\nNote: you will probably need to do the same for the cores, extract them to the data/cores/ folder.");
+        if (minifiedFailed) {
+            console.log("Attempting to load non-minified files");
+            if (file === "emulator.min.js") {
+                for (let i=0; i<scripts.length; i++) {
+                    await loadScript(scripts[i]);
+                }
+            } else {
+                await loadStyle('emulator.css');
+            }
+        }
+    }
+    
+    if (('undefined' != typeof EJS_DEBUG_XX && true === EJS_DEBUG_XX)) {
+        for (let i=0; i<scripts.length; i++) {
+            await loadScript(scripts[i]);
+        }
+        await loadStyle('emulator.css');
+    } else {
+        await loadScript('emulator.min.js');
+        await loadStyle('emulator.min.css');
+    }
+    const config = {};
+    config.gameUrl = window.EJS_gameUrl;
+    config.dataPath = scriptPath;
+    config.system = window.EJS_core;
+    config.biosUrl = window.EJS_biosUrl;
+    config.gameName = window.EJS_gameName;
+    config.color = window.EJS_color;
+    config.adUrl = window.EJS_AdUrl;
+    config.adMode = window.EJS_AdMode;
+    config.adTimer = window.EJS_AdTimer;
+    config.adSize = window.EJS_AdSize;
+    config.alignStartButton = window.EJS_alignStartButton;
+    config.VirtualGamepadSettings = window.EJS_VirtualGamepadSettings;
+    config.buttonOpts = window.EJS_Buttons;
+    config.volume = window.EJS_volume;
+    config.defaultControllers = window.EJS_defaultControls;
+    config.startOnLoad = window.EJS_startOnLoaded;
+    config.fullscreenOnLoad = window.EJS_fullscreenOnLoaded;
+    config.filePaths = window.EJS_paths;
+    config.loadState = window.EJS_loadStateURL;
+    config.cacheLimit = window.EJS_CacheLimit;
+    config.cheats = window.EJS_cheats;
+    config.defaultOptions = window.EJS_defaultOptions;
+    config.gamePatchUrl = window.EJS_gamePatchUrl;
+    config.gameParentUrl = window.EJS_gameParentUrl;
+    config.netplayUrl = window.EJS_netplayServer;
+    config.gameId = window.EJS_gameID;
+    config.backgroundImg = window.EJS_backgroundImage;
+    config.backgroundBlur = window.EJS_backgroundBlur;
+    config.backgroundColor = window.EJS_backgroundColor;
+    config.controlScheme = window.EJS_controlScheme;
+    config.threads = window.EJS_threads;
+    config.disableCue = window.EJS_disableCue;
+    config.startBtnName = window.EJS_startButtonName;
+    config.softLoad = window.EJS_softLoad;
+    config.screenRecording = window.EJS_screenRecording;
+    config.externalFiles = window.EJS_externalFiles;
+    config.disableDatabases = window.EJS_disableDatabases;
+    config.disableLocalStorage = window.EJS_disableLocalStorage;
+    config.forceLegacyCores = window.EJS_forceLegacyCores;
+    config.noAutoFocus = window.EJS_noAutoFocus;
+    config.videoRotation = window.EJS_videoRotation;
+    config.shaders = Object.assign({}, window.EJS_SHADERS, window.EJS_shaders ? window.EJS_shaders : {});
+    
+    if (typeof window.EJS_language === "string" && window.EJS_language !== "en-US") {
+        try {
+            let path;
+            if ('undefined' != typeof EJS_paths && typeof EJS_paths[window.EJS_language] === 'string') {
+                path = EJS_paths[window.EJS_language];
+            } else {
+                path = scriptPath+"localization/"+window.EJS_language+".json";
+            }
+            config.language = window.EJS_language;
+            config.langJson = JSON.parse(await (await fetch(path)).text());
+        } catch(e) {
+            config.langJson = {};
+        }
+    }
+    
+    // If a dual config was prepared by index (indexgba.html), instantiate two emulators.
+    if (window.EJS_dualConfig && window.EJS_dualConfig.romParam) {
+        try {
+            // Build host/client configs from base config, but prefer explicit dualConfig values
+            const hostCfg = Object.assign({}, config);
+            hostCfg.gameUrl = window.EJS_dualConfig.gameUrl || hostCfg.gameUrl;
+            hostCfg.biosUrl = window.EJS_dualConfig.biosUrl || hostCfg.biosUrl;
+            hostCfg.system = window.EJS_dualConfig.core || hostCfg.system;
+            hostCfg.pathtodata = window.EJS_dualConfig.pathtodata || hostCfg.pathtodata;
+            hostCfg.startOnLoad = (typeof window.EJS_dualConfig.startOnLoaded !== 'undefined') ? window.EJS_dualConfig.startOnLoaded : hostCfg.startOnLoad;
+
+            const clientCfg = Object.assign({}, hostCfg);
+
+            // Instantiate host (left) and client (right)
+            const emuHost = new EmulatorJS('#gbaHost', hostCfg);
+            const emuClient = new EmulatorJS('#gbaClient', clientCfg);
+			            // --- Link manager wiring: wait for WASM memory then create manager + UI hookup ---
+            (async function attachLinkManager() {
+                // small wait helper
+                const waitFor = (condFn, timeout = 20000, interval = 20) => {
+                    return new Promise((resolve, reject) => {
+                        const start = Date.now();
+                        (function poll(){
+                            try {
+                                if (condFn()) return resolve();
+                                if (Date.now() - start > timeout) return reject(new Error('waitFor timeout'));
+                            } catch(e){}
+                            setTimeout(poll, interval);
+                        })();
+                    });
+                };
+
+                try {
+                    // Wait until both emulators expose HEAPU16
+                    await waitFor(() => emuHost.gameManager && emuHost.gameManager.Module && emuHost.gameManager.Module.HEAPU16, 20000);
+                    await waitFor(() => emuClient.gameManager && emuClient.gameManager.Module && emuClient.gameManager.Module.HEAPU16, 20000);
+                } catch (e) {
+                    console.error('Link manager: emulator modules did not become ready in time', e);
+                    try { document.getElementById('linkLog').innerText += 'Error: emu modules not ready: '+e.message + '\n'; } catch(_) {}
+                    return;
+                }
+
+                // createDualLinkManager function
+                function createDualLinkManager(emuA, emuB, logEl) {
+                    const REG_SIOMULTI0   = 0x04000120;
+                    const REG_SIOMULTI1   = 0x04000122;
+                    const REG_SIOCNT      = 0x04000128;
+                    const REG_SIOMLT_SEND = 0x0400012A;
+
+                    const HEAP_A = emuA.gameManager.Module.HEAPU16;
+                    const HEAP_B = emuB.gameManager.Module.HEAPU16;
+                    const idx = (addr) => (addr >>> 1);
+
+                    let prevA = 0, prevB = 0;
+                    let running = false;
+                    let rafId = null;
+
+                    function log(s) {
+                        try { if (logEl) { logEl.innerText += s + '\n'; logEl.scrollTop = logEl.scrollHeight; } } catch(e){}
+                        console.log('[link]', s);
+                    }
+
+                    function doExchange() {
+                        try {
+                            const wA = HEAP_A[idx(REG_SIOMLT_SEND)] & 0xFFFF;
+                            const wB = HEAP_B[idx(REG_SIOMLT_SEND)] & 0xFFFF;
+
+                            // Mirror parent->0, child->1 for both sides
+                            HEAP_A[idx(REG_SIOMULTI0)] = wA;
+                            HEAP_A[idx(REG_SIOMULTI1)] = wB;
+                            HEAP_B[idx(REG_SIOMULTI0)] = wA;
+                            HEAP_B[idx(REG_SIOMULTI1)] = wB;
+
+                            // Clear Start/Busy bit (bit 7)
+                            HEAP_A[idx(REG_SIOCNT)] = HEAP_A[idx(REG_SIOCNT)] & (~0x0080);
+                            HEAP_B[idx(REG_SIOCNT)] = HEAP_B[idx(REG_SIOCNT)] & (~0x0080);
+
+                            log(`xchg: host->0x${wA.toString(16)} client->0x${wB.toString(16)}`);
+                        } catch (e) {
+                            console.warn('doExchange error', e);
+                        }
+                    }
+
+                    function step() {
+                        if (!running) return;
+                        try {
+                            const cntA = HEAP_A[idx(REG_SIOCNT)];
+                            const cntB = HEAP_B[idx(REG_SIOCNT)];
+
+                            // detect rising edge start bit on either side
+                            if ((cntA & 0x0080) && !(prevA & 0x0080)) {
+                                doExchange();
+                            }
+                            if ((cntB & 0x0080) && !(prevB & 0x0080)) {
+                                doExchange();
+                            }
+
+                            prevA = cntA;
+                            prevB = cntB;
+                        } catch(e) {
+                            console.warn('link step error', e);
+                        }
+                        rafId = requestAnimationFrame(step);
+                    }
+
+                    return {
+                        start() {
+                            if (running) return;
+                            prevA = HEAP_A[idx(REG_SIOCNT)];
+                            prevB = HEAP_B[idx(REG_SIOCNT)];
+                            running = true;
+                            rafId = requestAnimationFrame(step);
+                            log('Link manager started.');
+                        },
+                        stop() {
+                            running = false;
+                            if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+                            log('Link manager stopped.');
+                        },
+                        isRunning() { return running; }
+                    };
+                } // end createDualLinkManager
+
+                // create manager and attach UI
+                const logEl = document.getElementById('linkLog') || { innerText: '', scrollTop: 0, scrollHeight: 0 };
+                const manager = createDualLinkManager(emuHost, emuClient, logEl);
+                window.EJS_linkManager = manager; // expose for debugging
+
+                // wire start/stop button
+                const btn = document.getElementById('startLinkBtn');
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        if (manager.isRunning()) {
+                            manager.stop();
+                            btn.innerText = 'Start/Attach Link (dual)';
+                        } else {
+                            manager.start();
+                            btn.innerText = 'Stop Link';
+                        }
+                    });
+                }
+
+                // auto-log ready
+                try { logEl.innerText += 'Link manager attached. Click Start/Attach Link.\n'; } catch(_) {}
+            })();
+            // --- end attachLinkManager ---
+
+
+            // Backwards-compatible single-instance reference
+            window.EJS_emulator = emuHost;
+
+            // Maintain an instances array (if not already present)
+            window.EJS_instances = window.EJS_instances || [];
+            // Avoid duplicate pushes if emulator.js already pushed them
+            if (!window.EJS_instances.includes(emuHost)) window.EJS_instances.push(emuHost);
+            if (!window.EJS_instances.includes(emuClient)) window.EJS_instances.push(emuClient);
+
+            // Expose convenience handles
+            window.EJS_host = emuHost;
+            window.EJS_client = emuClient;
+
+            // adBlocked helper that forwards to both instances
+            window.EJS_adBlocked = (url, del) => {
+                try { if (typeof emuHost.adBlocked === 'function') emuHost.adBlocked(url, del); } catch(e){}
+                try { if (typeof emuClient.adBlocked === 'function') emuClient.adBlocked(url, del); } catch(e){}
+            };
+
+            // Attach callbacks to both instances if user provided handlers
+            if (typeof window.EJS_ready === "function") {
+                try { emuHost.on("ready", window.EJS_ready); } catch(e){}
+                try { emuClient.on("ready", window.EJS_ready); } catch(e){}
+            }
+            if (typeof window.EJS_onGameStart === "function") {
+                try { emuHost.on("start", window.EJS_onGameStart); } catch(e){}
+                try { emuClient.on("start", window.EJS_onGameStart); } catch(e){}
+            }
+            if (typeof window.EJS_onLoadState === "function") {
+                try { emuHost.on("loadState", window.EJS_onLoadState); } catch(e){}
+                try { emuClient.on("loadState", window.EJS_onLoadState); } catch(e){}
+            }
+            if (typeof window.EJS_onSaveState === "function") {
+                try { emuHost.on("saveState", window.EJS_onSaveState); } catch(e){}
+                try { emuClient.on("saveState", window.EJS_onSaveState); } catch(e){}
+            }
+            if (typeof window.EJS_onLoadSave === "function") {
+                try { emuHost.on("loadSave", window.EJS_onLoadSave); } catch(e){}
+                try { emuClient.on("loadSave", window.EJS_onLoadSave); } catch(e){}
+            }
+            if (typeof window.EJS_onSaveSave === "function") {
+                try { emuHost.on("saveSave", window.EJS_onSaveSave); } catch(e){}
+                try { emuClient.on("saveSave", window.EJS_onSaveSave); } catch(e){}
+            }
+        } catch (e) {
+            console.error("Dual-instance initialization failed, falling back to single instance. Error:", e);
+            // fallback to single-instance below
+            window.EJS_emulator = new EmulatorJS(EJS_player, config);
+            window.EJS_adBlocked = (url, del) => window.EJS_emulator.adBlocked(url, del);
+            if (typeof window.EJS_ready === "function") {
+                window.EJS_emulator.on("ready", window.EJS_ready);
+            }
+            if (typeof window.EJS_onGameStart === "function") {
+                window.EJS_emulator.on("start", window.EJS_onGameStart);
+            }
+            if (typeof window.EJS_onLoadState === "function") {
+                window.EJS_emulator.on("loadState", window.EJS_onLoadState);
+            }
+            if (typeof window.EJS_onSaveState === "function") {
+                window.EJS_emulator.on("saveState", window.EJS_onSaveState);
+            }
+            if (typeof window.EJS_onLoadSave === "function") {
+                window.EJS_emulator.on("loadSave", window.EJS_onLoadSave);
+            }
+            if (typeof window.EJS_onSaveSave === "function") {
+                window.EJS_emulator.on("saveSave", window.EJS_onSaveSave);
+            }
+        }
+    } else {
+        // Default single-instance behavior (unchanged)
+        window.EJS_emulator = new EmulatorJS(EJS_player, config);
+        window.EJS_adBlocked = (url, del) => window.EJS_emulator.adBlocked(url, del);
+        if (typeof window.EJS_ready === "function") {
+            window.EJS_emulator.on("ready", window.EJS_ready);
+        }
+        if (typeof window.EJS_onGameStart === "function") {
+            window.EJS_emulator.on("start", window.EJS_onGameStart);
+        }
+        if (typeof window.EJS_onLoadState === "function") {
+            window.EJS_emulator.on("loadState", window.EJS_onLoadState);
+        }
+        if (typeof window.EJS_onSaveState === "function") {
+            window.EJS_emulator.on("saveState", window.EJS_onSaveState);
+        }
+        if (typeof window.EJS_onLoadSave === "function") {
+            window.EJS_emulator.on("loadSave", window.EJS_onLoadSave);
+        }
+        if (typeof window.EJS_onSaveSave === "function") {
+            window.EJS_emulator.on("saveSave", window.EJS_onSaveSave);
+        }
+    }
+})();
+

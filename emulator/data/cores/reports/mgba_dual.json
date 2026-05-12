@@ -1,0 +1,10 @@
+{ 
+    "core": "mgba_dual", 
+    "buildStart": "2025-11-21T00:00:00+00:00", 
+    "buildEnd": "2025-11-21T00:00:00+00:00", 
+    "options": { 
+        "threads": true, 
+        "wasm": true,
+        "defaultWebGL2": true
+    } 
+}

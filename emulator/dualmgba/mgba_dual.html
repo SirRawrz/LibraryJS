@@ -1,0 +1,2824 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>mGBA Dual - Fixed Save Handler (Fullscreen Patch)</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        /* Original UI styles (kept for non-fullscreen state) */
+        body { background: #111; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        canvas { border: 2px solid #444; max-width: 100%; image-rendering: pixelated; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .controls { background: #222; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; font-weight: bold; }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { background: #555; cursor: not-allowed; }
+        .btn-pulse-off { background: #007bff; }
+        .btn-pulse-on { background: #dc3545; box-shadow: 0 0 10px #dc3545; animation: pulse-glow 2s infinite; }
+        @keyframes pulse-glow { 0% { box-shadow: 0 0 5px #dc3545; } 50% { box-shadow: 0 0 15px #ff6b6b; } 100% { box-shadow: 0 0 5px #dc3545; } }
+        .status-log { font-family: monospace; color: #aaa; font-size: 0.9em; margin-top: 10px; white-space: pre-wrap; text-align: left; max-height: 200px; overflow-y: auto; background: #000; padding: 10px; width: 100%; box-sizing: border-box;}
+        label { display: block; margin: 10px 0; }
+
+        /* Minimal fullscreen-safe rules (canvas will be styled inline by JS when fullscreen activated) */
+        html, body { height: 100%; }
+    </style>
+<script>
+// == virtual gamepad shim (Ultimate Merged + Always On) ==
+(function installUltimateGamepadShim() {
+  const origGet = (navigator.getGamepads && navigator.getGamepads.bind(navigator)) || null;
+
+  // 3 logical players:
+  // 0 = Aggregator (Host + Joiner merged) - This is what the emulator listens to usually
+  // 1 = Host (Physical Gamepad 1 + Keyboard)
+  // 2 = Joiner (Physical Gamepad 2 + Network)
+  const VCOUNT = 3;
+  const BUTTON_COUNT = 16;
+  
+  // Storage for virtual states (UI buttons / Network inputs)
+  const virtualOverrides = Array.from({ length: VCOUNT }, () => ({
+    buttons: Array.from({ length: BUTTON_COUNT }, () => ({ pressed: false, value: 0 })),
+    axes: [0, 0, 0, 0],
+    timestamp: Date.now()
+  }));
+
+  // --- 1. Helper: Create a Standard Gamepad Object ---
+  function makeVirtualPad(index, idLabel) {
+    return {
+      id: idLabel,
+      index: index,
+      connected: true,
+      mapping: 'standard',
+      timestamp: Date.now(), // Always fresh
+      buttons: Array.from({ length: BUTTON_COUNT }, () => ({ pressed: false, value: 0, touched: false })),
+      axes: [0, 0, 0, 0]
+    };
+  }
+
+  // --- 2. Helper: Merge Physical + Virtual ---
+  function mergeState(physPad, virtState, targetPad) {
+    // Buttons: Logical OR (Pressed if Physical OR Virtual is pressed)
+    for (let i = 0; i < BUTTON_COUNT; i++) {
+      const physBtn = physPad && physPad.buttons && physPad.buttons[i];
+      const pPressed = !!(physBtn && physBtn.pressed);
+      const pValue = physBtn ? (physBtn.value || (pPressed ? 1 : 0)) : 0;
+      
+      const vPressed = !!(virtState.buttons[i] && virtState.buttons[i].pressed);
+      const vValue = virtState.buttons[i] ? virtState.buttons[i].value : 0;
+
+      targetPad.buttons[i].pressed = pPressed || vPressed;
+      targetPad.buttons[i].value = Math.max(pValue, vValue);
+      targetPad.buttons[i].touched = targetPad.buttons[i].pressed;
+    }
+
+    // Axes: Prefer Physical if active, else Virtual
+    // (You can improve this by summing them if needed, but preference usually works best for sticks)
+    const axesLen = Math.min(targetPad.axes.length, 4);
+    for (let a = 0; a < axesLen; a++) {
+      let val = 0;
+      // If physical axis is moved significantly (>0.1), use it
+      if (physPad && physPad.axes && Math.abs(physPad.axes[a]) > 0.1) {
+        val = physPad.axes[a];
+      } else {
+        val = virtState.axes[a] || 0;
+      }
+      targetPad.axes[a] = val;
+    }
+    
+    targetPad.timestamp = Date.now();
+  }
+
+  // --- 3. The Core Override Function ---
+  function mergedGetGamepads() {
+    // Get real browser gamepads
+    const realArr = (origGet ? origGet() : []) || [];
+    
+    // Pick the first two real "connected" pads
+    const realPads = [];
+    for(let i=0; i < realArr.length; i++) {
+      if(realArr[i] && realArr[i].connected) realPads.push(realArr[i]);
+    }
+
+    const physHost = realPads[0] || null;
+    const physJoiner = realPads[1] || null;
+
+    // Create our 3 Static Virtual Pads
+    const aggPad = makeVirtualPad(0, "Aggregated Controller (P0)");
+    const hostPad = makeVirtualPad(1, "Host Controller (P1)");
+    const joinerPad = makeVirtualPad(2, "Joiner Controller (P2)");
+
+    // A. Fill Host (Index 1) = Real Pad 1 + Virtual 1
+    mergeState(physHost, virtualOverrides[1], hostPad);
+
+    // B. Fill Joiner (Index 2) = Real Pad 2 + Virtual 2
+    mergeState(physJoiner, virtualOverrides[2], joinerPad);
+
+    // C. Fill Aggregator (Index 0) = Host State + Joiner State + Virtual 0
+    // We manually merge Host and Joiner states into Aggregator
+    // BUTTONS: allow only inputs permitted by turnManager. detect R2 rising-edge to switch turns.
+for (let i = 0; i < BUTTON_COUNT; i++) {
+  const hostPressed = !!(hostPad && hostPad.buttons && hostPad.buttons[i] && hostPad.buttons[i].pressed);
+  const joinPressed = !!(joinerPad && joinerPad.buttons && joinerPad.buttons[i] && joinerPad.buttons[i].pressed);
+  const aggVirtPressed = !!(virtualOverrides && virtualOverrides[0] && virtualOverrides[0].buttons[i] && virtualOverrides[0].buttons[i].pressed);
+
+  // R2 edge-detection (button 7)
+  if (i === 7 && window.turnManager && window.turnManager.prevPressed) {
+    if (hostPressed && !window.turnManager.prevPressed[1][i]) {
+      try { window.turnManager._handleR2Edge(1); } catch(e){}
+    }
+    if (joinPressed && !window.turnManager.prevPressed[2][i]) {
+      try { window.turnManager._handleR2Edge(2); } catch(e){}
+    }
+    window.turnManager.prevPressed[1][i] = !!hostPressed;
+    window.turnManager.prevPressed[2][i] = !!joinPressed;
+  }
+
+  const hostAllowed = hostPressed && window.turnManager && window.turnManager.allows ? window.turnManager.allows(1, i) : hostPressed;
+  const joinAllowed = joinPressed && window.turnManager && window.turnManager.allows ? window.turnManager.allows(2, i) : joinPressed;
+
+  aggPad.buttons[i].pressed = hostAllowed || joinAllowed || aggVirtPressed;
+  aggPad.buttons[i].value = hostAllowed ? (hostPad.buttons[i].value || 1) : (joinAllowed ? (joinerPad.buttons[i].value || 1) : (aggVirtPressed ? (virtualOverrides[0].buttons[i].value || 1) : 0));
+  aggPad.buttons[i].touched = aggPad.buttons[i].pressed;
+}
+
+// AXES: prefer the active player's axes. Non-active player's axes are ignored.
+for (let a = 0; a < aggPad.axes.length; a++) {
+  const cur = (window.turnManager && window.turnManager.getCurrent && window.turnManager.getCurrent()) || 1;
+  if (cur === 1) {
+    aggPad.axes[a] = (hostPad && hostPad.axes && hostPad.axes[a] != null) ? hostPad.axes[a] : ((joinerPad && joinerPad.axes && joinerPad.axes[a] != null) ? joinerPad.axes[a] : (virtualOverrides[0] && virtualOverrides[0].axes[a]) || 0);
+  } else {
+    aggPad.axes[a] = (joinerPad && joinerPad.axes && joinerPad.axes[a] != null) ? joinerPad.axes[a] : ((hostPad && hostPad.axes && hostPad.axes[a] != null) ? hostPad.axes[a] : (virtualOverrides[0] && virtualOverrides[0].axes[a]) || 0);
+  }
+}
+
+
+    // Construct return array
+    const out = [aggPad, hostPad, joinerPad];
+    
+    // Append any extra real gamepads (Index 3+) just in case
+    for (let i = 2; i < realPads.length; i++) {
+      out.push(realPads[i]);
+    }
+    
+    // Ensure array is null-padded if expected (some browsers expect 4 slots)
+    while(out.length < 4) out.push(null);
+
+    return out;
+  }
+
+  // --- 4. Apply Override ---
+  try {
+    Object.defineProperty(navigator, 'getGamepads', {
+      value: mergedGetGamepads,
+      configurable: true
+    });
+  } catch (e) {
+    navigator.getGamepads = mergedGetGamepads;
+  }
+
+  // --- 5. "Always On" Event Injection (The Fix) ---
+  // This tricks the emulator into thinking a gamepad connected immediately.
+  
+  function triggerConnectionEvent() {
+    // Create the pad we want to announce (The Aggregator)
+    const gp = mergedGetGamepads()[0]; 
+    if(!gp) return;
+
+    const eventParams = { gamepad: gp };
+    let ev;
+    try {
+      ev = new GamepadEvent('gamepadconnected', eventParams);
+    } catch (e) {
+      ev = new Event('gamepadconnected');
+      ev.gamepad = gp;
+    }
+    window.dispatchEvent(ev);
+  }
+
+  // Patch addEventListener to fire immediately when the emulator starts listening
+  const origAdd = window.addEventListener;
+  window.addEventListener = function(type, listener, options) {
+    if (type === 'gamepadconnected') {
+      // Execute the real listener
+      origAdd.call(window, type, listener, options);
+      // Immediately fire a fake event to this specific listener
+      setTimeout(triggerConnectionEvent, 50); 
+      return;
+    }
+    return origAdd.call(window, type, listener, options);
+  };
+
+  // Also fire one right now for good measure
+  setTimeout(triggerConnectionEvent, 100);
+  setTimeout(triggerConnectionEvent, 1000); // Safety double-tap
+
+  // --- 6. Expose Helpers for UI/Netplay ---
+  window._setVirtualButtonForPlayer = function(pIdx, bIdx, state) {
+    if(!virtualOverrides[pIdx]) return;
+    virtualOverrides[pIdx].buttons[bIdx].pressed = !!state;
+    virtualOverrides[pIdx].buttons[bIdx].value = state ? 1 : 0;
+  };
+  
+  window._setVirtualAxisForPlayer = function(pIdx, aIdx, val) {
+    if(!virtualOverrides[pIdx]) return;
+    virtualOverrides[pIdx].axes[aIdx] = val;
+  };
+
+  // Keyboard Shim (unchanged logic, just re-integrated)
+  const KEY_TO_PLAYER_BUTTON = {
+    'KeyE': { player: 1, button: 7 }, // Host R2
+    'Digit3': { player: 1, button: 7 },
+    'Numpad3': { player: 1, button: 7 }
+  };
+  const heldKeys = new Set();
+  
+  window.addEventListener('keydown', (e) => {
+    if (heldKeys.has(e.code)) return;
+    const map = KEY_TO_PLAYER_BUTTON[e.code];
+    if (map && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
+      heldKeys.add(e.code);
+      window._setVirtualButtonForPlayer(map.player, map.button, true);
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    const map = KEY_TO_PLAYER_BUTTON[e.code];
+    if (map) {
+      heldKeys.delete(e.code);
+      window._setVirtualButtonForPlayer(map.player, map.button, false);
+    }
+  });
+
+  console.log("✅ Ultimate Gamepad Shim Installed: Aggregator (P0) active.");
+})();
+</script>
+
+    <script>
+	// == virtual gamepad shim ==
+// Put this as early as possible (before emulator init)
+
+/**
+     * VIRTUAL GAMEPAD MERGER (Restored from working version)
+     * This ensures the emulator always sees 2 gamepads.
+     * It allows us to inject inputs (from UI or Network) into the emulator stream.
+     */
+
+    /**
+     * Robust fullscreen helper:
+     * - Locates the real canvas (by id 'canvas' or falls back to first <canvas>)
+     * - Ensures the canvas is a direct child of document.body
+     * - Hides everything else (preserving original display in data attr)
+     * - Applies inline fullscreen CSS (overrides stylesheets)
+     * - Exposes a restore function `restorePageFromFullscreen()`
+     */
+	 // --- Independent upload helpers (offer vs answer) ---
+// Both try a direct PUT to /netplay/<room>/<filename>, then fallback to host API if necessary.
+// They are intentionally separate functions so we can debug/override them independently.
+// --- getBottomHalfStream helper: returns a MediaStream for the bottom half of the canvas ---
+// Try direct canvas.captureStream first; if unavailable, create an offscreen canvas and copy the bottom half repeatedly.
+// Always produce a stream containing only the bottom half of the emulator canvas.
+// Replaces the earlier fallback that returned the entire canvas stream.
+window.getBottomHalfStream = function(fps = 30) {
+  try {
+    const source = document.getElementById('canvas') || document.querySelector('canvas');
+    if (!source) return null;
+
+    // Determine source pixel dimensions (prefer the internal buffer size)
+    const w = source.width || source.offsetWidth || 640;
+    const h = source.height || source.offsetHeight || 480;
+    const bottomH = Math.max(1, Math.floor(h / 2));
+
+    // Create an offscreen canvas sized to the bottom half
+    const off = document.createElement('canvas');
+    off.width = w;
+    off.height = bottomH;
+    const ctx = off.getContext('2d');
+
+    // RAF loop to keep the offscreen canvas updated from the source bottom half
+    let rafId = null;
+    let running = true;
+    const draw = () => {
+      try {
+        // compute sy in source pixel space to copy the bottom half
+        const sy = Math.max(0, (source.height || h) - bottomH);
+        ctx.clearRect(0, 0, off.width, off.height);
+        // drawImage(src, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+        ctx.drawImage(source, 0, sy, w, bottomH, 0, 0, off.width, off.height);
+      } catch (e) {
+        // ignore transient draw errors (canvas not ready, swapped, etc.)
+      }
+      if (running) rafId = requestAnimationFrame(draw);
+    };
+    draw();
+
+    // create MediaStream from the offscreen canvas
+    const stream = (typeof off.captureStream === 'function') ? off.captureStream(fps) : null;
+    if (!stream) {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      console.warn('getBottomHalfStream: offscreen captureStream not supported on this platform');
+      return null;
+    }
+
+    // stop RAF loop when the stream tracks end
+    stream.getTracks().forEach(track => {
+      track.addEventListener('ended', () => {
+        running = false;
+        if (rafId) cancelAnimationFrame(rafId);
+      });
+    });
+
+    return stream;
+  } catch (err) {
+    console.error('getBottomHalfStream error:', err);
+    return null;
+  }
+};
+
+
+async function publishOffer(hostParam, room, payload) {
+  const filename = 'offer.json';
+  return await _publishToNetplay(hostParam, room, filename, payload, 'publishOffer');
+}
+
+async function publishAnswer(hostParam, room, payload) {
+  const filename = 'answer.json';
+  return await _publishToNetplay(hostParam, room, filename, payload, 'publishAnswer');
+}
+
+// Core low-level uploader used by both; keeps common code in one place but still logs per-caller.
+async function _publishToNetplay(hostParam, room, filename, payload, tag = 'uploader') {
+  try {
+    // Resolve host origin: allow hostParam like "localhost:8080" or full "https://host:port"
+    let hostOrigin = hostParam;
+    if (!/^https?:\/\//i.test(hostOrigin)) hostOrigin = `${window.location.protocol}//${hostOrigin}`;
+    hostOrigin = hostOrigin.replace(/\/+$/,''); // strip trailing slash
+
+    const putUrl = `${hostOrigin}/netplay/${encodeURIComponent(room)}/${encodeURIComponent(filename)}`;
+    console.log(`[${tag}] PUT ->`, putUrl);
+    const res = await fetch(putUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      credentials: 'include', // include cookies if server expects them
+      mode: 'cors',           // be explicit
+      cache: 'no-store'
+    });
+    console.log(`[${tag}] PUT status:`, res.status, res.statusText);
+    if (res.ok) return true;
+
+    // If direct PUT failed (non-2xx) log and fall through to API fallback
+    console.warn(`[${tag}] direct PUT failed with status ${res.status}. Falling back to host API.`);
+  } catch (err) {
+    console.warn(`[${tag}] direct PUT threw:`, err);
+    // fall through to fallback
+  }
+
+  // Fallback: POST/PUT form to /api/file/upload?path=/netplay/<room>/
+  try {
+    const fileBlob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    const form = new FormData();
+    form.append('files[]', fileBlob, filename);
+    // Try POST then PUT (some servers prefer one)
+    const apiPath = `/api/file/upload?path=${encodeURIComponent(`/netplay/${room}/`)}`;
+    console.log(`[${tag}] Trying API fallback ->`, apiPath);
+    let r = await fetch(apiPath, { method: 'POST', body: form, credentials: 'include' });
+    if (!r.ok) r = await fetch(apiPath, { method: 'PUT', body: form, credentials: 'include' });
+    console.log(`[${tag}] API fallback status:`, r.status, r.statusText);
+    return r.ok;
+  } catch (err2) {
+    console.error(`[${tag}] API fallback threw:`, err2);
+    return false;
+  }
+}
+
+	 // host: "hostname:port" (no protocol), roomNum: string/number, payload: plain object
+async function publishNetplayFile(host, roomNum, filename, payload) {
+    const jsonStr = JSON.stringify(payload);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    
+    // Use current protocol (https: or https:) to avoid mixed-content errors
+    const protocol = window.location.protocol;
+
+    // Try direct PUT
+    try {
+        const putUrl = `${protocol}//${host}/netplay/${encodeURIComponent(roomNum)}/${filename}`;
+        const res = await fetch(putUrl, { method: 'PUT', body: blob });
+        if (!res.ok) throw new Error('https ' + res.status);
+        console.log(`publishNetplayFile: uploaded ${filename} via PUT`);
+        return true;
+    } catch (err) {
+        // Fallback: /api/file/upload endpoint
+        try {
+            const form = new FormData();
+            form.append('files[]', blob, filename);
+            const apiUrl = `/api/file/upload?path=${encodeURIComponent(`/netplay/${roomNum}/`)}`;
+            const r2 = await fetch(apiUrl, { method: 'PUT', body: form });
+            if (!r2.ok) throw new Error('API upload failed ' + r2.status);
+            console.log(`publishNetplayFile: uploaded ${filename} via API fallback`);
+            return true;
+        } catch (err2) {
+            console.warn(`publishNetplayFile failed for ${filename}:`, err, err2);
+            return false;
+        }
+    }
+}
+// Ensure uploader is globally available to handleSaveWritten
+window.uploadSaveToNetplay = async function(uint8array, romBase, profile, hostParam, room, forcedFilename) {
+    // Normalize host origin
+    const hostOrigin = (hostParam && (hostParam.startsWith('https://') || hostParam.startsWith('https://')))
+        ? hostParam
+        : `${window.location.protocol}//${hostParam}`;
+
+    const fileName = forcedFilename || `${profile}-${romBase}.srm`;
+    const putUrl = `${hostOrigin.replace(/\/+$/,'')}/netplay/${encodeURIComponent(fileName)}`;
+
+    try {
+        const res = await fetch(putUrl, {
+            method: 'PUT',
+            body: new Blob([uint8array]),
+            mode: 'cors',
+            cache: 'no-store'
+        });
+        if (!res.ok) throw new Error('https ' + res.status);
+        log(`⬆️ Uploaded save to ${putUrl}`);
+        return true;
+    } catch (err) {
+        console.warn('uploadSaveToNetplay failed direct PUT:', err);
+
+        // fallback to host API upload if direct PUT fails
+        try {
+            const form = new FormData();
+            form.append('files[]', new Blob([uint8array]), fileName);
+            const apiUrl = `${hostOrigin.replace(/\/+$/,'')}/api/file/upload?path=${encodeURIComponent('/netplay/')}`;
+
+            let r = await fetch(apiUrl, { method: 'POST', body: form, mode: 'cors', cache: 'no-store' });
+            if (!r.ok) r = await fetch(apiUrl, { method: 'PUT', body: form, mode: 'cors', cache: 'no-store' });
+            if (!r.ok) throw new Error('API upload failed ' + r.status);
+
+            log(`⬆️ Uploaded save via host API to ${apiUrl} (filename ${fileName})`);
+            return true;
+        } catch (err2) {
+            log(`Upload failed, falling back to download: ${err2 && err2.message}`);
+            return false;
+        }
+    }
+};
+// Unified save handler used by the emulator callback
+async function handleSaveWritten(path, data) {
+    try {
+        log(`✅ GAME SAVE DETECTED! Path: ${path}`);
+        const cleanData = new Uint8Array(data.length);
+        cleanData.set(data);
+
+        // --- 1. Get identifiers from the save file path ---
+        const fname = (path || '').split('/').pop() || 'save.srm';
+        const romBaseFromPath = fname.replace(/\.srm$/i, ''); // This will be 'game1' or 'game2'
+
+        // --- 2. Get server/room info ---
+        const params = new URLSearchParams(window.location.search);
+        const hostParam = params.get('host') || window.location.host;
+        const room = params.get('room') || '0';
+
+        // --- 3. Determine Player and get correct Profile/ROM names ---
+        const isJoinerSave = /game2/i.test(romBaseFromPath);
+        
+        let finalProfile;
+        let finalRomBase;
+
+        if (isJoinerSave) {
+            finalProfile = (window.latestJoinOffer && window.latestJoinOffer.profile) || 'Joiner';
+            finalRomBase = window.joinerRomBase || romBaseFromPath;
+        } else {
+            finalProfile = localStorage.getItem('activeProfile') || 'Host';
+            finalRomBase = window.activeRomBase || romBaseFromPath;
+        }
+
+        // --- 4. Create filename using desired format ---
+        const uploadFilename = `${finalProfile}-${finalRomBase}.srm`;
+
+        // Notify listeners that upload is starting for this save (optional)
+        try { window.dispatchEvent(new CustomEvent('save:uploadstart', { detail: { filename: uploadFilename, path } })); } catch (e) {}
+
+        // --- 5. Upload current file ---
+        let ok = false;
+        try {
+            ok = await uploadSaveToNetplay(cleanData, romBaseFromPath, finalProfile, hostParam, room, uploadFilename);
+            if (!ok) {
+                // Fallback to local download if upload fails
+                downloadBlob(cleanData, uploadFilename);
+            }
+        } catch (uploadErr) {
+            console.warn('Upload attempt threw:', uploadErr);
+            try { downloadBlob(cleanData, uploadFilename); } catch(e){}
+            ok = false;
+        }
+
+        // Fire a "done" event so the UI (save button) can show success/failure
+        try { window.dispatchEvent(new CustomEvent('save:done', { detail: { filename: uploadFilename, path, success: !!ok } })); } catch (e) {}
+
+        // --- 6. Also attempt to upload the counterpart save (other player) from FS if present ---
+        try {
+            const baseDir = '/home/web_user/retroarch/userdata/saves/mGBA Dual';
+            const counterpart = isJoinerSave ? 'game1.srm' : 'game2.srm';
+            const counterpartPath = baseDir + '/' + counterpart;
+
+            if (typeof emulatorModule !== 'undefined' && emulatorModule && emulatorModule.FS) {
+                try {
+                    const otherData = emulatorModule.FS.readFile(counterpartPath);
+                    if (otherData && otherData.length) {
+                        const otherRomBaseInternal = counterpart.replace(/\.srm$/i, '');
+                        const otherIsJoiner = (counterpart === 'game2.srm');
+                        let counterpartProfile;
+                        let counterpartRomBase;
+
+                        if (otherIsJoiner) {
+                            counterpartProfile = (window.latestJoinOffer && window.latestJoinOffer.profile) || 'Joiner';
+                            counterpartRomBase = window.joinerRomBase || otherRomBaseInternal;
+                        } else {
+                            counterpartProfile = localStorage.getItem('activeProfile') || 'Host';
+                            counterpartRomBase = window.activeRomBase || otherRomBaseInternal;
+                        }
+
+                        const otherUploadName = `${counterpartProfile}-${counterpartRomBase}.srm`;
+                        // Upload the counterpart but don't block the UI on it
+                        uploadSaveToNetplay(otherData, otherRomBaseInternal, counterpartProfile, hostParam, room, otherUploadName)
+                          .catch(e => console.debug('counterpart upload failed (async):', e && e.message));
+                    } else {
+                        log('No counterpart save present in FS at ' + counterpartPath);
+                    }
+                } catch(e) {
+                    console.debug('Counterpart readFile failed (likely not present):', e && e.message);
+                }
+            }
+        } catch(e) {
+            console.warn('Counterpart upload attempt failed:', e && e.message);
+        }
+
+    } catch (err) {
+        console.error('handleSaveWritten error:', err);
+        try { window.dispatchEvent(new CustomEvent('save:done', { detail: { path, success: false } })); } catch (e) {}
+    }
+}
+
+// Robust direct JSON uploader to the host origin (keeps host-specific API fallbacks on same host)
+async function uploadJsonToRemoteHost(hostParam, roomNum, filename, payload) {
+    // Ensure hostParam is an absolute origin (with protocol)
+    const hostOrigin = (hostParam && (hostParam.startsWith('https://') || hostParam.startsWith('https://')))
+        ? hostParam
+        : `${window.location.protocol}//${hostParam}`;
+
+    const jsonStr = JSON.stringify(payload);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+
+    const putUrl = `${hostOrigin.replace(/\/+$/,'')}/netplay/${encodeURIComponent(roomNum)}/${filename}`;
+
+    try {
+        const res = await fetch(putUrl, {
+            method: 'PUT',
+            body: blob,
+            mode: 'cors',
+            cache: 'no-store'
+        });
+        if (!res.ok) throw new Error('https ' + res.status);
+        console.log(`uploadJsonToRemoteHost: PUT ${filename} -> ${putUrl}`);
+        log(`⬆️ Uploaded ${filename} to ${putUrl}`);
+        return true;
+    } catch (err) {
+        console.warn(`PUT to ${putUrl} failed:`, err);
+
+        // Fallback: use host's upload API (POST/PUT form) on the same hostOrigin
+        try {
+            const form = new FormData();
+            form.append('files[]', blob, filename);
+            // Note: many backends expect POST for file upload; try POST first, then PUT
+            const apiUrl = `${hostOrigin.replace(/\/+$/,'')}/api/file/upload?path=${encodeURIComponent(`/netplay/${roomNum}/`)}`;
+            let r = await fetch(apiUrl, { method: 'POST', body: form, mode: 'cors', cache: 'no-store' });
+            if (!r.ok) {
+                // try PUT fallback (some endpoints use PUT)
+                r = await fetch(apiUrl, { method: 'PUT', body: form, mode: 'cors', cache: 'no-store' });
+            }
+            if (!r.ok) throw new Error('API upload failed ' + r.status);
+            console.log(`uploadJsonToRemoteHost: uploaded ${filename} via API fallback to ${apiUrl}`);
+            log(`⬆️ Uploaded ${filename} via host API fallback`);
+            return true;
+        } catch (err2) {
+            console.warn('uploadJsonToRemoteHost fallback failed', err2);
+            log(`❌ Upload failed for ${filename}: ${String(err2)}`);
+            return false;
+        }
+    }
+}
+
+       function fullscreenCanvasOnly() {
+      // find the best candidate canvas: prefer #canvas, otherwise first canvas
+      let canvas = document.getElementById('canvas') || document.querySelector('canvas');
+      if (!canvas) {
+        console.warn("fullscreenCanvasOnly: no canvas element found.");
+        return false;
+      }
+
+      // If there are multiple canvases, prefer the one that looks "active" (largest area)
+      const allCanvases = Array.from(document.querySelectorAll('canvas'));
+      if (allCanvases.length > 1) {
+        canvas = allCanvases.reduce((a, b) => ((b.width * b.height) > (a.width * a.height) ? b : a), allCanvases[0]);
+      }
+
+      // Create (or reuse) a host viewport wrapper that masks to the top half of the screen.
+      let hostViewport = document.getElementById('hostViewport');
+      if (!hostViewport) {
+        hostViewport = document.createElement('div');
+        hostViewport.id = 'hostViewport';
+        Object.assign(hostViewport.style, {
+          position: 'fixed',
+          left: '0',
+          top: '0',
+          width: '100vw',
+          height: '100vh',        // only show the top half to the host
+          overflow: 'hidden',   // mask any content outside top half
+          zIndex: '2147483646',
+          background: '#000'
+        });
+      }
+
+      // Move canvas into hostViewport (preserve pointers to restore later)
+      if (canvas.parentElement !== hostViewport) {
+        canvas._originalParent = canvas.parentElement;
+        canvas._originalNextSibling = canvas.nextSibling;
+        hostViewport.appendChild(canvas);
+        // ensure the hostViewport is a direct child of body
+        if (!hostViewport.parentElement) document.body.appendChild(hostViewport);
+      }
+
+      // Hide every other direct child of body, but remember previous inline display value
+      for (const el of Array.from(document.body.children)) {
+        if (el === hostViewport) continue;
+        if (el.dataset && el.dataset._oldDisplay === undefined) {
+          el.dataset._oldDisplay = el.style.display || '';
+        }
+        // keep hostViewport visible, hide everything else
+        if (el !== hostViewport) el.style.display = 'none';
+      }
+
+      // Style the canvas so it fills horizontally and *provides* both halves for later capture.
+      // Note: we only change CSS sizing (not the canvas internal pixel buffer), so emulator rendering stays intact.
+      Object.assign(canvas.style, {
+        display: 'block',
+        position: 'absolute',
+        left: '0',
+        top: '0',
+        width: '100vw',
+        height: '200vh',         // make canvas CSS height twice viewport so top half maps to visible area
+        margin: '0',
+        padding: '0',
+        border: 'none',
+        zIndex: '2147483647',
+        background: '#000',
+        imageRendering: 'pixelated'
+      });
+
+      // Expose helper to capture the bottom half for future WebRTC streaming.
+      // This is a *helper stub* for the host to create a MediaStream of the bottom half.
+      // It currently captures a single offscreen canvas copy and returns its captureStream();
+      // the WebRTC implementation will call this repeatedly or draw periodically to stream frames.
+  
+
+      // Try to request browser fullscreen on the hostViewport (may require user gesture)
+      const targetFull = hostViewport.requestFullscreen || hostViewport.webkitRequestFullscreen || hostViewport.msRequestFullscreen;
+      try {
+        if (targetFull) targetFull.call(hostViewport).catch(()=>{});
+      } catch(e) { /* ignore */ }
+
+      // Expose restore function
+      window.restorePageFromFullscreen = function() {
+        for (const el of Array.from(document.body.children)) {
+          if (el === hostViewport) continue;
+          if (el.dataset && el.dataset._oldDisplay !== undefined) {
+            el.style.display = el.dataset._oldDisplay;
+            delete el.dataset._oldDisplay;
+          } else {
+            el.style.display = '';
+          }
+        }
+
+        // move canvas back to original parent if we saved it
+        if (canvas._originalParent) {
+          if (canvas._originalNextSibling) canvas._originalParent.insertBefore(canvas, canvas._originalNextSibling);
+          else canvas._originalParent.appendChild(canvas);
+          delete canvas._originalParent;
+          delete canvas._originalNextSibling;
+        }
+
+        // remove hostViewport from DOM
+        const hv = document.getElementById('hostViewport');
+        if (hv && hv.parentElement) hv.parentElement.removeChild(hv);
+
+        // remove inline styles we set on the canvas
+        canvas.style.position = '';
+        canvas.style.left = '';
+        canvas.style.top = '';
+        canvas.style.width = '';
+        canvas.style.height = '';
+        canvas.style.margin = '';
+        canvas.style.padding = '';
+        canvas.style.border = '';
+        canvas.style.zIndex = '';
+        canvas.style.background = '';
+        canvas.style.imageRendering = '';
+
+        // try to exit fullscreen
+        const exitFull = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+        try { if (exitFull) exitFull.call(document).catch(()=>{}); } catch(e){}
+      };
+
+      console.log("fullscreenCanvasOnly: host viewport applied", canvas);
+      return true;
+    }
+
+    </script>
+	<script>
+	(function installThreeTierVirtualGamepads() {
+  const origGet = (navigator.getGamepads && navigator.getGamepads.bind(navigator)) || null;
+
+  // 3 logical players:
+  //  - 0 = Aggregator (what emulator should treat as the single "always-on" gamepad)
+  //  - 1 = Host
+  //  - 2 = Joiner
+  const VCOUNT = 3;
+  const BUTTON_COUNT = 16;
+  const virtualOverrides = Array.from({ length: VCOUNT }, () => ({
+    buttons: Array.from({ length: BUTTON_COUNT }, () => ({ pressed: false, value: 0 })),
+    axes: [0, 0, 0, 0]
+  }));
+
+  function makeMergedTemplate(idLabel, idx) {
+    return {
+      id: idLabel,
+      index: idx,
+      mapping: 'standard',
+      connected: true,
+      timestamp: Date.now(),
+      buttons: Array.from({ length: BUTTON_COUNT }, () => ({ pressed: false, value: 0, touched: false })),
+      axes: [0, 0, 0, 0]
+    };
+  }
+
+  function pickFirstNRealPads(realPads, n) {
+    const out = [];
+    for (let i = 0; i < realPads.length && out.length < n; i++) {
+      const p = realPads[i];
+      if (p && (p.connected || p.timestamp)) out.push(p);
+    }
+    return out;
+  }
+
+  function mergePadState(physPad, virtualOverride, idLabel, index) {
+    const merged = makeMergedTemplate(idLabel, index);
+    for (let i = 0; i < BUTTON_COUNT; i++) {
+      const physBtn = physPad && physPad.buttons && physPad.buttons[i];
+      const physPressed = !!(physBtn && physBtn.pressed);
+      const physValue = physBtn ? (physBtn.value || (physBtn.pressed ? 1 : 0)) : 0;
+      const virtPressed = !!(virtualOverride && virtualOverride.buttons[i] && virtualOverride.buttons[i].pressed);
+      const virtValue = virtualOverride && virtualOverride.buttons[i] ? +(virtualOverride.buttons[i].pressed) : 0;
+      merged.buttons[i].pressed = physPressed || virtPressed;
+      merged.buttons[i].value = physPressed ? physValue : (virtValue || 0);
+      merged.buttons[i].touched = merged.buttons[i].pressed;
+    }
+    if (physPad && physPad.axes && physPad.axes.length) {
+      for (let a = 0; a < merged.axes.length; a++) {
+        merged.axes[a] = physPad.axes[a] != null ? physPad.axes[a] : (virtualOverride.axes[a] || 0);
+      }
+    } else {
+      for (let a = 0; a < merged.axes.length; a++) merged.axes[a] = virtualOverride.axes[a] || 0;
+    }
+    merged.timestamp = Date.now();
+    return merged;
+  }
+
+  // Build an aggregated pad (index 0) by OR-ing host and joiner (plus any explicit aggregator overrides)
+// Build an aggregated pad (index 0) by OR-ing host and joiner (plus any explicit aggregator overrides)
+function makeAggregatedPad(physHost, virtHost, physJoiner, virtJoiner, virtAgg, index) {
+  const agg = makeMergedTemplate('Aggregated (gamepad0)', index);
+
+  // BUTTONS: allow only inputs permitted by turnManager. detect R2 rising-edge to switch turns.
+  for (let i = 0; i < BUTTON_COUNT; i++) {
+    const hBtn = physHost && physHost.buttons && physHost.buttons[i];
+    const jBtn = physJoiner && physJoiner.buttons && physJoiner.buttons[i];
+
+    // physical pressed/value
+    const hostPhysPressed = !!(hBtn && hBtn.pressed);
+    const hostPhysValue = hBtn ? (hBtn.value || (hBtn.pressed ? 1 : 0)) : 0;
+    const joinPhysPressed = !!(jBtn && jBtn.pressed);
+    const joinPhysValue = jBtn ? (jBtn.value || (jBtn.pressed ? 1 : 0)) : 0;
+
+    // virtual pressed/value (UI/network)
+    const hostVirtPressed = !!(virtHost && virtHost.buttons && virtHost.buttons[i] && virtHost.buttons[i].pressed);
+    const hostVirtValue = (virtHost && virtHost.buttons && virtHost.buttons[i]) ? (virtHost.buttons[i].value || (hostVirtPressed ? 1 : 0)) : 0;
+    const joinVirtPressed = !!(virtJoiner && virtJoiner.buttons && virtJoiner.buttons[i] && virtJoiner.buttons[i].pressed);
+    const joinVirtValue = (virtJoiner && virtJoiner.buttons && virtJoiner.buttons[i]) ? (virtJoiner.buttons[i].value || (joinVirtPressed ? 1 : 0)) : 0;
+
+    const aggVirtPressed = !!(virtAgg && virtAgg.buttons && virtAgg.buttons[i] && virtAgg.buttons[i].pressed);
+    const aggVirtValue = (virtAgg && virtAgg.buttons && virtAgg.buttons[i]) ? (virtAgg.buttons[i].value || (aggVirtPressed ? 1 : 0)) : 0;
+
+    // Combined pressed state (physical OR virtual) — needed for edge detection & allow checks
+    const hostCombinedPressed = hostPhysPressed || hostVirtPressed;
+    const joinCombinedPressed = joinPhysPressed || joinVirtPressed;
+
+    // R2 edge-detection: support both common trigger indices (6 & 7) plus axis fallback
+    if ((i === 7 || i === 6) && window.turnManager && window.turnManager.prevPressed) {
+      try {
+        if (hostCombinedPressed && !window.turnManager.prevPressed[1][i]) {
+          console.log('R2 rising edge: host (btn idx)', i);
+          window.turnManager._handleR2Edge(1);
+        }
+        if (joinCombinedPressed && !window.turnManager.prevPressed[2][i]) {
+          console.log('R2 rising edge: joiner (btn idx)', i);
+          window.turnManager._handleR2Edge(2);
+        }
+      } catch (e) { /* ignore */ }
+
+      // update prev states using combined values
+      window.turnManager.prevPressed[1][i] = !!hostCombinedPressed;
+      window.turnManager.prevPressed[2][i] = !!joinCombinedPressed;
+    }
+
+    // Now, check whether host/joiner inputs are allowed (this *must* include virtual presses)
+    const hasTurnMgr = (window.turnManager && typeof window.turnManager.allows === 'function');
+    const hostAllowed = (hostCombinedPressed) ? (hasTurnMgr ? window.turnManager.allows(1, i) : true) : false;
+    const joinAllowed = (joinCombinedPressed) ? (hasTurnMgr ? window.turnManager.allows(2, i) : true) : false;
+
+    // Compose final pressed/value. virtual aggregator overrides (virtAgg) only used when neither participant is allowed.
+    if (hostAllowed) {
+      agg.buttons[i].pressed = true;
+      agg.buttons[i].value = (hostPhysPressed ? hostPhysValue : hostVirtValue) || 1;
+    } else if (joinAllowed) {
+      agg.buttons[i].pressed = true;
+      agg.buttons[i].value = (joinPhysPressed ? joinPhysValue : joinVirtValue) || 1;
+    } else if (aggVirtPressed) {
+      agg.buttons[i].pressed = true;
+      agg.buttons[i].value = aggVirtValue || 1;
+    } else {
+      agg.buttons[i].pressed = false;
+      agg.buttons[i].value = 0;
+    }
+    agg.buttons[i].touched = agg.buttons[i].pressed;
+  }
+
+  // AXES: prefer the active player's axes. If the active player's phys axes are absent,
+  // fallback to that player's virtual overrides, then to aggregator virtual overrides.
+  for (let a = 0; a < agg.axes.length; a++) {
+    const cur = (window.turnManager && typeof window.turnManager.getCurrent === 'function') ? window.turnManager.getCurrent() : 1;
+    let val = 0;
+    if (cur === 1) {
+      if (physHost && physHost.axes && physHost.axes[a] != null) val = physHost.axes[a];
+      else if (virtHost && virtHost.axes && (virtHost.axes[a] != null)) val = virtHost.axes[a];
+      else if (virtAgg && virtAgg.axes && (virtAgg.axes[a] != null)) val = virtAgg.axes[a];
+      else val = 0;
+    } else {
+      if (physJoiner && physJoiner.axes && physJoiner.axes[a] != null) val = physJoiner.axes[a];
+      else if (virtJoiner && virtJoiner.axes && (virtJoiner.axes[a] != null)) val = virtJoiner.axes[a];
+      else if (virtAgg && virtAgg.axes && (virtAgg.axes[a] != null)) val = virtAgg.axes[a];
+      else val = 0;
+    }
+    agg.axes[a] = val;
+  }
+
+  // Axis-based trigger fallback: some controllers expose R2 as an axis.
+  // We'll watch common axis indices (e.g., 2 or 5) — if you find yours use console.log(navigator.getGamepads()) and adjust.
+  // (This code does not change prevPressed array for axes — only button indices are used for edge detection.)
+  agg.timestamp = Date.now();
+  return agg;
+}
+
+  function mergedGet() {
+    const realArr = (origGet ? origGet() : (navigator.getGamepads ? navigator.getGamepads() : [])) || [];
+    const firstTwo = pickFirstNRealPads(realArr, 2);
+    const physHost = firstTwo[0] || null;
+    const physJoiner = firstTwo[1] || null;
+
+    // host and joiner logical pads (index 1 and 2)
+    const hostPad = mergePadState(physHost, virtualOverrides[1], 'Host (merged)', 1);
+    const joinerPad = mergePadState(physJoiner, virtualOverrides[2], 'Joiner (merged)', 2);
+
+    // aggregated pad (index 0)
+    const aggPad = makeAggregatedPad(physHost, virtualOverrides[1], physJoiner, virtualOverrides[2], virtualOverrides[0], 0);
+
+    const out = [];
+    out[0] = aggPad;
+    out[1] = hostPad;
+    out[2] = joinerPad;
+
+    // append remaining real pads that were not used (avoid duplicates)
+    for (let i = 0; i < realArr.length; i++) {
+      const p = realArr[i];
+      if (!p) continue;
+      if (p === physHost || p === physJoiner) continue;
+      try {
+        out.push({
+          id: p.id || ('Gamepad ' + i),
+          index: out.length,
+          mapping: p.mapping || '',
+          connected: !!p.connected,
+          timestamp: p.timestamp || Date.now(),
+          buttons: (p.buttons || []).map(b => ({ pressed: !!(b && b.pressed), value: (b && b.value) || 0, touched: !!(b && b.touched) })),
+          axes: (p.axes || []).slice()
+        });
+      } catch (e) {
+        // skip if reading fails
+      }
+    }
+    return out;
+  }
+
+  // Override navigator.getGamepads
+  try {
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: mergedGet });
+  } catch (err) {
+    try { navigator.getGamepads = mergedGet; } catch (e) { console.warn('virtualGamepad: could not override getGamepads', e); }
+  }
+
+  // Helper: set/clear a virtual override button for a specific player (0=agg,1=host,2=joiner)
+  window._setVirtualButtonForPlayer = function (playerIndex, buttonIndex, pressed) {
+    const p = Number(playerIndex);
+    const b = Number(buttonIndex) || 0;
+    if (!Number.isFinite(p) || p < 0 || p >= VCOUNT) return;
+    if (!virtualOverrides[p].buttons[b]) virtualOverrides[p].buttons[b] = { pressed: false, value: 0 };
+    virtualOverrides[p].buttons[b].pressed = !!pressed;
+    virtualOverrides[p].buttons[b].value = pressed ? 1 : 0;
+    try {
+      const ev = new CustomEvent('virtualgamepadchange', { detail: { player: p, type: 'button', index: b, pressed: !!pressed } });
+      window.dispatchEvent(ev);
+    } catch (e) {}
+  };
+
+  // Helper: set virtual AXIS value (for Analog sticks)
+  window._setVirtualAxisForPlayer = function (playerIndex, axisIndex, value) {
+    const p = Number(playerIndex);
+    const a = Number(axisIndex) || 0;
+    if (!Number.isFinite(p) || p < 0 || p >= VCOUNT) return;
+    if (a < 0 || a >= 4) return;
+    virtualOverrides[p].axes[a] = value;
+    try {
+      const ev = new CustomEvent('virtualgamepadchange', { detail: { player: p, type: 'axis', index: a, value: value } });
+      window.dispatchEvent(ev);
+    } catch (e) {}
+  };
+
+  // Momentary press helper for a player
+  window.virtualGamepadPressForPlayer = function (buttonIndex, playerIndex = 0, duration = 100) {
+    const p = Number(playerIndex) || 0;
+    const b = Number(buttonIndex) || 0;
+    if (p < 0 || p >= VCOUNT) return;
+    window._setVirtualButtonForPlayer(p, b, true);
+    try { window.dispatchEvent(new Event('gamepadconnected')); } catch (e) {}
+    setTimeout(() => {
+      window._setVirtualButtonForPlayer(p, b, false);
+      try { window.dispatchEvent(new Event('gamepaddisconnected')); } catch (e) {}
+    }, duration);
+  };
+
+  // Default keyboard mapping: map keycode -> { player: 1|2, button: N } (local keyboard defaults to Host/player1)
+  const KEY_TO_PLAYER_BUTTON = {
+    'KeyE': { player: 1, button: 7 },
+    'Digit3': { player: 1, button: 7 },
+    'Numpad3': { player: 1, button: 7 },
+  };
+
+  const heldKeys = new Set();
+
+  function isTextInputTarget(target) {
+    if (!target) return false;
+    const tag = (target.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+    if (target.isContentEditable) return true;
+    return false;
+  }
+
+  window.addEventListener('keydown', function (e) {
+    const code = e.code;
+    if (!code) return;
+    const map = KEY_TO_PLAYER_BUTTON[code];
+    if (!map) return;
+    if (isTextInputTarget(e.target)) return;
+    if (heldKeys.has(code)) { e.preventDefault(); return; }
+    heldKeys.add(code);
+    try {
+      window._setVirtualButtonForPlayer(map.player, map.button, true);
+    } catch (err) { try { window.virtualGamepadPressForPlayer(map.button, map.player); } catch (_) {} }
+    e.preventDefault();
+  }, { capture: true });
+
+  window.addEventListener('keyup', function (e) {
+    const code = e.code;
+    if (!code) return;
+    const map = KEY_TO_PLAYER_BUTTON[code];
+    if (!map) return;
+    if (heldKeys.has(code)) heldKeys.delete(code);
+    try { window._setVirtualButtonForPlayer(map.player, map.button, false); } catch (err) {}
+    e.preventDefault();
+  }, { capture: true });
+
+  window.addEventListener('blur', function () {
+    for (const code of Array.from(heldKeys)) {
+      const m = KEY_TO_PLAYER_BUTTON[code];
+      if (m) window._setVirtualButtonForPlayer(m.player, m.button, false);
+    }
+    heldKeys.clear();
+    for (let p = 0; p < VCOUNT; p++) {
+      for (let b = 0; b < BUTTON_COUNT; b++) {
+        if (virtualOverrides[p].buttons[b] && virtualOverrides[p].buttons[b].pressed) {
+          virtualOverrides[p].buttons[b].pressed = false;
+          virtualOverrides[p].buttons[b].value = 0;
+        }
+      }
+    }
+  });
+
+  // Allow runtime remapping from console (accepts players 0..2)
+  window.setVirtualKeyMapping = function (mapObj) {
+    for (const k in KEY_TO_PLAYER_BUTTON) delete KEY_TO_PLAYER_BUTTON[k];
+    for (const k of Object.keys(mapObj)) {
+      const v = mapObj[k];
+      if (typeof v === 'object' && Number.isFinite(v.player) && v.player >=0 && v.player < VCOUNT && Number.isFinite(v.button)) {
+        KEY_TO_PLAYER_BUTTON[k] = { player: Number(v.player), button: Number(v.button) };
+      }
+    }
+    console.debug('Virtual keyboard map updated', KEY_TO_PLAYER_BUTTON);
+  };
+
+  try { console.debug('Three-tier virtual gamepads installed. Agg=0, Host=1, Joiner=2'); } catch (e) {}
+})();
+// ---------- TURN MANAGER (controls which player's inputs are accepted) ----------
+/*
+  Logical player ids:
+    1 = Host (local machine)
+    2 = Joiner (remote)
+*/
+// ---------- TURN MANAGER (controls which player's inputs are accepted) ----------
+/*
+  Logical player ids:
+    1 = Host (local machine)
+    2 = Joiner (remote)
+*/
+if (!window.turnManager) {
+  window.turnManager = (function(){
+    const TM = {
+      current: 1, // host starts active
+      prevPressed: {
+        1: new Array(32).fill(false),
+        2: new Array(32).fill(false)
+      },
+
+      getCurrent() { return this.current; },
+
+      // returns true if player is allowed to have their input passed through
+// returns true if player is allowed to have their input passed through
+allows(player, buttonIndex) {
+  // Always allow R2 so we don't "censor" the trigger from reaching the emulator.
+  // Many controllers use button indices 6 or 7 for triggers; if your controller uses
+  // a different index, add it here.
+  const b = Number(buttonIndex);
+  if (b === 6 || b === 7) return true;
+
+  // Otherwise only allow the currently-active player's inputs.
+  return Number(player) === this.current;
+},
+
+// Called on R2 rising edge by aggregated getter
+// Called on R2 rising edge by aggregated getter
+_handleR2Edge(player) {
+  try {
+    player = Number(player) || 1;
+
+    // --- DEBOUNCE: ignore repeated toggles within 150ms ---
+    const now = Date.now();
+    if (this.lastToggleTs && (now - this.lastToggleTs) < 150) {
+      console.debug('turnManager: ignored rapid R2 (debounce)');
+      return;
+    }
+    this.lastToggleTs = now;
+    // --- end debounce ---
+
+    // Toggle the active player whenever R2 is pressed.
+    const newCurrent = (this.current === 1) ? 2 : 1;
+    this.current = newCurrent;
+    console.log(`🔁 turnManager: R2 pressed by player ${player} -> switched to player ${this.current}`);
+
+    // update overlay UI
+    try { if (typeof window.updateTurnUI === 'function') window.updateTurnUI(this.current); } catch(e){}
+
+    // broadcast to peer via datachannel if available (include who pressed it)
+    try {
+      const dc = (window.npw && window.npw.dc) || window.dataChannel;
+      if (dc && dc.readyState === 'open') {
+        dc.send(JSON.stringify({ type: 'control', subtype: 'turn', current: this.current, by: player, ts: Date.now() }));
+      }
+    } catch (e) { console.debug('turnManager: failed to broadcast turn', e); }
+  } catch (e) { console.warn('turnManager._handleR2Edge error', e); }
+},
+
+
+
+      setCurrent(n) {
+        this.current = Number(n) || this.current;
+        try { if (typeof window.updateTurnUI === 'function') window.updateTurnUI(this.current); } catch(e){}
+      }
+    };
+    return TM;
+  })();
+  // ensure UI reflects initial state
+  try { if (typeof window.updateTurnUI === 'function') window.updateTurnUI(window.turnManager.getCurrent()); } catch(e){}
+}
+
+
+// --- rest of your original code (unchanged, pasted back) ---
+
+let emulatorModule = null;
+let pulseInterval = 5;
+
+function log(msg) {
+    const el = document.getElementById('status');
+    if (el) {
+        el.innerText += "\n" + msg;
+        el.scrollTop = el.scrollHeight;
+    }
+    console.log(msg);
+}
+
+// Manual start flow (user picks ROMs)
+window.startEmulator = async () => {
+    const rom1 = document.getElementById('rom1').files[0];
+    const rom2 = document.getElementById('rom2').files[0];
+    const save1 = document.getElementById('save1').files[0];
+    const save2 = document.getElementById('save2').files[0];
+
+    if (!rom1 || !rom2) { 
+        alert("Please select both ROM files."); 
+        return; 
+    }
+
+    log("Reading files...");
+    const rom1Data = await rom1.arrayBuffer();
+    const rom2Data = await rom2.arrayBuffer();
+    const save1Data = save1 ? await save1.arrayBuffer() : null;
+    const save2Data = save2 ? await save2.arrayBuffer() : null;
+
+    // --- ensure activeRomBase is set (for save uploader) ---
+    try {
+        if (rom1 && typeof rom1.name === 'string' && rom1.name.length) {
+            // use rom1 filename (without extension) as the base name
+            window.activeRomBase = rom1.name.replace(/\.[^.]+$/, '');
+        } else {
+            // fallback default
+            window.activeRomBase = 'game1';
+        }
+        console.log('activeRomBase set to', window.activeRomBase);
+    } catch (e) {
+        console.warn('setting activeRomBase failed, defaulting to game1', e);
+        window.activeRomBase = 'game1';
+    }
+
+    log("Initializing Emulator...");
+
+    emulatorModule = await createEmulator({
+        canvas: document.getElementById('canvas'),
+        locateFile: (path) => path.endsWith('.wasm') ? 'mgba_dual_libretro-C8kJ_TJo.wasm' : path,
+saveWrittenCallback: handleSaveWritten,
+
+        preRun: [(module) => {
+            try {
+                // 2. FIX: Create the deep folder structure the emulator expects
+                const baseDir = '/home/web_user/retroarch/userdata/saves/mGBA Dual';
+
+                function ensureDir(path) {
+                    const parts = path.split('/').filter(p => p);
+                    let current = '';
+                    for (const part of parts) {
+                        current += '/' + part;
+                        try { module.FS.mkdir(current); } catch(e) { /* ignore if exists */ }
+                    }
+                }
+
+                ensureDir(baseDir);
+                log("Created save directory structure.");
+
+                // Load ROMs (These usually stay in root)
+                module.FS.writeFile('/game1.gba', new Uint8Array(rom1Data));
+                module.FS.writeFile('/game2.gba', new Uint8Array(rom2Data));
+                
+                // Load Saves (To the correct deep folder)
+                if (save1Data) {
+                    const path = baseDir + '/game1.srm';
+                    module.FS.writeFile(path, new Uint8Array(save1Data));
+                    log(`Imported Save 1 to ${path}`);
+                }
+                if (save2Data) {
+                    const path = baseDir + '/game2.srm';
+                    module.FS.writeFile(path, new Uint8Array(save2Data));
+                    log(`Imported Save 2 to ${path}`);
+                }
+            } catch(e) {
+                log("FS Setup Error: " + e.message);
+            }
+        }],
+        arguments: [
+            '-v',
+            '--subsystem', 'gba_link_2p',
+            '/game1.gba',
+            '/game2.gba'
+        ]
+    });
+
+    log("Emulator Started.");
+    // wait a tiny tick so the emulator can finalize any internal canvas replacement
+    setTimeout(() => { fullscreenCanvasOnly(); }, 50);
+
+    document.getElementById('btn-pulse').disabled = false;
+    document.getElementById('btn-flush').disabled = false;
+};
+
+window.togglePulse = () => {
+    const btn = document.getElementById('btn-pulse');
+    
+    if (pulseInterval) {
+        clearInterval(pulseInterval);
+        pulseInterval = null;
+        btn.innerText = "Start Auto-Save Pulse";
+        btn.className = "btn btn-pulse-off";
+        log("🛑 Auto-Save Pulse Stopped.");
+    } else {
+        log("🔄 Auto-Save Pulse Started (Checking every 5s)...");
+        btn.innerText = "Stop Auto-Save Pulse";
+        btn.className = "btn btn-pulse-on";
+        
+        manualFlush(); // Run one immediately
+        pulseInterval = setInterval(() => {
+            manualFlush();
+        }, 5000);
+    }
+};
+
+window.manualFlush = () => {
+    if (emulatorModule && emulatorModule._cmd_savefiles) {
+        emulatorModule._cmd_savefiles(); 
+        // Note: If no save has changed in RAM, this won't trigger a download.
+    } else {
+        log("Emulator not ready or save command missing.");
+    }
+};
+</script>
+
+</head>
+<body>
+    <h1>mGBA Dual - Save Manager</h1>
+
+    <div class="controls">
+        <div style="display: flex; gap: 20px; justify-content: center;">
+            <div>
+                <h3>Player 1</h3>
+                <label>ROM: <input type="file" id="rom1" accept=".gba" /></label>
+                <label>Save: <input type="file" id="save1" accept=".srm,sav" /></label>
+            </div>
+            <div style="border-left: 1px solid #444; padding-left: 20px;">
+                <h3>Player 2</h3>
+                <label>ROM: <input type="file" id="rom2" accept=".gba" /></label>
+                <label>Save: <input type="file" id="save2" accept=".srm,sav" /></label>
+            </div>
+        </div>
+        <br>
+        <button class="btn" onclick="startEmulator()" style="font-size: 1.2em; background: #28a745;">Start Link Session</button>
+        <br><br>
+        <button class="btn btn-pulse-off" id="btn-pulse" onclick="togglePulse()" disabled>Start Auto-Save Pulse</button>
+        <button class="btn" onclick="manualFlush()" id="btn-flush" disabled>Force Save Now (Manual)</button>
+        
+        <div id="status" class="status-log">Select files and click Start.</div>
+    </div>
+
+    <canvas id="canvas" tabindex="1"></canvas>
+
+    <script src="coi-serviceworker.js"></script>
+
+  <script type="module">
+  
+    import createEmulator from './mgba_dual_libretro-DCIPVHkY.js';
+
+
+// --- rest of your original code (unchanged, pasted back) ---
+
+let emulatorModule = null;
+let pulseInterval = null;
+
+function log(msg) {
+    const el = document.getElementById('status');
+    if (el) {
+        el.innerText += "\n" + msg;
+        el.scrollTop = el.scrollHeight;
+    }
+    console.log(msg);
+}
+
+// Manual start flow (user picks ROMs)
+window.startEmulator = async () => {
+    const rom1 = document.getElementById('rom1').files[0];
+    const rom2 = document.getElementById('rom2').files[0];
+    const save1 = document.getElementById('save1').files[0];
+    const save2 = document.getElementById('save2').files[0];
+
+    if (!rom1 || !rom2) { 
+        alert("Please select both ROM files."); 
+        return; 
+    }
+
+    log("Reading files...");
+    const rom1Data = await rom1.arrayBuffer();
+    const rom2Data = await rom2.arrayBuffer();
+    const save1Data = save1 ? await save1.arrayBuffer() : null;
+    const save2Data = save2 ? await save2.arrayBuffer() : null;
+
+    // --- ensure activeRomBase is set (for save uploader) ---
+    try {
+        if (rom1 && typeof rom1.name === 'string' && rom1.name.length) {
+            // use rom1 filename (without extension) as the base name
+            window.activeRomBase = rom1.name.replace(/\.[^.]+$/, '');
+        } else {
+            // fallback default
+            window.activeRomBase = 'game1';
+        }
+        console.log('activeRomBase set to', window.activeRomBase);
+    } catch (e) {
+        console.warn('setting activeRomBase failed, defaulting to game1', e);
+        window.activeRomBase = 'game1';
+    }
+
+    log("Initializing Emulator...");
+
+    emulatorModule = await createEmulator({
+        canvas: document.getElementById('canvas'),
+        locateFile: (path) => path.endsWith('.wasm') ? 'mgba_dual_libretro-C8kJ_TJo.wasm' : path,
+        
+        // 1. FIX: Copy data to fix "SharedArrayBuffer" crash
+saveWrittenCallback: handleSaveWritten,
+
+        preRun: [(module) => {
+            try {
+                // 2. FIX: Create the deep folder structure the emulator expects
+                const baseDir = '/home/web_user/retroarch/userdata/saves/mGBA Dual';
+
+                function ensureDir(path) {
+                    const parts = path.split('/').filter(p => p);
+                    let current = '';
+                    for (const part of parts) {
+                        current += '/' + part;
+                        try { module.FS.mkdir(current); } catch(e) { /* ignore if exists */ }
+                    }
+                }
+
+                ensureDir(baseDir);
+                log("Created save directory structure.");
+
+                // Load ROMs (These usually stay in root)
+                module.FS.writeFile('/game1.gba', new Uint8Array(rom1Data));
+                module.FS.writeFile('/game2.gba', new Uint8Array(rom2Data));
+                
+                // Load Saves (To the correct deep folder)
+                if (save1Data) {
+                    const path = baseDir + '/game1.srm';
+                    module.FS.writeFile(path, new Uint8Array(save1Data));
+                    log(`Imported Save 1 to ${path}`);
+                }
+                if (save2Data) {
+                    const path = baseDir + '/game2.srm';
+                    module.FS.writeFile(path, new Uint8Array(save2Data));
+                    log(`Imported Save 2 to ${path}`);
+                }
+            } catch(e) {
+                log("FS Setup Error: " + e.message);
+            }
+        }],
+        arguments: [
+            '-v',
+            '--subsystem', 'gba_link_2p',
+            '/game1.gba',
+            '/game2.gba'
+        ]
+    });
+
+    log("Emulator Started.");
+    // wait a tiny tick so the emulator can finalize any internal canvas replacement
+    setTimeout(() => { fullscreenCanvasOnly(); }, 50);
+
+    document.getElementById('btn-pulse').disabled = false;
+    document.getElementById('btn-flush').disabled = false;
+};
+
+window.togglePulse = () => {
+    const btn = document.getElementById('btn-pulse');
+    
+    if (pulseInterval) {
+        clearInterval(pulseInterval);
+        pulseInterval = null;
+        btn.innerText = "Start Auto-Save Pulse";
+        btn.className = "btn btn-pulse-off";
+        log("🛑 Auto-Save Pulse Stopped.");
+    } else {
+        log("🔄 Auto-Save Pulse Started (Checking every 5s)...");
+        btn.innerText = "Stop Auto-Save Pulse";
+        btn.className = "btn btn-pulse-on";
+        
+        manualFlush(); // Run one immediately
+        pulseInterval = setInterval(() => {
+            manualFlush();
+        }, 5000);
+    }
+};
+
+window.manualFlush = () => {
+    // Fire a start event immediately so UI shows "Saving..."
+    try {
+        window.dispatchEvent(new CustomEvent('save:start', { detail: { time: Date.now() } }));
+    } catch (e) {}
+
+    if (emulatorModule && emulatorModule._cmd_savefiles) {
+        try {
+            // This triggers the emulator's saveWrittenCallback (handleSaveWritten)
+            emulatorModule._cmd_savefiles();
+            // Note: handleSaveWritten will dispatch the final 'save:done' (success or failure)
+        } catch (err) {
+            log("manualFlush invoke failed: " + String(err));
+            try { window.dispatchEvent(new CustomEvent('save:done', { detail: { success: false } })); } catch (e) {}
+        }
+    } else {
+        log("Emulator not ready or save command missing.");
+        try { window.dispatchEvent(new CustomEvent('save:done', { detail: { success: false } })); } catch (e) {}
+    }
+};
+
+
+    // --- Upload save to /netplay helper ---
+// --- Modified: uploadSaveToNetplay (accepts optional forcedFilename) ---
+async function uploadSaveToNetplay(uint8array, romBase, profile, hostParam, room, forcedFilename) {
+    const hostOrigin = (hostParam && (hostParam.startsWith('https://') || hostParam.startsWith('https://')))
+        ? hostParam
+        : `${window.location.protocol}//${hostParam}`;
+
+    const fileName = forcedFilename || `${profile}-${romBase}.srm`;
+    const putUrl = `${hostOrigin.replace(/\/+$/,'')}/netplay/${encodeURIComponent(fileName)}`;
+
+    try {
+        const res = await fetch(putUrl, { method: 'PUT', body: new Blob([uint8array]), mode: 'cors', cache: 'no-store' });
+        if (!res.ok) throw new Error('https ' + res.status);
+        log(`⬆️ Uploaded save to ${putUrl}`);
+        return true;
+    } catch (err) {
+        console.warn('uploadSaveToNetplay failed direct PUT:', err);
+        // fallback to host API
+        try {
+            const form = new FormData();
+            form.append('files[]', new Blob([uint8array]), fileName);
+            const apiUrl = `${hostOrigin.replace(/\/+$/,'')}/api/file/upload?path=${encodeURIComponent('/netplay/')}`;
+            let r = await fetch(apiUrl, { method: 'POST', body: form, mode: 'cors', cache: 'no-store' });
+            if (!r.ok) r = await fetch(apiUrl, { method: 'PUT', body: form, mode: 'cors', cache: 'no-store' });
+            if (!r.ok) throw new Error('API upload failed ' + r.status);
+            log(`⬆️ Uploaded save via host API to ${apiUrl} (filename ${fileName})`);
+            return true;
+        } catch (err2) {
+            log(`Upload failed, falling back to download: ${err2.message}`);
+            return false;
+        }
+    }
+}
+
+
+    function downloadBlob(data, filename) {
+        try {
+            const blob = new Blob([data], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click(); // This might be blocked in auto-pulse mode if tab is backgrounded
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            log("⬇️ Download started for: " + filename);
+        } catch (e) {
+            log("Download Error: " + e.message);
+        }
+    }
+
+    // ----------------------- Auto-start helpers & autoLinkFlow -----------------------
+
+    // Helper: fetch ArrayBuffer, return null on failure
+    async function fetchArrayBuffer(url) {
+        try {
+            const r = await fetch(url, { cache: 'no-store' });
+            if (!r.ok) return null;
+            return await r.arrayBuffer();
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Helper: start emulator from already-loaded ArrayBuffers (rom1/rom2/save1/save2)
+    async function startEmulatorFromBuffers(rom1Data, rom2Data, save1Data, save2Data, romBase) {
+        // --- ensure we have a rom base name when starting from buffers ---
+        try {
+            if (typeof romBase === 'string' && romBase.length) {
+                window.activeRomBase = romBase.replace(/\.[^.]+$/, '');
+            } else if (window.activeRomBase && String(window.activeRomBase).length) {
+                // keep previously-set activeRomBase (e.g., from manual start)
+                window.activeRomBase = String(window.activeRomBase).replace(/\.[^.]+$/, '');
+            } else {
+                window.activeRomBase = 'game1';
+            }
+            console.log('activeRomBase set (buffers) to', window.activeRomBase);
+        } catch (e) {
+            console.warn('setting activeRomBase in startEmulatorFromBuffers failed, defaulting to game1', e);
+            window.activeRomBase = 'game1';
+        }
+
+        log("Initializing Emulator (auto)...");
+        emulatorModule = await createEmulator({
+            canvas: document.getElementById('canvas'),
+            locateFile: (path) => path.endsWith('.wasm') ? 'mgba_dual_libretro-C8kJ_TJo.wasm' : path,
+     saveWrittenCallback: handleSaveWritten,
+
+            preRun: [(module) => {
+                try {
+                    const baseDir = '/home/web_user/retroarch/userdata/saves/mGBA Dual';
+                    function ensureDir(path) {
+                        const parts = path.split('/').filter(p => p);
+                        let current = '';
+                        for (const part of parts) {
+                            current += '/' + part;
+                            try { module.FS.mkdir(current); } catch(e) { /* ignore if exists */ }
+                        }
+                    }
+                    ensureDir(baseDir);
+
+                    // Write ROMs
+                    module.FS.writeFile('/game1.gba', new Uint8Array(rom1Data));
+                    module.FS.writeFile('/game2.gba', new Uint8Array(rom2Data));
+
+                    // Write saves (if present)
+                    if (save1Data) {
+                        const path = baseDir + '/game1.srm';
+                        module.FS.writeFile(path, new Uint8Array(save1Data));
+                        log(`Imported Save 1 to ${path}`);
+                    }
+                    if (save2Data) {
+                        const path = baseDir + '/game2.srm';
+                        module.FS.writeFile(path, new Uint8Array(save2Data));
+                        log(`Imported Save 2 to ${path}`);
+                    }
+                } catch(e) {
+                    log("FS Setup Error: " + e.message);
+                }
+            }],
+            arguments: [
+                '-v',
+                '--subsystem', 'gba_link_2p',
+                '/game1.gba',
+                '/game2.gba'
+            ]
+        });
+
+        log("Emulator Started.");
+        // allow a tiny delay so any internal canvas swap finishes
+        setTimeout(() => { fullscreenCanvasOnly(); }, 50);
+
+        try {
+            document.getElementById('btn-pulse').disabled = false;
+            document.getElementById('btn-flush').disabled = false;
+        } catch (e) {}
+    }
+	/**
+ * Unified Input Handler for Virtual Overlay
+ * @param {string} role - 'host' or 'join'
+ * @param {number} btnIndex - GBA Button Index (0=A, 1=B, 2=Select, 3=Start, 4=Right, 5=Left, 6=Up, 7=Down, 8=R, 9=L)
+ * NOTE: Standard Gamepad API is usually A=0, B=1, Sel=8, St=9, Up=12, Dn=13, L=14, R=15.
+ * We will use STANDARD mappings here and map them to emulator expectations if needed.
+ * Standard: 0:A, 1:B, 8:Select, 9:Start, 12:Up, 13:Down, 14:Left, 15:Right, 7:R2
+ * @param {boolean} pressed - true/false
+ */
+function handleVirtualInput(role, btnIndex, pressed) {
+    // role: 'host' or 'join'
+    // Local logical slots: Host = 1, Joiner = 2
+    const localPlayerIndex = (role === 'host') ? 1 : 2;
+    const value = pressed ? 1 : 0;
+
+    // Apply locally to this page's virtual overrides (so mergedGet will include it)
+    if (typeof window._setVirtualButtonForPlayer === 'function') {
+        window._setVirtualButtonForPlayer(localPlayerIndex, btnIndex, pressed);
+    }
+
+    // If this is the joiner, forward the input to the host via datachannel so host can apply it
+    if (role === 'join' && window.npw && window.npw.dc && window.npw.dc.readyState === 'open') {
+        const payload = { 
+            type: 'gamepad',
+            subtype: 'button',
+            player: 2,           // joiner logical slot
+            index: btnIndex,
+            value: value
+        };
+        try { window.npw.dc.send(JSON.stringify(payload)); } catch (e) { console.warn('dc send failed', e); }
+    }
+}
+
+    /***** Netplay overlay helper (adds top-left + bottom-right UI) *****/
+/***** Netplay overlay helper (adds top-left + bottom-right UI) *****/
+function showNetplayOverlay(role) {
+    try {
+        if (document.getElementById('mgbaNetplayOverlay')) return; 
+
+        // --- Styles for the Buttons ---
+        const style = document.createElement('style');
+        style.innerHTML = `
+    .v-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        border-radius: 50%;
+        pointer-events: auto;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .v-btn:active {
+        background: rgba(255, 255, 255, 0.4);
+        transform: scale(0.95);
+    }
+
+    /* RECTANGULAR (non-round) D-PAD BUTTON STYLE */
+    .v-dpad-btn {
+        background: linear-gradient(180deg, #4da9ff 0%, #2196f3 70%); /* blue pad */
+        border-radius: 8px;           /* small corner radius, not circular */
+        border: 2px solid #0d75c2;
+        box-shadow:
+            0 6px 14px rgba(0,0,0,0.48),
+            inset 0 6px 12px rgba(255,255,255,0.08),
+            inset 0 -6px 12px rgba(0,0,0,0.34);
+        transition: transform 80ms ease, background 120ms ease, box-shadow 120ms ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        pointer-events: auto;
+        position: relative; /* needed for ::after gloss */
+        overflow: visible;
+    }
+
+    .v-dpad-btn:active,
+    .v-dpad-btn.pressed {
+        background: linear-gradient(180deg, #1e88e5 0%, #156dc4 70%);
+        transform: translateY(2px) scale(0.96);
+        box-shadow:
+            0 3px 8px rgba(0,0,0,0.6),
+            inset 0 3px 8px rgba(0,0,0,0.45);
+    }
+
+    /* White arrows (not blue) */
+    .v-dpad-svg {
+        width: 40px;
+        height: 40px;
+        display: block;
+        fill: #ffffff; /* arrows kept white */
+        filter: drop-shadow(0 1px 0 rgba(0,0,0,0.45));
+    }
+
+    /* subtle rectangular gloss/top highlight for non-round look */
+    .v-dpad-btn::after {
+        content: "";
+        position: absolute;
+        left: 8%;
+        top: 6%;
+        width: 84%;
+        height: 38%;
+        border-radius: 6px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.36), rgba(255,255,255,0.06));
+        pointer-events: none;
+    }
+
+    /* center block is square-ish to match non-round style */
+    .v-dpad-center {
+        border-radius: 6px;
+        background: linear-gradient(180deg,#111 0%, #0b0b0b 100%);
+        box-shadow: inset 0 6px 12px rgba(0,0,0,0.7);
+    }
+
+    .v-pill {
+        border-radius: 20px;
+        width: 60px;
+        height: 25px;
+        font-size: 10px;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 1px;
+        font-weight: bold;
+        background: #333;
+        border: 1px solid #666;
+    }
+    .v-pill:active {
+        background: #666;
+    }
+
+    /* Small turn-dot styling (scoped to overlay) */
+    #mgbaNetplayOverlay .turn-dot {
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background: rgba(200,200,200,0.4);
+      box-shadow: 0 0 6px rgba(0,0,0,0.6);
+      margin-left:8px;
+      display:inline-block;
+    }
+    #mgbaNetplayOverlay .turn-dot.active {
+      background: #2ecc71;
+      box-shadow: 0 0 8px rgba(46,204,113,0.9);
+    }
+`;
+        document.head.appendChild(style);
+
+
+
+        // --- Main Container ---
+        const overlay = document.createElement('div');
+        overlay.id = 'mgbaNetplayOverlay';
+        Object.assign(overlay.style, {
+            position: 'fixed', left: '0', top: '0', width: '100vw', height: '100vh',
+            zIndex: '2147483647', pointerEvents: 'none', overflow: 'hidden'
+        });
+
+        // --- 1. TOP LEFT (Menu / Disconnect) ---
+        const tl = document.createElement('div');
+        Object.assign(tl.style, {
+            position: 'fixed', left: '10px', top: '10px', display: 'flex', gap: '10px', alignItems: 'center', pointerEvents: 'auto'
+        });
+
+        const disconnectBtn = document.createElement('button');
+        disconnectBtn.innerText = '❌';
+        Object.assign(disconnectBtn.style, {
+            background: '#c62828', color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 10px', fontSize: '16px', fontWeight: 'bold'
+        });
+        disconnectBtn.onclick = (ev) => {
+            ev.preventDefault();
+            if (confirm("Disconnect session?")) {
+                try { if (window.stopHostWebRTC) window.stopHostWebRTC(); } catch(e){}
+                try { if (window.leaveWebRTC) window.leaveWebRTC(); } catch(e){}
+                history.back();
+            }
+        };
+        tl.appendChild(disconnectBtn);
+        
+ // Profile Icon (rounded-edge square instead of circle)
+const profileLink = document.createElement('div');
+// change borderRadius from '50%' (circle) to a small px value for rounded-square
+Object.assign(profileLink.style, {
+  width: '32px',
+  height: '32px',
+  borderRadius: '8px',       // <-- rounded-corner square
+  background: '#000',
+  border: '2px solid #fff',
+  overflow: 'hidden'
+});
+const img = document.createElement('img');
+img.src = `/Profiles/${localStorage.getItem('activeProfile') || 'Guest'}.jpg`;
+img.style.width = '100%';
+img.style.height = '100%';
+img.style.objectFit = 'cover';
+// ensure the inner img respects the rounded corners on some browsers
+img.style.borderRadius = '8px';
+img.onerror = () => { img.style.display = 'none'; };
+profileLink.appendChild(img);
+
+// Player label: "Player 1" (host) or "Player 2" (joiner) to the right of the active profile icon
+const playerLabel = document.createElement('span');
+Object.assign(playerLabel.style, {
+  color: '#fff',
+  marginLeft: '8px',
+  fontSize: '14px',
+  fontWeight: '600',
+  fontFamily: 'Arial, sans-serif',
+  pointerEvents: 'none',
+  textShadow: '0 0 4px rgba(0,0,0,0.8)',
+  display: 'inline-block',
+  verticalAlign: 'middle',
+});
+
+// small helper that tries common role signals and returns true for host
+function computeIsHost() {
+  try {
+    // 1. Check Explicit Global Override
+    if (typeof window.isHost !== 'undefined') return !!window.isHost;
+    
+    // 2. Check Network Object
+    if (window.npw && (window.npw.isHost || window.npw.role === 'host')) return true;
+    
+    // 3. Check Global Role String
+    if (window.role && (window.role === 'host' || window.role === 'hoster')) return true;
+
+    // 4. FIX: Check URL params directly (Fail-safe)
+    const p = new URLSearchParams(window.location.search);
+    const s = p.get('session');
+    if (s && s.startsWith('host-')) return true;
+    
+  } catch (e) {}
+  return false; // Defaults to Joiner (Player 2)
+}
+function updatePlayerLabel() {
+  playerLabel.textContent = computeIsHost() ? 'Player 1' : 'Player 2';
+}
+updatePlayerLabel();
+
+// <<< TURN DOTS INSERT START >>> 
+// Insert small dots beside the player label so they appear in the top-left overlay with the rest of your UI
+const turnDotContainer = document.createElement('div');
+turnDotContainer.style.display = 'flex';
+turnDotContainer.style.flexDirection = 'column';
+turnDotContainer.style.gap = '6px';
+turnDotContainer.style.marginLeft = '8px';
+turnDotContainer.style.alignItems = 'center';
+
+// Player-1 dot (host)
+const topDot1 = document.createElement('div');
+topDot1.id = 'turnDotP1';
+topDot1.className = 'turn-dot';
+// Player-2 dot (joiner)
+const topDot2 = document.createElement('div');
+topDot2.id = 'turnDotP2';
+topDot2.className = 'turn-dot';
+
+turnDotContainer.appendChild(topDot1);
+turnDotContainer.appendChild(topDot2);
+
+// Expose updateTurnUI (keeps compatibility with rest of code)
+window.updateTurnUI = function(current) {
+  try {
+    const p1 = document.getElementById('turnDotP1');
+    const p2 = document.getElementById('turnDotP2');
+    if (!p1 || !p2) return;
+    p1.classList.toggle('active', Number(current) === 1);
+    p2.classList.toggle('active', Number(current) === 2);
+  } catch(e){}
+};
+// Initialize from turnManager if present
+try {
+  const cur = (window.turnManager && typeof window.turnManager.getCurrent === 'function') ? window.turnManager.getCurrent() : 1;
+  window.updateTurnUI(cur);
+} catch(e){}
+// <<< TURN DOTS INSERT END >>>
+
+// append profile icon + label
+tl.appendChild(profileLink);
+tl.appendChild(playerLabel);
+tl.appendChild(turnDotContainer); // <-- add the dots into the top-left UI
+
+overlay.appendChild(tl);
+
+// --- 2. TOP RIGHT (Save & Extra Actions) ---
+// make the top-right area slightly tighter to the corner
+const tr = document.createElement('div');
+Object.assign(tr.style, {
+    position: 'fixed', right: '8px', top: '8px', display: 'flex', gap: '8px', pointerEvents: 'auto', alignItems: 'flex-start'
+});
+
+// Save button + spinner + label (with visual feedback)
+// Add a small spinner CSS, scoped to avoid global clashes (extended for vertical stacking)
+const spinnerStyleId = 'mgba-save-spinner-style';
+if (!document.getElementById(spinnerStyleId)) {
+  const s = document.createElement('style');
+  s.id = spinnerStyleId;
+  s.innerHTML = `
+    /* Stack save elements vertically and center them */
+    .mgba-save-wrap { display:flex; flex-direction:column; align-items:center; gap:6px; }
+    .mgba-save-btn { background:#28a745; border:none; border-radius:6px; width:40px; height:40px; font-size:20px; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+    .mgba-save-btn.saving { background:#ffb84d; box-shadow:0 0 8px rgba(255,184,77,0.6); }
+    .mgba-save-btn.saved { background:#4caf50; box-shadow:0 0 8px rgba(76,175,80,0.5); }
+    .mgba-save-spinner { width:18px; height:18px; border-radius:50%; border:2px solid rgba(255,255,255,0.25); border-top-color:rgba(255,255,255,0.95); animation:mgba-spin 800ms linear infinite; display:none; }
+    .mgba-save-spinner.visible { display:inline-block; }
+    @keyframes mgba-spin { to { transform: rotate(360deg); } }
+    .mgba-save-label { font-size:12px; color:#fff; opacity:0.95; text-align:center; min-width:0; }
+    /* optional: tighter visual tile */
+    .mgba-save-wrap > .mgba-save-btn { background: rgba(40,167,69,0.95); }
+  `;
+  document.head.appendChild(s);
+}
+
+const saveWrap = document.createElement('div');
+saveWrap.className = 'mgba-save-wrap';
+
+const saveBtn = document.createElement('button');
+saveBtn.className = 'mgba-save-btn';
+saveBtn.innerHTML = '💾';
+saveBtn.title = 'Save (force)';
+
+const spinner = document.createElement('div');
+spinner.className = 'mgba-save-spinner';
+
+const saveLabel = document.createElement('div');
+saveLabel.className = 'mgba-save-label';
+// start with no text when idle (removes the "Idle" text)
+saveLabel.innerText = '';
+
+// Click triggers host save if joiner, or local flush if host
+saveBtn.addEventListener('click', (ev) => {
+  ev.preventDefault();
+  try {
+    // determine host vs joiner (use computeIsHost if available, fallback to window.isHost)
+    const amHost = (typeof computeIsHost === 'function') ? computeIsHost() : !!window.isHost;
+
+    if (amHost) {
+      // Host: do the normal local save
+      if (typeof window.manualFlush === 'function') {
+        window.manualFlush();
+      } else if (window.emulatorModule && window.emulatorModule._cmd_savefiles) {
+        window.emulatorModule._cmd_savefiles();
+      } else {
+        console.warn('Host save requested but no manualFlush/_cmd_savefiles available');
+      }
+      return;
+    }
+
+    // Joiner: ask the host to perform the save via the datachannel helper
+    const dc = (window.npw && window.npw.dc) || window.dataChannel;
+    const sent = (typeof window.requestHostSave === 'function') ? window.requestHostSave(dc) : false;
+
+    if (sent) {
+      // locally show "saving" UI so user sees feedback until host replies with save:done
+      try { window.dispatchEvent(new CustomEvent('save:start', { detail: { requestedBy: localStorage.getItem('activeProfile') || 'joiner' } })); } catch(e){}
+    } else {
+      // no datachannel — show short error text then clear
+      saveLabel.innerText = 'No host';
+      setTimeout(() => { saveLabel.innerText = ''; }, 1400);
+    }
+  } catch (e) {
+    console.warn('saveBtn click handler failed', e);
+  }
+});
+
+// Listen for start/done events to update UI
+const onStart = (ev) => {
+  saveBtn.classList.remove('saved');
+  saveBtn.classList.add('saving');
+  spinner.classList.add('visible');
+  saveLabel.innerText = 'Saving…';
+};
+const onDone = (ev) => {
+  const ok = ev && ev.detail && !!ev.detail.success;
+  spinner.classList.remove('visible');
+  saveBtn.classList.remove('saving');
+  if (ok) {
+    saveBtn.classList.add('saved');
+    saveLabel.innerText = 'Saved ✓';
+    // revert to Idle after 1.2s so user sees the checkmark
+setTimeout(() => {
+  saveBtn.classList.remove('saved');
+  saveLabel.innerText = '';
+}, 1200);
+
+  } else {
+    saveBtn.classList.remove('saved');
+    saveLabel.innerText = 'Save failed';
+    // revert to Idle after a bit
+    setTimeout(() => { saveLabel.innerText = ''; }, 1800);
+  }
+};
+
+window.addEventListener('save:start', onStart);
+window.addEventListener('save:done', onDone);
+
+// build and append (vertical stack: icon -> spinner/status)
+saveWrap.appendChild(saveBtn);
+saveWrap.appendChild(spinner);
+saveWrap.appendChild(saveLabel);
+
+tr.appendChild(saveWrap);
+overlay.appendChild(tr);
+
+// Keep label in-sync if role changes later (lightweight poll)
+let _lastLabel = playerLabel.textContent;
+setInterval(function(){
+  updatePlayerLabel();
+  if (playerLabel.textContent !== _lastLabel) _lastLabel = playerLabel.textContent;
+}, 1000);
+
+// Expose manual updater for instant sync by other logic
+window.updatePlayerLabel = updatePlayerLabel;
+
+// Helper to attach events for virtual input buttons (unchanged)
+const attachBtn = (el, idx) => {
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); handleVirtualInput(role, idx, true); });
+    el.addEventListener('touchend',   (e) => { e.preventDefault(); handleVirtualInput(role, idx, false); });
+    el.addEventListener('mousedown',  (e) => { handleVirtualInput(role, idx, true); });
+    el.addEventListener('mouseup',    (e) => { handleVirtualInput(role, idx, false); });
+};
+
+
+        // ===============================================
+        // LEFT SIDE: D-PAD + START/SELECT
+        // ===============================================
+        const leftZone = document.createElement('div');
+        Object.assign(leftZone.style, {
+            position: 'fixed', bottom: '20px', left: '20px', display: 'flex', flexDirection: 'column', gap: '20px', pointerEvents: 'auto'
+        });
+
+        // -- Select / Start (Row) --
+        const ssRow = document.createElement('div');
+        Object.assign(ssRow.style, { display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '10px' });
+        
+        const selBtn = document.createElement('div');
+        selBtn.className = 'v-btn v-pill'; selBtn.innerText = 'SELECT';
+        attachBtn(selBtn, 8); // 8 = Select
+        ssRow.appendChild(selBtn);
+
+        const startBtn = document.createElement('div');
+        startBtn.className = 'v-btn v-pill'; startBtn.innerText = 'START';
+        attachBtn(startBtn, 9); // 9 = Start
+        ssRow.appendChild(startBtn);
+
+        leftZone.appendChild(ssRow);
+
+        // -- D-Pad (Cross Layout) --
+        const dpadSize = 140; 
+        const dpad = document.createElement('div');
+        Object.assign(dpad.style, {
+            position: 'relative', width: dpadSize + 'px', height: dpadSize + 'px'
+        });
+
+        // D-Pad Buttons (Standard API: Up=12, Down=13, Left=14, Right=15)
+    const mkDpad = (dir, t, l, idx) => {
+    const b = document.createElement('div');
+    b.className = 'v-dpad-btn';
+    Object.assign(b.style, {
+        position: 'absolute',
+        top: t,
+        left: l,
+        width: '33%',
+        height: '33%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        userSelect: 'none'
+    });
+
+    // Thick, white arrow SVGs (sharp shapes) — arrows are white, not blue
+    let svg = "";
+    if (dir === 'up') {
+        svg = `<svg class="v-dpad-svg" viewBox="0 0 24 24" aria-hidden="true">
+                 <path d="M12 3l-8 8h5v10h6V11h5z"/>
+               </svg>`;
+    } else if (dir === 'down') {
+        svg = `<svg class="v-dpad-svg" viewBox="0 0 24 24" aria-hidden="true">
+                 <path d="M12 21l8-8h-5V3h-6v10H4z"/>
+               </svg>`;
+    } else if (dir === 'left') {
+        svg = `<svg class="v-dpad-svg" viewBox="0 0 24 24" aria-hidden="true">
+                 <path d="M3 12l8-8v5h10v6H11v5z"/>
+               </svg>`;
+    } else if (dir === 'right') {
+        svg = `<svg class="v-dpad-svg" viewBox="0 0 24 24" aria-hidden="true">
+                 <path d="M21 12l-8 8v-5H3v-6h10V4z"/>
+               </svg>`;
+    }
+
+    b.innerHTML = svg;
+
+    attachBtn(b, idx);
+
+    // pressed class for JS-driven feedback
+    b.addEventListener('touchstart', () => b.classList.add('pressed'), { passive: true });
+    b.addEventListener('mousedown', () => b.classList.add('pressed'));
+    b.addEventListener('touchend', () => b.classList.remove('pressed'), { passive: true });
+    b.addEventListener('mouseup', () => b.classList.remove('pressed'));
+    b.addEventListener('mouseleave', () => b.classList.remove('pressed'));
+
+    return b;
+};
+
+// D-pad directional buttons (3x3 grid, center left empty for center element)
+dpad.appendChild(mkDpad('up',    '0%',  '33%', 12));   // Up
+dpad.appendChild(mkDpad('left',  '33%', '0%',  14));   // Left
+dpad.appendChild(mkDpad('right', '33%', '66%', 15));   // Right
+dpad.appendChild(mkDpad('down',  '66%', '33%', 13));   // Down
+
+// Center block (square-ish)
+const center = document.createElement('div');
+Object.assign(center.style, { position: 'absolute', top: '33%', left: '33%', width: '34%', height: '34%' });
+center.className = 'v-dpad-center';
+dpad.appendChild(center);
+
+
+        leftZone.appendChild(dpad);
+        overlay.appendChild(leftZone);
+
+
+        // ===============================================
+        // RIGHT SIDE: ACTIONS + MACROS
+        // ===============================================
+        const rightZone = document.createElement('div');
+        Object.assign(rightZone.style, {
+            position: 'fixed', bottom: '30px', right: '20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '30px', pointerEvents: 'auto'
+        });
+
+        // -- TIER 1: Extra Buttons (Shrunk & Pushed Up) --
+        // Previous R2 and "Top Action". We'll map them to L/R triggers (4, 5) or R2 (7).
+        const extraRow = document.createElement('div');
+        Object.assign(extraRow.style, { display: 'flex', gap: '15px' });
+
+        const btnExtra1 = document.createElement('div'); // Top/Blue one
+        Object.assign(btnExtra1.style, { width: '50px', height: '50px', borderRadius: '50%', background: '#000', border: '2px solid #8be9ff' });
+        attachBtn(btnExtra1, 4); // Map to L Trigger?
+        extraRow.appendChild(btnExtra1);
+
+        const btnExtra2 = document.createElement('div'); // Bottom/Purple one (R2)
+        Object.assign(btnExtra2.style, { width: '50px', height: '50px', borderRadius: '50%', background: '#000', border: '2px solid #c36bd6' });
+        attachBtn(btnExtra2, 7); // Map to R2 (7) as per original code
+        extraRow.appendChild(btnExtra2);
+
+        rightZone.appendChild(extraRow);
+
+        // -- TIER 2: A and B Buttons --
+        // Container for A/B with angle
+        const abContainer = document.createElement('div');
+        Object.assign(abContainer.style, { position: 'relative', width: '160px', height: '140px' });
+
+        // B Button (Left and Down)
+        const btnB = document.createElement('div');
+        btnB.className = 'v-btn';
+        btnB.innerText = 'B';
+        Object.assign(btnB.style, {
+            position: 'absolute', bottom: '10px', left: '10px', 
+            width: '60px', height: '60px', 
+            background: 'rgba(200, 50, 50, 0.4)', color: '#fff', fontSize: '20px',
+            display: 'flex', justifyContent: 'center', alignItems: 'center'
+        });
+        attachBtn(btnB, 0); // 0 = B
+        abContainer.appendChild(btnB);
+
+        // A Button (Right and Up)
+        const btnA = document.createElement('div');
+        btnA.className = 'v-btn';
+        btnA.innerText = 'A';
+        Object.assign(btnA.style, {
+            position: 'absolute', top: '20px', right: '10px', 
+            width: '65px', height: '65px', 
+            background: 'rgba(50, 200, 50, 0.4)', color: '#fff', fontSize: '24px',
+            display: 'flex', justifyContent: 'center', alignItems: 'center'
+        });
+        attachBtn(btnA, 1); // 1 = A
+        abContainer.appendChild(btnA);
+
+        rightZone.appendChild(abContainer);
+        overlay.appendChild(rightZone);
+
+        document.body.appendChild(overlay);
+
+    } catch (err) {
+        console.warn('showNetplayOverlay error', err);
+    }
+}
+
+    // Helper to remove overlay (useful from other cleanup paths)
+    function removeNetplayOverlay() {
+      try { const el = document.getElementById('mgbaNetplayOverlay'); if (el) el.remove(); } catch(e){}
+    }
+
+    // --- Auto-flow: read session param and, if present, run host/join flow ---
+    (async function autoLinkFlow() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const session = params.get('session'); // e.g. "host-pokemonfirered-0"
+            const romParam = params.get('rom');    // e.g. "pokemonfirered.gba"
+            const hostParam = params.get('host') || `${location.hostname}${location.port ? ':'+location.port : ''}`;
+
+            if (!session) {
+                log("No session param detected — manual mode active.");
+                return;
+            }
+
+            // Parse session: first '-' separates role, last '-' separates room
+            // Format: role-romBase-room (e.g., host-pokemonfirered-0)
+            const firstHy = session.indexOf('-');
+            const lastHy = session.lastIndexOf('-');
+            if (firstHy === -1 || lastHy === -1 || firstHy === lastHy) {
+                log("Malformed session tag; falling back to manual UI.");
+                return;
+            }
+   const role = session.slice(0, firstHy);           // 'host' or 'join'
+// --- FIX START: Expose role globally so the UI knows who is Player 1/2 ---
+window.role = role;
+window.isHost = (role === 'host');
+// --- FIX END ---
+const romBase = session.slice(firstHy+1, lastHy); // 'pokemonfirered'
+            const room  = session.slice(lastHy+1);            // '0'
+
+            log(`Auto session detected -> Role: ${role} | Base: ${romBase} | Room: ${room}`);
+
+            // Define protocol and base URL once for the entire flow (FIXES redeclaration error)
+            const protocol = window.location.protocol;
+            const baseNetplayUrl = `${protocol}//${hostParam}/netplay/${encodeURIComponent(room)}/`;
+
+            // --- JOINER FLOW ---
+            if (role === 'join') {
+                log("Joiner mode: Initiating WebRTC connection...");
+
+                // 1. Setup WebRTC
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+                });
+
+               pc.ontrack = (event) => {
+    log("🎥 Host stream received! Starting video...");
+    const video = document.createElement('video');
+    video.srcObject = event.streams[0];
+    video.autoplay = true;
+    video.playsInline = true;
+    video.controls = false; 
+    video.muted = false; // Start unmuted (browser might block)
+    Object.assign(video.style, {
+        position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+        background: '#000', zIndex: '999999', objectFit: 'fill'
+    });
+    document.body.appendChild(video);
+
+    // Click-to-play fix for audio policies
+    const enableAudio = () => { video.play().catch(()=>{}); };
+    document.body.addEventListener('click', enableAudio, {once:true});
+    document.body.addEventListener('touchstart', enableAudio, {once:true});
+
+    // Show overlay for the joiner role now that we have an active stream
+    try { showNetplayOverlay('join'); } catch(e){ console.warn('show overlay join failed', e); }
+};
+
+
+// Create controls datachannel and Broadcast Inputs
+                try {
+                  const dc = pc.createDataChannel("controls");
+                  dc.onopen = () => {
+                    log("✅ Controls datachannel (joiner) OPEN");
+                    window.npw = window.npw || {};
+                    window.npw.dc = dc;
+
+                    // --- BROADCAST JOINER INPUTS TO HOST ---
+                    // This polls the local gamepad (Gamepad 0) and sends events to Host (Player 2)
+              // --- BROADCAST JOINER INPUTS TO HOST ---
+                    (function startJoinerInputBroadcaster() {
+                        const prevButtons = Array(17).fill(false); // 0-16
+                        const prevAxes = Array(4).fill(0);         // 0-3 (Left/Right sticks)
+                        
+                        const loop = () => {
+                             if (dc.readyState !== 'open') return; 
+
+                             // 1. Get the first REAL physical gamepad (not our virtual merged ones)
+                             const allPads = navigator.getGamepads ? navigator.getGamepads() : [];
+                             let physPad = null;
+                             for(let i=0; i<allPads.length; i++) {
+                                 const p = allPads[i];
+                                 // Ignore the Shim's merged pads to avoid feedback loops
+                                 if(p && p.connected && p.id.indexOf('(merged)') === -1) {
+                                     physPad = p;
+                                     break;
+                                 }
+                             }
+
+                             if (physPad) {
+                                 // A. Check Buttons
+                                 physPad.buttons.forEach((btn, idx) => {
+                                     if (idx >= 16) return; // Standard limit
+                                     if (btn.pressed !== prevButtons[idx]) {
+                                         prevButtons[idx] = btn.pressed;
+                                         // Send to Host: Joiner is Player 1 (Index 1)
+                                         // Send to Host: Joiner is Player 2 (Index 2)
+const msg = { type: 'gamepad', subtype: 'button', player: 2, index: idx, value: btn.pressed ? 1 : 0 };
+dc.send(JSON.stringify(msg));
+
+                                     }
+                                 });
+
+                                 // B. Check Axes (Analog Sticks)
+                                 physPad.axes.forEach((val, idx) => {
+                                     if (idx >= 4) return; 
+                                     // Only send if changed significantly (deadzone filter recommended but raw is okay for now)
+                                     const diff = Math.abs(val - prevAxes[idx]);
+                                     if (diff > 0.01) { // 1% threshold to reduce bandwidth spam
+                                         prevAxes[idx] = val;
+                                         const msg = { type: 'gamepad', subtype: 'axis', player: 1, index: idx, value: val };
+                                         dc.send(JSON.stringify(msg));
+                                     }
+                                 });
+                             }
+                             requestAnimationFrame(loop);
+                        };
+                        loop();
+                        log("🎮 Joiner input broadcaster started (Buttons + Axes).");
+                    })();
+                  };
+                  dc.onclose = () => { log("⛔ Controls datachannel (joiner) CLOSED"); if (window.npw) window.npw.dc = null; };
+                } catch (e) { console.warn("Failed to create controls datachannel (joiner):", e); }
+// Required for 'offer' creation
+// Host: attach canvas video stream
+try {
+    let stream = window.getBottomHalfStream ? window.getBottomHalfStream(30) : null;
+    if (stream) {
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        log("📡 Host: added canvas stream tracks to WebRTC.");
+    } else {
+        log("⚠️ Host: no video stream (getBottomHalfStream returned null).");
+    }
+} catch(err) {
+    console.error("Host stream attach error", err);
+}
+
+                // 3. Create Offer
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                log("Gathering candidates...");
+                await new Promise(resolve => {
+                    if (pc.iceGatheringState === 'complete') resolve();
+                    else {
+                        const check = () => pc.iceGatheringState === 'complete' && (pc.removeEventListener('icegatheringstatechange', check), resolve());
+                        pc.addEventListener('icegatheringstatechange', check);
+                        setTimeout(resolve, 2000);
+                    }
+                });
+
+                // 5. Upload Offer JSON (ROM info + WebRTC SDP)
+     // --- JOINER: include active profile in the offer payload ---
+const offerPayload = {
+    rom: romParam || (romBase + '.gba'),
+    romBase: romBase,
+    type: 'offer',
+    sdp: pc.localDescription.sdp,
+    profile: localStorage.getItem('activeProfile') || 'Guest', // <-- NEW
+    timestamp: Date.now()
+};
+
+
+                log("Uploading Offer (handshake) using robust helper...");
+                // NOW USING THE SAME PUBLISH FUNCTION AS THE HOST
+                const upOk = await publishOffer(hostParam, room, offerPayload);
+
+
+                if (!upOk) {
+                    log("❌ FATAL: Failed to upload offer.json. Check server permissions or host name.");
+                    return; // Stop the flow if the upload failed
+                }
+
+                // 6. Poll for Answer.json
+                log("Waiting for Host Answer...");
+                const answerUrl = `${window.location.protocol}//${hostParam}/netplay/${encodeURIComponent(room)}/answer.json`;
+                let answerData = null;
+                const pollStart = Date.now();
+
+                while (Date.now() - pollStart < 60000) {
+                    try {
+                        const r = await fetch(answerUrl + `?ts=${Date.now()}`);
+                        if (r.ok) {
+                            const data = await r.json();
+                            if (data && data.type === 'answer') {
+                                answerData = data;
+                                break;
+                            }
+                        }
+                    } catch (e) {}
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+
+                if (!answerData) {
+                    log("❌ Timed out waiting for answer.json.");
+                    return;
+                }
+
+                log("✅ Answer received! Connecting...");
+                await pc.setRemoteDescription(answerData);
+				// --- Clear answer.json and offer.json to reset the room ---
+// --- Clear answer.json and offer.json to reset the room ---
+try {
+  const clearedAnswer = await publishNetplayFile(hostParam, room, 'answer.json', {});
+  const clearedOffer  = await publishNetplayFile(hostParam, room, 'offer.json', {});
+
+  if (clearedAnswer && clearedOffer) {
+    log("✅ Cleared answer.json and offer.json on server (uploaded {}).");
+  } else {
+    log("⚠️ Partial cleanup: answer=" + clearedAnswer + " offer=" + clearedOffer);
+  }
+} catch (err) {
+  log("❌ Cleanup error while clearing offer/answer: " + String(err));
+}
+
+
+// --- Clear the remote answer.json so the room is ready for the next handshake ---
+try {
+  // Try the dedicated helper first (handles PUT + API fallback)
+  const cleared = (typeof publishAnswer === 'function')
+    ? await publishAnswer(hostParam, room, {})
+    : await publishNetplayFile(hostParam, room, 'answer.json', {});
+
+  if (cleared) {
+    log("✅ Cleared answer.json on server (uploaded {}).");
+  } else {
+    log("⚠️ Clearing answer.json failed (server rejected).");
+    // Optional: try a final fallback attempt and log result
+    try {
+      const fallback = await publishNetplayFile(hostParam, room, 'answer.json', {});
+      log(fallback ? "✅ Fallback cleared answer.json." : "❌ Fallback also failed to clear answer.json.");
+    } catch (fbErr) {
+      log("❌ Fallback error while clearing answer.json: " + String(fbErr));
+    }
+  }
+} catch (err) {
+  log("❌ Error while attempting to clear answer.json: " + String(err));
+}
+
+                // Optional: Clean up answer.json
+                publishNetplayFile(hostParam, room, 'answer.json', {}); 
+                return;
+            }
+
+            // --- HOST FLOW ---
+            
+            // 1. Upload Offer (So joiners know what to look for)
+            async function uploadOffer(roomNum, romName, baseName) {
+                const offerData = { rom: romName, romBase: baseName, timestamp: Date.now() };
+                const jsonStr = JSON.stringify(offerData);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                
+                try {
+                    const putUrl = `https://${hostParam}/netplay/${encodeURIComponent(roomNum)}/offer.json`;
+                    await fetch(putUrl, { method: 'PUT', body: blob });
+                    log("Offer uploaded successfully.");
+                } catch (e) {
+                    try {
+                        const form = new FormData();
+                        form.append('files[]', blob, 'offer.json');
+                        await fetch(`/api/file/upload?path=${encodeURIComponent(`/netplay/${roomNum}/`)}`, { method: 'PUT', body: form });
+                        log("Offer uploaded via API.");
+                    } catch (err) {
+                        log("Warning: Could not upload offer.json. Joiners might not detect room details automatically.");
+                    }
+                }
+            }
+
+            const romFileName = romParam || `${romBase}.gba`;
+
+            // SKIP uploadOffer: do NOT write offer.json from mgba_dual.
+            log("Skipping upload of offer.json to avoid overwriting joiner data.");
+
+            // 2. Fetch Host ROM
+            const romUrl = `https://${hostParam}/emulator/roms/${encodeURIComponent(romFileName)}?t=${Date.now()}`;
+            log(`Fetching Host ROM from: ${romUrl}`);
+            const romBuf = await fetchArrayBuffer(romUrl);
+            if (!romBuf) { 
+                log("Failed to fetch ROM — aborting. Check file existence."); 
+                return; 
+            }
+            log("Host ROM fetched.");
+
+            // 3. Fetch Host Save (Immediate)
+            const hostSaveName = `host-${romBase}-${room}.srm`;
+            const hostSaveUrl = baseNetplayUrl + encodeURIComponent(hostSaveName);
+            log(`Fetching Host Save: ${hostSaveName}`);
+            
+            let hostSaveBuf = await fetchArrayBuffer(hostSaveUrl);
+            if (!hostSaveBuf) {
+                log("Warning: Host save not found immediately. Retrying once...");
+                await new Promise(r => setTimeout(r, 1000));
+                hostSaveBuf = await fetchArrayBuffer(hostSaveUrl);
+            }
+            
+            if (!hostSaveBuf) {
+                log("Host save not found. Starting with clean save for Player 1.");
+            } else {
+                log("Host save acquired.");
+            }
+
+            // 4. Poll for Joiner Offer (offer.json)
+            // We explicitly look for an offer with 'sdp' to ensure we can reply with an answer.
+            log("Looking for Joiner offer (offer.json) with WebRTC data...");
+
+            async function fetchJsonNoCache(url) {
+                try {
+                    const r = await fetch(url, { cache: 'no-store' });
+                    if (!r.ok) return null;
+                    return await r.json();
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            let joinOffer = null;
+            const offerMaxAttempts = 12; // 60 seconds total
+            const offerIntervalMs = 5000;
+            // The protocol and baseNetplayUrl are now defined globally in autoLinkFlow
+
+            for (let i = 1; i <= offerMaxAttempts; i++) {
+                log(`Checking for valid offer.json (Attempt ${i}/${offerMaxAttempts})...`);
+                const offerUrl = baseNetplayUrl + 'offer.json' + `?ts=${Date.now()}`;
+                
+                const candidate = await fetchJsonNoCache(offerUrl);
+                
+                // STRICT CHECK: Only accept if it has ROM info AND WebRTC SDP
+              // STRICT CHECK: Only accept if it has ROM info AND WebRTC SDP
+if (candidate && candidate.type === 'offer' && candidate.sdp) {
+    joinOffer = candidate;
+
+    // --- NEW: store joiner info globally so save handler/host can access it ---
+    window.latestJoinOffer = joinOffer;
+    window.joinerProfile = joinOffer.profile || ('Joiner' + Math.floor(Math.random() * 1000));
+    window.joinerRomBase = joinOffer.romBase || null;
+    console.log('Stored joiner profile/name:', window.joinerProfile, 'romBase:', window.joinerRomBase);
+
+    log("✅ Valid WebRTC Offer found:", JSON.stringify(joinOffer).substring(0, 100) + "...");
+    break;
+} else if (candidate) {
+    console.log("Ignored invalid/stale offer (missing sdp or type):", candidate);
+}
+
+                
+                if (i < offerMaxAttempts) await new Promise(r => setTimeout(r, offerIntervalMs));
+            }
+
+            // If we didn't find a WebRTC offer, we cannot act as a Host for Netplay
+            if (!joinOffer) {
+                log("❌ No valid WebRTC offer found. Starting in offline/local mode.");
+                // We proceed anyway (local play), but won't be able to stream
+            }
+
+            // Handle Save Files (Same as before)
+            let joinRomName = null;
+            let joinRomBase = null;
+            let rom2Buf = null;
+
+            if (joinOffer) {
+                joinRomName = joinOffer.rom || (joinOffer.romBase ? `${joinOffer.romBase}.gba` : null);
+                joinRomBase = joinOffer.romBase || (joinRomName ? joinRomName.replace(/\.gba$/i,'') : null);
+
+                if (joinRomName) {
+                    const joinRomUrl = `${protocol}//${hostParam}/emulator/roms/${encodeURIComponent(joinRomName)}?t=${Date.now()}`;
+                    log(`Fetching Joiner ROM: ${joinRomUrl}`);
+                    rom2Buf = await fetchArrayBuffer(joinRomUrl);
+                    if (!rom2Buf) {
+                        log(`Warning: Could not fetch joiner ROM. Falling back to host ROM.`);
+                        rom2Buf = null;
+                    }
+                }
+            }
+
+            if (!rom2Buf) {
+                rom2Buf = romBuf;
+                if (!joinRomBase) joinRomBase = romBase;
+            }
+
+            const joinSaveName = `join-${joinRomBase || romBase}-${room}.srm`;
+            let joinSaveBuf = null;
+            if (joinOffer) {
+                 log(`Looking for Joiner Save: ${joinSaveName}`);
+                 const saveUrl = baseNetplayUrl + encodeURIComponent(joinSaveName) + `?ts=${Date.now()}`;
+                 joinSaveBuf = await fetchArrayBuffer(saveUrl);
+                 if (joinSaveBuf) log("✅ Joiner save found.");
+                 else log("⚠️ Joiner save not found (using empty).");
+            }
+
+            // 5. Start Dual Emulator
+            log("Starting Link Cable Session...");
+            await startEmulatorFromBuffers(romBuf, rom2Buf, hostSaveBuf, joinSaveBuf, romBase);
+
+            // --- HOST WEBRTC HANDSHAKE ---
+            // Because we strictly checked for 'sdp' during polling, if joinOffer exists, we proceed.
+       // --- HOST WEBRTC HANDSHAKE (replacement block) ---
+// --- HOST WEBRTC HANDSHAKE (CORRECTED) ---
+if (joinOffer && joinOffer.sdp) {
+    log("📡 Generating WebRTC Answer...");
+    try {
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
+
+pc.ondatachannel = (ev) => {
+    try {
+        const dc = ev.channel;
+        window.npw = window.npw || {};
+        window.npw.dc = dc;
+        dc.onopen = () => { log("✅ Controls DC opened (Host Side)"); };
+        dc.onmessage = (evt) => {
+            try {
+                const msg = (typeof evt.data === 'string') ? JSON.parse(evt.data) : evt.data;
+                
+                if (msg && msg.type === 'gamepad') {
+                    const p = Number(msg.player); // Should be 1 for Joiner
+                    const val = msg.value;
+                    const idx = Number(msg.index || msg.buttonIndex || 0);
+
+                    if (msg.subtype === 'axis') {
+                        // Handle Analog Stick
+                        if (typeof window._setVirtualAxisForPlayer === 'function') {
+                            window._setVirtualAxisForPlayer(p, idx, val);
+                        }
+                    } else {
+                        // Handle Button (Default)
+                        const pressed = !!val;
+                        if (typeof window._setVirtualButtonForPlayer === 'function') {
+                            window._setVirtualButtonForPlayer(p, idx, pressed);
+                        }
+                    }
+                }
+            } catch (err) { /* ignore parse errors */ }
+        };
+    } catch (err) { console.warn('pc.ondatachannel handler failed', err); }
+};
+        // 1. Add Stream (Bottom Half or Full Fallback)
+        let stream = null;
+        try {
+            stream = window.getBottomHalfStream ? window.getBottomHalfStream(30) : null;
+            if (stream) {
+                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+                log("🖼️ Added canvas stream tracks to PeerConnection.");
+            } else {
+                log("⚠️ getBottomHalfStream returned null — no video tracks added.");
+            }
+        } catch (e) {
+            console.warn("Failed to add canvas stream tracks:", e);
+        }
+
+        // 2. Set Remote Description (The Offer)
+        await pc.setRemoteDescription({ type: 'offer', sdp: joinOffer.sdp });
+
+        // 3. Create and Set Local Answer
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        // 4. Wait for ICE Candidates (Essential for connectivity)
+        log("Gathering Host ICE candidates.");
+        await new Promise(resolve => {
+            if (pc.iceGatheringState === 'complete') return resolve();
+            const onState = () => {
+                if (pc.iceGatheringState === 'complete') {
+                    pc.removeEventListener('icegatheringstatechange', onState);
+                    resolve();
+                }
+            };
+            pc.addEventListener('icegatheringstatechange', onState);
+            setTimeout(() => {
+                pc.removeEventListener('icegatheringstatechange', onState);
+                resolve();
+            }, 3000);
+        });
+
+        // 5. Build Answer Payload
+        const answerPayload = { 
+            type: 'answer', 
+            sdp: pc.localDescription.sdp, 
+            timestamp: Date.now() 
+        };
+
+        // 6. Upload Answer.json
+        log(`Uploading answer.json to ${hostParam}/${room}...`);
+        let uploaded = false;
+        if (typeof publishAnswer === 'function') {
+            uploaded = await publishAnswer(hostParam, room, answerPayload);
+        } else {
+            uploaded = await publishNetplayFile(hostParam, room, 'answer.json', answerPayload);
+        }
+
+        if (uploaded) {
+            log("✅ Answer uploaded successfully.");
+
+            // Show the overlay for host now that the handshake succeeded
+            try { showNetplayOverlay('host'); } catch(e) { console.warn('show overlay host failed', e); }
+
+            // 7. OVERWRITE offer.json (Cleanup)
+            // This prevents the host from reading the same offer again and confirms handshake.
+            log("🧹 Overwriting offer.json to clear handshake...");
+            const cleanupPayload = {
+                type: 'status',
+                status: 'linked',
+                message: 'Host has responded',
+                timestamp: Date.now()
+            };
+            
+            if (typeof publishOffer === 'function') {
+                await publishOffer(hostParam, room, cleanupPayload);
+            } else {
+                await publishNetplayFile(hostParam, room, 'offer.json', cleanupPayload);
+            }
+            log("✅ Offer overwritten.");
+
+        } else {
+            log("❌ Failed to upload answer.json.");
+        }
+
+    } catch (rtcErr) {
+        log("WebRTC Error: " + (rtcErr && rtcErr.message ? rtcErr.message : String(rtcErr)));
+        console.error(rtcErr);
+    
+    }
+}
+
+        } catch (err) {
+            log("Auto-link flow error: " + String(err));
+            console.error(err);
+        }
+    })();
+
+</script>
+
+<script>
+(function(){
+  // Joiner: request host to save (helper)
+  window.requestHostSave = function(dc) {
+    dc = dc || (window.npw && window.npw.dc) || window.dataChannel;
+    if (!dc || dc.readyState !== 'open') {
+      console.warn('requestHostSave: no open datachannel');
+      return false;
+    }
+    const payload = {
+      type: 'gamepad',
+      subtype: 'save-request',
+      requester: localStorage.getItem('activeProfile') || 'joiner',
+      ts: Date.now()
+    };
+    try { dc.send(JSON.stringify(payload)); return true; } catch (e) { console.warn('requestHostSave send failed', e); return false; }
+  };
+
+  // Attach a wrapper to the datachannel to handle incoming save-request and save-result messages
+  function attachDCHandler(dc) {
+    if (!dc || dc._saveRequestPatched) return;
+    const orig = dc.onmessage;
+    dc.onmessage = function(ev) {
+      let msg = null;
+      try { msg = (typeof ev.data === 'string') ? JSON.parse(ev.data) : ev.data; } catch(e){}
+if (msg && typeof msg === 'object') {
+  // Joiner -> Host: save request
+  if (msg.type === 'gamepad' && msg.subtype === 'save-request') {
+    try { window.dispatchEvent(new CustomEvent('save:start', { detail: { requestedBy: msg.requester } })); } catch(e){}
+    if (typeof window.manualFlush === 'function') {
+      try { window.manualFlush(); } catch(e){ console.warn('manualFlush failed from save-request', e); }
+    } else if (window.emulatorModule && window.emulatorModule._cmd_savefiles) {
+      try { window.emulatorModule._cmd_savefiles(); } catch(e){ console.warn('emulator save invoke failed', e); }
+    }
+    return;
+  }
+
+  // Host -> Joiner: save result
+  if (msg.type === 'control' && msg.subtype === 'save-result') {
+    try { window.dispatchEvent(new CustomEvent('save:done', { detail: { success: !!msg.success, filename: msg.filename, path: msg.path } })); } catch(e){}
+    return;
+  }
+
+  // Control message: turn update (broadcast by the other peer via turnManager)
+// Control message: turn update (peer requested a turn change)
+if (msg.type === 'control' && msg.subtype === 'turn') {
+  const newCur = Number(msg.current) || 1;
+  console.log('DC: received turn update ->', newCur);
+  if (window.turnManager && typeof window.turnManager.setCurrent === 'function') {
+    window.turnManager.setCurrent(newCur);
+  } else {
+    try { window.updateTurnUI && window.updateTurnUI(newCur); } catch(e){}
+  }
+  return;
+}
+
+}
+
+      // fallback to original handler
+      if (typeof orig === 'function') {
+        try { orig.call(this, ev); } catch(err) { console.warn('wrapped onmessage original failed', err); }
+      }
+    };
+    dc._saveRequestPatched = true;
+  }
+
+  // Try immediate attach to known dc references; otherwise poll until available
+  try { if (window.npw && window.npw.dc) attachDCHandler(window.npw.dc); } catch(e){}
+  try { if (window.dataChannel) attachDCHandler(window.dataChannel); } catch(e){}
+  let iv = setInterval(() => {
+    try {
+      if (window.npw && window.npw.dc) { attachDCHandler(window.npw.dc); clearInterval(iv); iv = null; return; }
+      if (window.dataChannel) { attachDCHandler(window.dataChannel); clearInterval(iv); iv = null; return; }
+    } catch(e){}
+  }, 250);
+
+  // When host completes a save (save:done), broadcast result to joiner(s)
+  window.addEventListener('save:done', function(ev) {
+    try {
+      const amHost = !!window.isHost || !!(window.npw && window.npw.isHost);
+      if (!amHost) return; // only hosts broadcast results
+      const dc = (window.npw && window.npw.dc) || window.dataChannel;
+      if (!dc || dc.readyState !== 'open') return;
+      const d = (ev && ev.detail) || {};
+      const payload = {
+        type: 'control',
+        subtype: 'save-result',
+        success: !!d.success,
+        filename: d.filename || null,
+        path: d.path || null,
+        ts: Date.now()
+      };
+      try { dc.send(JSON.stringify(payload)); } catch(e){ console.warn('broadcast save-result failed', e); }
+    } catch(e){ console.warn('save:done broadcast handler error', e); }
+  });
+
+})();
+</script>
+
+</body>
+</html>
