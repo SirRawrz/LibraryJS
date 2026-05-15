@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LibraryJS Setup</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #0f172a;
+        color: #e5e7eb;
+      }
+      .wrap {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 32px 18px 40px;
+      }
+      .card {
+        background: rgba(15, 23, 42, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      }
+      h1 { margin: 0 0 10px; font-size: 30px; }
+      p { margin: 0 0 18px; color: #cbd5e1; line-height: 1.5; }
+      .row { margin-bottom: 16px; }
+      label { display: block; font-weight: 700; margin-bottom: 6px; }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: #111827;
+        color: #f8fafc;
+        font-size: 15px;
+      }
+      .hint { font-size: 13px; color: #94a3b8; margin-top: 6px; }
+      .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+      button {
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        background: #2563eb;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.secondary { background: #334155; }
+      .status { margin-top: 14px; min-height: 22px; color: #cbd5e1; }
+      .status.ok { color: #86efac; }
+      .status.err { color: #fca5a5; }
+      .small { font-size: 12px; color: #94a3b8; margin-top: 8px; }
+    </style>
+    <script defer src="./setup.js"></script>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="card">
+        <h1>Connection setup</h1>
+        <p>Enter the storage server and proxy server you want the extension to use. These values are saved and used for the next pages the extension opens.</p>
+
+        <div class="row">
+          <label for="musicStorageUrl">Music library storage URL</label>
+          <input id="musicStorageUrl" placeholder="http://192.168.254.16:8077/" />
+          <div class="hint">Use the full http or https URL, including the port.</div>
+        </div>
+
+        <div class="row">
+          <label for="musicProxyUrl">Music proxy URL</label>
+          <input id="musicProxyUrl" placeholder="http://192.168.254.16:8086/" />
+          <div class="hint">Use the proxy host with http or https.</div>
+        </div>
+
+        <div class="row">
+          <label for="musicProxyPort">Music proxy port</label>
+          <input id="musicProxyPort" inputmode="numeric" placeholder="auto" />
+        </div>
+
+        <div class="actions">
+          <button id="saveBtn">Save settings</button>
+        </div>
+
+        <div id="status" class="status">Waiting for values…</div>
+        <div class="small">After saving, click the extension again to open the normal page with these settings.</div>
+      </section>
+    </main>
+  </body>
+</html>

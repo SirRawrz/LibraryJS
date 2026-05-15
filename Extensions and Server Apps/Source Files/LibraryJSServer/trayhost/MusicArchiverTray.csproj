@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>LibraryJSServer</AssemblyName>
+    <RootNamespace>LibraryJSServerTrayHost</RootNamespace>
+    <StartupObject>MusicArchiverTrayHost.Program</StartupObject>
+    <ApplicationIcon>MusicArchiver.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="MusicArchiver.ico" LogicalName="MusicArchiver.ico" />
+    <EmbeddedResource Include="payload\**\*.*">
+      <LogicalName>%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

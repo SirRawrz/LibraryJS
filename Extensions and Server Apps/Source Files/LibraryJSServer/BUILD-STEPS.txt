@@ -1,0 +1,17 @@
+# Building the self-contained EXE
+
+1. Open PowerShell in this folder on Windows.
+2. Run `powershell -ExecutionPolicy Bypass -File .\trayhost\build-sea.ps1`.
+3. Start `dist\LibraryJSServer.exe`.
+
+The app opens a small GUI first so you can choose one or more folder roots and assign a port to each one.
+
+At least one enabled location with a folder root and port is enough to start. Multiple enabled locations will each launch on their own port.
+
+The tray icon uses the same LibraryJS Server icon as the extension, and minimizing sends the app to the system tray.
+
+The build uses the local Node installation to bundle the server and the .NET SDK to publish a single Windows tray executable.
+
+
+Optional debug logging is off by default. Enable it with `--log` or `LIBRARYJS_ENABLE_LOGGING=1` when you need request traces. The log file is written to `%TEMP%\LibraryJSServer-<port>.log`.
+The `dist` folder is disposable and is recreated every time you run the build script.

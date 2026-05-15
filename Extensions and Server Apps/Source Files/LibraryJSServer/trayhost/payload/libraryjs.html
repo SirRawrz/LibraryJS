@@ -1,0 +1,1938 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Music Library Manager</title>
+<style>
+  :root {
+    --bg: #0c1018;
+    --panel: #121826;
+    --panel2: #0f1521;
+    --line: rgba(255,255,255,.08);
+    --text: #ecf2ff;
+    --muted: #95a2bd;
+    --good: #7ee0c4;
+    --warn: #ffb36b;
+    --danger: #ff7f8b;
+    --radius: 20px;
+    --shadow: 0 20px 50px rgba(0,0,0,.28);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: radial-gradient(circle at top, rgba(126,224,196,.09), transparent 32%), var(--bg);
+    color: var(--text);
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 18px 16px 8px;
+  }
+  h1 { margin: 0; font-size: 24px; }
+  .pill {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: minmax(320px, 380px) minmax(460px, 1fr) minmax(340px, 460px);
+    gap: 16px;
+    padding: 16px;
+    align-items: start;
+  }
+  .panel {
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .head {
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    background: rgba(255,255,255,.02);
+  }
+  .head h2 { margin: 0; font-size: 17px; }
+  .head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .body { padding: 16px 18px 18px; }
+  .field { margin-bottom: 12px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  input[type="text"], input[type="url"], select, textarea {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font: inherit;
+    outline: none;
+  }
+  textarea { min-height: 180px; resize: vertical; line-height: 1.45; }
+  button {
+    border: 0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, rgba(126,224,196,1), rgba(82,192,160,1));
+    color: #07110e;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button.secondary { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid var(--line); }
+  button.warn { background: rgba(255,179,107,.15); color: #ffd2a2; border: 1px solid rgba(255,179,107,.2); }
+  button.danger { background: rgba(255,127,139,.12); color: #ffb8c0; border: 1px solid rgba(255,127,139,.18); }
+  button:active { transform: translateY(1px); }
+  button:active { transform: translateY(1px); }
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 8, 16, .72);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 1000;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal-card {
+    width: min(1120px, 100%);
+    max-height: min(90vh, 980px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(17,23,35,.98), rgba(10,14,22,.98));
+    box-shadow: var(--shadow);
+  }
+  .modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .modal-title { font-size: 18px; font-weight: 800; }
+  .modal-sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  #exportModalText {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 55vh;
+    resize: none;
+    background: #08101b;
+    border-color: rgba(255,255,255,.12);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .modal-actions { justify-content: flex-end; }
+  .modal-close { white-space: nowrap; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row.space { justify-content: space-between; align-items: center; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mini { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .danger-text { color: var(--danger); }
+  .section-title {
+    margin: 20px 0 10px;
+    font-size: 13px;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    color: #c3cbe0;
+  }
+  .box {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.03);
+    border-radius: 16px;
+    padding: 12px;
+  }
+  .preview-box { margin-bottom: 12px; }
+  .tile-preview {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 10px;
+  }
+  .artwork-frame {
+    width: 150px;
+    aspect-ratio: 1 / 1;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.05);
+    flex: 0 0 auto;
+  }
+  .artwork-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .tile-meta h3 { margin: 0 0 6px; font-size: 16px; }
+  .tile-meta .meta { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .status {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .status.good { color: var(--good); }
+  .status.warn { color: var(--warn); }
+  .status.bad { color: var(--danger); }
+  .library-tools {
+    display: grid;
+    grid-template-columns: 1fr 140px 120px;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .library-list {
+    display: grid;
+    gap: 10px;
+    max-height: 66vh;
+    overflow: auto;
+    padding-right: 4px;
+  }
+  .song-card {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    border: 1px solid var(--line);
+    background: rgba(8,12,18,.5);
+    border-radius: 16px;
+    padding: 10px;
+  }
+  .song-card img {
+    width: 70px;
+    height: 70px;
+    border-radius: 14px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.04);
+  }
+  .song-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .song-sub { font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .chipbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .chip {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .code-output {
+    min-height: 320px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+  .footer-note { margin-top: 12px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .hidden { display: none !important; }
+  .flow-only { display: none; }
+  .flow-mode .flow-only { display: block; }
+  .flow-dropgrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .dropzone {
+    position: relative;
+    border: 1.5px dashed rgba(255,255,255,.14);
+    background: rgba(255,255,255,.03);
+    border-radius: 18px;
+    padding: 18px 16px;
+    min-height: 118px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: .15s ease;
+  }
+  .dropzone:hover,
+  .dropzone.dragover {
+    border-color: rgba(126,224,196,.65);
+    background: rgba(126,224,196,.08);
+    transform: translateY(-1px);
+  }
+  .dropzone input[type="file"] { display: none; }
+  .dropzone .dz-name { font-size: 14px; font-weight: 800; color: var(--text); }
+  .dropzone .dz-meta { font-size: 12px; line-height: 1.35; color: var(--muted); }
+  body.flow-mode .app {
+    grid-template-columns: minmax(0, 860px);
+    justify-content: center;
+    padding-top: 8px;
+  }
+  body.flow-mode .app > section:nth-child(2) {
+    display: none;
+  }
+  body.flow-mode .panel {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  body.flow-extension:not(.flow-ready) header,
+  body.flow-extension:not(.flow-ready) .app {
+    display: none;
+  }
+  body.flow-managed .flow-progress-overlay {
+    display: none !important;
+  }
+  body.flow-mode .body {
+    padding: 14px;
+  }
+  body.flow-mode .flow-dropgrid {
+    grid-template-columns: 1fr;
+  }
+  body.flow-mode .tile-preview {
+    grid-template-columns: 118px minmax(0, 1fr);
+    align-items: center;
+  }
+  body.flow-mode .artwork-frame {
+    width: 118px;
+  }
+  body.flow-mode .library-tools,
+  body.flow-mode .library-list,
+  body.flow-mode .code-output,
+  body.flow-mode .section-title {
+    display: none;
+  }
+  body.flow-mode .field,
+  body.flow-mode .grid2,
+  body.flow-mode .row,
+  body.flow-mode .preview-box {
+    margin-bottom: 10px;
+  }
+  body.flow-mode .row > button {
+    flex: 1 1 0;
+  }
+
+  .flow-progress-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(4, 8, 16, .76);
+    backdrop-filter: blur(8px);
+    z-index: 1100;
+  }
+  .flow-progress-overlay.show { display: flex; }
+  .flow-progress-card {
+    width: min(640px, 100%);
+    padding: 18px 18px 16px;
+    border-radius: 22px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(17,23,35,.98), rgba(10,14,22,.98));
+    box-shadow: var(--shadow);
+  }
+  .flow-progress-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .flow-progress-detail { color: var(--muted); font-size: 12px; line-height: 1.45; margin-bottom: 14px; }
+  .flow-progress-overlay progress {
+    width: 100%;
+    height: 16px;
+    appearance: none;
+    border: 0;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .flow-progress-overlay progress::-webkit-progress-bar { background: rgba(255,255,255,.08); border-radius: 999px; }
+  .flow-progress-overlay progress::-webkit-progress-value { background: linear-gradient(90deg, rgba(126,224,196,1), rgba(79,171,255,1)); border-radius: 999px; }
+  .flow-progress-overlay progress::-moz-progress-bar { background: linear-gradient(90deg, rgba(126,224,196,1), rgba(79,171,255,1)); border-radius: 999px; }
+  .flow-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  body.flow-loading .app { filter: blur(1.25px) saturate(.8); pointer-events: none; user-select: none; }
+
+  @media (max-width: 1180px) {
+    .app { grid-template-columns: 1fr; }
+    .library-list { max-height: none; }
+    body.flow-mode .app { padding: 12px; }
+    body.flow-mode .panel { max-width: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div></div>
+  <div class="pill" id="libraryCountPill">Loading library…</div>
+</header>
+
+
+<div class="flow-progress-overlay" id="flowProgressOverlay" aria-live="polite" aria-hidden="true">
+  <div class="flow-progress-card" role="status" aria-label="LibraryJS transfer progress">
+    <div class="flow-progress-title" id="flowProgressTitle">Waiting for handoff…</div>
+    <div class="flow-progress-detail" id="flowProgressDetail">The extension is preparing the downloaded file.</div>
+    <progress id="flowProgressBar" max="100" value="0"></progress>
+    <div class="flow-progress-meta">
+      <span id="flowProgressPercent">0%</span>
+      <span id="flowProgressStage">Idle</span>
+    </div>
+  </div>
+</div>
+
+<main class="app">
+  <section class="panel">
+    <div class="head">
+      <h2>Add songs</h2>
+    </div>
+    <div class="body">
+      <div class="flow-only">
+        <div class="flow-dropgrid">
+          <label class="dropzone" id="audioDropzone" for="audioFileInput">
+            <input id="audioFileInput" type="file" accept="audio/*,video/mp4,video/*" multiple />
+            <span class="dz-name">Drop audio</span>
+            <span class="dz-meta">Or click to choose .mp3, .m4a, .wav, .flac, .mp4, and other audio/video files.</span>
+          </label>
+          <label class="dropzone" id="artistDropzone" for="artistImageInput">
+            <input id="artistImageInput" type="file" accept="image/*" />
+            <span class="dz-name">Drop artist image</span>
+            <span class="dz-meta">Or click to choose a .jpg, .png, .webp, or .gif file.</span>
+          </label>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="flowUseAudioBtn" class="secondary" type="button">Fill from audio artist/title</button>
+          <button id="flowUseImageBtn" class="secondary" type="button">Use image name as artist</button>
+          <button id="flowClearFilesBtn" class="warn" type="button">Clear dropped files</button>
+        </div>
+        <div class="status" id="flowDropStatus">Drop an audio file or an mp4 video to start.</div>
+      </div>
+
+      <div class="field" id="incomingPortField">
+        <label for="incomingPort">Extension handoff port</label>
+        <input id="incomingPort" type="text" value="" placeholder="" />
+      </div>
+
+      <div class="field">
+        <label for="songTitle">Song title</label>
+        <input id="songTitle" type="text" placeholder="Example: Stressed Out" />
+      </div>
+      <div class="field">
+        <label for="songArtist">Artist</label>
+        <input id="songArtist" type="text" list="artistNameSuggestions" autocomplete="off" placeholder="Example: Twenty One Pilots" />
+        <datalist id="artistNameSuggestions"></datalist>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="genreCode">Genre code</label>
+          <select id="genreCode"></select>
+        </div>
+        <div class="field">
+          <label for="customCode">Custom code</label>
+          <input id="customCode" type="text" maxlength="4" placeholder="Optional" />
+        </div>
+      </div>
+      <div class="row">
+        <button id="addSongBtn" type="button">Add song</button>
+        <button id="addAndNextBtn" class="secondary" type="button">Add and clear</button>
+      </div>
+
+      <div class="section-title">Preview</div>
+      <div class="box preview-box">
+        <div class="tile-preview">
+          <div class="artwork-frame">
+            <img id="artistPreviewImg" alt="Artist preview" />
+          </div>
+          <div class="tile-meta">
+            <h3 id="previewLabel">Nothing selected yet</h3>
+            <div class="meta" id="previewMeta">Type a song title and artist to preview the library entry and the artist image lookup.</div>
+            <div class="chipbar" id="previewChips"></div>
+          </div>
+        </div>
+        <div class="status" id="artistImageStatus">Artist image lookup will appear here.</div>
+      </div>
+
+      <div class="section-title">Bulk import</div>
+      <div class="field">
+        <label for="bulkText">Paste entries or a copied libraryjsrary.js block</label>
+        <textarea id="bulkText" placeholder="One entry per line, or paste quoted entries from libraryjsrary.js. Examples:
+Stressed Out - Twenty One Pilots$A
+\"Feel Good Inc. - Gorillaz$A\"
+"></textarea>
+      </div>
+      <div class="row">
+        <button id="importBulkBtn" class="secondary" type="button">Import lines</button>
+        <button id="clearBulkBtn" class="secondary" type="button">Clear</button>
+      </div>
+      <div class="status" id="addStatus"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="head">
+      <h2>Current songs</h2>
+      <p>Search, sort, and remove entries before exporting the updated file. Each card shows the artist image if one exists in <code>/Music/Images/</code>.</p>
+    </div>
+    <div class="body">
+      <div class="library-tools">
+        <input id="searchInput" type="text" placeholder="Search title, artist, or code" />
+        <select id="sortSelect">
+          <option value="title">Sort by title</option>
+          <option value="artist">Sort by artist</option>
+          <option value="code">Sort by genre code</option>
+        </select>
+        <button id="refreshBtn" class="secondary" type="button">Refresh</button>
+      </div>
+      <div class="library-list" id="libraryList"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="head">
+      <h2>Export libraryjsrary.js</h2>
+      <p>The generator preserves the genre map and writes a clean library block with helper functions at the end.</p>
+    </div>
+    <div class="body">
+      <div class="row">
+        <button id="updatedLibraryJSraryBtn" type="button">Update on server</button>
+        <button id="downloadBtn" class="secondary" type="button">Download file</button>
+        <button id="resetBtn" class="warn" type="button">Reset to loaded file</button>
+      </div>
+      <div class="section-title">Generated file</div>
+      <textarea id="outputText" class="code-output" spellcheck="false"></textarea>
+      <div class="footer-note" id="outputStatus">Ready.</div>
+    </div>
+  </section>
+</main>
+
+<div class="modal-backdrop" id="exportModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="exportModalTitle">Updated libraryjsrary.js</div>
+        <div class="modal-sub">The file below will try to copy to your clipboard when this opens.</div>
+      </div>
+      <button type="button" class="secondary modal-close" id="closeExportModalBtn">Close</button>
+    </div>
+    <textarea id="exportModalText" spellcheck="false"></textarea>
+    <div class="row modal-actions">
+      <button type="button" id="copyExportModalBtn">Copy again</button>
+      <button type="button" class="secondary" id="selectExportModalBtn">Select all</button>
+    </div>
+  </div>
+</div>
+
+<script src="./libraryjsrary.js"></script>
+<script>
+(() => {
+  const DEFAULT_IMAGE = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#1d2638"/>
+          <stop offset="100%" stop-color="#0b1020"/>
+        </linearGradient>
+      </defs>
+      <rect width="300" height="300" rx="28" fill="url(#g)"/>
+      <circle cx="150" cy="118" r="42" fill="#7ee0c4" opacity="0.95"/>
+      <path d="M116 176c17-18 51-18 68 0" fill="none" stroke="#7ee0c4" stroke-width="10" stroke-linecap="round"/>
+      <text x="150" y="244" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#95a2bd">No Image</text>
+    </svg>
+  `);
+
+  const GENRE_MAP = (window.libraryJsraryGenreMap && typeof window.libraryJsraryGenreMap === 'object')
+    ? window.libraryJsraryGenreMap
+    : {
+        "9": "90s Alternative",
+        "A": "Alternative",
+        "M": "Animated Music",
+        "+": "Indie Kaleidoscope",
+        "R": "Rock",
+        "P": "Pop",
+        "U": "Punk",
+        "H": "Hip-HopandRap",
+        "E": "ElectronicandDance",
+        "B": "RandBandSoul",
+        "C": "Country",
+      };
+
+  const CODE_BY_NAME = Object.fromEntries(Object.entries(GENRE_MAP).map(([code, name]) => [String(name), String(code)]));
+  const state = {
+    entries: Array.isArray(window.libraryJsrary) ? window.libraryJsrary.slice() : [],
+    imageCache: new Map(),
+    filteredView: [],
+    ffmpeg: {
+      instance: null,
+      loading: null
+    }
+  };
+
+  const flowParams = new URLSearchParams(window.location.search || '');
+  const EXTENSION_FLOW_MODE = flowParams.has('flow');
+  const MANAGED_FLOW_MODE = flowParams.has('mflow');
+  const FLOW_MODE = EXTENSION_FLOW_MODE || MANAGED_FLOW_MODE;
+  document.body.classList.toggle('flow-mode', FLOW_MODE);
+  document.body.classList.toggle('flow-extension', EXTENSION_FLOW_MODE && !MANAGED_FLOW_MODE);
+  document.body.classList.toggle('flow-managed', MANAGED_FLOW_MODE);
+  if (FLOW_MODE) {
+    document.title = 'Music Library Manager — Flow';
+  }
+
+  const flowState = {
+    audioFile: null,
+    imageFile: null,
+    imageUrl: '',
+    audioUrl: '',
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const flowProgress = {
+    overlay: $("flowProgressOverlay"),
+    title: $("flowProgressTitle"),
+    detail: $("flowProgressDetail"),
+    bar: $("flowProgressBar"),
+    percent: $("flowProgressPercent"),
+    stage: $("flowProgressStage")
+  };
+
+  const serverState = {
+    baseUrl: null,
+    loading: null
+  };
+
+  function isLoopbackHostname(hostname) {
+    const host = String(hostname || '').toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.localhost');
+  }
+
+  async function redirectToServerIpIfNeeded() {
+    try {
+      const currentUrl = new URL(window.location.href);
+      if (!isLoopbackHostname(currentUrl.hostname)) return false;
+
+      const res = await fetch('/serverip.txt', { cache: 'no-store' });
+      if (!res.ok) return false;
+      const raw = (await res.text()).trim();
+      if (!raw) return false;
+
+      const normalized = /^https?:\/\//i.test(raw) ? raw : `http://${raw.replace(/^\/+/, '')}`;
+      const serverUrl = new URL(normalized);
+      const serverHost = serverUrl.hostname;
+      const serverPort = serverUrl.port || currentUrl.port;
+      const next = new URL(currentUrl.href);
+      next.protocol = serverUrl.protocol;
+      next.host = serverPort ? `${serverHost}:${serverPort}` : serverHost;
+
+      if (next.href !== currentUrl.href) {
+        window.location.replace(next.href);
+        return true;
+      }
+    } catch (err) {
+      // stay on the current origin if the IP file is unavailable
+    }
+    return false;
+  }
+
+  async function getServerBaseUrl() {
+    if (serverState.baseUrl) return serverState.baseUrl;
+    if (serverState.loading) return serverState.loading;
+
+    serverState.loading = (async () => {
+      const fallback = window.location.origin || new URL('.', window.location.href).origin;
+      try {
+        const res = await fetch('/serverip.txt', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const raw = (await res.text()).trim();
+        if (!raw) return fallback;
+        const normalized = /^https?:\/\//i.test(raw) ? raw : `http://${raw.replace(/^\/+/, '')}`;
+        return new URL(normalized).origin;
+      } catch (err) {
+        return fallback;
+      }
+    })();
+
+    serverState.baseUrl = await serverState.loading;
+    return serverState.baseUrl;
+  }
+
+  function extractPortFromUrl(input) {
+    const raw = String(input || '').trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw.includes('://') ? raw : `http://${raw}`);
+      return url.port || (url.protocol === 'https:' ? '443' : '80');
+    } catch {
+      return '';
+    }
+  }
+
+  async function resolveAssetUrl(assetPath) {
+    const base = await getServerBaseUrl();
+    const cleanPath = String(assetPath || '').replace(/^\.\/?/, '');
+    return new URL(cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`, base).href;
+  }
+
+  function setFlowStatus(message, kind = '') {
+    const el = $('flowDropStatus');
+    if (!el) return;
+    el.className = `status ${kind}`.trim();
+    el.innerHTML = message;
+  }
+
+
+  function setPreviewImage(src, alt = 'Artist preview') {
+    const img = $('artistPreviewImg');
+    if (!img) return;
+    img.src = src || DEFAULT_IMAGE;
+    img.alt = alt;
+  }
+
+  function revokeFlowUrl(url) {
+    if (url) {
+      try { URL.revokeObjectURL(url); } catch (e) {}
+    }
+  }
+
+  function clearFlowFiles() {
+    revokeFlowUrl(flowState.audioUrl);
+    revokeFlowUrl(flowState.imageUrl);
+    flowState.audioFile = null;
+    flowState.imageFile = null;
+    flowState.audioUrl = '';
+    flowState.imageUrl = '';
+    const audioInput = $('audioFileInput');
+    const imageInput = $('artistImageInput');
+    if (audioInput) audioInput.value = '';
+    if (imageInput) imageInput.value = '';
+    setFlowStatus('Drop an audio file or an mp4 video to start.');
+    setPreviewImage(DEFAULT_IMAGE, 'No artist selected');
+  }
+
+  function bytesFromBase64(base64) {
+    const clean = String(base64 || '').trim();
+    if (!clean) return new Uint8Array();
+    const binary = atob(clean);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  function makeFileFromTransfer(payload) {
+    const fileName = sanitizeText(payload?.fileName || payload?.filename || 'download.bin') || 'download.bin';
+    const mimeType = String(payload?.mimeType || 'application/octet-stream').trim() || 'application/octet-stream';
+    const bytes = bytesFromBase64(payload?.bodyBase64 || payload?.body || '');
+    return new File([bytes], fileName, { type: mimeType });
+  }
+
+  function clampProgress(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.min(100, Math.round(n)));
+  }
+
+  function updateFlowProgress(percent, title, detail, stage) {
+    const clamped = clampProgress(percent);
+    if (flowProgress.bar) flowProgress.bar.value = clamped;
+    if (flowProgress.percent) flowProgress.percent.textContent = `${clamped}%`;
+    if (flowProgress.title && title != null) flowProgress.title.textContent = String(title);
+    if (flowProgress.detail && detail != null) flowProgress.detail.textContent = String(detail);
+    if (flowProgress.stage && stage != null) flowProgress.stage.textContent = String(stage);
+    if (flowProgress.overlay) {
+      flowProgress.overlay.classList.add('show');
+      flowProgress.overlay.setAttribute('aria-hidden', 'false');
+    }
+    document.body.classList.add('flow-loading');
+  }
+
+  function hideFlowProgress() {
+    if (flowProgress.overlay) {
+      flowProgress.overlay.classList.remove('show');
+      flowProgress.overlay.setAttribute('aria-hidden', 'true');
+    }
+    document.body.classList.remove('flow-loading');
+  }
+
+  function setFlowActivity(state, payload = {}) {
+    try {
+      window.postMessage({
+        source: 'UD_PAGE',
+        type: 'UD_ACTIVITY_STATE',
+        payload: {
+          state,
+          ...payload
+        }
+      }, '*');
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleIncomingFlowImport(payload) {
+    if (!payload) return;
+    try {
+      setFlowActivity('busy', { phase: 'Importing stream', progress: 72, title: 'LibraryJS receiving file…' });
+      updateFlowProgress(72, 'Receiving stream', 'Decoding the downloaded file and loading it into LibraryJS.', 'Importing');
+      const file = makeFileFromTransfer(payload);
+      applyFlowAudio(file);
+      setFlowStatus(`Received <strong>${escapeHtml(file.name)}</strong> from the extension.`, 'good');
+      updateFlowProgress(100, 'Import complete', `Loaded ${file.name} into the flow page.`, 'Ready');
+      document.body.classList.add('flow-ready');
+      setFlowActivity('idle', { phase: 'Import complete', progress: 100, title: 'LibraryJS Relay' });
+      setTimeout(() => hideFlowProgress(), 800);
+    } catch (error) {
+      updateFlowProgress(100, 'Flow import failed', error.message || String(error), 'Error');
+      setFlowStatus(`Flow import failed: <strong>${escapeHtml(error.message || String(error))}</strong>.`, 'bad');
+      setFlowActivity('error', { phase: 'Flow import failed', progress: 100, title: 'LibraryJS error', detail: error.message || String(error) });
+      setTimeout(() => hideFlowProgress(), 2500);
+    }
+  }
+
+  function isMp4VideoFile(file) {
+    if (!file) return false;
+    const name = String(file.name || '').toLowerCase();
+    const type = String(file.type || '').toLowerCase();
+    return type === 'video/mp4' || name.endsWith('.mp4') || name.endsWith('.m4v');
+  }
+
+  function getAudioUploadExtension(file) {
+    return isMp4VideoFile(file) ? '.mp3' : (String(file?.name || '').match(/\.[a-z0-9]+$/i)?.[0] || '.mp3');
+  }
+
+  function loadScriptOnce(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.dataset.ffmpegLoader = 'true';
+      script.onload = () => {
+        script.dataset.loaded = 'true';
+        resolve(script);
+      };
+      script.onerror = () => reject(new Error(`Failed to load ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+
+  function getFfmpegGlobals() {
+    const g = window;
+    const namespace = (g.FFmpeg && typeof g.FFmpeg === 'object') ? g.FFmpeg : null;
+    const wasmNamespace = (g.FFmpegWASM && typeof g.FFmpegWASM === 'object') ? g.FFmpegWASM : null;
+    const util = (g.FFmpegUtil && typeof g.FFmpegUtil === 'object') ? g.FFmpegUtil : null;
+
+    if (namespace && typeof namespace.createFFmpeg === 'function') {
+      return {
+        flavor: 'legacy-namespace',
+        createFFmpeg: namespace.createFFmpeg.bind(namespace),
+        fetchFile: namespace.fetchFile || util?.fetchFile || g.fetchFile
+      };
+    }
+
+    if (typeof g.createFFmpeg === 'function') {
+      return {
+        flavor: 'legacy-global',
+        createFFmpeg: g.createFFmpeg.bind(g),
+        fetchFile: g.fetchFile || util?.fetchFile
+      };
+    }
+
+    if (wasmNamespace && typeof wasmNamespace.FFmpeg === 'function') {
+      return {
+        flavor: 'ffmpegwasm-namespace-class',
+        FFmpegClass: wasmNamespace.FFmpeg,
+        fetchFile: wasmNamespace.fetchFile || util?.fetchFile || g.fetchFile
+      };
+    }
+
+    if (typeof g.FFmpeg === 'function') {
+      return {
+        flavor: 'modern-class',
+        FFmpegClass: g.FFmpeg,
+        fetchFile: util?.fetchFile || g.fetchFile
+      };
+    }
+
+    if (namespace && typeof namespace.FFmpeg === 'function') {
+      return {
+        flavor: 'modern-namespace-class',
+        FFmpegClass: namespace.FFmpeg,
+        fetchFile: namespace.fetchFile || util?.fetchFile || g.fetchFile
+      };
+    }
+
+    return null;
+  }
+
+  async function loadFfmpegRuntime() {
+    if (state.ffmpeg.instance) return state.ffmpeg.instance;
+    if (state.ffmpeg.loading) return state.ffmpeg.loading;
+
+    state.ffmpeg.loading = (async () => {
+      const corePath = await resolveAssetUrl('/ffmpeg/vendor/core/dist/umd/ffmpeg-core.js');
+      const wasmPath = await resolveAssetUrl('/ffmpeg/vendor/core/dist/umd/ffmpeg-core.wasm');
+      const bundleUrl = await resolveAssetUrl('/ffmpeg/vendor/core/dist/umd/ffmpeg.js');
+      const workerUrl = await resolveAssetUrl('/ffmpeg/vendor/core/dist/umd/814.ffmpeg.js');
+
+      const importViaPatchedModule = async () => {
+        const res = await fetch(bundleUrl, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const source = await res.text();
+        const patched = source.replace(/new URL\(e\.p\+e\.u\(814\),e\.b\)/g, JSON.stringify(workerUrl));
+        const blob = new Blob([patched], { type: 'text/javascript' });
+        const blobUrl = URL.createObjectURL(blob);
+        try {
+          const mod = await import(blobUrl);
+          const wasm = (window.FFmpegWASM && typeof window.FFmpegWASM === 'object')
+            ? window.FFmpegWASM
+            : (mod && typeof mod === 'object' && mod.FFmpegWASM && typeof mod.FFmpegWASM === 'object')
+              ? mod.FFmpegWASM
+              : null;
+          if (!wasm || typeof wasm.FFmpeg !== 'function') {
+            throw new Error('FFmpegWASM namespace was not exposed after module import.');
+          }
+          const ffmpeg = new wasm.FFmpeg();
+          try {
+            await ffmpeg.load({ coreURL: corePath, wasmURL: wasmPath });
+          } catch (err) {
+            try {
+              await ffmpeg.load({ coreURL: corePath });
+            } catch (err2) {
+              await ffmpeg.load();
+            }
+          }
+          return { mode: 'modern', ffmpeg, fetchFile: wasm.fetchFile || mod.fetchFile || window.fetchFile };
+        } finally {
+          try { URL.revokeObjectURL(blobUrl); } catch (e) {}
+        }
+      };
+
+      try {
+        return await importViaPatchedModule();
+      } catch (moduleErr) {
+        console.warn('ffmpeg module import failed, falling back to script globals:', moduleErr);
+      }
+
+      const candidateScripts = [bundleUrl, workerUrl, await resolveAssetUrl('/ffmpeg/ffmpeg.js'), await resolveAssetUrl('/ffmpeg/ffmpeg.min.js')];
+      let globals = getFfmpegGlobals();
+      if (!globals) {
+        for (const src of candidateScripts) {
+          try {
+            await loadScriptOnce(src);
+          } catch (err) {
+            // keep trying other local bundles
+          }
+          globals = getFfmpegGlobals();
+          if (globals) break;
+        }
+      }
+
+      if (!globals) {
+        throw new Error(`ffmpeg.wasm loader was not found. Checked ${candidateScripts.join(' or ')}.`);
+      }
+
+      if (globals.createFFmpeg) {
+        const ffmpeg = globals.createFFmpeg({ log: false, corePath });
+        await ffmpeg.load();
+        return { mode: 'legacy', ffmpeg, fetchFile: globals.fetchFile || window.fetchFile };
+      }
+
+      if (globals.FFmpegClass) {
+        const ffmpeg = new globals.FFmpegClass();
+        try {
+          await ffmpeg.load({ coreURL: corePath });
+        } catch (err) {
+          await ffmpeg.load();
+        }
+        return { mode: 'modern', ffmpeg, fetchFile: globals.fetchFile || window.fetchFile };
+      }
+
+      throw new Error('ffmpeg.wasm loader was found, but it did not expose a supported API.');
+    })();
+
+    try {
+      state.ffmpeg.instance = await state.ffmpeg.loading;
+      return state.ffmpeg.instance;
+    } finally {
+      state.ffmpeg.loading = null;
+    }
+  }
+
+  async function convertMp4ToMp3(file, title = '', artist = '') {
+    const runtime = await loadFfmpegRuntime();
+    const inputExt = String(file?.name || '').match(/\.[a-z0-9]+$/i)?.[0] || '.mp4';
+    const safeTitle = sanitizeImageName(title) || normalizeBase(file?.name || 'input');
+    const safeArtist = sanitizeImageName(artist) || 'Unknown Artist';
+    const inputName = `input_${Date.now()}${inputExt}`;
+    const outputName = `output_${Date.now()}.mp3`;
+
+    setFlowStatus(`Converting <strong>${escapeHtml(file.name)}</strong> to a high-quality MP3…`, 'warn');
+
+    if (runtime.mode === 'legacy') {
+      const ffmpeg = runtime.ffmpeg;
+      const fetchFile = runtime.fetchFile || (async (blob) => new Uint8Array(await blob.arrayBuffer()));
+      await ffmpeg.FS('writeFile', inputName, await fetchFile(file));
+      await ffmpeg.run(
+        '-i', inputName,
+        '-vn',
+        '-map_metadata', '0',
+        '-codec:a', 'libmp3lame',
+        '-q:a', '0',
+        '-ar', '48000',
+        outputName
+      );
+      const data = ffmpeg.FS('readFile', outputName);
+      try { ffmpeg.FS('unlink', inputName); } catch (e) {}
+      try { ffmpeg.FS('unlink', outputName); } catch (e) {}
+      return new File([data.buffer], `${safeTitle} - ${safeArtist}.mp3`, { type: 'audio/mpeg' });
+    }
+
+    const ffmpeg = runtime.ffmpeg;
+    const inputData = new Uint8Array(await file.arrayBuffer());
+    await ffmpeg.writeFile(inputName, inputData);
+    await ffmpeg.exec([
+      '-i', inputName,
+      '-vn',
+      '-map_metadata', '0',
+      '-codec:a', 'libmp3lame',
+      '-q:a', '0',
+      '-ar', '48000',
+      outputName
+    ]);
+    const data = await ffmpeg.readFile(outputName);
+    try { await ffmpeg.deleteFile(inputName); } catch (e) {}
+    try { await ffmpeg.deleteFile(outputName); } catch (e) {}
+    return new File([data], `${safeTitle} - ${safeArtist}.mp3`, { type: 'audio/mpeg' });
+  }
+
+  async function prepareAudioUploadFile(file, title, artist) {
+    if (isMp4VideoFile(file)) {
+      const converted = await convertMp4ToMp3(file, title, artist);
+      return { file: converted, originalName: file.name, converted: true };
+    }
+    return { file, originalName: file.name, converted: false };
+  }
+
+  function uploadTargetUrl(url) {
+    return String(url || '').trim().replace(/([^:]\/)\/+/g, '$1');
+  }
+
+  async function uploadBinaryToUrl(file, url) {
+    const requestUrl = uploadTargetUrl(url);
+    let response;
+    try {
+      response = await fetch(requestUrl, { method: 'PUT', body: file, credentials: 'omit' });
+    } catch (fetchErr) {
+      response = await new Promise((resolve, reject) => {
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', requestUrl, true);
+          xhr.withCredentials = false;
+          xhr.onload = () => resolve({
+            ok: xhr.status >= 200 && xhr.status < 300,
+            status: xhr.status,
+            statusText: xhr.statusText,
+            text: async () => xhr.responseText || ''
+          });
+          xhr.onerror = () => reject(fetchErr || new Error('Failed to fetch'));
+          xhr.send(file);
+        } catch (xhrErr) {
+          reject(xhrErr);
+        }
+      });
+    }
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`${response.status} ${response.statusText}${body ? ` — ${body.slice(0, 160)}` : ''}`);
+    }
+  }
+
+  function encodeUploadSegment(segment) {
+    return encodeURIComponent(sanitizeImageName(segment));
+  }
+
+  function getAudioUploadTargetPath(title, artist, fileName = '', forceExtension = '') {
+    const cleanTitle = sanitizeText(title) || normalizeBase(fileName) || 'Untitled';
+    const cleanArtist = sanitizeText(artist) || 'Unknown Artist';
+    const extMatch = String(forceExtension || fileName || '').match(/\.[a-z0-9]+$/i);
+    const ext = extMatch ? extMatch[0] : '.mp3';
+    return `/Music/${encodeUploadSegment(`${cleanTitle} - ${cleanArtist}`)}${ext}`;
+  }
+
+  function getAudioUploadTargetUrl(title, artist, fileName = '', forceExtension = '') {
+    return getAudioUploadTargetPath(title, artist, fileName, forceExtension);
+  }
+
+  function getArtistImageUploadTargetPath(artist, fileName = '') {
+    const cleanArtist = sanitizeText(artist) || 'Unknown Artist';
+    const extMatch = String(fileName || '').match(/\.[a-z0-9]+$/i);
+    const ext = extMatch ? extMatch[0] : '.jpg';
+    return `/Music/Images/${encodeUploadSegment(cleanArtist)}${ext}`;
+  }
+
+  function getArtistImageUploadTargetUrl(artist, fileName = '') {
+    return getArtistImageUploadTargetPath(artist, fileName);
+  }
+
+  async function uploadSelectedSongFiles(title, artist) {
+    const tasks = [];
+    if (flowState.audioFile instanceof File) {
+      const preparedAudio = await prepareAudioUploadFile(flowState.audioFile, title, artist);
+      tasks.push({
+        label: preparedAudio.converted ? 'mp4 → mp3' : 'audio',
+        file: preparedAudio.file,
+        sourceName: flowState.audioFile.name,
+        targetPath: getAudioUploadTargetPath(title, artist, preparedAudio.file.name, preparedAudio.converted ? '.mp3' : preparedAudio.file.name),
+        targetUrl: getAudioUploadTargetUrl(title, artist, preparedAudio.file.name, preparedAudio.converted ? '.mp3' : preparedAudio.file.name)
+      });
+    }
+    if (flowState.imageFile instanceof File) {
+      tasks.push({
+        label: 'image',
+        file: flowState.imageFile,
+        sourceName: flowState.imageFile.name,
+        targetPath: getArtistImageUploadTargetPath(artist, flowState.imageFile.name),
+        targetUrl: getArtistImageUploadTargetUrl(artist, flowState.imageFile.name)
+      });
+    }
+    if (!tasks.length) {
+      return [];
+    }
+
+    const uploaded = [];
+    for (const item of tasks) {
+      setFlowStatus(`Uploading ${item.label}: <strong>${escapeHtml(item.sourceName || item.file.name)}</strong>…`);
+      await uploadBinaryToUrl(item.file, item.targetUrl);
+      uploaded.push(item);
+    }
+    return uploaded;
+  }
+
+  function deriveFromAudioFilename(fileName) {
+    const base = normalizeBase(fileName);
+    if (!base) return { title: '', artist: '' };
+    const cleaned = base.replace(/^(?:track|song|audio)?\s*[\d._-]+\s*/i, '').trim() || base.trim();
+    const parts = cleaned.split(/\s+-\s+/).map(sanitizeText).filter(Boolean);
+    if (parts.length >= 2) {
+      const artist = parts[0];
+      const title = parts.slice(1).join(' - ');
+      return { title, artist };
+    }
+    return { title: cleaned, artist: '' };
+  }
+
+  function deriveArtistFromImageFilename(fileName) {
+    return normalizeBase(fileName).replace(/^(?:artist|cover|image)?\s*[\d._-]+\s*/i, '').trim();
+  }
+
+  function applyFlowAudio(file) {
+    if (!file) return;
+    flowState.audioFile = file;
+    const derived = deriveFromAudioFilename(file.name);
+    const titleInput = $('songTitle');
+    const artistInput = $('songArtist');
+    if (derived.title && !sanitizeText(titleInput.value)) {
+      titleInput.value = derived.title;
+    }
+    if (derived.artist && !sanitizeText(artistInput.value)) {
+      artistInput.value = derived.artist;
+    }
+    titleInput.dispatchEvent(new Event('input'));
+    artistInput.dispatchEvent(new Event('input'));
+    setFlowStatus(`Loaded audio: <strong>${escapeHtml(file.name)}</strong>.`, 'good');
+  }
+
+  function applyFlowImage(file) {
+    if (!file) return;
+    flowState.imageFile = file;
+    const artistInput = $('songArtist');
+    const derivedArtist = deriveArtistFromImageFilename(file.name);
+    const artist = sanitizeText(artistInput.value) || derivedArtist;
+
+    revokeFlowUrl(flowState.imageUrl);
+    flowState.imageUrl = URL.createObjectURL(file);
+
+    if (artist) {
+      if (!sanitizeText(artistInput.value)) {
+        artistInput.value = artist;
+        artistInput.dispatchEvent(new Event('input'));
+      }
+      state.imageCache.set(sanitizeImageName(artist), flowState.imageUrl);
+      setPreviewImage(flowState.imageUrl, `${artist} art preview`);
+      renderPreview();
+      setFlowStatus(`Loaded image for <strong>${escapeHtml(artist)}</strong> from <strong>${escapeHtml(file.name)}</strong>.`, 'good');
+    } else {
+      setPreviewImage(flowState.imageUrl, 'Selected artist image');
+      renderPreview();
+      setFlowStatus(`Loaded image: <strong>${escapeHtml(file.name)}</strong>.`, 'good');
+    }
+  }
+
+  function bindFlowDropzone(zoneId, inputId, onFiles) {
+    const zone = $(zoneId);
+    const input = $(inputId);
+    if (!zone || !input) return;
+
+    const prevent = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => zone.addEventListener(evt, prevent));
+    zone.addEventListener('dragover', () => zone.classList.add('dragover'));
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', (e) => {
+      zone.classList.remove('dragover');
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) onFiles(files);
+    });
+    input.addEventListener('change', () => {
+      const files = Array.from(input.files || []);
+      if (files.length) onFiles(files);
+    });
+  }
+
+  function initFlowMode() {
+    const summary = FLOW_MODE ? 'Flow mode active' : '';
+    if (summary) {
+      const pill = $('libraryCountPill');
+      if (pill) pill.textContent = summary;
+    }
+
+    const bulkField = $('bulkText')?.closest('.field');
+    if (bulkField) {
+      bulkField.previousElementSibling?.classList.add('hidden');
+      bulkField.classList.add('hidden');
+      bulkField.nextElementSibling?.classList.add('hidden');
+    }
+
+    bindFlowDropzone('audioDropzone', 'audioFileInput', (files) => {
+      const audio = files.find(file => /^audio\//i.test(file.type)) || files[0];
+      if (!audio) return;
+      applyFlowAudio(audio);
+    });
+    bindFlowDropzone('artistDropzone', 'artistImageInput', (files) => {
+      const image = files.find(file => /^image\//i.test(file.type)) || files[0];
+      if (!image) return;
+      applyFlowImage(image);
+    });
+
+    $('flowUseAudioBtn')?.addEventListener('click', () => {
+      const titleInput = $('songTitle');
+      const artistInput = $('songArtist');
+      const derived = deriveFromAudioFilename(flowState.audioFile?.name || titleInput.value || '');
+      if (derived.title) titleInput.value = derived.title;
+      if (derived.artist) artistInput.value = derived.artist;
+      titleInput.dispatchEvent(new Event('input'));
+      artistInput.dispatchEvent(new Event('input'));
+      setFlowStatus('Reapplied the audio filename to the song fields.', 'good');
+      renderPreview();
+    });
+
+    $('flowUseImageBtn')?.addEventListener('click', () => {
+      const artistInput = $('songArtist');
+      const derived = deriveArtistFromImageFilename(flowState.imageFile?.name || artistInput.value || '');
+      if (derived) {
+        artistInput.value = derived;
+        artistInput.dispatchEvent(new Event('input'));
+        setFlowStatus('Reapplied the image filename to the artist field.', 'good');
+        renderPreview();
+      } else {
+        setFlowStatus('No image filename is available yet.', 'warn');
+      }
+    });
+
+    $('flowClearFilesBtn')?.addEventListener('click', () => {
+      clearFlowFiles();
+      renderPreview();
+    });
+  }
+
+
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    const data = event.data;
+    if (!data || data.source !== 'UD_EXT') return;
+    if (data.type === 'UD_FLOW_IMPORT') {
+      handleIncomingFlowImport(data.payload || data.response?.payload || data.response || data);
+    }
+  });
+
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function sanitizeText(value) {
+    return String(value ?? '').trim().replace(/\s+/g, ' ');
+  }
+
+  function normalizeBase(raw) {
+    let s = sanitizeText(raw);
+    try { s = decodeURIComponent(s); } catch (e) {}
+    s = s.split(/[\\/]/).pop();
+    s = s.replace(/\.(mp3|flac|wav|m4a|ogg|aac|opus|wma|alac|mp4|m4v|mov|webm|mkv)(\?.*)?$/i, '');
+    s = s.replace(/(?:\$[A-Za-z0-9+]+)+$/g, '');
+    return s.trim();
+  }
+
+  function parseEntry(entry) {
+    const raw = String(entry ?? '').trim();
+    const idx = raw.lastIndexOf('$');
+    const base = idx === -1 ? raw : raw.slice(0, idx).trim();
+    const code = idx === -1 ? '' : raw.slice(idx + 1).trim();
+    const clean = normalizeBase(base);
+    return { base: clean, code, raw, display: clean };
+  }
+
+  function parseSongAndArtist(base) {
+    const clean = normalizeBase(base);
+    const parts = clean.split(' - ').map(part => part.trim()).filter(Boolean);
+    if (!parts.length) return { title: '', artist: '' };
+    if (parts.length === 1) return { title: parts[0], artist: '' };
+    if (parts.length === 2) return { title: parts[0], artist: parts[1] };
+    if (/^\d+$/.test(parts[0])) return { title: parts.slice(2).join(' - '), artist: parts[1] };
+    return { title: parts.slice(0, -1).join(' - '), artist: parts[parts.length - 1] };
+  }
+
+  function getKnownArtistNames(entries = state.entries) {
+    const artists = new Set();
+    (Array.isArray(entries) ? entries : []).forEach(entry => {
+      const parsed = parseEntry(entry);
+      const song = parseSongAndArtist(parsed.base);
+      const artist = sanitizeText(song.artist);
+      if (artist) artists.add(artist);
+    });
+    return Array.from(artists).sort((a, b) => a.localeCompare(b));
+  }
+
+  function updateArtistSuggestions() {
+    const datalist = $('artistNameSuggestions');
+    if (!datalist) return;
+    const artists = getKnownArtistNames();
+    datalist.innerHTML = artists.map(artist => `<option value="${escapeHtml(artist)}"></option>`).join('');
+  }
+
+  function formatEntry(title, artist, code) {
+    return `${sanitizeText(title)} - ${sanitizeText(artist)}$${sanitizeText(code)}`;
+  }
+
+  function normalizeCode(code, customCode) {
+    const c = sanitizeText(customCode || code).toUpperCase();
+    if (!c) return 'A';
+    return c;
+  }
+
+  function sanitizeImageName(name) {
+    return sanitizeText(name)
+      .replace(/[\\/]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function encodePathSegment(segment) {
+    return encodeURIComponent(sanitizeImageName(segment));
+  }
+
+  function buildArtistImageCandidates(artist) {
+    const clean = sanitizeImageName(artist);
+    if (!clean) return [];
+    const base = `/Music/Images/${encodePathSegment(clean)}`;
+    return ['jpg', 'jpeg', 'png', 'webp', 'gif'].map(ext => `${base}.${ext}`);
+  }
+
+  async function urlExists(url) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 900);
+      const res = await fetch(url, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
+      clearTimeout(timer);
+      return !!(res && res.ok);
+    } catch (err) {
+      return false;
+    }
+  }
+
+  async function resolveArtistImage(artist) {
+    const clean = sanitizeImageName(artist);
+    if (!clean) return '';
+    if (state.imageCache.has(clean)) return state.imageCache.get(clean);
+    const candidates = buildArtistImageCandidates(clean);
+    for (const url of candidates) {
+      if (await urlExists(url)) {
+        state.imageCache.set(clean, url);
+        return url;
+      }
+    }
+    state.imageCache.set(clean, '');
+    return '';
+  }
+
+  function genreLabel(code) {
+    return GENRE_MAP[String(code)] || String(code || '');
+  }
+
+  function entryText(entry) {
+    const parsed = parseEntry(entry);
+    const song = parseSongAndArtist(parsed.base);
+    return `${song.title} ${song.artist} ${parsed.code} ${genreLabel(parsed.code)}`.toLowerCase();
+  }
+
+  function buildOutputText(entries) {
+    const sorted = entries.slice().filter(Boolean);
+    const lines = [];
+    lines.push('// Flat master music library with genre codes.');
+    lines.push('window.libraryJsraryGenreMap = {');
+    Object.entries(GENRE_MAP).forEach(([code, name], index, arr) => {
+      const comma = index < arr.length - 1 ? ',' : '';
+      lines.push(`  ${JSON.stringify(code)}: ${JSON.stringify(name)}${comma}`);
+    });
+    lines.push('};');
+    lines.push('');
+    lines.push('window.libraryJsrary = [');
+    sorted.forEach((entry, index) => {
+      const comma = index < sorted.length - 1 ? ',' : '';
+      lines.push(`  ${JSON.stringify(entry)}${comma}`);
+    });
+    lines.push('];');
+    lines.push('');
+    lines.push('// Optional alias for compatibility.');
+    lines.push('var libraryJsrary = window.libraryJsrary;');
+    lines.push('window.libraryJsraryFlat = Array.isArray(window.libraryJsrary) ? window.libraryJsrary.slice() : [];');
+    lines.push('');
+    lines.push('window.libraryJsraryParseEntry = function(entry) {');
+    lines.push("  const raw = String(entry == null ? '' : entry).trim();");
+    lines.push("  const idx = raw.lastIndexOf('$');");
+    lines.push("  const base = idx === -1 ? raw : raw.slice(0, idx).trim();");
+    lines.push("  const code = idx === -1 ? '' : raw.slice(idx + 1).trim();");
+    lines.push("  return { base, codes: code ? [code] : [] };");
+    lines.push('};');
+    lines.push('');
+    lines.push('window.libraryJsraryNormalizeBase = function(raw) {');
+    lines.push("  let s = String(raw == null ? '' : raw).trim();");
+    lines.push("  try { s = decodeURIComponent(s); } catch (e) {}");
+    lines.push("  s = s.split(/[\\\\/]/).pop();");
+    lines.push("  s = s.replace(/\\.(mp3|flac|wav|m4a|ogg|aac|opus|wma|alac|mp4|m4v|mov|webm|mkv)(\\?.*)?$/i, '');");
+    lines.push("  s = s.replace(/(?:\\$[A-Za-z0-9+]+)+$/g, '');");
+    lines.push("  return s.trim();");
+    lines.push('};');
+    return lines.join('\n');
+  }
+
+  function updateCounts() {
+    const total = state.entries.length;
+    const visible = state.filteredView.length;
+    $('libraryCountPill').textContent = `${total} song${total === 1 ? '' : 's'} · ${visible} shown`;
+  }
+
+  function setStatus(message, kind = '') {
+    const el = $('addStatus');
+    el.className = `status ${kind}`.trim();
+    el.innerHTML = message;
+  }
+
+  function setOutputStatus(message, kind = '') {
+    const el = $('outputStatus');
+    el.className = `footer-note ${kind}`.trim();
+    el.textContent = message;
+  }
+
+  function fillGenreSelect() {
+    const select = $('genreCode');
+    const items = Object.entries(GENRE_MAP).sort((a, b) => a[0].localeCompare(b[0]));
+    select.innerHTML = items.map(([code, name]) => `<option value="${escapeHtml(code)}">${escapeHtml(code)} — ${escapeHtml(name)}</option>`).join('');
+  }
+
+  async function renderPreview() {
+    const title = sanitizeText($('songTitle').value);
+    const artist = sanitizeText($('songArtist').value);
+    const selectedCode = sanitizeText($('customCode').value) || $('genreCode').value || 'A';
+    const code = normalizeCode(selectedCode, selectedCode);
+    const label = title || artist ? `${title || '(no title)'} - ${artist || '(no artist)'}` : 'Nothing selected yet';
+
+    $('previewLabel').textContent = label;
+    $('previewMeta').innerHTML = title || artist
+      ? `${escapeHtml(formatEntry(title || 'Untitled', artist || 'Unknown Artist', code))}<br>${escapeHtml(genreLabel(code) || 'Unknown genre')}`
+      : 'Type a song title and artist to preview the library entry and the artist image lookup.';
+
+    const chips = [];
+    if (title) chips.push(`Title: ${title}`);
+    if (artist) chips.push(`Artist: ${artist}`);
+    if (code) chips.push(`Code: ${code}`);
+    $('previewChips').innerHTML = chips.map(chip => `<span class="chip">${escapeHtml(chip)}</span>`).join('');
+
+    const status = $('artistImageStatus');
+    const img = $('artistPreviewImg');
+    img.src = DEFAULT_IMAGE;
+    img.alt = artist ? `${artist} art preview` : 'No artist selected';
+
+    if (!artist) {
+      if (FLOW_MODE && flowState.imageUrl) {
+        setPreviewImage(flowState.imageUrl, 'Selected artist image');
+        status.textContent = `Selected image: ${flowState.imageFile?.name || 'image file'}.`;
+        status.className = 'status good';
+      } else {
+        status.textContent = 'Artist image lookup will appear here.';
+        status.className = 'status';
+      }
+      return;
+    }
+
+    if (FLOW_MODE && flowState.imageUrl) {
+      setPreviewImage(flowState.imageUrl, `${artist} art preview`);
+      status.textContent = `Using the dropped image preview for ${artist}.`;
+      status.className = 'status good';
+      return;
+    }
+
+    status.textContent = `Looking for /Music/Images/${sanitizeImageName(artist)}.{jpg, jpeg, png, webp, gif} ...`;
+    status.className = 'status';
+    const resolved = await resolveArtistImage(artist);
+    if (sanitizeText($('songArtist').value) !== artist) return;
+    if (resolved) {
+      img.src = resolved;
+      status.textContent = `Found artist image: ${resolved}`;
+      status.className = 'status good';
+    } else {
+      img.src = DEFAULT_IMAGE;
+      status.textContent = `No artist image found for "${artist}".`;
+      status.className = 'status warn';
+    }
+  }
+
+  function sortedFilteredEntries() {
+    const query = sanitizeText($('searchInput').value).toLowerCase();
+    const sortMode = $('sortSelect').value;
+
+    let entries = state.entries.map((entry, index) => {
+      const parsed = parseEntry(entry);
+      const song = parseSongAndArtist(parsed.base);
+      return {
+        index,
+        raw: entry,
+        title: song.title,
+        artist: song.artist,
+        code: parsed.code,
+        genre: genreLabel(parsed.code)
+      };
+    });
+
+    if (query) {
+      entries = entries.filter(item => {
+        const hay = `${item.title} ${item.artist} ${item.code} ${item.genre}`.toLowerCase();
+        return hay.includes(query);
+      });
+    }
+
+    entries.sort((a, b) => {
+      if (sortMode === 'artist') return a.artist.localeCompare(b.artist) || a.title.localeCompare(b.title);
+      if (sortMode === 'code') return a.code.localeCompare(b.code) || a.title.localeCompare(b.title);
+      return a.title.localeCompare(b.title) || a.artist.localeCompare(b.artist) || a.code.localeCompare(b.code);
+    });
+
+    return entries;
+  }
+
+  async function renderLibrary() {
+    const list = $('libraryList');
+    const entries = sortedFilteredEntries();
+    state.filteredView = entries;
+
+    updateCounts();
+
+    if (!entries.length) {
+      list.innerHTML = '<div class="box"><div class="mini">No matching songs.</div></div>';
+      return;
+    }
+
+    const fragments = [];
+    for (const item of entries) {
+      const cacheKey = item.artist || item.title || item.code || `entry-${item.index}`;
+      let imgSrc = state.imageCache.get(sanitizeImageName(item.artist));
+      if (!imgSrc && item.artist) {
+        imgSrc = await resolveArtistImage(item.artist);
+      }
+      const finalSrc = imgSrc || DEFAULT_IMAGE;
+
+      fragments.push(`
+        <div class="song-card">
+          <img src="${escapeHtml(finalSrc)}" alt="${escapeHtml(item.artist || 'Artist image')}" onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}'" />
+          <div>
+            <div class="song-title">${escapeHtml(item.title || '(Untitled)')}</div>
+            <div class="song-sub">${escapeHtml(item.artist || '(Unknown artist)')} · ${escapeHtml(item.code || '(no code)')} · ${escapeHtml(item.genre || '(unknown genre)')}</div>
+          </div>
+          <div class="actions">
+            <button type="button" class="danger" data-remove="${item.index}">Remove</button>
+          </div>
+        </div>
+      `);
+    }
+
+    list.innerHTML = fragments.join('');
+
+    list.querySelectorAll('button[data-remove]').forEach(btn => {
+      btn.onclick = () => {
+        const idx = Number(btn.getAttribute('data-remove'));
+        if (!Number.isFinite(idx)) return;
+        state.entries.splice(idx, 1);
+        refreshAll();
+      };
+    });
+  }
+
+  function addSongEntry(title, artist, code) {
+    const cleanTitle = sanitizeText(title);
+    const cleanArtist = sanitizeText(artist);
+    const cleanCode = normalizeCode(code, code);
+    if (!cleanTitle || !cleanArtist) {
+      setStatus('Both song title and artist are required.', 'bad');
+      return false;
+    }
+    const entry = formatEntry(cleanTitle, cleanArtist, cleanCode);
+    state.entries.push(entry);
+    setStatus(`Added <strong>${escapeHtml(cleanTitle)}</strong> by <strong>${escapeHtml(cleanArtist)}</strong>.`, 'good');
+    return true;
+  }
+
+  function parseBulkText(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return [];
+    const out = [];
+    const quotedMatches = raw.match(/["']([^"']+\$[A-Za-z0-9+]+)["']/g) || [];
+    if (quotedMatches.length) {
+      quotedMatches.forEach(item => {
+        const inner = item.replace(/^["']|["']$/g, '');
+        if (inner.trim()) out.push(inner.trim());
+      });
+      return out;
+    }
+
+    raw.split(/\r?\n/).forEach(line => {
+      const cleaned = line.trim().replace(/^[-*•\d.\s]+/, '').replace(/^["']|["']$/g, '').replace(/[;,]+$/g, '');
+      if (!cleaned) return;
+      out.push(cleaned);
+    });
+    return out;
+  }
+
+  function refreshOutput() {
+    $('outputText').value = buildOutputText(state.entries);
+    setOutputStatus(`Generated ${state.entries.length} song${state.entries.length === 1 ? '' : 's'}.`);
+    updateArtistSuggestions();
+    updateCounts();
+  }
+
+  async function refreshAll() {
+    refreshOutput();
+    await renderLibrary();
+    await renderPreview();
+    updateCounts();
+  }
+
+  function closeLibraryJSTabSoon(delayMs = 250) {
+    setTimeout(() => {
+      try {
+        window.close();
+      } catch (err) {
+        // ignore
+      }
+    }, delayMs);
+  }
+
+  async function copyOutput(text) {
+    const source = text || $('outputText').value || buildOutputText(state.entries);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(source);
+      } else {
+        const temp = document.createElement('textarea');
+        temp.value = source;
+        temp.setAttribute('readonly', '');
+        temp.style.position = 'fixed';
+        temp.style.left = '-9999px';
+        temp.style.top = '0';
+        document.body.appendChild(temp);
+        temp.focus();
+        temp.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(temp);
+        if (!ok) throw new Error('execCommand copy failed');
+      }
+      setOutputStatus('Copied updated libraryjsrary.js to clipboard.');
+      return true;
+    } catch (err) {
+      try {
+        const fallback = $('exportModalText');
+        if (fallback) {
+          fallback.focus();
+          fallback.select();
+        }
+      } catch {}
+      setOutputStatus('Clipboard copy failed. The code is selected in the popup for manual copy.', 'warn');
+      return false;
+    }
+  }
+
+  function openExportModal() {
+    const text = $('outputText').value || buildOutputText(state.entries);
+    $('exportModalText').value = text;
+    $('exportModal').classList.add('show');
+    $('exportModal').setAttribute('aria-hidden', 'false');
+    $('exportModalText').focus();
+    $('exportModalText').select();
+    copyOutput(text);
+  }
+
+  function closeExportModal() {
+    $('exportModal').classList.remove('show');
+    $('exportModal').setAttribute('aria-hidden', 'true');
+  }
+
+  async function saveLibraryJSraryToServer({ closeAfterSave = false } = {}) {
+    const text = $('outputText').value || buildOutputText(state.entries);
+    const baseUrl = await getServerBaseUrl();
+    const targetUrl = new URL('./libraryjsrary.js', baseUrl).href;
+
+    try {
+      setOutputStatus('Saving libraryjsrary.js to server...');
+      await uploadBinaryToUrl(new Blob([text], { type: 'text/javascript;charset=utf-8' }), targetUrl);
+      setOutputStatus(`libraryjsrary.js updated on server at ${targetUrl}.`);
+      closeExportModal();
+      if (closeAfterSave) closeLibraryJSTabSoon();
+      return true;
+    } catch (err) {
+      setOutputStatus(`Could not update libraryjsrary.js: ${err.message}`, 'bad');
+      return false;
+    }
+  }
+
+  function downloadOutput() {
+    const blob = new Blob([$('outputText').value || buildOutputText(state.entries)], { type: 'text/javascript;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'libraryjsrary.js';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setOutputStatus('Downloaded libraryjsrary.js.');
+  }
+
+  function resetState() {
+    state.entries = Array.isArray(window.libraryJsrary) ? window.libraryJsrary.slice() : [];
+    $('bulkText').value = '';
+    clearFlowFiles();
+    setStatus('Reset to the loaded library.', 'warn');
+    refreshAll();
+  }
+
+  function bindEvents() {
+    ['songTitle', 'songArtist', 'customCode'].forEach(id => $(id).addEventListener('input', renderPreview));
+    $('genreCode').addEventListener('change', renderPreview);
+    $('searchInput').addEventListener('input', renderLibrary);
+    $('sortSelect').addEventListener('change', renderLibrary);
+
+    $('addSongBtn').onclick = async () => {
+      const title = $('songTitle').value;
+      const artist = $('songArtist').value;
+      const code = $('customCode').value || $('genreCode').value;
+      const cleanTitle = sanitizeText(title);
+      const cleanArtist = sanitizeText(artist);
+      if (!cleanTitle || !cleanArtist) {
+        setStatus('Both song title and artist are required.', 'bad');
+        return;
+      }
+      try {
+        const uploads = await uploadSelectedSongFiles(cleanTitle, cleanArtist);
+        if (uploads.length) {
+          setFlowStatus(`Uploaded ${uploads.length} file${uploads.length === 1 ? '' : 's'} for <strong>${escapeHtml(cleanTitle)}</strong>.`, 'good');
+        } else if (FLOW_MODE) {
+          setFlowStatus('No files were selected, so nothing was uploaded.', 'warn');
+        }
+      } catch (err) {
+        setStatus(`Upload failed: ${err.message}`, 'bad');
+        setFlowStatus(`Upload failed: ${escapeHtml(err.message)}`, 'bad');
+        return;
+      }
+      if (addSongEntry(cleanTitle, cleanArtist, code)) {
+        $('outputText').value = buildOutputText(state.entries);
+        await refreshAll();
+      }
+    };
+
+    $('addAndNextBtn').onclick = async () => {
+      const title = $('songTitle').value;
+      const artist = $('songArtist').value;
+      const code = $('customCode').value || $('genreCode').value;
+      const cleanTitle = sanitizeText(title);
+      const cleanArtist = sanitizeText(artist);
+      if (!cleanTitle || !cleanArtist) {
+        setStatus('Both song title and artist are required.', 'bad');
+        return;
+      }
+      try {
+        const uploads = await uploadSelectedSongFiles(cleanTitle, cleanArtist);
+        if (uploads.length) {
+          setFlowStatus(`Uploaded ${uploads.length} file${uploads.length === 1 ? '' : 's'} for <strong>${escapeHtml(cleanTitle)}</strong>.`, 'good');
+        } else if (FLOW_MODE) {
+          setFlowStatus('No files were selected, so nothing was uploaded.', 'warn');
+        }
+      } catch (err) {
+        setStatus(`Upload failed: ${err.message}`, 'bad');
+        setFlowStatus(`Upload failed: ${escapeHtml(err.message)}`, 'bad');
+        return;
+      }
+      if (addSongEntry(cleanTitle, cleanArtist, code)) {
+        $('songTitle').value = '';
+        $('songArtist').value = '';
+        $('customCode').value = '';
+        $('genreCode').value = 'A';
+        clearFlowFiles();
+        $('outputText').value = buildOutputText(state.entries);
+        await refreshAll();
+      }
+    };
+
+    $('importBulkBtn').onclick = async () => {
+      const entries = parseBulkText($('bulkText').value);
+      if (!entries.length) {
+        setStatus('No importable entries were found in the pasted text.', 'bad');
+        return;
+      }
+
+      let added = 0;
+      entries.forEach(item => {
+        const raw = String(item || '').trim();
+        if (!raw) return;
+        const parsed = parseEntry(raw);
+        const song = parseSongAndArtist(parsed.base);
+        const hasEmbeddedCode = !!parsed.code;
+        const code = normalizeCode(hasEmbeddedCode ? parsed.code : $('genreCode').value, $('genreCode').value);
+
+        if (song.title && song.artist) {
+          state.entries.push(formatEntry(song.title, song.artist, code));
+          added++;
+          return;
+        }
+
+        if (hasEmbeddedCode) {
+          const split = normalizeBase(parsed.base).split(' - ');
+          if (split.length >= 2) {
+            const title = split.slice(0, -1).join(' - ');
+            const artist = split[split.length - 1];
+            if (title && artist) {
+              state.entries.push(formatEntry(title, artist, code));
+              added++;
+              return;
+            }
+          }
+        }
+      });
+
+      if (!added) {
+        setStatus('The pasted text did not contain any recognizable song entries.', 'bad');
+        return;
+      }
+
+      $('outputText').value = buildOutputText(state.entries);
+      setStatus(`Imported ${added} entr${added === 1 ? 'y' : 'ies'}.`, 'good');
+      await refreshAll();
+    };
+
+    $('clearBulkBtn').onclick = () => {
+      $('bulkText').value = '';
+      setStatus('Bulk import cleared.', 'warn');
+    };
+
+    $('refreshBtn').onclick = refreshAll;
+    $('updatedLibraryJSraryBtn').onclick = async () => {
+      const ok = await saveLibraryJSraryToServer({ closeAfterSave: true });
+      if (!ok) openExportModal();
+    };
+    $('downloadBtn').onclick = downloadOutput;
+    $('resetBtn').onclick = resetState;
+    $('closeExportModalBtn').onclick = closeExportModal;
+    $('copyExportModalBtn').onclick = async () => {
+      await copyOutput($('exportModalText').value);
+    };
+    $('selectExportModalBtn').onclick = () => {
+      $('exportModalText').focus();
+      $('exportModalText').select();
+    };
+    $('exportModal').addEventListener('click', (e) => {
+      if (e.target === $('exportModal')) closeExportModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && $('exportModal').classList.contains('show')) closeExportModal();
+    });
+  }
+
+  async function init() {
+    if (await redirectToServerIpIfNeeded()) return;
+    fillGenreSelect();
+    $('genreCode').value = 'A';
+    updateArtistSuggestions();
+    bindEvents();
+    if (FLOW_MODE) {
+      initFlowMode();
+      if (MANAGED_FLOW_MODE) {
+        document.body.classList.add('flow-ready');
+        hideFlowProgress();
+        setFlowActivity('idle', { phase: 'Manager flow ready', progress: 100, title: 'LibraryJS quick add' });
+      } else {
+        updateFlowProgress(6, 'Waiting for handoff', 'The extension will pass the downloaded stream into this page.', 'Idle');
+        setFlowActivity('busy', { phase: 'Waiting for handoff', progress: 6, title: 'LibraryJS receiving file…' });
+      }
+    }
+    const incomingPort = $('incomingPort');
+    const incomingPortField = $('incomingPortField');
+    const initialIncomingPort = sanitizeText(
+      flowParams.get('libraryJsPort') ||
+      flowParams.get('incomingPort') ||
+      flowParams.get('musicStoragePort') ||
+      extractPortFromUrl(flowParams.get('musicStorageUrl') || '') ||
+      extractPortFromUrl(window.location.href) ||
+      incomingPort?.value ||
+      ''
+    );
+    if (incomingPort) {
+      incomingPort.value = initialIncomingPort;
+    }
+    if (MANAGED_FLOW_MODE && incomingPortField) {
+      incomingPortField.style.display = 'none';
+    }
+    if (incomingPort) {
+      incomingPort.addEventListener('change', () => {
+        const next = sanitizeText(incomingPort.value) || '';
+        incomingPort.value = next;
+        if (!MANAGED_FLOW_MODE) {
+          setFlowStatus(next ? `Waiting for extension handoff on port ${next}.` : 'Waiting for extension handoff.');
+        }
+      });
+      if (!MANAGED_FLOW_MODE) {
+        const next = sanitizeText(incomingPort.value) || '';
+        setFlowStatus(next ? `Waiting for extension handoff on port ${next}.` : 'Waiting for extension handoff.');
+      }
+    }
+    $('outputText').value = buildOutputText(state.entries);
+    await refreshAll();
+  }
+
+  init().catch(err => {
+    console.error(err);
+    setStatus(`Failed to initialize: ${err.message}`, 'bad');
+  });
+})();
+</script>
+</body>
+</html>
