@@ -414,6 +414,7 @@
     <div class="controls">
 
       <button class="btn btn-primary hidden" id="nestCollectionBtn">Nest Collection</button>
+      <button class="btn btn-primary hidden" id="genreContentBtn">Genres</button>
       <button class="btn btn-primary hidden" id="addContentBtn">➕ Add content</button>
       <button class="btn" id="reloadBtn">🔄 Reload</button>
       <div class="divider"></div>
@@ -513,6 +514,7 @@
     tree: document.getElementById('tree'),
     visibleCount: document.getElementById('visibleCount'),
     nestCollectionBtn: document.getElementById('nestCollectionBtn'),
+    genreContentBtn: document.getElementById('genreContentBtn'),
     addContentBtn: document.getElementById('addContentBtn'),
     reloadBtn: document.getElementById('reloadBtn'),
     scanPrimaryBtn: document.getElementById('scanAllVideosBtn'),
@@ -594,7 +596,9 @@
       showRepair: false,
       flowPage: './musiclib.html',
       flowQuery: 'mflow=1',
+      genrePage: './musicgenres.html',
       addButtonLabel: '➕ Add music',
+      genreButtonLabel: 'Genres',
       loadData: loadMusicData,
       build: buildMusicLibrary
     },
@@ -726,12 +730,18 @@
     els.headerSubtitle.textContent = `${activeConfig.primaryLabel}${activeConfig.secondaryLabel ? ' • ' + activeConfig.secondaryLabel : ''}`;
     els.scanPrimaryBtn.textContent = activeConfig.primaryButton;
     els.scanSecondaryBtn.textContent = activeConfig.secondaryButton;
-    if (els.addContentBtn || els.nestCollectionBtn) {
+    if (els.genreContentBtn || els.addContentBtn || els.nestCollectionBtn) {
       const hasFlowPage = !!activeConfig.flowPage;
       const showNest = activeKey === 'video' && hasFlowPage;
+      const showGenres = activeKey === 'music' && !!activeConfig.genrePage;
       if (els.nestCollectionBtn) {
         els.nestCollectionBtn.classList.toggle('hidden', !showNest);
         els.nestCollectionBtn.disabled = !showNest;
+      }
+      if (els.genreContentBtn) {
+        els.genreContentBtn.classList.toggle('hidden', !showGenres);
+        els.genreContentBtn.disabled = !showGenres;
+        els.genreContentBtn.textContent = activeConfig.genreButtonLabel || 'Genres';
       }
       if (els.addContentBtn) {
         els.addContentBtn.classList.toggle('hidden', !hasFlowPage);
@@ -1454,6 +1464,92 @@
     return roots;
   }
 
+  function normalizeGameTitle(name) {
+    const raw = String(name ?? '').trim();
+    if (!raw) return { title: 'Untitled Game', platform: 'Other' };
+    const parts = raw.split(',');
+    if (parts.length > 1) {
+      const platform = parts.pop().trim() || 'Other';
+      const title = parts.join(',').trim() || raw;
+      return { title, platform };
+    }
+    return { title: raw, platform: 'Other' };
+  }
+
+  function getGamePlatform(game, fallback = 'Other') {
+    if (!game || typeof game !== 'object') return fallback;
+    const explicit = String(game.console || '').trim();
+    if (explicit) return explicit;
+    return normalizeGameTitle(game.name).platform || fallback;
+  }
+
+  function getGameBaseTitle(game, fallback = '') {
+    if (!game || typeof game !== 'object') return fallback || 'Game';
+    const explicit = String(game.baseName || game.title || '').trim();
+    if (explicit) return explicit;
+    return normalizeGameTitle(game.name).title || fallback || 'Game';
+  }
+
+  function getGameDiskNumber(disk, fallbackIndex = 1) {
+    if (!disk || typeof disk !== 'object') return fallbackIndex;
+    const raw = disk.disk ?? disk.disc ?? disk.number ?? disk.index ?? disk.part ?? fallbackIndex;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackIndex;
+  }
+
+  function getGameDiskLabel(disk, fallbackIndex = 1) {
+    if (disk && typeof disk === 'object') {
+      const explicit = String(disk.title || disk.name || disk.label || '').trim();
+      if (explicit) return explicit;
+    }
+    return `Disk ${getGameDiskNumber(disk, fallbackIndex)}`;
+  }
+
+  function makeGameLeaf(nodeId, game, title, platform, romLink, imgLink, sourceOrder) {
+    const romCandidates = buildGameRomCandidates(romLink || '');
+    const imgCandidates = buildGameImageCandidates(imgLink || '');
+    const primaryUrl = romCandidates[0] || String(romLink || '');
+    const secondaryUrl = imgCandidates[0] || String(imgLink || '');
+    return {
+      id: `${nodeId}:leaf`,
+      key: title,
+      type: 'leaf',
+      kind: 'game-item',
+      displayName: title,
+      platform: platform || 'Other',
+      primaryLabel: 'ROM',
+      secondaryLabel: 'Icon',
+      primaryUrl,
+      secondaryUrl,
+      primaryCandidates: romCandidates.length ? romCandidates : [String(romLink || '')].filter(Boolean),
+      secondaryCandidates: imgCandidates.length ? imgCandidates : [String(imgLink || '')].filter(Boolean),
+      primaryStatus: STATUS.UNCHECKED,
+      secondaryStatus: (imgCandidates.length || imgLink) ? STATUS.UNCHECKED : STATUS.NA,
+      repairable: false,
+      hasSecondary: imgCandidates.length > 0,
+      parentKey: nodeId,
+      sourceOrder: Number.isFinite(sourceOrder) ? sourceOrder : undefined
+    };
+  }
+
+  function makeGameTitleGroup(game, idx) {
+    const baseTitle = getGameBaseTitle(game, `Game ${idx + 1}`);
+    const platform = getGamePlatform(game);
+    return {
+      id: `games:title:${idx}`,
+      key: baseTitle,
+      type: 'group',
+      kind: 'games-group',
+      children: [],
+      episodes: [],
+      parentKey: null,
+      displayName: String(game.name || baseTitle).trim(),
+      platform,
+      baseTitle,
+      sourceOrder: idx
+    };
+  }
+
   function buildGamesLibrary(raw) {
     flatItems = [];
     nodeMap = new Map();
@@ -1463,29 +1559,8 @@
 
     list.forEach((game, idx) => {
       if (!game || typeof game !== 'object') return;
-      const name = String(game.name || `Game ${idx + 1}`).trim();
-      const platform = name.includes(',') ? name.split(',').pop().trim() : 'Other';
-      const romCandidates = buildGameRomCandidates(game.link || '');
-      const imgCandidates = buildGameImageCandidates(game.img || '');
-      const item = {
-        id: `games:item:${idx}`,
-        key: name,
-        type: 'leaf',
-        kind: 'game-item',
-        displayName: name,
-        platform,
-        primaryLabel: 'ROM',
-        secondaryLabel: 'Icon',
-        primaryUrl: romCandidates[0] || String(game.link || ''),
-        secondaryUrl: imgCandidates[0] || String(game.img || ''),
-        primaryCandidates: romCandidates.length ? romCandidates : [String(game.link || '')],
-        secondaryCandidates: imgCandidates.length ? imgCandidates : [String(game.img || '')],
-        primaryStatus: STATUS.UNCHECKED,
-        secondaryStatus: (imgCandidates.length || game.img) ? STATUS.UNCHECKED : STATUS.NA,
-        repairable: false,
-        hasSecondary: imgCandidates.length > 0,
-        parentKey: platform
-      };
+
+      const platform = getGamePlatform(game);
       if (!groups.has(platform)) {
         const group = {
           id: `games:group:${platform}`,
@@ -1494,20 +1569,85 @@
           kind: 'games-group',
           children: [],
           episodes: [],
-          parentKey: null
+          parentKey: null,
+          displayName: platform
         };
         groups.set(platform, group);
         nodeMap.set(group.id, group);
       }
-      const group = groups.get(platform);
-      group.children.push(item);
-      flatItems.push(item);
-      nodeMap.set(item.id, item);
+
+      const platformGroup = groups.get(platform);
+      const disks = Array.isArray(game.disks) ? game.disks.filter(d => d && typeof d === 'object') : [];
+      const wantsDiskChildren = String(game.specialSet || '').toLowerCase() === 'multidisk' || disks.length > 1;
+
+      if (wantsDiskChildren) {
+        const titleGroup = makeGameTitleGroup(game, idx);
+        titleGroup.parentKey = platformGroup.id;
+        nodeMap.set(titleGroup.id, titleGroup);
+
+        disks.forEach((disk, diskIdx) => {
+          const diskNumber = getGameDiskNumber(disk, diskIdx + 1);
+          const diskLabel = getGameDiskLabel(disk, diskIdx + 1);
+          const leaf = makeGameLeaf(
+            titleGroup.id,
+            game,
+            diskLabel,
+            platform,
+            disk.link || game.link || '',
+            disk.img || game.img || '',
+            Number.isFinite(diskNumber) ? diskNumber : diskIdx + 1
+          );
+          if (!leaf) return;
+          titleGroup.children.push(leaf);
+          flatItems.push(leaf);
+          nodeMap.set(leaf.id, leaf);
+        });
+
+        if (titleGroup.children.length) {
+          titleGroup.children.sort(compareLeafs);
+          platformGroup.children.push(titleGroup);
+        } else {
+          const leaf = makeGameLeaf(
+            platformGroup.id,
+            game,
+            titleGroup.baseTitle || titleGroup.displayName,
+            platform,
+            game.link || '',
+            game.img || '',
+            idx
+          );
+          if (leaf) {
+            platformGroup.children.push(leaf);
+            flatItems.push(leaf);
+            nodeMap.set(leaf.id, leaf);
+          }
+        }
+      } else {
+        const leaf = makeGameLeaf(
+          platformGroup.id,
+          game,
+          getGameBaseTitle(game, game.name || `Game ${idx + 1}`),
+          platform,
+          game.link || '',
+          game.img || '',
+          idx
+        );
+        if (leaf) {
+          platformGroup.children.push(leaf);
+          flatItems.push(leaf);
+          nodeMap.set(leaf.id, leaf);
+        }
+      }
     });
 
     roots.push(...groups.values());
     roots.sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''), undefined, { numeric: true, sensitivity: 'base' }));
-    roots.forEach(group => group.children.sort(compareLeafs));
+    roots.forEach(group => group.children.sort((a, b) => {
+      if (a?.type === 'leaf' && b?.type === 'leaf') return compareLeafs(a, b);
+      if (a?.type === 'leaf') return 1;
+      if (b?.type === 'leaf') return -1;
+      return compareNodes(a, b);
+    }));
     return roots;
   }
 
@@ -2025,6 +2165,16 @@
     els.addContentModal.style.display = 'flex';
   }
 
+  function openGenreEditorModal() {
+    const page = activeConfig.genrePage || './musicgenres.html';
+    if (!page) return;
+    const url = new URL(page, window.location.href);
+    url.searchParams.set('embed', '1');
+    els.addContentModalTitle.textContent = '🎨 Genres';
+    els.addContentFrame.src = url.href;
+    els.addContentModal.style.display = 'flex';
+  }
+
   function buildRepairPageUrl(ep) {
     const sourceUrl = String(ep?.primaryUrl || '').trim();
     const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
@@ -2274,6 +2424,7 @@
     if (e.target === els.addContentModal) hideAddContentModal();
   });
   els.nestCollectionBtn?.addEventListener('click', () => openAddContentModal('nest'));
+  els.genreContentBtn?.addEventListener('click', openGenreEditorModal);
   els.addContentBtn?.addEventListener('click', () => openAddContentModal('add'));
 
   els.libraryHub.addEventListener('click', e => {

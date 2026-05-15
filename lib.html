@@ -1097,22 +1097,29 @@ function syncServerBaseInputs(value = state.serverBase) {
   if (el && el.value !== clean) el.value = clean;
 }
 
+function normalizeBaseUrl(value) {
+  let clean = safeText(value).replace(/\/+$/g, '').trim();
+  if (clean === '.' || clean === './') return './';
+  if (/^[\w.-]+:\d+$/.test(clean)) clean = `http://${clean}`;
+  return clean;
+}
+
 async function resolveServerBase() {
   const params = new URLSearchParams(window.location.search || '');
-  const fromQuery = safeText(params.get('serverBase'));
-  if (fromQuery) return fromQuery.replace(/\/+$/, '');
+  const fromQuery = normalizeBaseUrl(params.get('serverBase'));
+  if (fromQuery) return fromQuery;
 
   try {
     const resp = await fetch('./serverip.txt', { cache: 'no-store' });
     if (resp.ok) {
-      const fromFile = safeText(await resp.text()).replace(/\/+$/, '');
+      const fromFile = normalizeBaseUrl(await resp.text());
       if (fromFile) return fromFile;
     }
   } catch (_) {
     // ignore and fall through
   }
 
-  return safeText(window.location.origin).replace(/\/+$/, '');
+  return normalizeBaseUrl(window.location.origin);
 }
 
 function inferServerBaseFromMediaPath(mediaPath) {
@@ -1233,11 +1240,6 @@ function applyScoopedLibraryDefaults(sourceTitle, { force = false } = {}) {
       .trim();
     return base ? `${base}.jpg` : `${stripAdultMarkers(fallback || 'Image')}.jpg`;
   }
-  function normalizeBaseUrl(value) {
-  const clean = safeText(value).replace(/\/+$/, '');
-  if (clean === '.' || clean === './') return './';
-  return clean;
-}
   function normalizeAssetRoot(value) { const clean = safeText(value || './').replace(/\/+$/, ''); return clean || '.'; }
   function inferBaseFromMediaPath(value) {
     const text = safeText(value);
@@ -5142,7 +5144,7 @@ function getReplacementTargets() {
   buildPreview();
 });
 document.getElementById('serverBase').oninput = () => {
-  state.serverBase = document.getElementById('serverBase').value || '';
+  state.serverBase = normalizeBaseUrl(document.getElementById('serverBase').value || '');
   syncServerBaseInputs(state.serverBase);
   markArtworkDirty();
   renderOutputs();

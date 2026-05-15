@@ -176,12 +176,24 @@
   top: 65px;
   right: 75px;
   display: grid;
+  gap: 3px;
+  z-index: 10003;
+  pointer-events: auto;
+}
+
+.tile-indicator.half {
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
-  gap: 3px;
+  grid-auto-flow: column;
   width: 40px;
   height: 40px;
-  z-index: 10003;
+}
+
+.tile-indicator.single {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr;
+  width: 44px;
+  height: 20px;
 }
 
 .tile {
@@ -190,22 +202,14 @@
   border-radius: 2px;
   cursor: pointer;
   transition: background-color 0.2s;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .tile.active {
   background-color: #4CAF50;
   border-color: white;
-}
-/* Move the 2nd tile down into the bottom‑left */
-.tile-indicator .tile:nth-child(2) {
-  grid-column: 1;
-  grid-row:    2;
-}
-
-/* Move the 3rd tile up into the top‑right */
-.tile-indicator .tile:nth-child(3) {
-  grid-column: 2;
-  grid-row:    1;
 }
 
 
@@ -499,9 +503,13 @@
       overflow: hidden;
     }
     #viewer canvas {
-      height: 100vh;
+      display: block;
+      max-width: 99vw;
+      max-height: 99vh;
       width: auto;
+      height: auto;
       margin: 0;
+      object-fit: contain;
     }
     /* Bottom Controls */
     .controls {
@@ -2390,6 +2398,150 @@ window.addEventListener("DOMContentLoaded", function() {
 });
 </script>
 
+
+<script>
+(function () {
+  function getPageViewMode() {
+    if (window.pageViewMode) return window.pageViewMode;
+    if (window.halfMode) return 'half';
+    return 'double';
+  }
+
+  function getBasePageNumber() {
+    const raw = (typeof pageNum !== 'undefined') ? pageNum : window.pageNum;
+    const n = parseInt(raw || 1, 10);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }
+
+  function getCurrentTile() {
+    const raw = (typeof currentTile !== 'undefined') ? currentTile : window.currentTile;
+    const n = parseInt(raw || 1, 10);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }
+
+  function getDisplayedPageNumber() {
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+
+    if (mode === 'half') {
+      return getCurrentTile() >= 3 ? basePage + 1 : basePage;
+    }
+
+    return basePage;
+  }
+
+  function getPageIndicatorText() {
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+
+    if (mode === 'single') {
+      return `Pg. ${basePage}`;
+    }
+
+    if (mode === 'half') {
+      const displayedPage = getDisplayedPageNumber();
+      const tile = getCurrentTile();
+      const arrow = (tile === 1 || tile === 3) ? '↑' : '↓';
+      return `Pg. ${displayedPage}${arrow}`;
+    }
+
+    const totalPages = (typeof pdfDoc !== 'undefined' && pdfDoc && Number.isFinite(pdfDoc.numPages))
+      ? pdfDoc.numPages
+      : basePage + 1;
+    return `Pg. ${basePage} - ${Math.min(basePage + 1, totalPages)}`;
+  }
+
+  function buildModePreview(mode, basePage) {
+    const tileIndicator = document.createElement('div');
+    tileIndicator.className = `tile-indicator ${mode}`;
+
+    const tileCount = mode === 'half' ? 4 : 2;
+    const activeIndex = mode === 'half'
+      ? getCurrentTile()
+      : ((basePage % 2 === 0) ? 2 : 1);
+
+    for (let i = 1; i <= tileCount; i++) {
+      const tile = document.createElement('div');
+      tile.className = `tile ${i === activeIndex ? 'active' : ''}`;
+      tile.dataset.tile = String(i);
+
+      if (mode === 'half') {
+        const labels = ['Upper-left', 'Lower-left', 'Upper-right', 'Lower-right'];
+        tile.title = labels[i - 1];
+        tile.addEventListener('click', () => {
+          if (typeof window.currentTile !== 'undefined') {
+            window.currentTile = i;
+          }
+          if (typeof currentTile !== 'undefined') {
+            currentTile = i;
+          }
+          if (typeof renderHalfPage === 'function') {
+            renderHalfPage(getBasePageNumber(), i);
+          }
+          updatePageIndicator();
+        });
+      } else {
+        tile.title = i === 1 ? 'Left side' : 'Right side';
+      }
+
+      tileIndicator.appendChild(tile);
+    }
+
+    return tileIndicator;
+  }
+
+  function updatePageIndicator() {
+    const container = document.getElementById('reader-container');
+    if (!container) return;
+
+    container.querySelector('.page-indicator')?.remove();
+    container.querySelector('.tile-indicator')?.remove();
+    container.querySelector('#pageNoteDisplay')?.remove();
+
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+    const indicator = document.createElement('div');
+    indicator.className = 'page-indicator';
+    indicator.textContent = getPageIndicatorText();
+    indicator.style.cursor = 'pointer';
+    indicator.onclick = typeof openBookmarkDialog === 'function' ? openBookmarkDialog : null;
+    container.appendChild(indicator);
+
+    if (mode === 'half' || mode === 'single') {
+      container.appendChild(buildModePreview(mode, basePage));
+    }
+
+    const profile = (typeof getActiveProfile === 'function') ? getActiveProfile() : 'Guest';
+    const notePage = getDisplayedPageNumber();
+    const noteKey = `bookmark-${profile}-${currentBook}-${notePage}`;
+    const bookmarkData = JSON.parse(localStorage.getItem(noteKey) || '{}');
+
+    if (bookmarkData.note) {
+      const noteEl = document.createElement('div');
+      noteEl.id = 'pageNoteDisplay';
+      noteEl.style.cssText = 'text-align:center; margin-top:4px; color:white; font-style:italic;';
+      noteEl.textContent = bookmarkData.note;
+      container.appendChild(noteEl);
+    }
+  }
+
+  window.updatePageIndicator = updatePageIndicator;
+
+  if (typeof window.renderDoublePage === 'function') {
+    const originalRenderDoublePage = window.renderDoublePage;
+    window.renderDoublePage = function (num) {
+      const result = originalRenderDoublePage.apply(this, arguments);
+      window.setTimeout(updatePageIndicator, 0);
+      return result;
+    };
+  }
+
+  window.addEventListener('load', () => {
+    window.setTimeout(updatePageIndicator, 0);
+  });
+})();
+</script>
+
 </body>
 
 
@@ -2761,12 +2913,12 @@ if (toggleBtn) {
         page.render({ canvasContext: offCtx, viewport: fullVp }).promise.then(() => {
           const isOddPage = (targetPage % 2 === 1);
           const hCrop = {
-            left:  isOddPage ? 0    : 0.01,
-            right: isOddPage ? 0.01 : 0
+            left: 0.01,
+            right: 0.01
           };
           const vCrop = isTopTile
-            ? { yStart: 0.04, height: 0.47 }
-            : { yStart: 0.50, height: 0.47 };
+            ? { yStart: 0.01, height: 0.49 }
+            : { yStart: 0.50, height: 0.49 };
 
           const cropX = Math.round(fullVp.width  * hCrop.left);
           const cropW = Math.round(fullVp.width  * (1 - hCrop.left - hCrop.right));
@@ -2936,6 +3088,142 @@ window.addEventListener("DOMContentLoaded", function() {
 </script>
 
 
+
+<script>
+(function () {
+  function getPageViewMode() {
+    if (window.pageViewMode) return window.pageViewMode;
+    if (window.halfMode) return 'half';
+    return 'double';
+  }
+
+  function getBasePageNumber() {
+    const raw = (typeof pageNum !== 'undefined') ? pageNum : window.pageNum;
+    const n = parseInt(raw || 1, 10);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }
+
+  function getCurrentTile() {
+    const raw = (typeof currentTile !== 'undefined') ? currentTile : window.currentTile;
+    const n = parseInt(raw || 1, 10);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }
+
+  function getDisplayedPageNumber() {
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+    if (mode === 'half') {
+      const tile = getCurrentTile();
+      return tile >= 3 ? basePage + 1 : basePage;
+    }
+    return basePage;
+  }
+
+  function getPageIndicatorText() {
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+
+    if (mode === 'single') {
+      return `Pg. ${basePage}`;
+    }
+
+    if (mode === 'half') {
+      const displayedPage = getDisplayedPageNumber();
+      const tile = getCurrentTile();
+      const arrow = (tile === 1 || tile === 3) ? '↑' : '↓';
+      return `Pg. ${displayedPage}${arrow}`;
+    }
+
+    const totalPages = (typeof pdfDoc !== 'undefined' && pdfDoc && Number.isFinite(pdfDoc.numPages))
+      ? pdfDoc.numPages
+      : basePage + 1;
+    return `Pg. ${basePage} - ${Math.min(basePage + 1, totalPages)}`;
+  }
+
+  function buildModePreview(mode, basePage) {
+    const tileIndicator = document.createElement('div');
+    tileIndicator.className = `tile-indicator ${mode}`;
+
+    const tiles = mode === 'half' ? 4 : 2;
+    const activeIndex = (() => {
+      if (mode === 'half') {
+        const tile = getCurrentTile();
+        return Math.min(Math.max(tile, 1), 4);
+      }
+      if (mode === 'single') {
+        // odd pages are treated as the left side, even pages as the right side
+        return (basePage % 2 === 0) ? 2 : 1;
+      }
+      return 0;
+    })();
+
+    for (let i = 1; i <= tiles; i++) {
+      const tile = document.createElement('div');
+      tile.className = `tile ${i === activeIndex ? 'active' : ''}`;
+      tile.dataset.tile = i;
+
+      if (mode === 'half') {
+        const labels = ['Upper-left', 'Lower-left', 'Upper-right', 'Lower-right'];
+        tile.title = labels[i - 1];
+        tile.addEventListener('click', () => {
+          if (typeof currentTile !== 'undefined') {
+            currentTile = i;
+          } else {
+            window.currentTile = i;
+          }
+          if (typeof renderHalfPage === 'function') {
+            renderHalfPage(pageNum, currentTile || i);
+          }
+          updatePageIndicator();
+        });
+      } else if (mode === 'single') {
+        tile.title = i === 1 ? 'Left side' : 'Right side';
+      }
+
+      tileIndicator.appendChild(tile);
+    }
+
+    return tileIndicator;
+  }
+
+  function updatePageIndicator() {
+    const container = document.getElementById('reader-container');
+    if (!container) return;
+
+    document.querySelector('.page-indicator')?.remove();
+    document.querySelector('.tile-indicator')?.remove();
+
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+
+    const indicator = document.createElement('div');
+    indicator.className = 'page-indicator';
+    indicator.textContent = getPageIndicatorText();
+    indicator.style.cursor = 'pointer';
+    indicator.onclick = typeof openBookmarkDialog === 'function' ? openBookmarkDialog : null;
+    container.appendChild(indicator);
+
+    if (mode === 'half' || mode === 'single') {
+      container.appendChild(buildModePreview(mode, basePage));
+    }
+  }
+
+  window.updatePageIndicator = updatePageIndicator;
+
+  if (typeof window.renderDoublePage === 'function') {
+    const originalRender = window.renderDoublePage;
+    window.renderDoublePage = function (num) {
+      const result = originalRender.apply(this, arguments);
+      window.setTimeout(updatePageIndicator, 0);
+      return result;
+    };
+  }
+
+  window.addEventListener('load', () => window.setTimeout(updatePageIndicator, 0));
+})();  window.addEventListener('load', () => window.setTimeout(updatePageIndicator, 0));
+})();
+</script>
+
 <script>
 (function () {
   function initReaderLock() {
@@ -3047,6 +3335,150 @@ window.addEventListener("DOMContentLoaded", function() {
   } else {
     initReaderLock();
   }
+})();
+</script>
+
+
+<script>
+(function () {
+  function getPageViewMode() {
+    if (window.pageViewMode) return window.pageViewMode;
+    if (window.halfMode) return 'half';
+    return 'double';
+  }
+
+  function getBasePageNumber() {
+    const raw = (typeof pageNum !== 'undefined') ? pageNum : window.pageNum;
+    const n = parseInt(raw || 1, 10);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }
+
+  function getCurrentTile() {
+    const raw = (typeof currentTile !== 'undefined') ? currentTile : window.currentTile;
+    const n = parseInt(raw || 1, 10);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }
+
+  function getDisplayedPageNumber() {
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+
+    if (mode === 'half') {
+      return getCurrentTile() >= 3 ? basePage + 1 : basePage;
+    }
+
+    return basePage;
+  }
+
+  function getPageIndicatorText() {
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+
+    if (mode === 'single') {
+      return `Pg. ${basePage}`;
+    }
+
+    if (mode === 'half') {
+      const displayedPage = getDisplayedPageNumber();
+      const tile = getCurrentTile();
+      const arrow = (tile === 1 || tile === 3) ? '↑' : '↓';
+      return `Pg. ${displayedPage}${arrow}`;
+    }
+
+    const totalPages = (typeof pdfDoc !== 'undefined' && pdfDoc && Number.isFinite(pdfDoc.numPages))
+      ? pdfDoc.numPages
+      : basePage + 1;
+    return `Pg. ${basePage} - ${Math.min(basePage + 1, totalPages)}`;
+  }
+
+  function buildModePreview(mode, basePage) {
+    const tileIndicator = document.createElement('div');
+    tileIndicator.className = `tile-indicator ${mode}`;
+
+    const tileCount = mode === 'half' ? 4 : 2;
+    const activeIndex = mode === 'half'
+      ? getCurrentTile()
+      : ((basePage % 2 === 0) ? 2 : 1);
+
+    for (let i = 1; i <= tileCount; i++) {
+      const tile = document.createElement('div');
+      tile.className = `tile ${i === activeIndex ? 'active' : ''}`;
+      tile.dataset.tile = String(i);
+
+      if (mode === 'half') {
+        const labels = ['Upper-left', 'Lower-left', 'Upper-right', 'Lower-right'];
+        tile.title = labels[i - 1];
+        tile.addEventListener('click', () => {
+          if (typeof window.currentTile !== 'undefined') {
+            window.currentTile = i;
+          }
+          if (typeof currentTile !== 'undefined') {
+            currentTile = i;
+          }
+          if (typeof renderHalfPage === 'function') {
+            renderHalfPage(getBasePageNumber(), i);
+          }
+          updatePageIndicator();
+        });
+      } else {
+        tile.title = i === 1 ? 'Left side' : 'Right side';
+      }
+
+      tileIndicator.appendChild(tile);
+    }
+
+    return tileIndicator;
+  }
+
+  function updatePageIndicator() {
+    const container = document.getElementById('reader-container');
+    if (!container) return;
+
+    container.querySelector('.page-indicator')?.remove();
+    container.querySelector('.tile-indicator')?.remove();
+    container.querySelector('#pageNoteDisplay')?.remove();
+
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+    const indicator = document.createElement('div');
+    indicator.className = 'page-indicator';
+    indicator.textContent = getPageIndicatorText();
+    indicator.style.cursor = 'pointer';
+    indicator.onclick = typeof openBookmarkDialog === 'function' ? openBookmarkDialog : null;
+    container.appendChild(indicator);
+
+    if (mode === 'half' || mode === 'single') {
+      container.appendChild(buildModePreview(mode, basePage));
+    }
+
+    const profile = (typeof getActiveProfile === 'function') ? getActiveProfile() : 'Guest';
+    const notePage = getDisplayedPageNumber();
+    const noteKey = `bookmark-${profile}-${currentBook}-${notePage}`;
+    const bookmarkData = JSON.parse(localStorage.getItem(noteKey) || '{}');
+
+    if (bookmarkData.note) {
+      const noteEl = document.createElement('div');
+      noteEl.id = 'pageNoteDisplay';
+      noteEl.style.cssText = 'text-align:center; margin-top:4px; color:white; font-style:italic;';
+      noteEl.textContent = bookmarkData.note;
+      container.appendChild(noteEl);
+    }
+  }
+
+  window.updatePageIndicator = updatePageIndicator;
+
+  if (typeof window.renderDoublePage === 'function') {
+    const originalRenderDoublePage = window.renderDoublePage;
+    window.renderDoublePage = function (num) {
+      const result = originalRenderDoublePage.apply(this, arguments);
+      window.setTimeout(updatePageIndicator, 0);
+      return result;
+    };
+  }
+
+  window.addEventListener('load', () => {
+    window.setTimeout(updatePageIndicator, 0);
+  });
 })();
 </script>
 

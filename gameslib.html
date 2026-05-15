@@ -360,6 +360,79 @@ body.flow-mode .shell { display: none; }
 body.flow-mode .flow-shell { display: block; }
 body.flow-mode #flowStatus { display: block !important; }
 
+
+    .flow-mode-select {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      margin: 10px 0 14px;
+    }
+    .flow-mode-select select {
+      width: min(320px, 100%);
+    }
+    .flow-multi-wrap {
+      display: none;
+      margin-top: 12px;
+      gap: 12px;
+    }
+    .flow-multi-wrap.show { display: grid; }
+    .disk-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .disk-row {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+    }
+    .disk-row-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .disk-row-title {
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .disk-row-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .disk-dropzone {
+      width: 100%;
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px dashed rgba(255,255,255,.22);
+      border-radius: 12px;
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+    }
+    .disk-dropzone input[type="file"] { display: none; }
+    .disk-paths {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .flow-root-preview {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.03);
+    }
     @media (max-width: 980px) {
       .grid, .grid2, .preview, .entry-card { grid-template-columns: 1fr; }
       .entry-actions { justify-content: flex-start; }
@@ -377,49 +450,31 @@ body.flow-mode #flowStatus { display: block !important; }
     <div class="flow-head">
       <div>
         <h1>Games Flow</h1>
-        <div class="subtitle">Title first. Artwork second. ROMs third. Replace only the existing games block.</div>
+        <div class="subtitle">One step: title, artwork, ROM, console, and server settings. PSP and GBA links default to HTTPS.</div>
       </div>
       <div class="pill" id="flowStatePill">Loading…</div>
     </div>
 
-    
-<div class="flow-steps">
+    <div class="flow-steps">
       <section class="flow-card" id="flowStep1">
-        <div class="section-title">Step 1</div>
-        <h2>Game title and cover art</h2>
-        <div class="mini">Drop the cover image here. It becomes the game art and uploads with the entry.</div>
+        <div class="section-title">Flow</div>
+        <h2>Title, cover art, ROM, and server settings</h2>
+        <div class="mini">Drop the cover image and ROM side by side. Use the HTTPS server for PSP and GBA, or check it manually for other consoles.</div>
 
-        <div class="flow-topbar">
-          <div class="row">
-            <button id="flowStep1Clear" class="secondary" type="button">Clear</button>
+        <div class="flow-mode-select">
+          <div class="field" style="margin-bottom:0;">
+            <label for="flowTemplate">Mode</label>
+            <select id="flowTemplate">
+              <option value="standard">Standard</option>
+              <option value="multidisk">Multi-Disk</option>
+            </select>
           </div>
-          <div class="row">
-            <button id="flowStep1Next" type="button">Continue</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="flowName">Game title</label>
-          <input id="flowName" type="text" placeholder="Final Fantasy IX" />
-        </div>
-
-        <label class="dropzone" id="flowImageDropzone" for="flowImageInput">
-          <input id="flowImageInput" type="file" accept="image/*" />
-          <div>
-            <div class="dz-name">Drop or choose the cover image</div>
-            <div class="dz-meta">This becomes the game art for the entry.</div>
-          </div>
-        </label>
-
-        <div class="flow-image-preview" id="flowImagePreviewWrap">
-          <img id="flowImagePreview" alt="Cover preview" />
-          <div class="meta" id="flowImagePreviewMeta"></div>
         </div>
 
         <div class="grid2" style="margin-top:12px;">
           <div class="field">
-            <label for="flowImgPath">Image path</label>
-            <input id="flowImgPath" type="text" readonly placeholder="./Images/game.jpg" />
+            <label for="flowName">Game title</label>
+            <input id="flowName" type="text" placeholder="Final Fantasy IX" />
           </div>
           <div class="field">
             <label for="flowConsole">Console</label>
@@ -432,57 +487,106 @@ body.flow-mode #flowStatus { display: block !important; }
               <option value="NDS">Nintendo DS</option>
               <option value="N64">Nintendo 64</option>
               <option value="PSX">PlayStation</option>
+              <option value="PSP">PlayStation Portable</option>
               <option value="SNES">Super Nintendo</option>
               <option value="SEGA">SEGA</option>
               <option value="Arcade">Arcade</option>
             </select>
           </div>
         </div>
-      </section>
 
-      <section class="flow-card" id="flowStep2">
-        <div class="section-title">Step 2</div>
-        <h2>ROM file and server upload</h2>
-        <div class="mini">Drop the ROM here. Confirming uploads the art and ROM together, then the final update writes <code>games.js</code> and closes the page.</div>
+        <div class="field" style="margin-top:0;">
+          <label style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+            <input id="flowUseHttps" type="checkbox" />
+            <span>Use Https Server</span>
+          </label>
+          <div class="mini">PSP and GBA use HTTPS automatically. If the HTTPS server file is missing, you will be asked for it.</div>
+        </div>
+
+        <div id="flowStandardArea">
+          <div class="grid2">
+            <label class="dropzone" id="flowImageDropzone">
+              <input id="flowImageInput" type="file" accept="image/*" />
+              <div>
+                <div class="dz-name">Drop or choose the cover image</div>
+                <div class="dz-meta">This becomes the game art for the entry.</div>
+              </div>
+            </label>
+
+            <label class="dropzone" id="flowRomDropzone">
+              <input id="flowRomInput" type="file" accept=".chd,.bin,.iso,.gb,.gbc,.gba,.nds,.z64,.n64,.sfc,.smc,.smd,.md,.pbp,.cue,.zip,.nes,.7z,*/*" />
+              <div>
+                <div class="dz-name">Drop or choose the ROM</div>
+                <div class="dz-meta">This file becomes the game link.</div>
+              </div>
+            </label>
+          </div>
+
+          <div class="flow-image-preview" id="flowImagePreviewWrap">
+            <img id="flowImagePreview" alt="Cover preview" />
+            <div class="meta" id="flowImagePreviewMeta"></div>
+          </div>
+
+          <div class="grid2" style="margin-top:12px;">
+            <div class="field">
+              <label for="flowImgPath">Image path</label>
+              <input id="flowImgPath" type="text" readonly placeholder="./Images/game.jpg" />
+            </div>
+            <div class="field">
+              <label for="flowRomPath">ROM link</label>
+              <input id="flowRomPath" type="text" readonly placeholder="./emulator/indexpsx.html?rom=..." />
+            </div>
+          </div>
+        </div>
+
+        <div id="flowMultiArea" class="flow-multi-wrap">
+          <div class="field">
+            <label class="dropzone" id="flowRootImageDropzone">
+              <input id="flowRootImageInput" type="file" accept="image/*" />
+              <div>
+                <div class="dz-name">Drop or choose the root image</div>
+                <div class="dz-meta">This becomes the main box art for the multi-disk entry.</div>
+              </div>
+            </label>
+          </div>
+          <div class="grid2" style="margin-top:12px;">
+            <div class="field">
+              <label for="flowRootImgPath">Root image path</label>
+              <input id="flowRootImgPath" type="text" readonly placeholder="./Images/root.jpg" />
+            </div>
+            <div class="field">
+              <label>Disks</label>
+              <div class="mini">Add at least two disks. Each disk needs both an image and a ROM.</div>
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px; align-items:center;">
+            <button id="flowAddDiskBtn" class="secondary" type="button">Add disk</button>
+            <button id="flowResetDisksBtn" class="secondary" type="button">Reset disks</button>
+          </div>
+          <div id="flowDiskList" class="disk-list"></div>
+        </div>
 
         <div class="flow-topbar">
           <div class="row">
-            <button id="flowBackBtn" class="secondary" type="button">Back</button>
+            <button id="flowClearBtn" class="secondary" type="button">Clear</button>
           </div>
           <div class="row">
-            <button id="flowConfirmFilesBtn" class="secondary" type="button">Confirm Art &amp; ROM</button>
-            <button id="flowReplaceBtn" class="warn" type="button">Update server files</button>
+            <button id="flowSaveBtn" class="warn" type="button">Save &amp; Update</button>
           </div>
         </div>
 
-        <div class="grid2">
+        <div class="grid2" style="margin-top:12px;">
           <div class="field">
-            <label for="flowServerBase">Server base</label>
-            <input id="flowServerBase" type="text" value="" placeholder="/ or http://192.168.254.16:8080" />
+            <label for="flowServerBase">Http server IP</label>
+            <input id="flowServerBase" type="text" value="" placeholder="http://192.168.254.16:8080" />
           </div>
           <div class="field">
-            <label for="flowTemplate">Template</label>
-            <select id="flowTemplate">
-              <option value="standard">Standard</option>
-              <option value="multidisk">Multi-disk</option>
-            </select>
+            <label for="flowHttpsServerBase">Https server IP</label>
+            <input id="flowHttpsServerBase" type="text" value="" placeholder="https://192.168.254.16:8081" />
           </div>
         </div>
 
-        <label class="dropzone" id="flowRomDropzone" for="flowRomInput">
-          <input id="flowRomInput" type="file" accept=".chd,.bin,.iso,.gb,.gbc,.gba,.nds,.z64,.n64,.sfc,.smc,.smd,.md,.pbp,.cue,.zip,.nes,.7z,*/*" />
-          <div>
-            <div class="dz-name">Drop or choose the ROM</div>
-            <div class="dz-meta">This file becomes the game link.</div>
-          </div>
-        </label>
-
-        <div class="field" style="margin-top:12px;">
-          <label for="flowRomPath">ROM link</label>
-          <input id="flowRomPath" type="text" readonly placeholder="./emulator/indexpsx.html?rom=..." />
-        </div>
-
-        <div id="flowDiskNote" class="mini" style="display:none; margin-top:8px;">Multi-disk mode expands the ROM step into disk rows.</div>
+        <div id="flowDiskNote" class="mini" style="display:none; margin-top:8px;">Multi-disk mode now expects a root image plus disk image/ROM pairs.</div>
 
         <div class="status" id="flowStatus">Ready. Load the server file and continue.</div>
       </section>
@@ -490,7 +594,7 @@ body.flow-mode #flowStatus { display: block !important; }
   </div>
 </div>
 
-  <div class="shell">
+<div class="shell">
 
     <div class="header">
       <div>
@@ -646,6 +750,7 @@ body.flow-mode #flowStatus { display: block !important; }
   </div>
 
   <script>
+
     (() => {
       const state = {
         sourceText: '',
@@ -660,11 +765,14 @@ body.flow-mode #flowStatus { display: block !important; }
         imgFile: null,
         imgObjectUrl: '',
         assetsConfirmed: false,
-        serverBase: (window.location && window.location.origin ? `${window.location.origin}/` : '/')
+        serverBase: (window.location && window.location.origin ? `${window.location.origin}/` : '/'),
+        httpServerBase: '',
+        httpsServerBase: ''
       };
 
       const el = (id) => document.getElementById(id);
-      const flowMode = new URLSearchParams(location.search).has('flow');
+      const flowParams = new URLSearchParams(location.search);
+      const flowMode = flowParams.has('flow') || flowParams.has('gflow');
       if (flowMode) document.body.classList.add('flow-mode');
 
       function esc(value) {
@@ -697,33 +805,125 @@ function setFlowPill(text) {
 function flowSafeBaseName(value) {
   return String(value || '')
     .trim()
-    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, '')
+    .replace(/[<>:"/\\|?*!#\x00-\x1F]+/g, '')
     .replace(/\s+/g, ' ')
     .replace(/\.+$/g, '')
     .trim();
 }
 
+function flowSanitizeServerFileName(value) {
+  return String(value || '')
+    .replace(/[!#?:]/g, '')
+    .replace(/[\\/<>"|*\x00-\x1F]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function flowConsoleLabel() {
+  return (el('flowConsole')?.value || el('consoleSelect')?.value || '').trim();
+}
+
+function flowBaseTitle() {
+  const raw = flowSafeBaseName(el('flowName')?.value || el('nameInput')?.value || '');
+  const consoleName = flowConsoleLabel();
+  if (!raw || !consoleName) return raw;
+  const suffix = `, ${consoleName}`.toLowerCase();
+  const lower = raw.toLowerCase();
+  return lower.endsWith(suffix) ? raw.slice(0, raw.length - suffix.length).trim() : raw;
+}
+
 function flowCurrentTitle() {
-  return flowSafeBaseName(el('flowName')?.value || el('nameInput')?.value || '');
+  return flowBaseTitle();
+}
+
+function flowDisplayName() {
+  const title = flowBaseTitle();
+  const consoleName = flowConsoleLabel();
+  if (!title && !consoleName) return '';
+  if (!title) return consoleName;
+  if (!consoleName) return title;
+  return `${title}, ${consoleName}`;
+}
+
+function flowFileStem(diskIndex = 1) {
+  const title = flowBaseTitle() || 'game';
+  const consoleName = flowConsoleLabel();
+  const diskPart = el('flowTemplate')?.value === 'multidisk' ? ` - Disk ${diskIndex}` : '';
+  return consoleName ? `${title}${diskPart}, ${consoleName}` : `${title}${diskPart}`;
+}
+
+function flowRefreshImagePath() {
+  const path = `./Images/${flowRegisteredImageName(1)}`;
+  if (el('flowImgPath')) el('flowImgPath').value = path;
+  if (el('imgPath')) el('imgPath').value = path;
+  return path;
+}
+
+function flowCommitCurrentEntry() {
+  const title = flowCurrentTitle();
+  const consoleName = flowConsoleLabel();
+  const imgPath = flowRefreshImagePath();
+  const romLink = el('flowRomPath')?.value?.trim() || el('romPath')?.value?.trim() || (state.romFile ? defaultLinkFromRom(flowRegisteredRomName(1), consoleName || flowConsoleLabel() || consoleFromExt(state.romFile.name), el('flowUseHttps')?.checked ? (state.httpsServerBase || el('flowHttpsServerBase')?.value || './') : (state.httpServerBase || el('flowServerBase')?.value || './')) : '');
+  if (!title) throw new Error('Game title is required.');
+  if (!consoleName) throw new Error('Console is required.');
+  if (!imgPath) throw new Error('Image path is required.');
+  if (!romLink) throw new Error('ROM link is required.');
+  const entry = {
+    id: `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    name: flowDisplayName(),
+    img: imgPath,
+    link: romLink,
+    console: consoleName
+  };
+  upsertEntry(entry, 'append');
+  if (el('nameInput')) el('nameInput').value = entry.name;
+  if (el('imgPath')) el('imgPath').value = entry.img;
+  if (el('flowImgPath')) el('flowImgPath').value = entry.img;
+  if (el('romPath')) el('romPath').value = entry.link;
+  if (el('consoleSelect')) el('consoleSelect').value = entry.console;
+  updatePreview();
+  return entry;
+}
+
+function flowTryClose() {
+  try {
+    const msg = { type: 'lib-flow-complete', source: 'games' };
+    if (window.opener && window.opener !== window) window.opener.postMessage(msg, '*');
+    if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*');
+  } catch (err) {}
+
+  try { self.close(); } catch (err) {}
+  try { window.close(); } catch (err) {}
+
+  setTimeout(() => {
+    try { self.close(); } catch (err) {}
+    try { window.close(); } catch (err) {}
+  }, 200);
 }
 
 function flowDiskSuffix(diskIndex = 1) {
-  return el('flowTemplate')?.value === 'multidisk' ? `, Disk ${diskIndex}` : '';
-}
-
-function flowRomFileName(originalName, diskIndex = 1) {
-  const ext = String(originalName || '').split('.').pop().toLowerCase() || 'bin';
-  const base = flowCurrentTitle() || 'game';
-  return `${base}${flowDiskSuffix(diskIndex)}.${ext}`;
+  return el('flowTemplate')?.value === 'multidisk' ? ` - Disk ${diskIndex}` : '';
 }
 
 function flowImageFileName(diskIndex = 1) {
-  const base = flowCurrentTitle() || 'game';
-  return `${base}${flowDiskSuffix(diskIndex)}.jpg`;
+  return flowSanitizeServerFileName(`${flowFileStem(diskIndex)}.jpg`);
+}
+
+function flowRomFileName(originalName, diskIndex = 1) {
+  const source = originalName || state.romFile?.name || `${flowFileStem(diskIndex)}.bin`;
+  return flowSanitizeServerFileName(source);
 }
 
 function flowImageLabel(diskIndex = 1) {
-  return `${flowCurrentTitle() || 'game'}${flowDiskSuffix(diskIndex)}.jpg`;
+  return flowImageFileName(diskIndex);
+}
+
+function flowRegisteredImageName(diskIndex = 1) {
+  return flowImageFileName(diskIndex);
+}
+
+function flowRegisteredRomName(diskIndex = 1) {
+  return flowRomFileName(state.romFile?.name, diskIndex);
 }
 
 function flowSyncFromInputs() {
@@ -738,15 +938,15 @@ function flowSyncToInputs() {
   if (el('flowImgPath') && el('imgPath')) el('flowImgPath').value = el('imgPath').value;
   if (el('flowConsole') && el('consoleSelect')) el('flowConsole').value = el('consoleSelect').value;
   if (el('flowRomPath') && el('romPath')) el('flowRomPath').value = el('romPath').value;
-  if (el('flowServerBase') && !el('flowServerBase').value) el('flowServerBase').value = getOriginBase() || '/';
+  if (el('flowUseHttps') && !el('flowUseHttps').checked) el('flowUseHttps').checked = flowConsoleRequiresHttps(el('flowConsole')?.value);
+  if (el('flowServerBase') && !el('flowServerBase').value) el('flowServerBase').value = state.httpServerBase || getOriginBase() || '/';
+  if (el('flowHttpsServerBase') && !el('flowHttpsServerBase').value) el('flowHttpsServerBase').value = state.httpsServerBase || 'https://192.168.254.16:8081';
 }
 
 function flowSetStep(step) {
   const s1 = el('flowStep1');
-  const s2 = el('flowStep2');
-  if (!s1 || !s2) return;
-  s1.style.display = step === 1 ? '' : 'none';
-  s2.style.display = step === 2 ? '' : 'none';
+  if (!s1) return;
+  s1.style.display = '';
 }
 
 function flowUpdateStatus(text, tone = '') {
@@ -757,7 +957,26 @@ function flowUpdateStatus(text, tone = '') {
 function flowGuessRomPath(filename, diskIndex = 1) {
   const consoleName = el('flowConsole')?.value || '';
   const romFileName = flowRomFileName(filename, diskIndex);
-  return defaultLinkFromRom(romFileName, consoleName || consoleFromExt(filename));
+  const useHttps = flowShouldUseHttps(consoleName);
+  const base = useHttps ? (state.httpsServerBase || el('flowHttpsServerBase')?.value || './') : (state.httpServerBase || el('flowServerBase')?.value || './');
+  return defaultLinkFromRom(romFileName, consoleName || consoleFromExt(filename), base);
+}
+
+async function flowRefreshRomPath() {
+  const consoleName = flowConsoleLabel();
+  const romSource = flowRegisteredRomName(1);
+  const useHttps = flowShouldUseHttps(consoleName);
+  let base = useHttps ? (state.httpsServerBase || el('flowHttpsServerBase')?.value || '') : (state.httpServerBase || el('flowServerBase')?.value || '');
+  if (useHttps) {
+    base = await ensureHttpsServerBase({ promptIfMissing: true });
+    if (!base) return '';
+  } else if (!base) {
+    base = await ensureHttpServerBase();
+  }
+  const link = defaultLinkFromRom(romSource, consoleName || consoleFromExt(romSource), base || './');
+  if (el('flowRomPath')) el('flowRomPath').value = link;
+  if (el('romPath')) el('romPath').value = link;
+  return link;
 }
 
 function flowUpdateImagePreview() {
@@ -779,7 +998,7 @@ function flowUpdateImagePreview() {
   state.imgObjectUrl = URL.createObjectURL(file);
   img.src = state.imgObjectUrl;
   wrap.classList.add('show');
-  const target = flowImageLabel(1);
+  const target = flowRegisteredImageName(1);
   meta.innerHTML = `<strong>Preview:</strong> ${esc(file.name || target)}<br><strong>Saved as:</strong> ${esc(target)}`;
 }
 
@@ -824,10 +1043,89 @@ function joinServerUrl(base, ...parts) {
 
 function getFlowServerBase() {
   const input = el('flowServerBase')?.value;
-  const fromState = state.serverBase || getOriginBase() || '/';
+  const fromState = state.httpServerBase || state.serverBase || getOriginBase() || '/';
   const next = normalizeBaseUrl(input || fromState || '/');
+  state.httpServerBase = next;
   state.serverBase = next;
   return next;
+}
+
+function getFlowHttpsServerBase() {
+  const input = el('flowHttpsServerBase')?.value;
+  const fromState = state.httpsServerBase || '';
+  const next = normalizeBaseUrl(input || fromState || '');
+  state.httpsServerBase = next;
+  return next;
+}
+
+function flowConsoleRequiresHttps(consoleName) {
+  return ['GBA', 'PSP'].includes(String(consoleName || '').trim().toUpperCase());
+}
+
+function flowShouldUseHttps(consoleName = flowConsoleLabel()) {
+  return flowConsoleRequiresHttps(consoleName) || !!el('flowUseHttps')?.checked;
+}
+
+function serverFileUrl(fileName) {
+  return joinServerUrl(getOriginBase() || '/', fileName);
+}
+
+async function readServerTextFile(fileName) {
+  const url = serverFileUrl(fileName);
+  const res = await fetch(url + `?ts=${Date.now()}`, { cache: 'no-store' });
+  if (!res.ok) {
+    if (res.status === 404) return '';
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return (await res.text()).trim();
+}
+
+async function saveServerTextFile(fileName, text) {
+  await uploadTextToUrl(String(text ?? ''), serverFileUrl(fileName));
+}
+
+async function ensureHttpsServerBase({ promptIfMissing = false } = {}) {
+  const existing = (await readServerTextFile('httpsserverip.txt')) ||
+    (await readServerTextFile('httpserverip.txt'));
+  if (existing) {
+    const normalized = normalizeBaseUrl(existing);
+    state.httpsServerBase = normalized;
+    if (el('flowHttpsServerBase')) el('flowHttpsServerBase').value = normalized;
+    return normalized;
+  }
+  if (!promptIfMissing) return '';
+  const example = 'https://192.168.254.16:8081';
+  const answer = window.prompt('Enter the HTTPS server base URL:', example);
+  const cleaned = normalizeBaseUrl(answer || '');
+  if (!cleaned || cleaned === '/') return '';
+  state.httpsServerBase = cleaned;
+  if (el('flowHttpsServerBase')) el('flowHttpsServerBase').value = cleaned;
+  await saveServerTextFile('httpsserverip.txt', cleaned);
+  await saveServerTextFile('httpserverip.txt', cleaned);
+  return cleaned;
+}
+
+async function ensureHttpServerBase() {
+  const existing = await readServerTextFile('serverip.txt');
+  if (existing) {
+    const normalized = normalizeBaseUrl(existing);
+    state.httpServerBase = normalized;
+    state.serverBase = normalized;
+    if (el('flowServerBase')) el('flowServerBase').value = normalized;
+    return normalized;
+  }
+  const fallback = normalizeBaseUrl(el('flowServerBase')?.value || state.serverBase || getOriginBase() || '/');
+  state.httpServerBase = fallback;
+  state.serverBase = fallback;
+  if (el('flowServerBase')) el('flowServerBase').value = fallback;
+  return fallback;
+}
+
+async function ensureFlowServerBases({ promptHttps = false } = {}) {
+  await ensureHttpServerBase();
+  const https = await ensureHttpsServerBase({ promptIfMissing: promptHttps || flowShouldUseHttps() });
+  if (https && el('flowHttpsServerBase')) el('flowHttpsServerBase').value = https;
+  return { http: state.httpServerBase, https: state.httpsServerBase };
 }
 
 function encodeUploadUrl(url) {
@@ -867,18 +1165,24 @@ function norm(value) {
         return '';
       }
 
-      function defaultLinkFromRom(filename, consoleName) {
+      function defaultLinkFromRom(filename, consoleName, base = './') {
         const raw = encodeURIComponent(filename || '');
+        const cleanBase = String(base || './').trim();
+        const prefix = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:\/\/|\.\/|\/)/.test(cleanBase)
+          ? cleanBase.replace(/\/+$/, '') + '/'
+          : `./${cleanBase.replace(/^\.+\/?/, '').replace(/\/+$/, '')}/`;
+
         switch (consoleName) {
-          case 'GBA': return `./emulator/indexgba.html?rom=${raw}`;
+          case 'GBA': return `${prefix}emulator/indexgba.html?rom=${raw}`;
           case 'GB':
-          case 'GBC': return `./emulator/indexgb.html?rom=${raw}`;
-          case 'NDS': return `./emulator/indexnds.html?rom=${raw}`;
-          case 'N64': return `./emulator/indexn64.html?rom=${raw}`;
-          case 'SNES': return `./emulator/indexsnes.html?rom=${raw}`;
-          case 'SEGA': return `./emulator/indexsega.html?rom=${raw}`;
-          case 'Unity': return `./emulator/Unity/${raw}`;
-          default: return `./emulator/indexpsx.html?rom=${raw}`;
+          case 'GBC': return `${prefix}emulator/indexgb.html?rom=${raw}`;
+          case 'NDS': return `${prefix}emulator/indexnds.html?rom=${raw}`;
+          case 'N64': return `${prefix}emulator/indexn64.html?rom=${raw}`;
+          case 'SNES': return `${prefix}emulator/indexsnes.html?rom=${raw}`;
+          case 'SEGA': return `${prefix}emulator/indexsega.html?rom=${raw}`;
+          case 'Unity': return `${prefix}emulator/Unity/${raw}`;
+          case 'PSP': return `${prefix}emulator/indexpsp.html?rom=${raw}`;
+          default: return `${prefix}emulator/indexpsx.html?rom=${raw}`;
         }
       }
 
@@ -1006,19 +1310,6 @@ function norm(value) {
         state.selectedId = entry.id;
         return 'Added entry.';
       }
-        if (mode === 'replaceKey' && key >= 0) {
-          state.entries.splice(key, 1, entry);
-          state.selectedId = entry.id;
-          return 'Replaced duplicate key.';
-        }
-        if (mode === 'skipDupes' && (exact >= 0 || key >= 0)) {
-          return 'Skipped duplicate.';
-        }
-
-        state.entries.push(entry);
-        state.selectedId = entry.id;
-        return 'Added entry.';
-      }
 
       function updateSelected() {
         const idx = state.entries.findIndex(e => e.id === state.selectedId);
@@ -1117,7 +1408,15 @@ function norm(value) {
               link: String(item?.link ?? ''),
               console: String(item?.console ?? ''),
               notes: String(item?.notes ?? ''),
-              specialSet: String(item?.specialSet ?? '')
+              specialSet: String(item?.specialSet ?? ''),
+              baseName: String(item?.baseName ?? ''),
+              disks: Array.isArray(item?.disks)
+                ? item.disks.map((disk, diskIndex) => ({
+                    disk: Number(disk?.disk ?? (diskIndex + 1)),
+                    img: String(disk?.img ?? ''),
+                    link: String(disk?.link ?? '')
+                  }))
+                : []
             }))
           };
         } catch (err) {
@@ -1126,13 +1425,8 @@ function norm(value) {
       }
 
       function generateEntryCode(entry) {
-        const extras = [];
-        if (entry.console) extras.push(`console: ${JSON.stringify(entry.console)}`);
-        if (entry.specialSet) extras.push(`specialSet: ${JSON.stringify(entry.specialSet)}`);
-        if (entry.notes) extras.push(`notes: ${JSON.stringify(entry.notes)}`);
-        return `{ name: ${JSON.stringify(entry.name)}, img: ${JSON.stringify(entry.img)}, link: ${JSON.stringify(entry.link)}${extras.length ? ', ' + extras.join(', ') : ''} }`;
+        return `{ name: ${JSON.stringify(entry.name)}, img: ${JSON.stringify(entry.img)}, link: ${JSON.stringify(entry.link)} }`;
       }
-
       function generateStandaloneSource() {
         const lines = [
           '/* Media Server Games Catalog */',
@@ -1179,52 +1473,6 @@ function norm(value) {
         return standalone;
       }
 
-        const block = findGamesBlock(state.sourceText || '');
-        if (block) {
-          const merged = `${block.prefix}
-${body}
-${block.suffix}`;
-          state.output = merged;
-          el('outputText').value = merged;
-          el('modalText').value = merged;
-          setStatus('outputStatus', 'Source was rebuilt by replacing only the games array, while keeping the surrounding code.', 'good');
-          return merged;
-        }
-
-        state.output = standalone;
-        el('outputText').value = standalone;
-        el('modalText').value = standalone;
-        setStatus('outputStatus', 'Built standalone games.js content because no source block was available to preserve.', 'warn');
-        return standalone;
-      }
-
-        const block = findGamesBlock(state.sourceText || '');
-        if (block) {
-          const merged = `${block.prefix}
-${body}
-${block.suffix}`;
-          state.output = merged;
-          el('outputText').value = merged;
-          el('modalText').value = merged;
-          setStatus('outputStatus', 'Source was rebuilt by replacing only the games array, while keeping the surrounding code.', 'good');
-          return merged;
-        }
-
-        state.output = standalone;
-        el('outputText').value = standalone;
-        el('modalText').value = standalone;
-        setStatus('outputStatus', 'Built standalone games.js content because no source block was available to preserve.', 'warn');
-        return standalone;
-      }
-
-        const body = state.entries.map((entry, i) => `  ${generateEntryCode(entry)}${i < state.entries.length - 1 ? ',' : ''}`).join('\n');
-        const merged = `${state.prefix}\n${body}\n${state.suffix}`;
-        state.output = merged;
-        el('outputText').value = merged;
-        el('modalText').value = merged;
-        setStatus('outputStatus', `Built export with ${state.entries.length} entries while preserving the rest of the source file.`, 'good');
-        return merged;
-      }
 
       function openModal(text) {
         el('modalText').value = text;
@@ -1367,8 +1615,8 @@ ${block.suffix}`;
 
         if (guess && !el('nameInput').value) el('nameInput').value = guess;
         if (!el('consoleSelect').value && state.romFile) el('consoleSelect').value = consoleFromExt(state.romFile.name);
-        if (!el('romPath').value && state.romFile) el('romPath').value = defaultLinkFromRom(state.romFile.name, el('consoleSelect').value || consoleFromExt(state.romFile.name));
-        if (state.imgFile) el('imgPath').value = `./Images/${state.imgFile.name}`;
+        if (!el('romPath').value && state.romFile) el('romPath').value = defaultLinkFromRom(flowRegisteredRomName(1), el('consoleSelect').value || consoleFromExt(state.romFile.name));
+        if (state.imgFile) flowRefreshImagePath();
 
         updatePreview();
         setStatus('dropStatus', 'Fields filled from the dropped files. Check the title, console, and paths, then save.', 'good');
@@ -1388,11 +1636,11 @@ ${block.suffix}`;
           state.romFile = file;
           if (!el('nameInput').value) el('nameInput').value = cleanTitleFromFilename(file.name);
           if (!el('consoleSelect').value) el('consoleSelect').value = consoleFromExt(file.name);
-          if (!el('romPath').value) el('romPath').value = defaultLinkFromRom(file.name, el('consoleSelect').value || consoleFromExt(file.name));
+          if (!el('romPath').value) el('romPath').value = defaultLinkFromRom(flowSanitizeServerFileName(file.name), el('consoleSelect').value || consoleFromExt(file.name));
           setStatus('dropStatus', `ROM selected: ${file.name}`, 'good');
         } else {
           state.imgFile = file;
-          el('imgPath').value = `./Images/${file.name}`;
+          el('imgPath').value = `./Images/${flowSanitizeServerFileName(file.name)}`;
           setStatus('dropStatus', `Image selected and filled in: ${file.name}`, 'good');
         }
         updatePreview();
@@ -1403,7 +1651,6 @@ ${block.suffix}`;
         const input = el(inputId);
         if (!zone || !input) return;
 
-        zone.addEventListener('click', () => input.click());
         input.addEventListener('change', () => handleDroppedFile(input.files && input.files[0], kind));
         zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
@@ -1499,13 +1746,12 @@ async function convertImageToJpegBlob(file, { maxSide = 512, quality = 0.9 } = {
 
       function uploadTargetForImage() {
         const base = getFlowServerBase();
-        return joinServerUrl(base, 'Images', flowImageFileName(1));
+        return joinServerUrl(base, 'Images', flowRegisteredImageName(1));
       }
 
       function uploadTargetForRom() {
         const base = getFlowServerBase();
-        const sourceName = state.romFile?.name || `${flowCurrentTitle() || 'game'}.bin`;
-        return joinServerUrl(base, 'emulator', 'roms', flowRomFileName(sourceName, 1));
+        return joinServerUrl(base, 'emulator', 'roms', flowRegisteredRomName(1));
       }
 
       async function confirmGameAssetsUpload() {
@@ -1538,10 +1784,8 @@ async function convertImageToJpegBlob(file, { maxSide = 512, quality = 0.9 } = {
       }
 
       function closeFlowPage() {
-        try { window.close(); } catch (err) {}
-        setTimeout(() => {
-          try { window.close(); } catch (err) {}
-        }, 150);
+        notifyFlowCompletion();
+        flowTryClose();
       }
 
       async function uploadSelectedAssets() {
@@ -1574,6 +1818,7 @@ async function convertImageToJpegBlob(file, { maxSide = 512, quality = 0.9 } = {
           loadedFromServer = state.parsed;
         }
 
+        const activeTemplate = el('flowTemplate')?.value || 'standard';
         const merged = buildGamesSourceFromEntries(state.entries);
         const targetUrl = joinServerUrl(getFlowServerBase(), 'games.js');
 
@@ -1582,7 +1827,7 @@ async function convertImageToJpegBlob(file, { maxSide = 512, quality = 0.9 } = {
         }
 
         if (loadedFromServer) {
-          setStatus('outputStatus', 'Replacing games.js on the server…');
+          setStatus('outputStatus', `Replacing games.js on the server (${activeTemplate} mode)…`);
         } else {
           setStatus('outputStatus', 'games.js could not be loaded first, so uploading a fresh standalone games.js from the current entries…', 'warn');
         }
@@ -1594,7 +1839,7 @@ async function convertImageToJpegBlob(file, { maxSide = 512, quality = 0.9 } = {
         setStatus('outputStatus', 'games.js replaced on the server.', 'good');
         if (closeAfter) {
           notifyFlowCompletion();
-          closeFlowPage();
+          flowTryClose();
         }
       }
 
@@ -1629,6 +1874,11 @@ function applyFlowToMain() {
   updatePreview();
 }
 
+async function applyFlowRomSelection() {
+  await flowRefreshRomPath();
+  applyFlowToMain();
+}
+
 function handleFlowImage(file) {
   if (!file) return;
   state.imgFile = file;
@@ -1637,27 +1887,27 @@ function handleFlowImage(file) {
     el('flowName').value = guessed;
     if (el('nameInput')) el('nameInput').value = guessed;
   }
-  const path = `./Images/${flowImageFileName(1)}`;
-  if (el('flowImgPath')) el('flowImgPath').value = path;
-  if (el('imgPath')) el('imgPath').value = path;
+  flowRefreshImagePath();
   flowUpdateImagePreview();
   applyFlowToMain();
 }
 
-function handleFlowRom(file) {
+async function handleFlowRom(file) {
   if (!file) return;
   state.romFile = file;
   state.romExt = String(file.name || '').split('.').pop().toLowerCase();
   const consoleGuess = consoleFromExt(file.name);
   if (!el('flowConsole').value && consoleGuess) el('flowConsole').value = consoleGuess;
-  const path = flowGuessRomPath(file.name, 1);
-  if (el('flowRomPath')) el('flowRomPath').value = path;
-  if (el('romPath')) el('romPath').value = path;
+  if (flowConsoleRequiresHttps(el('flowConsole')?.value) && el('flowUseHttps')) {
+    el('flowUseHttps').checked = true;
+  }
   if (!el('flowName').value) {
     const guessed = cleanTitleFromFilename(file.name);
     el('flowName').value = guessed;
     if (el('nameInput')) el('nameInput').value = guessed;
   }
+  flowRefreshImagePath();
+  await flowRefreshRomPath();
   applyFlowToMain();
 }
 
@@ -1668,60 +1918,84 @@ function initFlow() {
   setFlowPill('Flow ready');
   flowUpdateImagePreview();
 
-  if (el('flowTemplate')) {
-    el('flowTemplate').addEventListener('change', () => {
+  const syncServerFields = () => {
+    state.assetsConfirmed = false;
+    flowSyncToInputs();
+    void flowRefreshRomPath();
+  };
+
+  if (el('flowUseHttps')) {
+    el('flowUseHttps').addEventListener('change', async () => {
       state.assetsConfirmed = false;
-      const multi = el('flowTemplate').value === 'multidisk';
-      const note = el('flowDiskNote');
-      if (note) note.style.display = multi ? 'block' : 'none';
-      const imgPath = `./Images/${flowImageFileName(1)}`;
-      if (el('flowImgPath')) el('flowImgPath').value = imgPath;
-      if (el('imgPath')) el('imgPath').value = imgPath;
-      if (state.romFile && el('flowRomPath')) {
-        const next = flowGuessRomPath(state.romFile.name, 1);
-        el('flowRomPath').value = next;
-        if (el('romPath')) el('romPath').value = next;
+      if (el('flowConsole') && flowConsoleRequiresHttps(el('flowConsole').value)) {
+        el('flowUseHttps').checked = true;
       }
-      flowUpdateImagePreview();
+      if (flowIsMultiMode()) {
+        flowRefreshAllPaths();
+      } else {
+        await flowRefreshRomPath();
+      }
       applyFlowToMain();
     });
   }
+
+  if (el('flowConsole')) el('flowConsole').addEventListener('change', async () => {
+    state.assetsConfirmed = false;
+    if (el('consoleSelect')) el('consoleSelect').value = el('flowConsole').value;
+    if (flowConsoleRequiresHttps(el('flowConsole').value) && el('flowUseHttps')) {
+      el('flowUseHttps').checked = true;
+    }
+    if (flowIsMultiMode()) {
+      flowRefreshAllPaths();
+      flowUpdateImagePreview();
+    } else {
+      flowRefreshImagePath();
+      if (state.imgFile) flowUpdateImagePreview();
+      await flowRefreshRomPath();
+    }
+    applyFlowToMain();
+  });
+
   if (el('flowName')) el('flowName').addEventListener('input', () => {
     state.assetsConfirmed = false;
     if (el('nameInput')) el('nameInput').value = el('flowName').value;
-    const imgPath = `./Images/${flowImageFileName(1)}`;
-    if (el('flowImgPath')) el('flowImgPath').value = imgPath;
-    if (el('imgPath')) el('imgPath').value = imgPath;
-    if (state.imgFile) flowUpdateImagePreview();
-    if (state.romFile && el('flowRomPath')) {
-      const next = flowGuessRomPath(state.romFile.name, 1);
-      el('flowRomPath').value = next;
-      if (el('romPath')) el('romPath').value = next;
+    if (flowIsMultiMode()) {
+      flowRefreshAllPaths();
+      flowUpdateImagePreview();
+    } else {
+      flowRefreshImagePath();
+      if (state.imgFile) flowUpdateImagePreview();
+      void flowRefreshRomPath();
     }
     applyFlowToMain();
   });
-  if (el('flowConsole')) el('flowConsole').addEventListener('change', () => {
-    state.assetsConfirmed = false;
-    if (el('consoleSelect')) el('consoleSelect').value = el('flowConsole').value;
-    if (state.romFile && el('flowRomPath')) {
-      const next = flowGuessRomPath(state.romFile.name, 1);
-      el('flowRomPath').value = next;
-      if (el('romPath')) el('romPath').value = next;
-    }
-    applyFlowToMain();
-  });
+
   if (el('flowImageInput')) {
     el('flowImageInput').addEventListener('change', e => handleFlowImage(e.target.files && e.target.files[0]));
   }
   if (el('flowRomInput')) {
     el('flowRomInput').addEventListener('change', e => handleFlowRom(e.target.files && e.target.files[0]));
   }
+
   if (el('flowServerBase')) {
     el('flowServerBase').addEventListener('input', () => {
       state.assetsConfirmed = false;
-      state.serverBase = normalizeBaseUrl(el('flowServerBase').value || getOriginBase() || '/');
+      state.httpServerBase = normalizeBaseUrl(el('flowServerBase').value || getOriginBase() || '/');
+      state.serverBase = state.httpServerBase;
+      if (flowIsMultiMode()) flowRefreshAllPaths();
+      else void flowRefreshRomPath();
     });
   }
+
+  if (el('flowHttpsServerBase')) {
+    el('flowHttpsServerBase').addEventListener('input', () => {
+      state.assetsConfirmed = false;
+      state.httpsServerBase = normalizeBaseUrl(el('flowHttpsServerBase').value || '');
+      if (flowIsMultiMode()) flowRefreshAllPaths();
+      else void flowRefreshRomPath();
+    });
+  }
+
   const imageDrop = el('flowImageDropzone');
   const romDrop = el('flowRomDropzone');
   if (imageDrop) {
@@ -1744,22 +2018,16 @@ function initFlow() {
       if (file) handleFlowRom(file);
     });
   }
-  if (el('flowStep1Next')) {
-    el('flowStep1Next').onclick = () => {
-      applyFlowToMain();
-      flowSetStep(2);
-      flowUpdateStatus('Confirm the art and ROM upload before updating the server.', 'good');
-    };
-  }
-  if (el('flowStep1Clear')) {
-    el('flowStep1Clear').onclick = () => {
+
+  if (el('flowClearBtn')) {
+    el('flowClearBtn').onclick = () => {
       if (el('flowName')) el('flowName').value = '';
       if (el('flowImgPath')) el('flowImgPath').value = '';
       if (el('flowRomPath')) el('flowRomPath').value = '';
       if (el('flowConsole')) el('flowConsole').value = '';
+      if (el('flowUseHttps')) el('flowUseHttps').checked = false;
       if (el('flowImageInput')) el('flowImageInput').value = '';
       if (el('flowRomInput')) el('flowRomInput').value = '';
-      if (el('flowServerBase')) el('flowServerBase').value = getOriginBase() || '/';
       state.imgFile = null;
       state.romFile = null;
       state.assetsConfirmed = false;
@@ -1767,39 +2035,31 @@ function initFlow() {
         try { URL.revokeObjectURL(state.imgObjectUrl); } catch (_) {}
         state.imgObjectUrl = '';
       }
-      state.romExt = '';
       flowUpdateImagePreview();
+      flowUpdateStatus('Cleared flow fields.', 'warn');
       clearForm();
     };
   }
-  if (el('flowBackBtn')) el('flowBackBtn').onclick = () => {
-    flowSetStep(1);
-    flowUpdateStatus('Back to title and art.', 'warn');
-    flowUpdateImagePreview();
-  };
-  if (el('flowConfirmFilesBtn')) el('flowConfirmFilesBtn').onclick = async () => {
-    applyFlowToMain();
-    try {
-      await confirmGameAssetsUpload();
-      flowUpdateStatus('Artwork and ROM uploaded.', 'good');
-    } catch (err) {
-      flowUpdateStatus(err.message, 'bad');
-    }
-  };
-  if (el('flowReplaceBtn')) el('flowReplaceBtn').onclick = async () => {
-    applyFlowToMain();
-    try {
-      await replaceSourceOnServer({ closeAfter: true });
-      flowUpdateStatus('games.js replaced and flow closed.', 'good');
-    } catch (err) {
-      flowUpdateStatus(err.message, 'bad');
-    }
-  };
-  state.serverBase = normalizeBaseUrl(el('flowServerBase')?.value || state.serverBase || getOriginBase() || '/');
-  if (el('flowServerBase') && !el('flowServerBase').value) el('flowServerBase').value = state.serverBase;
+
+  if (el('flowSaveBtn')) {
+    el('flowSaveBtn').onclick = async () => {
+      try {
+        await flowRefreshRomPath();
+        flowCommitCurrentEntry();
+        await replaceSourceOnServer({ closeAfter: true });
+        flowUpdateStatus('Uploaded assets, updated games.js, and closed the flow.', 'good');
+      } catch (err) {
+        flowUpdateStatus(err.message, 'bad');
+      }
+    };
+  }
+
+  void ensureFlowServerBases({ promptHttps: false }).then(() => {
+    void flowRefreshRomPath();
+  });
+
   setStatus('parseStatus', 'Flow mode is ready.', 'good');
 }
-
 function bindEvents() {
         el('fileInput').addEventListener('change', async e => {
           const file = e.target.files && e.target.files[0];
@@ -1916,6 +2176,856 @@ function bindEvents() {
         el('modalBackdrop').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
       }
 
+
+      // --- Multi-disk flow / export overrides ---
+      function flowCurrentTemplate() {
+        return el('flowTemplate')?.value || 'standard';
+      }
+
+      function flowIsMultiMode() {
+        return flowCurrentTemplate() === 'multidisk';
+      }
+
+      function flowGetBaseName() {
+        const raw = flowSafeBaseName(el('flowName')?.value || el('nameInput')?.value || '');
+        const consoleName = flowConsoleLabel();
+        if (!raw || !consoleName) return raw;
+        const suffix = `, ${consoleName}`.toLowerCase();
+        const lower = raw.toLowerCase();
+        return lower.endsWith(suffix) ? raw.slice(0, raw.length - suffix.length).trim() : raw;
+      }
+
+      function flowGetDisplayName() {
+        const base = flowGetBaseName();
+        const consoleName = flowConsoleLabel();
+        if (!base && !consoleName) return '';
+        if (!base) return consoleName;
+        if (!consoleName) return base;
+        return `${base}, ${consoleName}`;
+      }
+
+      function flowEnsureState() {
+        if (!state.flowDiskRows) state.flowDiskRows = [];
+        if (!state.flowRootImageFile) state.flowRootImageFile = null;
+        if (!state.flowRootImageObjectUrl) state.flowRootImageObjectUrl = '';
+      }
+
+      function flowSetModeUI() {
+        const multi = flowIsMultiMode();
+        const standardArea = el('flowStandardArea');
+        const multiArea = el('flowMultiArea');
+        const note = el('flowDiskNote');
+        if (standardArea) standardArea.style.display = multi ? 'none' : 'block';
+        if (multiArea) multiArea.classList.toggle('show', multi);
+        if (note) note.style.display = multi ? 'block' : 'none';
+      }
+
+      function flowDiskCount() {
+        flowEnsureState();
+        return Array.isArray(state.flowDiskRows) ? state.flowDiskRows.length : 0;
+      }
+
+      function flowDiskPathName(index) {
+        const base = flowGetBaseName() || 'game';
+        return flowSanitizeServerFileName(`${base} - Disk ${index}`);
+      }
+
+      function flowRootImagePathName() {
+        const base = flowGetBaseName() || 'game';
+        return `${flowSanitizeServerFileName(base)} root.jpg`;
+      }
+
+      function flowDiskImagePathName(index) {
+        return `./Images/${flowDiskPathName(index)}.jpg`;
+      }
+
+      function flowRootImageUploadTarget() {
+        return joinServerUrl(getFlowServerBase(), 'Images', flowRootImagePathName());
+      }
+
+      function flowDiskImageUploadTarget(index) {
+        return joinServerUrl(getFlowServerBase(), 'Images', `${flowDiskPathName(index)}.jpg`);
+      }
+
+      function flowDiskRomUploadTarget(fileName) {
+        return joinServerUrl(getFlowServerBase(), 'emulator', 'roms', flowSanitizeServerFileName(fileName || 'disk.bin'));
+      }
+
+      function flowDiskRomLink(fileName) {
+        const consoleName = flowConsoleLabel() || consoleFromExt(fileName || '');
+        const base = flowShouldUseHttps(consoleName)
+          ? (state.httpsServerBase || el('flowHttpsServerBase')?.value || './')
+          : (state.httpServerBase || el('flowServerBase')?.value || './');
+        return defaultLinkFromRom(flowSanitizeServerFileName(fileName || ''), consoleName || consoleFromExt(fileName || ''), base);
+      }
+
+      function flowBuildMultiEntry() {
+        flowEnsureState();
+        const baseName = flowGetBaseName();
+        const consoleName = flowConsoleLabel();
+        if (!baseName) throw new Error('Game title is required.');
+        if (!consoleName) throw new Error('Console is required.');
+        if (!state.flowRootImageFile) throw new Error('Root image is required.');
+        const validRows = state.flowDiskRows.filter(row => row && row.imageFile && row.romFile);
+        if (validRows.length < 2) throw new Error('Multi-Disk mode needs at least two disks, and each disk must have both an image and a ROM.');
+        const disks = validRows.map(row => ({
+          disk: row.disk,
+          img: row.imagePath || flowDiskImagePathName(row.disk),
+          link: row.romPath || flowDiskRomLink(row.romFile?.name)
+        }));
+        return {
+          id: `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+          name: `${baseName}, ${consoleName}`,
+          img: el('flowRootImgPath')?.value?.trim() || `./Images/${flowRootImagePathName()}`,
+          link: disks[0].link,
+          console: consoleName,
+          specialSet: 'multidisk',
+          baseName,
+          disks
+        };
+      }
+
+      function flowBuildStandardEntry() {
+        const title = flowGetBaseName();
+        const consoleName = flowConsoleLabel();
+        const imgPath = el('flowImgPath')?.value?.trim() || (state.imgFile ? `./Images/${flowSanitizeServerFileName(state.imgFile.name)}` : '');
+        const romLink = el('flowRomPath')?.value?.trim() || '';
+        if (!title) throw new Error('Game title is required.');
+        if (!consoleName) throw new Error('Console is required.');
+        if (!imgPath) throw new Error('Image path is required.');
+        if (!romLink) throw new Error('ROM link is required.');
+        return {
+          id: `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+          name: flowGetDisplayName(),
+          img: imgPath,
+          link: romLink,
+          console: consoleName
+        };
+      }
+
+      function flowSetPreviewText(text) {
+        const status = el('flowStatus');
+        if (status) status.textContent = text;
+        setFlowPill(text);
+      }
+
+      function flowRenderDiskRows() {
+        flowEnsureState();
+        const host = el('flowDiskList');
+        if (!host) return;
+        if (!state.flowDiskRows.length) {
+          state.flowDiskRows = [1, 2].map(n => ({ id: `d_${n}`, disk: n, imageFile: null, romFile: null, imagePath: '', romPath: '' }));
+        }
+
+        host.innerHTML = '';
+        state.flowDiskRows.forEach((row, idx) => {
+          row.disk = idx + 1;
+          const wrap = document.createElement('div');
+          wrap.className = 'disk-row';
+          wrap.dataset.diskIndex = String(row.disk);
+          wrap.innerHTML = `
+            <div class="disk-row-head">
+              <div class="disk-row-title">Disk ${row.disk}</div>
+              <div class="row">
+                <button type="button" class="secondary" data-act="remove">Remove</button>
+              </div>
+            </div>
+            <div class="disk-row-fields">
+              <div class="dropzone disk-dropzone" data-kind="image" role="button" tabindex="0" aria-label="Choose disk image for disk ${row.disk}">
+                <input type="file" accept="image/*" hidden />
+                <div>
+                  <div class="dz-name">Drop or choose disk image</div>
+                  <div class="dz-meta">This becomes the per-disk artwork.</div>
+                </div>
+              </div>
+              <div class="dropzone disk-dropzone" data-kind="rom" role="button" tabindex="0" aria-label="Choose disk ROM for disk ${row.disk}">
+                <input type="file" accept=".chd,.bin,.iso,.gb,.gbc,.gba,.nds,.z64,.n64,.sfc,.smc,.smd,.md,.pbp,.cue,.zip,.nes,.7z,*/*" hidden />
+                <div>
+                  <div class="dz-name">Drop or choose disk ROM</div>
+                  <div class="dz-meta">This becomes the per-disk link.</div>
+                </div>
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label>Disk image path</label>
+                <input type="text" readonly data-path="image" />
+              </div>
+              <div class="field">
+                <label>Disk ROM link</label>
+                <input type="text" readonly data-path="rom" />
+              </div>
+            </div>
+          `;
+
+          const removeBtn = wrap.querySelector('[data-act="remove"]');
+          const imageZone = wrap.querySelector('.disk-dropzone[data-kind="image"]');
+          const romZone = wrap.querySelector('.disk-dropzone[data-kind="rom"]');
+          const imgInput = imageZone.querySelector('input[type="file"]');
+          const romInput = romZone.querySelector('input[type="file"]');
+          const imgPath = wrap.querySelector('input[data-path="image"]');
+          const romPath = wrap.querySelector('input[data-path="rom"]');
+
+          const openPicker = (input) => {
+            if (!input) return;
+            input.click();
+          };
+
+          const setRowImage = async (file) => {
+            row.imageFile = file || null;
+            if (file) {
+              row.imagePath = flowDiskImagePathName(row.disk);
+              const meta = imageZone.querySelector('.dz-meta');
+              meta.textContent = `Saved as: ${row.imagePath}`;
+            } else {
+              row.imagePath = '';
+              const meta = imageZone.querySelector('.dz-meta');
+              meta.textContent = 'This becomes the per-disk artwork.';
+            }
+            updateRowPaths();
+          };
+
+          const setRowRom = (file) => {
+            row.romFile = file || null;
+            if (file) {
+              row.romPath = flowDiskRomLink(file.name);
+              const meta = romZone.querySelector('.dz-meta');
+              meta.textContent = file.name;
+            } else {
+              row.romPath = '';
+              const meta = romZone.querySelector('.dz-meta');
+              meta.textContent = 'This becomes the per-disk link.';
+            }
+            updateRowPaths();
+          };
+
+          const updateRowPaths = () => {
+            imgPath.value = row.imagePath || flowDiskImagePathName(row.disk);
+            romPath.value = row.romPath || (row.romFile ? flowDiskRomLink(row.romFile.name) : '');
+            removeBtn.disabled = state.flowDiskRows.length <= 2;
+          };
+
+          imgInput.addEventListener('click', e => e.stopPropagation());
+          romInput.addEventListener('click', e => e.stopPropagation());
+
+          imgInput.addEventListener('change', e => setRowImage(e.target.files && e.target.files[0]));
+          romInput.addEventListener('change', e => setRowRom(e.target.files && e.target.files[0]));
+
+          imageZone.addEventListener('click', e => {
+            if (e.target.closest('button')) return;
+            openPicker(imgInput);
+          });
+          romZone.addEventListener('click', e => {
+            if (e.target.closest('button')) return;
+            openPicker(romInput);
+          });
+
+          for (const zone of [imageZone, romZone]) {
+            zone.addEventListener('keydown', e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (zone === imageZone) openPicker(imgInput);
+                if (zone === romZone) openPicker(romInput);
+              }
+            });
+            zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+            zone.addEventListener('drop', e => {
+              e.preventDefault();
+              zone.classList.remove('dragover');
+              const file = e.dataTransfer.files && e.dataTransfer.files[0];
+              if (!file) return;
+              if (zone === imageZone) setRowImage(file);
+              if (zone === romZone) setRowRom(file);
+            });
+          }
+
+          removeBtn.addEventListener('click', () => {
+            if (state.flowDiskRows.length <= 2) return;
+            state.flowDiskRows.splice(idx, 1);
+            flowRenderDiskRows();
+          });
+
+          updateRowPaths();
+          host.appendChild(wrap);
+        });
+      }
+
+      function flowAddDiskRow() {
+        flowEnsureState();
+        const nextDisk = state.flowDiskRows.length + 1;
+        state.flowDiskRows.push({ id: `d_${Date.now().toString(36)}_${nextDisk}`, disk: nextDisk, imageFile: null, romFile: null, imagePath: '', romPath: '' });
+        flowRenderDiskRows();
+      }
+
+      function flowResetDiskRows() {
+        state.flowDiskRows = [1, 2].map(n => ({ id: `d_${n}`, disk: n, imageFile: null, romFile: null, imagePath: '', romPath: '' }));
+        flowRenderDiskRows();
+      }
+
+      function flowUpdateMode() {
+        flowSetModeUI();
+        if (flowIsMultiMode()) {
+          flowResetDiskRows();
+          if (el('flowImagePreviewWrap')) el('flowImagePreviewWrap').style.display = 'block';
+        } else {
+          if (el('flowDiskList')) el('flowDiskList').innerHTML = '';
+          if (el('flowRootImgPath')) el('flowRootImgPath').value = '';
+        }
+      }
+
+      function flowRefreshAllPaths() {
+        if (flowIsMultiMode()) {
+          if (el('flowRootImgPath')) {
+            el('flowRootImgPath').value = state.flowRootImageFile ? `./Images/${flowRootImagePathName()}` : '';
+          }
+          flowRenderDiskRows();
+        } else {
+          flowRefreshImagePath();
+          void flowRefreshRomPath();
+        }
+      }
+
+      function flowUpdateImagePreview() {
+        const wrap = el('flowImagePreviewWrap');
+        const img = el('flowImagePreview');
+        const meta = el('flowImagePreviewMeta');
+        if (!wrap || !img || !meta) return;
+        const file = flowIsMultiMode() ? (state.flowRootImageFile || state.imgFile) : state.imgFile;
+        if (!file) {
+          wrap.classList.remove('show');
+          img.removeAttribute('src');
+          meta.textContent = '';
+          return;
+        }
+        if (state.imgObjectUrl) {
+          try { URL.revokeObjectURL(state.imgObjectUrl); } catch (_) {}
+          state.imgObjectUrl = '';
+        }
+        state.imgObjectUrl = URL.createObjectURL(file);
+        img.src = state.imgObjectUrl;
+        wrap.classList.add('show');
+        const target = flowIsMultiMode() ? (el('flowRootImgPath')?.value?.trim() || `./Images/${flowRootImagePathName()}`) : (el('flowImgPath')?.value?.trim() || `./Images/${flowSanitizeServerFileName(file.name)}`);
+        meta.innerHTML = `<strong>Preview:</strong> ${esc(file.name || target)}<br><strong>Saved as:</strong> ${esc(target)}`;
+      }
+
+      function flowRefreshImagePath() {
+        if (flowIsMultiMode()) {
+          if (el('flowRootImgPath')) el('flowRootImgPath').value = state.flowRootImageFile ? `./Images/${flowRootImagePathName()}` : '';
+          if (el('imgPath')) el('imgPath').value = el('flowRootImgPath')?.value || '';
+          return el('flowRootImgPath')?.value || '';
+        }
+        const path = `./Images/${flowRegisteredImageName(1)}`;
+        if (el('flowImgPath')) el('flowImgPath').value = path;
+        if (el('imgPath')) el('imgPath').value = path;
+        return path;
+      }
+
+      function flowRegisteredImageName(diskIndex = 1) {
+        if (flowIsMultiMode()) {
+          return diskIndex === 1 ? flowRootImagePathName() : `${flowDiskPathName(diskIndex)}.jpg`;
+        }
+        return flowImageFileName(diskIndex);
+      }
+
+      function flowRegisteredRomName(diskIndex = 1) {
+        if (flowIsMultiMode()) {
+          const row = state.flowDiskRows?.[diskIndex - 1];
+          return row?.romFile?.name ? flowSanitizeServerFileName(row.romFile.name) : `Disk ${diskIndex}.bin`;
+        }
+        return flowRomFileName(state.romFile?.name, diskIndex);
+      }
+
+      function flowCommitCurrentEntry() {
+        flowEnsureState();
+        const entry = flowIsMultiMode() ? flowBuildMultiEntry() : flowBuildStandardEntry();
+        upsertEntry(entry, 'append');
+        if (el('nameInput')) el('nameInput').value = entry.name;
+        if (el('imgPath')) el('imgPath').value = entry.img;
+        if (el('flowImgPath') && !flowIsMultiMode()) el('flowImgPath').value = entry.img;
+        if (el('flowRootImgPath') && flowIsMultiMode()) el('flowRootImgPath').value = entry.img;
+        if (el('romPath')) el('romPath').value = entry.link;
+        if (el('consoleSelect')) el('consoleSelect').value = entry.console;
+        updatePreview();
+        return entry;
+      }
+
+      async function confirmGameAssetsUpload() {
+        if (flowIsMultiMode()) {
+          if (!state.flowRootImageFile) throw new Error('Select the root image first.');
+          if (!Array.isArray(state.flowDiskRows) || state.flowDiskRows.length < 2) throw new Error('Add at least 2 disks.');
+          const validRows = state.flowDiskRows.filter(row => row.imageFile && row.romFile);
+          if (validRows.length < 2) throw new Error('Each disk needs both an image and a ROM.');
+          setStatus('outputStatus', 'Uploading root image and multi-disk assets…');
+          const uploads = [];
+          uploads.push(uploadBinaryToUrl(await convertImageToJpegBlob(state.flowRootImageFile, { maxSide: 512, quality: 0.9 }), flowRootImageUploadTarget()));
+          for (const row of validRows) {
+            uploads.push(uploadBinaryToUrl(await convertImageToJpegBlob(row.imageFile, { maxSide: 512, quality: 0.9 }), flowDiskImageUploadTarget(row.disk)));
+            uploads.push(uploadBinaryToUrl(row.romFile, flowDiskRomUploadTarget(row.romFile.name)));
+          }
+          await Promise.all(uploads);
+          state.assetsConfirmed = true;
+          setStatus('outputStatus', 'Root image and all disk assets uploaded to the server.', 'good');
+          return true;
+        }
+        const image = state.imgFile;
+        const rom = state.romFile;
+        if (!image || !rom) {
+          throw new Error('Select both a cover image and a ROM file first.');
+        }
+        const imageBlob = await convertImageToJpegBlob(image, { maxSide: 512, quality: 0.9 });
+        const imageTarget = uploadTargetForImage();
+        const romTarget = uploadTargetForRom();
+        setStatus('outputStatus', 'Uploading artwork and ROM files…');
+        await Promise.all([
+          uploadBinaryToUrl(imageBlob, imageTarget),
+          uploadBinaryToUrl(rom, romTarget)
+        ]);
+        state.assetsConfirmed = true;
+        setStatus('outputStatus', 'Artwork and ROM uploaded to the server.', 'good');
+        return true;
+      }
+
+      function generateEntryCode(entry) {
+        const encodeDisk = (disk) => `{ disk: ${Number(disk.disk || 0)}, img: ${JSON.stringify(String(disk.img || ''))}, link: ${JSON.stringify(String(disk.link || ''))} }`;
+        const base = [
+          `name: ${JSON.stringify(String(entry.name || ''))}`,
+          `img: ${JSON.stringify(String(entry.img || ''))}`,
+          `link: ${JSON.stringify(String(entry.link || ''))}`
+        ];
+        if (entry.console) base.push(`console: ${JSON.stringify(String(entry.console))}`);
+        if (entry.notes) base.push(`notes: ${JSON.stringify(String(entry.notes))}`);
+        if (String(entry.specialSet || '').trim() === 'multidisk') {
+          base.push(`specialSet: "multidisk"`);
+          base.push(`baseName: ${JSON.stringify(String(entry.baseName || '').trim())}`);
+          base.push(`disks: [${(Array.isArray(entry.disks) ? entry.disks : []).map(encodeDisk).join(', ')}]`);
+        }
+        return `{ ${base.join(', ')} }`;
+      }
+
+      function generateGamesRuntimeTail() {
+        return `
+function displayGames() {
+    const container = document.getElementById("folderContainer");
+    container.innerHTML = "";
+
+    const backButtonTop = document.createElement("button");
+    backButtonTop.className = "return-button";
+    backButtonTop.innerText = "Back to Title Selection";
+    backButtonTop.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    container.appendChild(backButtonTop);
+
+    games.forEach(game => {
+        if (game.specialSet === "multidisk" && Array.isArray(game.disks)) {
+            createGameTile(container, game.name || game.baseName, game.img, () => displayDisks(game));
+        } else {
+            const gameTile = document.createElement("div");
+            gameTile.classList.add("folder");
+            gameTile.innerHTML = \`
+                <img src="\${game.img}" alt="\${game.name}" onclick="window.location.href='\${game.link}'">
+                <p>\${game.name}</p>
+            \`;
+            container.appendChild(gameTile);
+        }
+    });
+
+    const backButtonBottom = document.createElement("button");
+    backButtonBottom.className = "return-button";
+    backButtonBottom.innerText = "Back to Title Selection";
+    backButtonBottom.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    container.appendChild(backButtonBottom);
+}
+
+function createGameTile(container, name, img, onclickFunction) {
+    const gameTile = document.createElement("div");
+    gameTile.classList.add("folder");
+    gameTile.innerHTML = \`
+        <img src="\${img}" alt="\${name}">
+        <p>\${name}</p>
+    \`;
+    gameTile.onclick = onclickFunction;
+    container.appendChild(gameTile);
+}
+
+function displayDisks(gameOrName, disksOverride) {
+    const game = typeof gameOrName === "object" && gameOrName ? gameOrName : {
+        baseName: String(gameOrName || ""),
+        disks: Array.isArray(disksOverride) ? disksOverride : []
+    };
+    const disks = Array.isArray(game.disks) ? game.disks : (Array.isArray(disksOverride) ? disksOverride : []);
+    const gameName = game.baseName || game.name || "";
+    const container = document.getElementById("folderContainer");
+    container.innerHTML = "";
+
+    disks.forEach(disk => {
+        const diskTile = document.createElement("div");
+        diskTile.classList.add("folder");
+        const image = disk.img || \`./Images/\${gameName.toLowerCase().replace(/ /g, "")}-\${disk.disk}.jpg\`;
+        diskTile.innerHTML = \`
+            <img src="\${image}" alt="\${gameName} - Disk \${disk.disk}" onclick="window.location.href='\${disk.link}'">
+            <p>\${gameName} - Disk \${disk.disk}</p>
+        \`;
+        container.appendChild(diskTile);
+    });
+
+    const backButton = document.createElement("button");
+    backButton.className = "return-button";
+    backButton.innerText = "Back to Games";
+    backButton.onclick = displayGames;
+    container.appendChild(backButton);
+}
+
+window.games = games;
+window.displayGames = displayGames;
+window.createGameTile = createGameTile;
+window.displayDisks = displayDisks;
+`;
+      }
+
+      function buildGamesSourceFromEntries(entries) {
+        const body = entries.map((entry, index) => `  ${generateEntryCode(entry)}${index < entries.length - 1 ? ',' : ''}`).join('\n');
+        const prefix = state.parsed && state.prefix
+          ? state.prefix.trimEnd()
+          : [
+              '/* Media Server Games Catalog */',
+              '',
+              '// Add "Games" to the list of folders',
+              'folders.push("Games");',
+              '',
+              '    // Define the list of games and their respective emulator links',
+              '    const games = ['
+            ].join('\n');
+
+        return `${prefix}\n${body}\n];\n\n${generateGamesRuntimeTail()}`.replace(/\n];\n\n/g, '\n];\n\n');
+      }
+
+      function buildExport() {
+        const merged = buildGamesSourceFromEntries(state.entries);
+        state.output = merged;
+        el('outputText').value = merged;
+        el('modalText').value = merged;
+        setStatus('outputStatus', `Built export with ${state.entries.length} entr${state.entries.length === 1 ? 'y' : 'ies'} including multi-disk support.`, 'good');
+        return merged;
+      }
+
+      async function replaceSourceOnServer({ closeAfter = false } = {}) {
+        let loadedFromServer = state.parsed;
+        if (!state.parsed) {
+          await autoLoadServerGames();
+          loadedFromServer = state.parsed;
+        }
+
+        const activeTemplate = el('flowTemplate')?.value || 'standard';
+        const merged = buildGamesSourceFromEntries(state.entries);
+        const targetUrl = joinServerUrl(getFlowServerBase(), 'games.js');
+
+        if (!state.assetsConfirmed && (state.imgFile || state.romFile || state.flowRootImageFile || flowDiskCount())) {
+          await confirmGameAssetsUpload();
+        }
+
+        if (loadedFromServer) {
+          setStatus('outputStatus', `Replacing games.js on the server (${activeTemplate} mode)…`);
+        } else {
+          setStatus('outputStatus', 'games.js could not be loaded first, so uploading a fresh standalone games.js from the current entries…', 'warn');
+        }
+
+        await uploadTextToUrl(merged, targetUrl);
+        state.output = merged;
+        el('outputText').value = merged;
+        el('modalText').value = merged;
+        setStatus('outputStatus', 'games.js replaced on the server.', 'good');
+        if (closeAfter) {
+          notifyFlowCompletion();
+          flowTryClose();
+        }
+      }
+
+      function flowSyncFromInputs() {
+        if (flowIsMultiMode()) {
+          if (el('nameInput') && el('flowName')) el('nameInput').value = el('flowName').value;
+          if (el('consoleSelect') && el('flowConsole')) el('consoleSelect').value = el('flowConsole').value;
+          if (el('imgPath') && el('flowRootImgPath')) el('imgPath').value = el('flowRootImgPath').value;
+          return;
+        }
+        if (el('nameInput') && el('flowName')) el('nameInput').value = el('flowName').value;
+        if (el('imgPath') && el('flowImgPath')) el('imgPath').value = el('flowImgPath').value;
+        if (el('consoleSelect') && el('flowConsole')) el('consoleSelect').value = el('flowConsole').value;
+        if (el('romPath') && el('flowRomPath')) el('romPath').value = el('flowRomPath').value;
+      }
+
+      function flowSyncToInputs() {
+        if (el('flowName') && el('nameInput')) el('flowName').value = el('nameInput').value;
+        if (flowIsMultiMode()) {
+          if (el('flowRootImgPath') && el('imgPath')) el('flowRootImgPath').value = el('imgPath').value;
+        } else {
+          if (el('flowImgPath') && el('imgPath')) el('flowImgPath').value = el('imgPath').value;
+          if (el('flowRomPath') && el('romPath')) el('flowRomPath').value = el('romPath').value;
+        }
+        if (el('flowConsole') && el('consoleSelect')) el('flowConsole').value = el('consoleSelect').value;
+        if (el('flowUseHttps') && !el('flowUseHttps').checked) el('flowUseHttps').checked = flowConsoleRequiresHttps(el('flowConsole')?.value);
+        if (el('flowServerBase') && !el('flowServerBase').value) el('flowServerBase').value = state.httpServerBase || getOriginBase() || '/';
+        if (el('flowHttpsServerBase') && !el('flowHttpsServerBase').value) el('flowHttpsServerBase').value = state.httpsServerBase || 'https://192.168.254.16:8081';
+      }
+
+      function applyFlowToMain() {
+        flowSyncFromInputs();
+        updatePreview();
+      }
+
+      function handleFlowImage(file) {
+        if (!file) return;
+        if (flowIsMultiMode()) {
+          state.flowRootImageFile = file;
+          if (!el('flowName').value) {
+            const guessed = cleanTitleFromFilename(file.name);
+            el('flowName').value = guessed;
+            if (el('nameInput')) el('nameInput').value = guessed;
+          }
+          flowRefreshImagePath();
+          flowUpdateImagePreview();
+          applyFlowToMain();
+          return;
+        }
+        state.imgFile = file;
+        if (!el('flowName').value) {
+          const guessed = cleanTitleFromFilename(file.name);
+          el('flowName').value = guessed;
+          if (el('nameInput')) el('nameInput').value = guessed;
+        }
+        flowRefreshImagePath();
+        flowUpdateImagePreview();
+        applyFlowToMain();
+      }
+
+      async function handleFlowRom(file) {
+        if (!file) return;
+        if (flowIsMultiMode()) {
+          // In multi-disk mode, the top-level ROM picker is not used.
+          return;
+        }
+        state.romFile = file;
+        state.romExt = String(file.name || '').split('.').pop().toLowerCase();
+        const consoleGuess = consoleFromExt(file.name);
+        if (!el('flowConsole').value && consoleGuess) el('flowConsole').value = consoleGuess;
+        if (flowConsoleRequiresHttps(el('flowConsole')?.value) && el('flowUseHttps')) {
+          el('flowUseHttps').checked = true;
+        }
+        if (!el('flowName').value) {
+          const guessed = cleanTitleFromFilename(file.name);
+          el('flowName').value = guessed;
+          if (el('nameInput')) el('nameInput').value = guessed;
+        }
+        flowRefreshImagePath();
+        await flowRefreshRomPath();
+        applyFlowToMain();
+      }
+
+      function updateSelected() {
+        const idx = state.entries.findIndex(e => e.id === state.selectedId);
+        if (idx < 0) throw new Error('Select an entry first.');
+        const entry = flowIsMultiMode() ? flowBuildMultiEntry() : flowBuildStandardEntry();
+        entry.id = state.selectedId;
+        state.entries.splice(idx, 1, entry);
+        state.selectedId = entry.id;
+        populateForm(entry);
+        return 'Selected entry updated.';
+      }
+
+      function gatherFormEntry(existingId = null) {
+        const entry = flowIsMultiMode() ? flowBuildMultiEntry() : flowBuildStandardEntry();
+        entry.id = existingId || entry.id;
+        return entry;
+      }
+
+      function flowUpdateAfterModeChange() {
+        flowSetModeUI();
+        flowRefreshAllPaths();
+        flowUpdateImagePreview();
+        applyFlowToMain();
+      }
+
+      function initFlow() {
+        if (!flowMode) return;
+        flowEnsureState();
+        flowSetStep(1);
+        setFlowPill('Flow ready');
+        flowSetModeUI();
+        flowRenderDiskRows();
+        flowUpdateImagePreview();
+
+        if (el('flowTemplate')) {
+          el('flowTemplate').addEventListener('change', () => {
+            state.assetsConfirmed = false;
+            flowUpdateAfterModeChange();
+            if (el('flowTemplate').value === 'multidisk') {
+              flowSetPreviewText('Multi-Disk mode ready.');
+            } else {
+              flowSetPreviewText('Standard mode ready.');
+            }
+          });
+        }
+
+        if (el('flowAddDiskBtn')) {
+          el('flowAddDiskBtn').onclick = () => {
+            if (!flowIsMultiMode()) return;
+            flowAddDiskRow();
+          };
+        }
+
+        if (el('flowResetDisksBtn')) {
+          el('flowResetDisksBtn').onclick = () => {
+            if (!flowIsMultiMode()) return;
+            flowResetDiskRows();
+          };
+        }
+
+        if (el('flowUseHttps')) {
+          el('flowUseHttps').addEventListener('change', async () => {
+            state.assetsConfirmed = false;
+            if (el('flowConsole') && flowConsoleRequiresHttps(el('flowConsole').value)) {
+              el('flowUseHttps').checked = true;
+            }
+            await flowRefreshRomPath();
+            applyFlowToMain();
+          });
+        }
+
+        if (el('flowConsole')) el('flowConsole').addEventListener('change', async () => {
+          state.assetsConfirmed = false;
+          if (el('consoleSelect')) el('consoleSelect').value = el('flowConsole').value;
+          if (flowConsoleRequiresHttps(el('flowConsole').value) && el('flowUseHttps')) {
+            el('flowUseHttps').checked = true;
+          }
+          flowRefreshImagePath();
+          if (state.imgFile || state.flowRootImageFile) flowUpdateImagePreview();
+          await flowRefreshRomPath();
+          applyFlowToMain();
+        });
+
+        if (el('flowName')) el('flowName').addEventListener('input', () => {
+          state.assetsConfirmed = false;
+          if (el('nameInput')) el('nameInput').value = el('flowName').value;
+          flowRefreshImagePath();
+          flowRefreshAllPaths();
+          if (state.imgFile || state.flowRootImageFile) flowUpdateImagePreview();
+          void flowRefreshRomPath();
+          applyFlowToMain();
+          if (flowIsMultiMode()) flowRenderDiskRows();
+        });
+
+        if (el('flowImageInput')) {
+          el('flowImageInput').addEventListener('change', e => handleFlowImage(e.target.files && e.target.files[0]));
+        }
+        if (el('flowRomInput')) {
+          el('flowRomInput').addEventListener('change', e => handleFlowRom(e.target.files && e.target.files[0]));
+        }
+
+        if (el('flowRootImageInput')) {
+          el('flowRootImageInput').addEventListener('change', e => {
+            state.assetsConfirmed = false;
+            state.flowRootImageFile = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+            state.imgFile = state.flowRootImageFile;
+            flowRefreshImagePath();
+            flowUpdateImagePreview();
+            applyFlowToMain();
+          });
+        }
+
+        if (el('flowServerBase')) {
+          el('flowServerBase').addEventListener('input', () => {
+            state.assetsConfirmed = false;
+            state.httpServerBase = normalizeBaseUrl(el('flowServerBase').value || getOriginBase() || '/');
+            state.serverBase = state.httpServerBase;
+            void flowRefreshRomPath();
+          });
+        }
+
+        if (el('flowHttpsServerBase')) {
+          el('flowHttpsServerBase').addEventListener('input', () => {
+            state.assetsConfirmed = false;
+            state.httpsServerBase = normalizeBaseUrl(el('flowHttpsServerBase').value || '');
+            void flowRefreshRomPath();
+          });
+        }
+
+        const imageDrop = el('flowImageDropzone');
+        const romDrop = el('flowRomDropzone');
+        if (imageDrop) {
+          imageDrop.addEventListener('dragover', e => { e.preventDefault(); imageDrop.classList.add('dragover'); });
+          imageDrop.addEventListener('dragleave', () => imageDrop.classList.remove('dragover'));
+          imageDrop.addEventListener('drop', e => {
+            e.preventDefault();
+            imageDrop.classList.remove('dragover');
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) handleFlowImage(file);
+          });
+        }
+        if (romDrop) {
+          romDrop.addEventListener('dragover', e => { e.preventDefault(); romDrop.classList.add('dragover'); });
+          romDrop.addEventListener('dragleave', () => romDrop.classList.remove('dragover'));
+          romDrop.addEventListener('drop', e => {
+            e.preventDefault();
+            romDrop.classList.remove('dragover');
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) handleFlowRom(file);
+          });
+        }
+
+        if (el('flowClearBtn')) {
+          el('flowClearBtn').onclick = () => {
+            if (el('flowName')) el('flowName').value = '';
+            if (el('flowImgPath')) el('flowImgPath').value = '';
+            if (el('flowRootImgPath')) el('flowRootImgPath').value = '';
+            if (el('flowRomPath')) el('flowRomPath').value = '';
+            if (el('flowConsole')) el('flowConsole').value = '';
+            if (el('flowUseHttps')) el('flowUseHttps').checked = false;
+            if (el('flowImageInput')) el('flowImageInput').value = '';
+            if (el('flowRomInput')) el('flowRomInput').value = '';
+            if (el('flowRootImageInput')) el('flowRootImageInput').value = '';
+            state.imgFile = null;
+            state.romFile = null;
+            state.flowRootImageFile = null;
+            state.assetsConfirmed = false;
+            if (state.imgObjectUrl) {
+              try { URL.revokeObjectURL(state.imgObjectUrl); } catch (_) {}
+              state.imgObjectUrl = '';
+            }
+            flowResetDiskRows();
+            flowUpdateImagePreview();
+            flowUpdateMode();
+            flowSetPreviewText('Cleared flow fields.');
+            clearForm();
+          };
+        }
+
+        if (el('flowSaveBtn')) {
+          el('flowSaveBtn').onclick = async () => {
+            try {
+              flowSyncToInputs();
+              await flowRefreshRomPath();
+              flowCommitCurrentEntry();
+              await replaceSourceOnServer({ closeAfter: true });
+              flowSetPreviewText('Uploaded assets, updated games.js, and closed the flow.');
+            } catch (err) {
+              flowSetPreviewText(err.message);
+            }
+          };
+        }
+
+        void ensureFlowServerBases({ promptHttps: false }).then(() => {
+          void flowRefreshRomPath();
+        });
+
+        setStatus('parseStatus', 'Flow mode is ready.', 'good');
+        flowUpdateAfterModeChange();
+      }
+
       function init() {
         bindEvents();
         initFlow();
@@ -1926,6 +3036,7 @@ function bindEvents() {
 
       init();
     })();
-  </script>
+  
+</script>
 </body>
 </html>
