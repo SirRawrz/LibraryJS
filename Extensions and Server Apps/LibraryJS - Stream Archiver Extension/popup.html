@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stream Archiver</title>
+<style>
+  :root { --bg:#071019; --panel:#0b1720; --card:#102234; --muted:#8c99a8; --accent:#66d0e8; --text:#f5fbff; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; width:468px; min-width:468px; min-height:600px; background:linear-gradient(180deg,var(--bg),#03121a); color:var(--text); overflow-x:hidden; }
+  body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+  .wrap { width:468px; min-width:468px; min-height:600px; padding:12px; }
+  .top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; }
+  .top > div:first-child { flex:1 1 auto; min-width:0; }
+  .top-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex:0 0 auto; flex-wrap:nowrap; white-space:nowrap; margin-left:auto; }
+  h1 { margin:0; font-size:17px; }
+  .small { color:var(--muted); font-size:12px; }
+  .card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.04); border-radius:14px; padding:12px; margin-bottom:10px; box-shadow:0 10px 30px rgba(0,0,0,0.18); }
+  .section-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+  .section-head .row { margin-bottom:0 !important; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .btn { border:none; background:var(--accent); color:#03121a; font-weight:800; padding:7px 9px; border-radius:10px; cursor:pointer; font-size:11px; line-height:1.1; }
+  .btn.job-action { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:34px; padding:7px 10px; text-align:center; }
+  .btn.job-action.busy { background:linear-gradient(135deg, #7ad9f0 0%, #89b0ff 52%, #8cf7c0 100%); color:#04111a; box-shadow:0 8px 20px rgba(102,208,232,0.28); }
+  .btn.job-action.stage-downloading { background:linear-gradient(135deg, #66d0e8 0%, #8bbfff 100%); color:#04111a; }
+  .btn.job-action.stage-remuxing { background:linear-gradient(135deg, #66d0e8 0%, #8cf7c0 100%); color:#04111a; }
+  .btn.job-action.stage-archiving { background:linear-gradient(135deg, #66d0e8 0%, #ffd58a 100%); color:#04111a; }
+  .btn.job-action .btn-kicker { font-size:10px; font-weight:900; line-height:1; letter-spacing:.02em; text-transform:uppercase; }
+  .btn.job-action .btn-detail { font-size:10px; font-weight:700; line-height:1.05; opacity:0.9; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .btn.secondary { background:transparent; color:var(--text); border:1px solid rgba(255,255,255,0.08); }
+  .btn.danger { background:#8f2330; color:#fff; }
+  .btn.ghost { background:transparent; color:var(--muted); border:1px dashed rgba(255,255,255,0.08); }
+  .btn:disabled { opacity:0.88; cursor:default; }
+  .toggle { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); }
+  .status { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.35; }
+  .list { display:flex; flex-direction:column; gap:8px; min-height:72px; max-height:340px; overflow:auto; }
+  .compact-view-mode .list { gap:6px; max-height:420px; }
+  .hit { background:rgba(255,255,255,0.03); border-radius:12px; padding:10px; border:1px solid rgba(255,255,255,0.04); position:relative; }
+  .hit.compact-view { padding:8px 10px; }
+  .hit.compact-view .hit-subtitle,
+  .hit.compact-view .quality-row,
+  .hit.compact-view .subtitle-box,
+  .hit.compact-view .progress-meta,
+  .hit.compact-view .hit-actions,
+  .hit.compact-view .small,
+  .hit.compact-view .hit-top-actions { display:none; }
+  .hit.compact-view .progress { margin-top:8px !important; }
+  .hit-header { display:flex; flex-direction:column; gap:4px; }
+  .hit-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .hit-top-actions { display:flex; align-items:flex-start; gap:6px; flex:0 0 auto; margin-left:auto; }
+  .hit-title { flex:1 1 auto; min-width:0; }
+  .hit-title { font-weight:800; font-size:13px; line-height:1.3; word-break:break-word; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .hit-subtitle { font-size:11px; color:var(--muted); word-break:break-word; line-height:1.35; }
+  .badge { display:inline-block; font-size:11px; font-weight:800; padding:3px 8px; border-radius:999px; background:rgba(102,208,232,0.12); color:var(--accent); }
+  .badge.dim { background:rgba(255,255,255,0.07); color:var(--text); }
+  .badge.warn { background:rgba(255,190,90,0.12); color:#ffcf80; }
+  .badge.ok { background:rgba(100,255,170,0.12); color:#96ffbf; }
+  .meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .quality-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .quality-chip { border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:var(--text); border-radius:999px; padding:6px 10px; font-size:12px; font-weight:800; cursor:pointer; }
+  .quality-chip.selected { background:rgba(102,208,232,0.18); border-color:rgba(102,208,232,0.45); color:#dff9ff; }
+  .quality-chip.default::after { content:' default'; font-size:10px; font-weight:700; color:var(--muted); margin-left:4px; }
+  .subtitle-box { margin-top:8px; padding:8px 8px 7px; border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:rgba(255,255,255,0.02); }
+  .subtitle-box.collapsed { padding-bottom:8px; }
+  .subtitle-collapsed-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .subtitle-label { font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
+  .subtitle-summary { font-size:11px; color:var(--text); line-height:1.35; word-break:break-word; }
+  .subtitle-collapse-btn { border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:var(--text); border-radius:999px; padding:6px 10px; font-size:11px; font-weight:800; cursor:pointer; }
+  .subtitle-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+
+  .subtitle-search-row { display:flex; gap:6px; margin:6px 0 4px; }
+  .subtitle-search-input { flex:1; min-width:0; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:var(--text); border-radius:10px; padding:8px 10px; font-size:12px; }
+  .subtitle-search-input::placeholder { color:rgba(140,153,168,0.9); }
+  .subtitle-search-btn { border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:var(--text); border-radius:10px; padding:8px 10px; font-size:12px; font-weight:800; cursor:pointer; }
+  .subtitle-chip.best-match { background:rgba(212,175,55,0.14); border-color:rgba(212,175,55,0.65); color:#fff3bf; box-shadow:0 0 0 1px rgba(212,175,55,0.5) inset; }
+  .subtitle-chip.best-match::after { color:#fff3bf; }
+  .subtitle-item { display:inline-flex; flex-direction:column; align-items:stretch; gap:4px; }
+  .subtitle-item.previewing { flex-basis:100%; }
+  .subtitle-controls { display:inline-flex; align-items:stretch; gap:4px; }
+  .subtitle-chip { border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:var(--text); border-radius:999px; padding:6px 10px; font-size:12px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .subtitle-chip.selected { background:rgba(150,255,191,0.16); border-color:rgba(150,255,191,0.45); color:#dfffee; }
+  .subtitle-chip.active { box-shadow:0 0 0 1px rgba(102,208,232,0.45) inset; }
+  .subtitle-chip::after { content:'download'; font-size:10px; font-weight:700; color:var(--muted); opacity:0.9; }
+  .subtitle-chip.selected::after { color:#dfffee; }
+  .subtitle-preview-btn { border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.02); color:var(--muted); border-radius:999px; padding:6px 9px; font-size:11px; font-weight:800; cursor:pointer; }
+  .subtitle-preview-panel { margin-top:8px; border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:rgba(4,14,21,0.9); overflow:hidden; width:100%; }
+  .subtitle-preview-panel.inline-preview { margin-top:0; }
+  .subtitle-preview-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .subtitle-preview-title { font-size:12px; font-weight:800; }
+  .subtitle-preview-meta { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.3; }
+  .subtitle-preview-close { border:none; background:rgba(255,255,255,0.06); color:var(--text); width:26px; height:26px; border-radius:8px; cursor:pointer; font-size:18px; line-height:1; }
+  .subtitle-preview-body { margin:0; padding:10px; max-height:220px; overflow:auto; white-space:pre-wrap; word-break:break-word; font-size:11px; line-height:1.45; color:#eaf7ff; }
+  .icon-btn { width:28px; height:28px; min-width:28px; border:none; border-radius:8px; background:rgba(255,255,255,0.05); color:var(--text); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  .icon-btn svg { width:14px; height:14px; fill:currentColor; display:block; }
+  .icon-btn.danger { color:#ff7281; background:rgba(255,114,129,0.10); }
+  .icon-btn.danger:hover { background:rgba(255,114,129,0.16); }
+  .hit-actions { display:flex; gap:8px; margin-top:10px; }
+  .hit-actions button { flex:1; }
+  .hit-actions .target-btn { flex:1.2; }
+  .progress { width:100%; height:10px; background:rgba(255,255,255,0.07); border-radius:999px; overflow:hidden; }
+  .progress > div { height:100%; width:0%; border-radius:inherit; background:linear-gradient(90deg, rgba(102,208,232,0.95), rgba(150,255,191,0.95)); transition:width .2s linear; }
+  .progress-mini { height:6px; }
+  .progress-meta { display:flex; justify-content:space-between; gap:8px; margin-top:6px; font-size:12px; color:var(--text); }
+  .progress-subline { margin-top:4px; font-size:11px; color:var(--muted); line-height:1.35; word-break:break-word; }
+  code { color:#b8f1ff; }
+
+  .library-modal[hidden] { display:none; }
+  .library-modal { position:fixed; inset:0; z-index:50; background:rgba(1,8,12,0.88); backdrop-filter:blur(8px); }
+  .library-modal-card { position:absolute; inset:8px; display:flex; flex-direction:column; gap:8px; background:linear-gradient(180deg, rgba(10,22,33,0.98), rgba(4,12,18,0.98)); border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:10px; box-shadow:0 20px 60px rgba(0,0,0,0.45); overflow:hidden; }
+  .library-modal-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .library-modal-title { font-size:15px; font-weight:900; line-height:1.1; }
+  .library-modal-meta { font-size:11px; color:var(--muted); margin-top:3px; line-height:1.25; max-width:330px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .library-modal-search { display:flex; gap:6px; }
+  .library-modal-search input { flex:1; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:var(--text); border-radius:12px; padding:8px 10px; font-size:12px; }
+  .library-panel { flex:1 1 auto; min-height:0; overflow:auto; border:1px solid rgba(255,255,255,0.06); border-radius:14px; background:rgba(255,255,255,0.02); padding:10px 8px 8px; }
+  .library-tree { display:flex; flex-direction:column; gap:4px; }
+  .library-row-wrap { display:flex; flex-direction:column; gap:6px; }
+  .library-row { position:relative; display:flex; gap:7px; align-items:flex-start; padding:6px 8px; padding-right:12px; border-radius:12px; border:1px solid transparent; }
+  .library-row.selected { border-color:rgba(102,208,232,0.45); background:rgba(102,208,232,0.08); }
+  .library-row.leaf:hover, .library-row:not(.leaf):hover { background:rgba(255,255,255,0.03); }
+  .library-row.episode.exists { opacity:0.58; }
+  .library-row.episode.checking { opacity:0.82; }
+  .library-toggle, .library-toggle-spacer { width:26px; min-width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; border:none; background:transparent; color:var(--muted); font-size:16px; }
+  .library-node-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .library-node-line { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .library-node-btn { border:none; background:transparent; color:var(--text); font-weight:800; padding:0; cursor:pointer; text-align:left; font-size:13px; }
+  .library-node-title { color:var(--text); font-size:12px; font-weight:800; line-height:1.2; word-break:break-word; }
+  .library-node-meta { color:var(--muted); font-size:10px; line-height:1.25; word-break:break-word; }
+  .library-status-group { display:flex; gap:5px; align-items:center; margin-left:auto; flex-shrink:0; }
+  .library-status-group.stack-right { flex-direction:column; align-items:flex-end; gap:4px; }
+  .library-status-group.stack-right .library-status-btn { width:auto; min-width:98px; }
+  .library-status-group.folder-actions { flex-direction:column; align-items:flex-end; gap:4px; min-width:98px; }
+  .library-status-group.folder-actions .library-status-btn { width:auto; }
+  .library-status-btn { min-width:72px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); color:var(--text); border-radius:999px; padding:5px 9px; font-size:10px; font-weight:900; cursor:pointer; }
+  .library-status-btn.ok { background:rgba(100,255,170,0.12); border-color:rgba(100,255,170,0.42); color:#96ffbf; }
+  .library-status-btn.warn { background:rgba(255,190,90,0.12); border-color:rgba(255,190,90,0.45); color:#ffcf80; }
+  .library-status-btn.dim { background:rgba(255,255,255,0.04); color:var(--muted); }
+  .library-footer { display:flex; flex-direction:column; gap:5px; margin-top:-2px; }
+  .library-footer-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .library-footer-title { font-weight:900; font-size:12px; line-height:1.15; }
+  .library-footer-details { font-size:11px; color:var(--muted); line-height:1.25; word-break:break-word; }
+  .library-subtitle-box { margin-top:6px; padding:8px 10px; border-radius:12px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); }
+  .library-subtitle-box.expanded { background:rgba(255,255,255,0.025); }
+  .library-subtitle-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .library-subtitle-title { font-weight:800; font-size:13px; }
+  .library-subtitle-meta { font-size:12px; color:var(--muted); line-height:1.35; }
+  .library-subtitle-toggle { flex:0 0 auto; white-space:nowrap; }
+  .library-subtitle-scroll { margin-top:6px; max-height:110px; overflow:auto; padding-right:4px; }
+  .library-subtitle-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .library-subtitle-chip { border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:var(--text); border-radius:999px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .library-subtitle-chip.selected { background:rgba(102,208,232,0.16); color:var(--accent); border-color:rgba(102,208,232,0.22); }
+  .library-empty { padding:14px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Stream Archiver</h1>
+      <div id="summary" class="small">Loading…</div>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="refreshBtn">Refresh config</button>
+      <button class="btn secondary" id="clearBtn">Clear list</button>
+      <button class="btn secondary" id="optionsBtn">Options</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="progress" aria-label="archive progress"><div id="progressBar"></div></div>
+    <div class="progress-meta"><span id="progressLabel">Idle</span><span id="progressPercent">0%</span></div>
+  </div>
+
+  <div class="card">
+    <div class="section-head">
+      <div class="row" style="justify-content:space-between; margin-bottom:0">
+        <strong>Active Jobs</strong>
+        <span class="small" id="activeCountLabel">0</span>
+      </div>
+      <label class="toggle" style="margin:0; font-size:12px; white-space:nowrap;">
+        <input type="checkbox" id="compactToggle"> Minimal view
+      </label>
+    </div>
+    <div class="list" id="activeHitList"></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between; margin-bottom:8px">
+      <strong>Detected streams</strong>
+      <span class="small" id="countLabel">0</span>
+    </div>
+    <div class="list" id="hitList"></div>
+  </div>
+</div>
+
+<div class="library-modal" id="libraryModal" hidden>
+  <div class="library-modal-card">
+    <div class="library-modal-top">
+      <div>
+        <div class="library-modal-title">Target Library</div>
+        <div class="library-modal-meta">Search titles, folders, filenames, or episode titles from <code>library.js</code>. Use folder checks to reveal missing episodes in order, or pick an episode to archive into the exact folder and name that entry expects. When a subtitle is selected, Upload Subtitle sends just that subtitle to the matched folder.</div>
+      </div>
+      <button class="btn secondary" id="libraryCloseBtn">Close</button>
+    </div>
+    <div class="library-modal-search">
+      <input id="librarySearch" type="text" placeholder="Search titles, folders, filenames, or episode titles" />
+      <button class="btn secondary" id="libraryReloadBtn">Reload library</button>
+    </div>
+    <div class="small" id="libraryStatus">Loading library…</div>
+    <div class="library-panel">
+      <div class="library-tree" id="libraryTree"></div>
+    </div>
+    <div class="library-footer">
+      <div class="library-footer-head">
+        <div>
+          <div class="library-footer-title" id="librarySelectedTitle">Nothing selected</div>
+          <div class="library-footer-details" id="librarySelectedDetails">Select an episode to target it.</div>
+          <div class="library-subtitle-box" id="librarySubtitleBox" hidden></div>
+        </div>
+        <div class="row" style="gap:10px; flex-wrap:wrap; justify-content:flex-end">
+          <label class="toggle" style="margin:0; align-self:center; font-size:12px; white-space:nowrap;">
+            <input type="checkbox" id="libraryArchiveSubtitleToggle">
+            Include subtitles
+          </label>
+          <button class="btn secondary" id="libraryUseBtn">Upload Subtitle</button>
+          <button class="btn" id="libraryArchiveBtn" disabled>Upload Archive</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="library-browser.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
