@@ -1,5 +1,7 @@
 # Media Server Setup — Detailed Project README
 
+The readme was made having an LLM dig through the project and isn't completely current. This thing is stuffed with behaviors and features ;-;
+
 This project is a **browser-first media server interface**. The server is used primarily as **storage and file hosting**, while the actual app logic runs in the browser with HTML, CSS, and JavaScript.
 
 There is no traditional backend application here doing catalog work, playback logic, or database work. Instead, the pages read and write files directly, use `localStorage` for fast local state, and synchronize select data back to the server when needed.
