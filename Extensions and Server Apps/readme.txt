@@ -1,7 +1,7 @@
 ---------------------------------------------------------------------------------------------------
 EXTENSIONS
 ---------------
-Video Archiver doesn't work for protected streams. You can go to ./manage.html and scan a video and click on the red icon showing its missing to manually upload video files if you get them from other sources.
+Video Archiver doesn't work for protected streams. You can go to ./manage.html and scan a video and click on the red icon showing its missing to manually upload video files if you get them from other sources. FetchV is a solid free extension as well as my extension isn't as robust as it yet!  
 
 These extensions were made to accompany LibraryJS' library.js and musiclibrary.js files.
 ---------------------------------------------------------------------------------------------------
