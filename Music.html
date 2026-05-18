@@ -1872,6 +1872,38 @@ function getGenreNameFromCode(code) {
   return MUSIC_LIBRARY_GENRE_MAP[String(code)] || String(code || '');
 }
 
+const GENRE_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
+function sanitizeGenreImageName(name) {
+  return String(name == null ? '' : name).trim().replace(/[\\/]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function buildGenreImageCandidates(genreName) {
+  const clean = sanitizeGenreImageName(genreName);
+  if (!clean) return [];
+  const base = `Music/Images/${encodeURIComponent(clean)}`;
+  return GENRE_IMAGE_EXTENSIONS.map(ext => `${base}.${ext}`);
+}
+
+async function resolveGenreImage(genreName) {
+  const clean = sanitizeGenreImageName(genreName);
+  if (!clean) return '';
+  for (const url of buildGenreImageCandidates(clean)) {
+    if (await urlExistsWithin(url, 120)) return url;
+  }
+  return '';
+}
+
+function applyGenreImage(img, genreName) {
+  if (!img) return;
+  const clean = sanitizeGenreImageName(genreName);
+  const fallback = clean ? `Music/Images/${encodeURIComponent(clean)}.jpg` : '';
+  if (fallback) img.src = fallback;
+  resolveGenreImage(clean).then(src => {
+    if (src && img) img.src = src;
+  }).catch(() => {});
+}
+
 function getSongsForGenre(genreName) {
   const code = getGenreCodeFromName(genreName);
   if (!code) return [];
@@ -1976,7 +2008,10 @@ function playResolvedTrack(audioEl, baseName) {
       genres.forEach(function(genre) {
         const div = document.createElement("div");
         div.className = "genre";
-        div.innerHTML = `<img src="/Music/Images/${genre}.jpg" alt="${genre}"><p>${genre}</p>`;
+        div.innerHTML = `<img alt="${genre}"><p>${genre}</p>`;
+
+        const img = div.querySelector("img");
+        if (img) applyGenreImage(img, genre);
 
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
@@ -2002,7 +2037,7 @@ function playResolvedTrack(audioEl, baseName) {
                       const img = div.querySelector('img');
                       if (img) {
                         const name = img.alt || '';
-                        if (name) img.src = `Music/Images/${name}.jpg`;
+                        applyGenreImage(img, name);
                       }
                     } catch(e){}
                   });
@@ -2861,7 +2896,7 @@ function playLikedSongs() {
         element.querySelectorAll('.genre img').forEach(img => {
           // derive name from alt text
           const name = img.alt;
-          img.src = `Music/Images/${name}.jpg`;
+          applyGenreImage(img, name);
           img.onerror = function() {
             this.src = 'Music/Images/default.jpg';
             this.onerror = null;
@@ -3253,7 +3288,7 @@ function renderManageLikes() {
         if (genresEl.style.display !== 'none') {
           genresEl.querySelectorAll('.genre img').forEach(img => {
             const name = img.alt || '';
-            if (name) img.src = `Music/Images/${name}.jpg`;
+                          applyGenreImage(img, name);
           });
         }
       }
@@ -3300,7 +3335,7 @@ function renderManageLikes() {
         // ensure images for artist tiles load
         artistsEl.querySelectorAll('.genre img').forEach(img => {
           const name = img.alt || '';
-          if (name) img.src = `Music/Images/${name}.jpg`;
+                        applyGenreImage(img, name);
         });
         // hide genres UI
         const genres = document.getElementById('genres');
