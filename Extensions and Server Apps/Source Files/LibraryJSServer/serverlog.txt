@@ -1,4 +1,0 @@
-Serving /tmp/tmp.78VkWmp01Z at http://localhost:60123/
-Local proxy endpoint: http://localhost:60123/proxy
-Local download endpoint: http://localhost:60123/download
-Static options: index=true listing=true hidden=false precompression=true spa=false dotHtmlRedirect=false
