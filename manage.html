@@ -35,30 +35,143 @@
     .container { max-width: 1600px; margin: 0 auto; }
     .header {
       display: flex;
-      align-items: center;
+      align-items: stretch;
       justify-content: space-between;
+      gap: 14px;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 18px 24px;
+      padding: 16px 18px;
       margin-bottom: 20px;
       backdrop-filter: blur(8px);
       box-shadow: 0 12px 30px rgba(0,0,0,0.4);
-      flex-wrap: wrap;
-      gap: 16px;
+      flex-wrap: nowrap;
+      min-width: 0;
     }
-    h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 4px; }
-    .title-line { display: inline-flex; align-items: center; gap: 10px; }
-    .title-switcher { transform: translateY(-1px); }
+    .header-home,
+    .header-brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+    }
+    .header-home {
+      justify-content: flex-start;
+      flex: 0 0 auto;
+    }
+    .header-brand {
+      justify-content: flex-start;
+      margin-left: auto;
+      gap: 6px;
+      flex: 1 1 360px;
+      min-width: 0;
+    }
+    .brand-copy {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      text-align: left;
+      line-height: 1.1;
+    }
+    h1 { font-size: 26px; font-weight: 650; letter-spacing: -0.03em; margin: 0; }
+    .brand-title { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+    .brand-subrow { display: flex; align-items: baseline; gap: 4px; min-width: 0; flex-wrap: nowrap; width: 100%; justify-content: flex-start; }
+    .brand-sub { color: var(--muted); font-size: 14px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+    .title-switcher { transform: translateY(0); flex: 0 0 auto; margin-left: 0; }
     .title-switcher:hover { transform: translateY(-1px) scale(1.06); }
     .sub { color: var(--muted); font-size: 14px; }
-    .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1 1 540px;
+      align-items: stretch;
+      justify-content: center;
+      min-width: 0;
+      overflow: hidden;
+      max-width: none;
+    }
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: stretch;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+      width: 100%;
+    }
+    .controls-row.secondary {
+      max-width: none;
+    }
+    .controls .btn {
+      flex: 1 1 0;
+      min-width: 118px;
+      white-space: nowrap;
+    }
+    .home-btn {
+      background: linear-gradient(145deg, rgba(96,165,250,0.14), rgba(15,23,42,0.95));
+      border: 1px solid rgba(96,165,250,0.35);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 650;
+      font-size: 13px;
+      cursor: pointer;
+      transition: transform 0.15s, filter 0.15s, border-color 0.15s, background 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      white-space: nowrap;
+    }
+    .home-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.15);
+      border-color: rgba(96,165,250,0.55);
+    }
+    .home-btn-icon {
+      width: 17px;
+      height: 17px;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+    .home-btn-label {
+      display: inline-block;
+    }
+    @media (max-width: 1280px) {
+      .header { gap: 10px; padding: 14px 14px; }
+      .header-brand { flex: 0 1 auto; gap: 0; }
+      .brand-copy { max-width: none; }
+      .brand-sub { white-space: normal; }
+      .controls { gap: 5px; }
+      .controls .btn { padding-left: 10px; padding-right: 10px; min-width: 104px; }
+    }
+    @media (max-width: 980px) {
+      .home-btn-label { display: none; }
+      .home-btn { padding: 8px 10px; min-width: 40px; justify-content: center; }
+      .controls { align-items: stretch; }
+      .controls-row { justify-content: stretch; }
+      .controls-row.secondary { max-width: 100%; }
+      .controls .btn { min-width: 0; }
+      .brand-copy { max-width: none; }
+      .header-brand { flex: 0 1 auto; }
+    }
+    @media (max-width: 780px) {
+      .header { align-items: flex-start; }
+      .header-brand { gap: 0; }
+      h1 { font-size: 22px; }
+      .brand-sub { font-size: 13px; }
+      .home-btn { border-radius: 8px; }
+    }
     .btn {
       background: var(--panel2);
       border: 1px solid var(--line);
       color: var(--text);
       padding: 8px 16px;
-      border-radius: 40px;
+      border-radius: 8px;
       font-weight: 500;
       font-size: 13px;
       cursor: pointer;
@@ -220,7 +333,6 @@
     .empty-message { padding: 40px; text-align: center; color: var(--muted); }
     .footnote { margin-top: 12px; font-size: 13px; color: var(--muted); }
     .flex { display: flex; gap: 8px; align-items: center; }
-    .divider { width: 1px; height: 24px; background: var(--line); margin: 0 8px; }
 
 
     .library-switcher {
@@ -229,7 +341,9 @@
       align-items: center;
       justify-content: center;
       flex: 0 0 auto;
-      margin-left: 2px;
+      margin-left: 4px;
+      margin-right: 0;
+      order: 0;
     }
     .library-hub {
       position: relative;
@@ -396,32 +510,46 @@
 <body>
 <div class="container">
   <div class="header">
-    <div>
-      <div class="title-line">
-        <div class="library-switcher" id="librarySwitcher">
-          <button class="library-hub" id="libraryHub" aria-label="Switch library" title="Switch library">📺</button>
-          <div class="library-wheel" id="libraryWheel" aria-hidden="true">
-            <button class="library-wheel-btn" data-library="video" data-pos="nw" title="Video">📺</button>
-            <button class="library-wheel-btn" data-library="music" data-pos="ne" title="Music">🎵</button>
-            <button class="library-wheel-btn" data-library="games" data-pos="se" title="Games">🎮</button>
-            <button class="library-wheel-btn" data-library="books" data-pos="sw" title="Books & Manga">📚</button>
+    <div class="header-home">
+      <button class="home-btn" id="homeButton" onclick="window.location.href='./index.html'" aria-label="Home" title="Home">
+        <svg class="home-btn-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M12 3.2 3.5 10.1v10.2c0 .99.8 1.8 1.8 1.8h5.2v-6.4c0-.66.54-1.2 1.2-1.2h1.6c.66 0 1.2.54 1.2 1.2V22h5.2c.99 0 1.8-.8 1.8-1.8V10.1L12 3.2Zm0-2.1c.43 0 .84.14 1.18.42l8.93 7.18c.47.38.52 1.08.11 1.53-.38.41-1.03.46-1.47.12L12 4.2 3.25 10.35c-.44.34-1.09.29-1.47-.12-.41-.45-.36-1.15.11-1.53l8.93-7.18c.34-.28.75-.42 1.18-.42Z"/>
+        </svg>
+        <span class="home-btn-label">Home</span>
+      </button>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row primary">
+        <button class="btn btn-primary hidden" id="nestCollectionBtn">Nest Collection</button>
+        <button class="btn btn-primary hidden" id="genreContentBtn">Genres</button>
+        <button class="btn btn-primary hidden" id="addContentBtn">➕ Add content</button>
+        <button class="btn" id="reloadBtn">🔄 Reload</button>
+      </div>
+      <div class="controls-row secondary">
+        <button class="btn btn-primary" id="scanAllVideosBtn">🎥 Scan all videos</button>
+        <button class="btn btn-warn" id="scanAllSubsBtn">📝 Scan all subs</button>
+        <button class="btn" id="pauseResumeBtn" disabled>⏸️ Pause</button>
+        <button class="btn" id="stopScanBtn" disabled>⏹️ Stop</button>
+      </div>
+    </div>
+
+    <div class="header-brand">
+      <div class="brand-copy">
+        <h1 id="libraryTitleText">Library Manager</h1>
+        <div class="brand-subrow">
+          <div class="brand-sub" id="headerSubtitle">Video • Music • Games • Books & Manga • Pausable scans</div>
+          <div class="library-switcher title-switcher" id="librarySwitcher">
+            <button class="library-hub" id="libraryHub" aria-label="Switch library" title="Switch library">📺</button>
+            <div class="library-wheel" id="libraryWheel" aria-hidden="true">
+              <button class="library-wheel-btn" data-library="video" data-pos="nw" title="Video">📺</button>
+              <button class="library-wheel-btn" data-library="music" data-pos="ne" title="Music">🎵</button>
+              <button class="library-wheel-btn" data-library="games" data-pos="se" title="Games">🎮</button>
+              <button class="library-wheel-btn" data-library="books" data-pos="sw" title="Books & Manga">📚</button>
+            </div>
           </div>
         </div>
-        <h1 id="libraryTitleText">Library Manager</h1>
       </div>
-      <div class="sub" id="headerSubtitle">Video • Music • Games • Books & Manga • Pausable scans</div>
-    </div>
-    <div class="controls">
-
-      <button class="btn btn-primary hidden" id="nestCollectionBtn">Nest Collection</button>
-      <button class="btn btn-primary hidden" id="addContentBtn">➕ Add content</button>
-      <button class="btn" id="reloadBtn">🔄 Reload</button>
-      <div class="divider"></div>
-      <button class="btn btn-primary" id="scanAllVideosBtn">🎥 Scan all videos</button>
-      <button class="btn btn-warn" id="scanAllSubsBtn">📝 Scan all subs</button>
-      <div class="divider"></div>
-      <button class="btn" id="pauseResumeBtn" disabled>⏸️ Pause</button>
-      <button class="btn" id="stopScanBtn" disabled>⏹️ Stop</button>
     </div>
   </div>
 
@@ -513,6 +641,7 @@
     tree: document.getElementById('tree'),
     visibleCount: document.getElementById('visibleCount'),
     nestCollectionBtn: document.getElementById('nestCollectionBtn'),
+    genreContentBtn: document.getElementById('genreContentBtn'),
     addContentBtn: document.getElementById('addContentBtn'),
     reloadBtn: document.getElementById('reloadBtn'),
     scanPrimaryBtn: document.getElementById('scanAllVideosBtn'),
@@ -594,7 +723,9 @@
       showRepair: false,
       flowPage: './musiclib.html',
       flowQuery: 'mflow=1',
+      genrePage: './musicgenres.html',
       addButtonLabel: '➕ Add music',
+      genreButtonLabel: 'Genres',
       loadData: loadMusicData,
       build: buildMusicLibrary
     },
@@ -726,12 +857,18 @@
     els.headerSubtitle.textContent = `${activeConfig.primaryLabel}${activeConfig.secondaryLabel ? ' • ' + activeConfig.secondaryLabel : ''}`;
     els.scanPrimaryBtn.textContent = activeConfig.primaryButton;
     els.scanSecondaryBtn.textContent = activeConfig.secondaryButton;
-    if (els.addContentBtn || els.nestCollectionBtn) {
+    if (els.genreContentBtn || els.addContentBtn || els.nestCollectionBtn) {
       const hasFlowPage = !!activeConfig.flowPage;
       const showNest = activeKey === 'video' && hasFlowPage;
+      const showGenres = activeKey === 'music' && !!activeConfig.genrePage;
       if (els.nestCollectionBtn) {
         els.nestCollectionBtn.classList.toggle('hidden', !showNest);
         els.nestCollectionBtn.disabled = !showNest;
+      }
+      if (els.genreContentBtn) {
+        els.genreContentBtn.classList.toggle('hidden', !showGenres);
+        els.genreContentBtn.disabled = !showGenres;
+        els.genreContentBtn.textContent = activeConfig.genreButtonLabel || 'Genres';
       }
       if (els.addContentBtn) {
         els.addContentBtn.classList.toggle('hidden', !hasFlowPage);
@@ -1454,6 +1591,92 @@
     return roots;
   }
 
+  function normalizeGameTitle(name) {
+    const raw = String(name ?? '').trim();
+    if (!raw) return { title: 'Untitled Game', platform: 'Other' };
+    const parts = raw.split(',');
+    if (parts.length > 1) {
+      const platform = parts.pop().trim() || 'Other';
+      const title = parts.join(',').trim() || raw;
+      return { title, platform };
+    }
+    return { title: raw, platform: 'Other' };
+  }
+
+  function getGamePlatform(game, fallback = 'Other') {
+    if (!game || typeof game !== 'object') return fallback;
+    const explicit = String(game.console || '').trim();
+    if (explicit) return explicit;
+    return normalizeGameTitle(game.name).platform || fallback;
+  }
+
+  function getGameBaseTitle(game, fallback = '') {
+    if (!game || typeof game !== 'object') return fallback || 'Game';
+    const explicit = String(game.baseName || game.title || '').trim();
+    if (explicit) return explicit;
+    return normalizeGameTitle(game.name).title || fallback || 'Game';
+  }
+
+  function getGameDiskNumber(disk, fallbackIndex = 1) {
+    if (!disk || typeof disk !== 'object') return fallbackIndex;
+    const raw = disk.disk ?? disk.disc ?? disk.number ?? disk.index ?? disk.part ?? fallbackIndex;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackIndex;
+  }
+
+  function getGameDiskLabel(disk, fallbackIndex = 1) {
+    if (disk && typeof disk === 'object') {
+      const explicit = String(disk.title || disk.name || disk.label || '').trim();
+      if (explicit) return explicit;
+    }
+    return `Disk ${getGameDiskNumber(disk, fallbackIndex)}`;
+  }
+
+  function makeGameLeaf(nodeId, game, title, platform, romLink, imgLink, sourceOrder) {
+    const romCandidates = buildGameRomCandidates(romLink || '');
+    const imgCandidates = buildGameImageCandidates(imgLink || '');
+    const primaryUrl = romCandidates[0] || String(romLink || '');
+    const secondaryUrl = imgCandidates[0] || String(imgLink || '');
+    return {
+      id: `${nodeId}:leaf`,
+      key: title,
+      type: 'leaf',
+      kind: 'game-item',
+      displayName: title,
+      platform: platform || 'Other',
+      primaryLabel: 'ROM',
+      secondaryLabel: 'Icon',
+      primaryUrl,
+      secondaryUrl,
+      primaryCandidates: romCandidates.length ? romCandidates : [String(romLink || '')].filter(Boolean),
+      secondaryCandidates: imgCandidates.length ? imgCandidates : [String(imgLink || '')].filter(Boolean),
+      primaryStatus: STATUS.UNCHECKED,
+      secondaryStatus: (imgCandidates.length || imgLink) ? STATUS.UNCHECKED : STATUS.NA,
+      repairable: false,
+      hasSecondary: imgCandidates.length > 0,
+      parentKey: nodeId,
+      sourceOrder: Number.isFinite(sourceOrder) ? sourceOrder : undefined
+    };
+  }
+
+  function makeGameTitleGroup(game, idx) {
+    const baseTitle = getGameBaseTitle(game, `Game ${idx + 1}`);
+    const platform = getGamePlatform(game);
+    return {
+      id: `games:title:${idx}`,
+      key: baseTitle,
+      type: 'group',
+      kind: 'games-group',
+      children: [],
+      episodes: [],
+      parentKey: null,
+      displayName: String(game.name || baseTitle).trim(),
+      platform,
+      baseTitle,
+      sourceOrder: idx
+    };
+  }
+
   function buildGamesLibrary(raw) {
     flatItems = [];
     nodeMap = new Map();
@@ -1463,29 +1686,8 @@
 
     list.forEach((game, idx) => {
       if (!game || typeof game !== 'object') return;
-      const name = String(game.name || `Game ${idx + 1}`).trim();
-      const platform = name.includes(',') ? name.split(',').pop().trim() : 'Other';
-      const romCandidates = buildGameRomCandidates(game.link || '');
-      const imgCandidates = buildGameImageCandidates(game.img || '');
-      const item = {
-        id: `games:item:${idx}`,
-        key: name,
-        type: 'leaf',
-        kind: 'game-item',
-        displayName: name,
-        platform,
-        primaryLabel: 'ROM',
-        secondaryLabel: 'Icon',
-        primaryUrl: romCandidates[0] || String(game.link || ''),
-        secondaryUrl: imgCandidates[0] || String(game.img || ''),
-        primaryCandidates: romCandidates.length ? romCandidates : [String(game.link || '')],
-        secondaryCandidates: imgCandidates.length ? imgCandidates : [String(game.img || '')],
-        primaryStatus: STATUS.UNCHECKED,
-        secondaryStatus: (imgCandidates.length || game.img) ? STATUS.UNCHECKED : STATUS.NA,
-        repairable: false,
-        hasSecondary: imgCandidates.length > 0,
-        parentKey: platform
-      };
+
+      const platform = getGamePlatform(game);
       if (!groups.has(platform)) {
         const group = {
           id: `games:group:${platform}`,
@@ -1494,20 +1696,85 @@
           kind: 'games-group',
           children: [],
           episodes: [],
-          parentKey: null
+          parentKey: null,
+          displayName: platform
         };
         groups.set(platform, group);
         nodeMap.set(group.id, group);
       }
-      const group = groups.get(platform);
-      group.children.push(item);
-      flatItems.push(item);
-      nodeMap.set(item.id, item);
+
+      const platformGroup = groups.get(platform);
+      const disks = Array.isArray(game.disks) ? game.disks.filter(d => d && typeof d === 'object') : [];
+      const wantsDiskChildren = String(game.specialSet || '').toLowerCase() === 'multidisk' || disks.length > 1;
+
+      if (wantsDiskChildren) {
+        const titleGroup = makeGameTitleGroup(game, idx);
+        titleGroup.parentKey = platformGroup.id;
+        nodeMap.set(titleGroup.id, titleGroup);
+
+        disks.forEach((disk, diskIdx) => {
+          const diskNumber = getGameDiskNumber(disk, diskIdx + 1);
+          const diskLabel = getGameDiskLabel(disk, diskIdx + 1);
+          const leaf = makeGameLeaf(
+            titleGroup.id,
+            game,
+            diskLabel,
+            platform,
+            disk.link || game.link || '',
+            disk.img || game.img || '',
+            Number.isFinite(diskNumber) ? diskNumber : diskIdx + 1
+          );
+          if (!leaf) return;
+          titleGroup.children.push(leaf);
+          flatItems.push(leaf);
+          nodeMap.set(leaf.id, leaf);
+        });
+
+        if (titleGroup.children.length) {
+          titleGroup.children.sort(compareLeafs);
+          platformGroup.children.push(titleGroup);
+        } else {
+          const leaf = makeGameLeaf(
+            platformGroup.id,
+            game,
+            titleGroup.baseTitle || titleGroup.displayName,
+            platform,
+            game.link || '',
+            game.img || '',
+            idx
+          );
+          if (leaf) {
+            platformGroup.children.push(leaf);
+            flatItems.push(leaf);
+            nodeMap.set(leaf.id, leaf);
+          }
+        }
+      } else {
+        const leaf = makeGameLeaf(
+          platformGroup.id,
+          game,
+          getGameBaseTitle(game, game.name || `Game ${idx + 1}`),
+          platform,
+          game.link || '',
+          game.img || '',
+          idx
+        );
+        if (leaf) {
+          platformGroup.children.push(leaf);
+          flatItems.push(leaf);
+          nodeMap.set(leaf.id, leaf);
+        }
+      }
     });
 
     roots.push(...groups.values());
     roots.sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''), undefined, { numeric: true, sensitivity: 'base' }));
-    roots.forEach(group => group.children.sort(compareLeafs));
+    roots.forEach(group => group.children.sort((a, b) => {
+      if (a?.type === 'leaf' && b?.type === 'leaf') return compareLeafs(a, b);
+      if (a?.type === 'leaf') return 1;
+      if (b?.type === 'leaf') return -1;
+      return compareNodes(a, b);
+    }));
     return roots;
   }
 
@@ -2025,6 +2292,16 @@
     els.addContentModal.style.display = 'flex';
   }
 
+  function openGenreEditorModal() {
+    const page = activeConfig.genrePage || './musicgenres.html';
+    if (!page) return;
+    const url = new URL(page, window.location.href);
+    url.searchParams.set('embed', '1');
+    els.addContentModalTitle.textContent = '🎨 Genres';
+    els.addContentFrame.src = url.href;
+    els.addContentModal.style.display = 'flex';
+  }
+
   function buildRepairPageUrl(ep) {
     const sourceUrl = String(ep?.primaryUrl || '').trim();
     const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
@@ -2274,6 +2551,7 @@
     if (e.target === els.addContentModal) hideAddContentModal();
   });
   els.nestCollectionBtn?.addEventListener('click', () => openAddContentModal('nest'));
+  els.genreContentBtn?.addEventListener('click', openGenreEditorModal);
   els.addContentBtn?.addEventListener('click', () => openAddContentModal('add'));
 
   els.libraryHub.addEventListener('click', e => {

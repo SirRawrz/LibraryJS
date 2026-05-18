@@ -174,7 +174,7 @@ async function chooseServerIP() {
   function setPort(host, newPort) {
     try {
       // try to use URL for robust parsing (prefix scheme if necessary)
-      const tmp = host.startsWith('http://') || host.startsWith('https://') ? host : 'https://' + host;
+      const tmp = host.startsWith('https://') || host.startsWith('https://') ? host : 'https://' + host;
       const u = new URL(tmp);
       u.port = String(newPort);
       return u.host; // returns host:port (or [ipv6]:port)
@@ -2644,7 +2644,7 @@ guideButton.addEventListener("click", (e) => {
     e.preventDefault();
     const rom = romParam.split('?')[0];
     const base = rom.split('.')[0];
-const url = `https://192.168.0.237:8080/guidebooks.html?Guidebook=${base}Guidebook`;
+const url = `https://${serverIP}/reader.html?lib=guidebooks&Guidebook=${base}Guidebook`;
     const iframe = document.getElementById("guideIframe");
     iframe.src = url;
     document.getElementById("guideContainer").style.display = "block";

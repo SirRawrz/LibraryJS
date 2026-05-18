@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 <!DOCTYPE html>
 
 <html lang="en">
@@ -94,11 +88,9 @@
   cursor: pointer;
 }
 </style>
-
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Book Library</title>
-
 <script>
 (function () {
   const lib = new URLSearchParams(window.location.search).get('lib') || 'books';
@@ -111,7 +103,6 @@
   document.write('<script src="' + src + '"><\/script>');
 })();
 </script>
-
 <style>
     .bookmark-button {
       position: absolute;
@@ -176,12 +167,24 @@
   top: 65px;
   right: 75px;
   display: grid;
+  gap: 3px;
+  z-index: 10003;
+  pointer-events: auto;
+}
+
+.tile-indicator.half {
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
-  gap: 3px;
+  grid-auto-flow: column;
   width: 40px;
   height: 40px;
-  z-index: 10003;
+}
+
+.tile-indicator.single {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr;
+  width: 44px;
+  height: 20px;
 }
 
 .tile {
@@ -190,22 +193,14 @@
   border-radius: 2px;
   cursor: pointer;
   transition: background-color 0.2s;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .tile.active {
   background-color: #4CAF50;
   border-color: white;
-}
-/* Move the 2nd tile down into the bottom‑left */
-.tile-indicator .tile:nth-child(2) {
-  grid-column: 1;
-  grid-row:    2;
-}
-
-/* Move the 3rd tile up into the top‑right */
-.tile-indicator .tile:nth-child(3) {
-  grid-column: 2;
-  grid-row:    1;
 }
 
 
@@ -499,9 +494,13 @@
       overflow: hidden;
     }
     #viewer canvas {
-      height: 100vh;
+      display: block;
+      max-width: 110vw;
+      max-height: 110vh;
       width: auto;
+      height: auto;
       margin: 0;
+      object-fit: contain;
     }
     /* Bottom Controls */
     .controls {
@@ -514,6 +513,36 @@
       padding: 10px;
       z-index: 10001;
     }
+
+/* Force a gap-free two-page spread */
+#viewer {
+  gap: 0 !important;
+  column-gap: 0 !important;
+  row-gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+#viewer > .page-spread {
+  display: flex;
+  gap: 0 !important;
+  column-gap: 0 !important;
+  row-gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+#viewer > .page-spread > canvas {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: 0 0 auto;
+}
 
 /* Styled controls and reader buttons */
 .reader-buttons button, .controls button, .reader-buttons .home-button {
@@ -542,7 +571,6 @@
   justify-content: flex-start;
 }
 </style>
-
 <script src="./js/pdf.min.js">
   document.getElementById('btnSearch').onclick = function searchPDF() {
     const term = document.getElementById('searchTerm').value.trim().toLowerCase();
@@ -599,131 +627,88 @@
 </script>
 </head>
 <body class="dark-mode">
-  <!-- Bookmark Dialog -->
-  <div id="bookmarkDialog" class="bookmark-dialog" style="text-align:center;">
-  <!-- dynamically-updated title -->
-  <h3 id="bookmarkTitle" style="text-align:center; margin-bottom:12px;"></h3>
-
-  <!-- bookmark button -->
-  
-    <!-- Chapters dropdown -->
-    <select id="chapterSelect" style="display:block; margin:8px auto; padding:6px; width:80%; border-radius:4px; border:1px solid #555; background:#444; color:white;">
-      <option value="">Select Chapter</option>
-    </select>
-    <button id="btnChapterGo" style="display:block; margin:4px auto; padding:8px 12px; border-radius:8px;">Go to Chapter</button>
-
-  <!-- Dialog Search controls -->
-  <div id="searchControlsDialog" style="margin-bottom:8px;">
-    <input type="text" id="searchTermDialog" placeholder="Search text..." style="width:80%; padding:4px; border-radius:4px; border:1px solid #555;"> <button id="btnClearSearchDialog" style="padding:4px 8px; margin-left:4px;">X</button> 
-    <button id="btnSearchDialog" style="padding:4px 8px; margin-left:4px;">Search</button>
-  </div>
-  <div id="searchResultsDialog" style="display:none; max-height:100px; overflow-y:auto; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:4px;">
-    <ul id="resultsListDialog" style="list-style:none; padding:0; margin:0;"></ul>
-  </div>
+<!-- Bookmark Dialog -->
+<div class="bookmark-dialog" id="bookmarkDialog" style="text-align:center;">
+<!-- dynamically-updated title -->
+<h3 id="bookmarkTitle" style="text-align:center; margin-bottom:12px;"></h3>
+<!-- bookmark button -->
+<!-- Chapters dropdown -->
+<select id="chapterSelect" style="display:block; margin:8px auto; padding:6px; width:80%; border-radius:4px; border:1px solid #555; background:#444; color:white;">
+<option value="">Select Chapter</option>
+</select>
+<button id="btnChapterGo" style="display:block; margin:4px auto; padding:8px 12px; border-radius:8px;">Go to Chapter</button>
+<!-- Dialog Search controls -->
+<div id="searchControlsDialog" style="margin-bottom:8px;">
+<input id="searchTermDialog" placeholder="Search text..." style="width:80%; padding:4px; border-radius:4px; border:1px solid #555;" type="text"/> <button id="btnClearSearchDialog" style="padding:4px 8px; margin-left:4px;">X</button>
+<button id="btnSearchDialog" style="padding:4px 8px; margin-left:4px;">Search</button>
+</div>
+<div id="searchResultsDialog" style="display:none; max-height:100px; overflow-y:auto; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:4px;">
+<ul id="resultsListDialog" style="list-style:none; padding:0; margin:0;"></ul>
+</div>
 <button id="btnAddBookmark" style="display:block; margin:8px auto;">
     Bookmark this Page
   </button>
-
-  <!-- note input -->
-  <input type="text" id="bookmarkNote"
-         placeholder="Add note (optional)"
-         style="display:block; margin:8px auto; padding:6px;
+<!-- note input -->
+<input id="bookmarkNote" placeholder="Add note (optional)" style="display:block; margin:8px auto; padding:6px;
                 width:80%; border-radius:4px;
                 border:1px solid #555;
-                background:#444; color:white;">
-
-  <!-- go-to page controls -->
-  <div style="text-align:center; margin:10px 0;">
-    <input type="number" id="inputPageNumber"
-           placeholder="Go to page #"
-           style="padding:5px; width:40%; margin-right:8px;">
-    <button id="btnGoPage">Go</button>
-  </div>
-
-  <!-- your list of bookmarks (left-aligned) -->
-  <ul id="bookmarkList"
-      style="list-style:none; padding:0;
+                background:#444; color:white;" type="text"/>
+<!-- go-to page controls -->
+<div style="text-align:center; margin:10px 0;">
+<input id="inputPageNumber" placeholder="Go to page #" style="padding:5px; width:40%; margin-right:8px;" type="number"/>
+<button id="btnGoPage">Go</button>
+</div>
+<!-- your list of bookmarks (left-aligned) -->
+<ul id="bookmarkList" style="list-style:none; padding:0;
              width:80%; margin:0 auto;
              text-align:left;">
-  </ul>
-
-  <!-- close dialog -->
-  <button id="btnCloseDialog" style="display:block; margin:10px auto;">
+</ul>
+<!-- close dialog -->
+<button id="btnCloseDialog" style="display:block; margin:10px auto;">
     Close
   </button>
 </div>
-
-  <!-- Main-screen controls (Home / Profile / Fullscreen / Light Mode) -->
-    <!-- Main-screen controls (Home / Profile / Fullscreen / Light Mode) -->
-  <!-- <div id="bookmarkDialog" class="bookmark-dialog dark-mode">
+<!-- Main-screen controls (Home / Profile / Fullscreen / Light Mode) -->
+<!-- Main-screen controls (Home / Profile / Fullscreen / Light Mode) -->
+<!-- <div id="bookmarkDialog" class="bookmark-dialog dark-mode">
     <h3>Bookmarks</h3>
     <button onclick="newBookmark()">New Bookmark</button>
     <ul id="bookmarkList"></ul>
     <button onclick="manageBookmarks()">Manage Bookmarks</button>
     <button onclick="closeBookmarks()">Close</button>
   </div> -->
-
-  <div class="reader-buttons main-buttons">
-
-  <!--  <button class="bookmark-button" onclick="openBookmarks()">Bookmarks</button> -->
-  
-    <button class="toggle-button" onclick="toggleMode()">🌗</button>
-    <button class="fullscreen-button" onclick="toggleFullscreen()">Fullscreen</button>
-    <button class="home-button" onclick="window.location.href='./index.html'">Home</button>
-    <img
-      alt="Profile"
-      class="profile-icon"
-      src="./Profiles/Guest.jpg"
-      style="width:32px; height:32px; border-radius:8px; cursor:pointer; margin-left: -4px;"
-      onclick="window.location.href='./profile.html';"
-      tabindex="0"
-    />
-  </div>
-  <h1 class="centered-title">Book Library</h1>
-  <div class="container" id="bookContainer"></div>
-  <div class="dark-mode" id="reader-container">
-    <div class="reader-buttons">
-      <!--  <button class="bookmark-button" onclick="openBookmarks()">Bookmarks</button>-->
-      <button class="fullscreen-button" onclick="toggleFullscreen()">Fullscreen</button>
-      
-      <div class="home-group" style="display:flex; align-items:center; gap:8px;">
-        <button class="home-button" onclick="window.location.href='./index.html'" style="margin:0;">
+<div class="reader-buttons main-buttons">
+<!--  <button class="bookmark-button" onclick="openBookmarks()">Bookmarks</button> -->
+<button class="toggle-button" onclick="toggleMode()">🌗</button>
+<button class="fullscreen-button" onclick="toggleFullscreen()">Fullscreen</button>
+<button class="home-button" onclick="window.location.href='./index.html'">Home</button>
+<img alt="Profile" class="profile-icon" onclick="window.location.href='./profile.html';" src="./Profiles/Guest.jpg" style="width:32px; height:32px; border-radius:8px; cursor:pointer; margin-left: -4px;" tabindex="0"/>
+</div>
+<h1 class="centered-title">Book Library</h1>
+<div class="container" id="bookContainer"></div>
+<div class="dark-mode" id="reader-container">
+<div class="reader-buttons">
+<!--  <button class="bookmark-button" onclick="openBookmarks()">Bookmarks</button>-->
+<button class="fullscreen-button" onclick="toggleFullscreen()">Fullscreen</button>
+<div class="home-group" style="display:flex; align-items:center; gap:8px;">
+<button class="home-button" onclick="window.location.href='./index.html'" style="margin:0;">
           Home
         </button>
-        <img
-          alt="Profile"
-          class="profile-icon"
-          src="./Profiles/Guest.jpg"
-          style="width:32px; height:32px; border-radius:8px; cursor:pointer;"
-          onclick="window.location.href='./profile.html';"
-          tabindex="0"
-        />
-      </div>
-
-      <!-- Page‑mode toggle moved to the left of the 🌗 invert button -->
-      <button
-        class="page-mode-toggle"
-        id="pageModeToggle"
-        data-mode="double"
-       onclick="togglePageMode()"
-       style="position: relative; left: -120px;"
-      >
+<img alt="Profile" class="profile-icon" onclick="window.location.href='./profile.html';" src="./Profiles/Guest.jpg" style="width:32px; height:32px; border-radius:8px; cursor:pointer;" tabindex="0"/>
+</div>
+<!-- Page‑mode toggle moved to the left of the 🌗 invert button -->
+<button class="page-mode-toggle" data-mode="double" id="pageModeToggle" style="position: relative; left: -120px;">
         Half‑Page
       </button>
-      <button class="toggle-button" onclick="toggleMode()">🌗</button>
-      <button class="close-button" onclick="closeReader()">×</button>
-    </div>
-
-    <div id="viewer" style=""></div>
-
-
-<div class="controls">
-  <!-- Prev/Next (wired to nextPage()/prevPage()) -->
-  <button id="prevBtn" onclick="prevPage()" aria-label="Previous page">Previous</button>
-  <button id="nextBtn" onclick="nextPage()" aria-label="Next page">Next</button>
+<button class="toggle-button" onclick="toggleMode()">🌗</button>
+<button class="close-button" onclick="closeReader()">×</button>
 </div>
-
-
+<div id="viewer" style=""></div>
+<div class="controls">
+<!-- Prev/Next (wired to nextPage()/prevPage()) -->
+<button aria-label="Previous page" id="prevBtn" onclick="prevPage()">Previous</button>
+<button aria-label="Next page" id="nextBtn" onclick="nextPage()">Next</button>
+</div>
 <script>
   let currentBookTitle = "";
   let pdfDoc = null;
@@ -733,10 +718,62 @@
   let isDarkMode = false;    // Default to light mode off
   let isFullscreen = false;  // Track fullscreen state
   let currentBook = "";      // To track the current book file
+  let readerSessionId = 0;   // Invalidates stale PDF loads/renders after close/switch
 
 
 
 const items = (window.libraryData && window.libraryData.items) || [];
+
+const GUIDEBOOK_RENDER_DPR = Math.max(2, window.devicePixelRatio || 1);
+
+function normalizeGuidebookKey(value) {
+  return String(value || '').replace(/[\s\-]/g, '').toLowerCase();
+}
+
+function resolveGuidebookDisplayTitle(item) {
+  if (!item || typeof item !== 'object') return String(item || '').trim();
+
+  const preferredFields = [
+    item.matchedGame,
+    item.matchedGameBase,
+    item.title,
+    item.matchedGameRomBase
+  ];
+
+  for (const value of preferredFields) {
+    const resolved = String(value || '').trim();
+    if (resolved) return resolved;
+  }
+
+  return String(item.title || '').trim();
+}
+
+function prepareHiDPICanvas(canvas, logicalWidth, logicalHeight) {
+  const outputScale = GUIDEBOOK_RENDER_DPR;
+  const width = Math.max(1, Math.round(logicalWidth));
+  const height = Math.max(1, Math.round(logicalHeight));
+
+  canvas.width = Math.max(1, Math.round(width * outputScale));
+  canvas.height = Math.max(1, Math.round(height * outputScale));
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+
+  return {
+    ctx: canvas.getContext('2d'),
+    transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0]
+  };
+}
+
+function renderPdfPageToCanvas(page, canvas, scale) {
+  const viewport = page.getViewport({ scale });
+  const prep = prepareHiDPICanvas(canvas, viewport.width, viewport.height);
+  const renderOptions = {
+    canvasContext: prep.ctx,
+    viewport
+  };
+  if (prep.transform) renderOptions.transform = prep.transform;
+  return page.render(renderOptions).promise;
+}
 
    document.addEventListener("DOMContentLoaded", function() {
   const container = document.getElementById('bookContainer');
@@ -756,9 +793,10 @@ const items = (window.libraryData && window.libraryData.items) || [];
       // Create group header
       const groupHeader = document.createElement('div');
       groupHeader.classList.add('group-header');
+      const groupTitle = resolveGuidebookDisplayTitle(item) || String(item.title || '').trim();
       groupHeader.innerHTML = `
-        <img src="${item.cover}" alt="${item.title}">
-        <p>${item.title}</p>
+        <img src="${item.cover}" alt="${groupTitle}">
+        <p>${groupTitle}</p>
       `;
       groupHeader.onclick = () => {
         const groupContainer = groupHeader.nextElementSibling;
@@ -775,11 +813,12 @@ const items = (window.libraryData && window.libraryData.items) || [];
       item.books.forEach(book => {
         const bookDiv = document.createElement('div');
         bookDiv.classList.add('book');
+        const displayTitle = resolveGuidebookDisplayTitle(book) || String(book.title || '').trim();
         bookDiv.innerHTML = `
-          <img src="${book.cover}" alt="${book.title}">
-          <p>${book.title}</p>
+          <img src="${book.cover}" alt="${displayTitle}">
+          <p>${displayTitle}</p>
         `;
-        bookDiv.onclick = () => { openPDF(book.file, book.title); };
+        bookDiv.onclick = () => { openPDF(book.file, displayTitle); };
         groupContainer.appendChild(bookDiv);
       });
       container.appendChild(groupContainer);
@@ -787,11 +826,12 @@ const items = (window.libraryData && window.libraryData.items) || [];
     } else {
       const bookDiv = document.createElement('div');
       bookDiv.classList.add('book');
+      const displayTitle = resolveGuidebookDisplayTitle(item) || String(item.title || '').trim();
       bookDiv.innerHTML = `
-        <img src="${item.cover}" alt="${item.title}">
-        <p>${item.title}</p>
+        <img src="${item.cover}" alt="${displayTitle}">
+        <p>${displayTitle}</p>
       `;
-      bookDiv.onclick = () => { openPDF(item.file, item.title); };
+      bookDiv.onclick = () => { openPDF(item.file, displayTitle); };
       container.appendChild(bookDiv);
     }
   });
@@ -801,14 +841,24 @@ const items = (window.libraryData && window.libraryData.items) || [];
   const target = params.get('Guidebook');
   if (target) {
     const decoded = decodeURIComponent(target);
-    // normalize: remove spaces and hyphens, lowercase
-    const norm = decoded.replace(/[\s\-]/g, '').toLowerCase();
+    const norm = normalizeGuidebookKey(decoded);
     let found = false;
+
+    const matchesItem = (item) => {
+      if (!item || typeof item !== 'object') return false;
+      const candidates = [
+        item.title,
+        item.matchedGame,
+        item.matchedGameBase,
+        item.matchedGameRomBase
+      ];
+      return candidates.some(value => normalizeGuidebookKey(value) === norm);
+    };
 
     for (const item of items) {
       if (!item.group) {
-       if (item.title.replace(/[\s\-]/g, '').toLowerCase() === norm) {
-          openPDF(item.file, item.title);
+        if (matchesItem(item)) {
+          openPDF(item.file, resolveGuidebookDisplayTitle(item) || String(item.title || '').trim());
           found = true;
           break;
         }
@@ -819,13 +869,14 @@ const items = (window.libraryData && window.libraryData.items) || [];
       for (const item of items) {
         if (item.group) {
           for (const Guidebook of item.books) {
-  if (Guidebook.title.replace(/[\s\-]/g, '').toLowerCase() === norm) {
+            if (matchesItem(Guidebook)) {
               // expand and open
               document.querySelectorAll('.group-header').forEach(hdr => {
-                if (hdr.textContent.trim() === item.title)
+                if (normalizeGuidebookKey(hdr.textContent.trim()) === normalizeGuidebookKey(item.title) || normalizeGuidebookKey(hdr.textContent.trim()) === normalizeGuidebookKey(resolveGuidebookDisplayTitle(item))) {
                   hdr.nextElementSibling.style.display = 'flex';
+                }
               });
-              openPDF(Guidebook.file, Guidebook.title);
+              openPDF(Guidebook.file, resolveGuidebookDisplayTitle(Guidebook) || String(Guidebook.title || '').trim());
               found = true;
               break;
             }
@@ -836,7 +887,12 @@ const items = (window.libraryData && window.libraryData.items) || [];
     }
 
     if (!found) {
-      console.warn(`Guidebook "${decoded}" not found in items.`);
+      console.warn(`Guidebook "${decoded}" not found in items. Redirecting to booklib flow.`);
+      const cleanGuidebook = decoded.replace(/\.(pdf|cbz|cbr)$/i, '');
+      const redirectUrl =
+        `./booklib.html?flow=1&step=2&Guidebook=${encodeURIComponent(cleanGuidebook)}`;
+      window.location.replace(redirectUrl);
+      return;
     }
   }
   // -------- Deep‑link handling ends here --------
@@ -877,37 +933,53 @@ const items = (window.libraryData && window.libraryData.items) || [];
     updateButtonZ();
 
     function openPDF(url, title, startPage = null) {
+      const sessionId = ++readerSessionId;
       currentBookTitle = title;
+      currentBook = url;
+      clearPageIndicator();
+      pageRendering = false;
+      pageNumPending = null;
+      pdfDoc = null;
+      const viewer = document.getElementById('viewer');
+      if (viewer) viewer.innerHTML = '';
+
       document.getElementById('reader-container').style.display = 'flex';
       // Hide main screen behind reader
       document.querySelector('.main-buttons').style.display = 'none';
       document.querySelector('h1.centered-title').style.display = 'none';
       document.getElementById('bookContainer').style.display = 'none';
 
-      currentBook = url;
-
       // Load last page number for this book and profile, or start at 1 if not set
       const profile = getActiveProfile();
-      const savedPage = localStorage.getItem(`bookPage-${profile}-${currentBook}`);
       const explicitStartPage = Number.isFinite(startPage) && startPage > 0 ? startPage : null;
-      pageNum = explicitStartPage || (savedPage ? parseInt(savedPage) : 1);
+      const savedPage =
+        readPersistedProgress(profile, url) ??
+        readPersistedProgress(profile, currentBook) ??
+        null;
+      pageNum = explicitStartPage || (savedPage ? parseInt(savedPage, 10) : 1);
 
       pdfjsLib.getDocument(url).promise.then(pdf => {
+        if (sessionId !== readerSessionId) {
+          try { pdf.destroy && pdf.destroy(); } catch (err) {}
+          return;
+        }
         pdfDoc = pdf;
         renderDoublePage(pageNum);
+      }).catch(err => {
+        if (sessionId !== readerSessionId) return;
+        console.error('Failed to open PDF:', err);
       });
     }
 function renderDoublePage(num) {
   if (!pdfDoc) return;
   pageRendering = true;
+  const renderSessionId = readerSessionId;
 
   const leftPageNum = num;
   const rightPageNum = num + 1;
 
   const canvasLeft = document.createElement('canvas');
   const canvasRight = document.createElement('canvas');
-  const ctxLeft = canvasLeft.getContext('2d');
-  const ctxRight = canvasRight.getContext('2d');
 
   // ✅ Mark canvases as allowed for page navigation (not focusable)
   canvasLeft.setAttribute('data-allow-page-nav', '1');
@@ -915,35 +987,45 @@ function renderDoublePage(num) {
 
   // Render left page
   pdfDoc.getPage(leftPageNum).then(page => {
+    if (renderSessionId !== readerSessionId || !pdfDoc) return;
     const scale = 1.5;
-    const viewportLeft = page.getViewport({ scale: scale });
-
-    canvasLeft.height = viewportLeft.height;
-    canvasLeft.width = viewportLeft.width;
-
-    const renderContextLeft = {
-      canvasContext: ctxLeft,
-      viewport: viewportLeft
-    };
-
-    page.render(renderContextLeft).promise.then(() => {
+    renderPdfPageToCanvas(page, canvasLeft, scale).then(() => {
+      if (renderSessionId !== readerSessionId || !pdfDoc) return;
       if (rightPageNum <= pdfDoc.numPages) {
         pdfDoc.getPage(rightPageNum).then(page => {
-          const viewportRight = page.getViewport({ scale: scale });
-
-          canvasRight.height = viewportRight.height;
-          canvasRight.width = viewportRight.width;
-
-          const renderContextRight = {
-            canvasContext: ctxRight,
-            viewport: viewportRight
-          };
-
-          page.render(renderContextRight).promise.then(() => {
+          if (renderSessionId !== readerSessionId || !pdfDoc) return;
+          renderPdfPageToCanvas(page, canvasRight, scale).then(() => {
+            if (renderSessionId !== readerSessionId || !pdfDoc) return;
             const viewer = document.getElementById('viewer');
+            if (!viewer) return;
             viewer.innerHTML = '';
-            viewer.appendChild(canvasLeft);
-            viewer.appendChild(canvasRight);
+            viewer.style.display = 'flex';
+            viewer.style.flexDirection = 'row';
+            viewer.style.justifyContent = 'center';
+            viewer.style.alignItems = 'center';
+            viewer.style.gap = '0px';
+            viewer.style.columnGap = '0px';
+            viewer.style.rowGap = '0px';
+            viewer.style.padding = '0';
+            viewer.style.margin = '0';
+            viewer.style.fontSize = '0';
+            viewer.style.lineHeight = '0';
+
+            const spread = document.createElement('div');
+            spread.className = 'page-spread';
+            spread.style.display = 'flex';
+            spread.style.gap = '0px';
+            spread.style.columnGap = '0px';
+            spread.style.rowGap = '0px';
+            spread.style.padding = '0';
+            spread.style.margin = '0';
+            spread.style.fontSize = '0';
+            spread.style.lineHeight = '0';
+            spread.style.alignItems = 'center';
+            spread.style.justifyContent = 'center';
+            spread.appendChild(canvasLeft);
+            spread.appendChild(canvasRight);
+            viewer.appendChild(spread);
 
             // Apply filters based on mode
             if (isDarkMode) {
@@ -960,16 +1042,54 @@ function renderDoublePage(num) {
             localStorage.setItem(`bookPage_${currentBook}`, pageNum);
 
             if (pageNumPending !== null) {
-              renderDoublePage(pageNumPending);
+              const pending = pageNumPending;
               pageNumPending = null;
+              renderDoublePage(pending);
             }
           });
         });
+      } else {
+        const viewer = document.getElementById('viewer');
+        if (!viewer || renderSessionId !== readerSessionId || !pdfDoc) return;
+        viewer.innerHTML = '';
+        viewer.style.display = 'flex';
+        viewer.style.flexDirection = 'row';
+        viewer.style.justifyContent = 'center';
+        viewer.style.alignItems = 'center';
+        viewer.style.gap = '0px';
+        viewer.style.columnGap = '0px';
+        viewer.style.rowGap = '0px';
+        viewer.style.padding = '0';
+        viewer.style.margin = '0';
+        viewer.style.fontSize = '0';
+        viewer.style.lineHeight = '0';
+        const spread = document.createElement('div');
+        spread.className = 'page-spread';
+        spread.style.display = 'flex';
+        spread.style.gap = '0px';
+        spread.style.columnGap = '0px';
+        spread.style.rowGap = '0px';
+        spread.style.padding = '0';
+        spread.style.margin = '0';
+        spread.style.fontSize = '0';
+        spread.style.lineHeight = '0';
+        spread.style.alignItems = 'center';
+        spread.style.justifyContent = 'center';
+        spread.appendChild(canvasLeft);
+        if (isDarkMode) canvasLeft.style.filter = 'invert(1)';
+        else canvasLeft.style.filter = 'none';
+        viewer.appendChild(spread);
+        pageRendering = false;
+        localStorage.setItem(`bookPage_${currentBook}`, pageNum);
+        if (pageNumPending !== null) {
+          const pending = pageNumPending;
+          pageNumPending = null;
+          renderDoublePage(pending);
+        }
       }
     });
   });
 }
-
     function nextPage() {
       if (pdfDoc && pageNum < pdfDoc.numPages) {
         pageNum += 2;
@@ -985,14 +1105,44 @@ function renderDoublePage(num) {
     }
 
     function closeReader() {
-    // show main-screen controls
-    document.querySelector('.main-buttons').style.display = 'flex';
-      document.getElementById('reader-container').style.display = 'none';
-    
-      document.querySelector('h1.centered-title').style.display = 'block';
-      document.getElementById('bookContainer').style.display = 'flex';
+    readerSessionId++;
+    pageRendering = false;
+    pageNumPending = null;
 
+    try {
+      if (currentBook) {
+        persistProgress(getActiveProfile(), currentBook, pageNum);
+      }
+    } catch (err) {
+      console.warn('Progress save failed during close:', err);
     }
+
+    try {
+      if (pdfDoc && typeof pdfDoc.destroy === 'function') {
+        pdfDoc.destroy();
+      }
+    } catch (err) {
+      console.warn('PDF destroy failed during close:', err);
+    }
+
+    pdfDoc = null;
+    currentBook = '';
+    currentBookTitle = '';
+    clearPageIndicator();
+
+    const viewer = document.getElementById('viewer');
+    if (viewer) viewer.innerHTML = '';
+
+    // show main-screen controls
+    const mainButtons = document.querySelector('.main-buttons');
+    if (mainButtons) mainButtons.style.display = 'flex';
+    const readerContainer = document.getElementById('reader-container');
+    if (readerContainer) readerContainer.style.display = 'none';
+    const heading = document.querySelector('h1.centered-title');
+    if (heading) heading.style.display = 'block';
+    const bookContainer = document.getElementById('bookContainer');
+    if (bookContainer) bookContainer.style.display = 'flex';
+}
 
     function toggleFullscreen() {
       if (!isFullscreen) {
@@ -1022,12 +1172,124 @@ function renderDoublePage(num) {
     
       updateButtonZ();}
 
-    // Backup function: creates a JSON string with all keys from localStorage that start with "bookPage_"
+    
+    function getActiveProfile() {
+      return localStorage.getItem("activeProfile") || "Guest";
+    }
+
+    function getProgressLibraryScope() {
+      const lib = new URLSearchParams(window.location.search).get('lib') || 'books';
+      return String(lib).trim().toLowerCase().replace(/[^a-z0-9]/gi, '_') || 'books';
+    }
+
+    function getLegacyProgressBookKey(rawValue) {
+      return String(rawValue || '').replace(/[^a-z0-9]/gi, '_');
+    }
+
+    function getProgressBookKey(rawValue) {
+      const scope = getProgressLibraryScope();
+      const legacy = getLegacyProgressBookKey(rawValue);
+      return `${scope}__${legacy}`;
+    }
+
+    function parseProgressEntry(key, value) {
+      const textValue = String(value || '').trim();
+
+      // Newer format: bookPage-Profile-bookKey
+      let match = key.match(/^bookPage-([^ -]+)-(.+)$/);
+      if (match) {
+        return {
+          profile: match[1] || getActiveProfile(),
+          bookKey: match[2] || '',
+          page: parseInt(textValue, 10)
+        };
+      }
+
+      // Legacy format: bookPage_<raw book url/path>
+      match = key.match(/^bookPage_(.+)$/);
+      if (match) {
+        return {
+          profile: getActiveProfile(),
+          bookKey: getProgressBookKey(match[1]),
+          page: parseInt(textValue, 10)
+        };
+      }
+
+      return null;
+    }
+
+    function persistProgressLocally(profile, rawUrl, page) {
+      const pageText = String(page);
+      const scopedBookKey = getProgressBookKey(rawUrl);
+      const legacyBookKey = getLegacyProgressBookKey(rawUrl);
+
+      localStorage.setItem(`bookPage-${profile}-${scopedBookKey}`, pageText);
+      localStorage.setItem(`bookPage-${profile}-${legacyBookKey}`, pageText);
+      localStorage.setItem(`bookPage-${profile}-${rawUrl}`, pageText);
+      localStorage.setItem(`bookPage_${rawUrl}`, pageText);
+    }
+
+    function readPersistedProgress(profile, rawUrl) {
+      const scopedBookKey = getProgressBookKey(rawUrl);
+      const legacyBookKey = getLegacyProgressBookKey(rawUrl);
+      const candidates = [
+        `bookPage-${profile}-${scopedBookKey}`,
+        `bookPage-${profile}-${legacyBookKey}`,
+        `bookPage-${profile}-${rawUrl}`,
+        `bookPage_${rawUrl}`
+      ];
+
+      for (const key of candidates) {
+        const page = parseInt(localStorage.getItem(key), 10);
+        if (Number.isFinite(page) && page > 0) return page;
+      }
+
+      return null;
+    }
+
+    function persistProgress(profile, rawUrl, page, options = {}) {
+      const normalizedPage = parseInt(page, 10);
+      if (!rawUrl || !Number.isFinite(normalizedPage) || normalizedPage < 1) return;
+
+      persistProgressLocally(profile, rawUrl, normalizedPage);
+
+      const shouldUpload = options.upload !== false;
+      if (shouldUpload && typeof uploadPageProgress === 'function') {
+        const bookKey = getProgressBookKey(rawUrl);
+        Promise.resolve(uploadPageProgress(profile, bookKey, normalizedPage)).catch((err) => {
+          console.warn('Progress upload failed:', err);
+        });
+      }
+    }
+
+    function normalizeRestoredProgressLocally(backupData) {
+      for (const [key, value] of Object.entries(backupData || {})) {
+        const entry = parseProgressEntry(key, value);
+        if (!entry || !entry.bookKey || !Number.isFinite(entry.page)) continue;
+        localStorage.setItem(`bookPage-${entry.profile}-${entry.bookKey}`, String(entry.page));
+      }
+    }
+
+    async function syncRestoredProgressToServer(backupData) {
+      const uploads = [];
+
+      for (const [key, value] of Object.entries(backupData || {})) {
+        const entry = parseProgressEntry(key, value);
+        if (!entry || !entry.bookKey || !Number.isFinite(entry.page)) continue;
+        uploads.push(uploadPageProgress(entry.profile, entry.bookKey, entry.page));
+      }
+
+      if (uploads.length) {
+        await Promise.allSettled(uploads);
+      }
+    }
+
+    // Backup function: creates a JSON string with all keys from localStorage that start with progress keys
     function backupProgress() {
       const backupData = {};
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key.startsWith('bookPage_')) {
+        if (key.startsWith('bookPage_') || key.startsWith('bookPage-')) {
           backupData[key] = localStorage.getItem(key);
         }
       }
@@ -1054,14 +1316,23 @@ function renderDoublePage(num) {
               localStorage.setItem(key, backupData[key]);
             }
           }
-          alert('Progress restored successfully!');
+
+          normalizeRestoredProgressLocally(backupData);
+
+          Promise.resolve(syncRestoredProgressToServer(backupData))
+            .then(() => {
+              alert('Progress restored successfully!');
+            })
+            .catch((error) => {
+              console.warn('Progress restored locally, but server sync had an issue:', error);
+              alert('Progress restored successfully!');
+            });
         } catch (error) {
           alert('Failed to restore progress: invalid file format.');
         }
       };
       reader.readAsText(file);
     }
-
 // Conditional left/right page navigation:
 // only advance pages when focus is on prev/next buttons OR inside #viewer OR on elements explicitly allowing page nav.
 document.addEventListener('keydown', (e) => {
@@ -1150,6 +1421,8 @@ document.addEventListener('keydown', (e) => {
       const nameSpan = document.getElementById("activeProfileName");
       const profile = localStorage.getItem("activeProfile");
 
+      if (!img || !nameSpan) return;
+
       if (profile) {
         img.src = `./Profiles/${profile}.jpg`;
         img.alt = profile;
@@ -1194,56 +1467,62 @@ document.addEventListener('keydown', (e) => {
   };
 
 </script>
-
 <script>
 function toggleMode() {
-      const body=document.body, reader=document.getElementById('reader-container'),
-            btn=document.querySelector('.toggle-button');
-      if (isDarkMode) {
-        body.classList.replace('dark-mode','light-mode');
-        reader.classList.replace('dark-mode','light-mode');
-        btn.textContent='🌗';
-      }
+  const body = document.body;
+  const readerContainer = document.getElementById('reader-container');
+  const toggleButton = document.querySelector('.toggle-button');
+
+  if (isDarkMode) {
+    body.classList.remove('dark-mode');
+    body.classList.add('light-mode');
+    readerContainer.classList.remove('dark-mode');
+    readerContainer.classList.add('light-mode');
+    if (toggleButton) toggleButton.textContent = '🌗';
+  } else {
+    body.classList.remove('light-mode');
+    body.classList.add('dark-mode');
+    readerContainer.classList.remove('light-mode');
+    readerContainer.classList.add('dark-mode');
+    if (toggleButton) toggleButton.textContent = '🌗';
+  }
+
+  isDarkMode = !isDarkMode;
+  renderDoublePage(pageNum);
+  updateButtonZ?.();
+}
 
 function toggleFullscreen() {
-      if (!isFullscreen) {
-        document.documentElement.requestFullscreen?.() || document.body.webkitRequestFullscreen?.();
-        document.querySelector('.fullscreen-button').textContent='Fullscreen';
-      }
-
-  // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
-    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
-    if (!pdfDoc || !term) return;
-    const resultsList = document.getElementById('resultsListDialog');
-    resultsList.innerHTML = '';
-    document.getElementById('searchResultsDialog').style.display = 'block';
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      pdfDoc.getPage(i).then(page => {
-        page.getTextContent().then(tc => {
-          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
-          if (text.includes(term)) {
-      const li = document.createElement('li');
-      const idx = text.indexOf(term);
-      const start = Math.max(0, idx - 30);
-      const end = Math.min(text.length, idx + term.length + 30);
-      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
-      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
-            li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
-            resultsList.appendChild(li);
-          }
-        });
-      });
+  if (!isFullscreen) {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    } else if (document.documentElement.mozRequestFullScreen) {
+      document.documentElement.mozRequestFullScreen();
+    } else if (document.documentElement.webkitRequestFullscreen) {
+      document.documentElement.webkitRequestFullscreen();
+    } else if (document.documentElement.msRequestFullscreen) {
+      document.documentElement.msRequestFullscreen();
     }
-  };
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+  }
 
+  isFullscreen = !isFullscreen;
+  const fsBtn = document.querySelector('.fullscreen-button');
+  if (fsBtn) fsBtn.textContent = 'Fullscreen';
+  updateButtonZ?.();
+}
 </script>
-
-
-  
-  <!-- Active Profile Loader (from radio.html), updated for multiple icons -->
-  <script>
+<!-- Active Profile Loader (from radio.html), updated for multiple icons -->
+<script>
     (async () => {
       const profile = localStorage.getItem("activeProfile") || "Guest";
       document.querySelectorAll(".profile-icon").forEach(img => {
@@ -1284,358 +1563,7 @@ function toggleFullscreen() {
   };
 
 </script>
-<script>
-// Bookmark functionality
-function openBookmarks() {
-  const dialog = document.getElementById('bookmarkDialog');
-  dialog.style.display = 'block';
-  loadBookmarks();
-}
-function closeBookmarks() {
-  document.getElementById('bookmarkDialog').style.display = 'none';
-}
-function newBookmark() {
-  const note = prompt('Enter a note for this bookmark:');
-  if (note !== null) {
-    const profile = localStorage.getItem("activeProfile") || "Guest";
-    const key = `bookmark-${profile}-${currentBook}-${pageNum}`;
-    const value = JSON.stringify({ page: pageNum, note, timestamp: Date.now() });
-    localStorage.setItem(key, value);
-    backupBookmarkToProfile(profile, key, value);
-    loadBookmarks();
-  }
-}
 
-function manageBookmarks() {
-    const profile = localStorage.getItem("activeProfile") || "Guest";
-  const confirmDelete = confirm('Delete all bookmarks?');
-  if (confirmDelete) {
-    const profile = localStorage.getItem("activeProfile") || "Guest";
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith(`bookmark-${profile})) {
-        localStorage.removeItem(key);
-      }
-    });
-    loadBookmarks();
-  }
-}
-// Backup bookmark to server
-function backupBookmarkToProfile(profile, key, value) {
-  const payload = `[[[${JSON.stringify({ [key]: value })}]]]`;
-  const blob = new Blob([payload], { type: "application/json" });
-  const form = new FormData();
-  form.append("files[]", blob, `${profile}-BookBookmark`);
-  fetch(`/api/file/upload?path=${encodeURIComponent("/Books/progress/")}`, {
-    method: 'PUT',
-    body: form
-  }).catch(err => console.error('Bookmark upload failed:', err));
-}
-// Page indicator update
-
-// Hook into renderDoublePage
-// Hook into renderDoublePage
-
-function handleIndicatorClick() {
-  const action = prompt("Enter 'b' to bookmark this page, or enter a page number to go to:", "");
-  if (action === null) return;
-  if (action.toLowerCase() === 'b') {
-    newBookmark();
-  } else {
-    let p = parseInt(action);
-    if (isNaN(p)) {
-      alert("Invalid page number");
-      return;
-    }
-    if (p % 2 === 0) p--;
-    if (p < 1) p = 1;
-    if (pdfDoc && p > pdfDoc.numPages) {
-      p = pdfDoc.numPages - (pdfDoc.numPages % 2 === 0 ? 1 : 0);
-    }
-    pageNum = p;
-    renderDoublePage(pageNum);
-  }
-}
-
-const originalRender = renderDoublePage;
-renderDoublePage = function(num) {
-  originalRender(num);
-  updatePageIndicator();
-};
-
-  // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
-    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
-    if (!pdfDoc || !term) return;
-    const resultsList = document.getElementById('resultsListDialog');
-    resultsList.innerHTML = '';
-    document.getElementById('searchResultsDialog').style.display = 'block';
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      pdfDoc.getPage(i).then(page => {
-        page.getTextContent().then(tc => {
-          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
-          if (text.includes(term)) {
-      const li = document.createElement('li');
-      const idx = text.indexOf(term);
-      const start = Math.max(0, idx - 30);
-      const end = Math.min(text.length, idx + term.length + 30);
-      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
-      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
-            li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
-            resultsList.appendChild(li);
-          }
-        });
-      });
-    }
-  };
-
-</script>
-
-<script>
-
-// Add bookmark with optional note
-
-
-function loadBookmarks() {
-    const profile = localStorage.getItem("activeProfile") || "Guest";
-  const list = document.getElementById('bookmarkList');
-  list.innerHTML = '';
-  Object.keys(localStorage).forEach(k => {
-    if(k.startsWith(`bookmark-${profile}-${currentBook}-`))) {
-      try {
-        const { page, note } = JSON.parse(localStorage.getItem(k));
-        const li = document.createElement('li');
-        li.onclick = () => { pageNum = page; renderDoublePage(pageNum); closeBookmarkDialog(); };
-        const text = note ? `Page ${page} - ${note}` : `Page ${page}`;
-        li.textContent = text;
-        const btn = document.createElement('button');
-        btn.textContent = '×';
-        btn.className = 'remove-btn';
-        btn.onclick = e => { e.stopPropagation(); localStorage.removeItem(k); loadBookmarks(); };
-        li.appendChild(btn);
-        list.appendChild(li);
-      } catch(e){}
-    }
-  });
-}
-
-  });
-}
-function goToPage() {
-  let p = parseInt(document.getElementById('inputPageNumber').value);
-  if (isNaN(p) || p < 1) return;
-  if (p % 2 === 0) p--;
-  pageNum = p;
-  renderDoublePage(pageNum);
-  closeBookmarkDialog();
-}
-
-// Override indicator click
-function updatePageIndicator() {
-  let indicator = document.querySelector('.page-indicator');
-  if (!indicator) {
-    indicator = document.createElement('div');
-    indicator.className = 'page-indicator';
-    document.getElementById('reader-container').appendChild(indicator);
-  }
-  indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
-  indicator.style.cursor = 'pointer';
-  indicator.onclick = openBookmarkDialog;
-}
-
-// Hook into renderDoublePage
-const _origRender = renderDoublePage;
-renderDoublePage = function(num) {
-  _origRender(num);
-  updatePageIndicator();
-  // Save current page progress per profile
-  const profile = getActiveProfile();
-  localStorage.setItem(`bookPage-${profile}-${currentBook}`, pageNum);
-};
-
-// Dialog button handlers
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btnAddBookmark').onclick = addBookmark;
-  document.getElementById('btnGoPage').onclick = goToPage;
-  document.getElementById('btnCloseDialog').onclick = closeBookmarkDialog;
-});
-
-  // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
-    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
-    if (!pdfDoc || !term) return;
-    const resultsList = document.getElementById('resultsListDialog');
-    resultsList.innerHTML = '';
-    document.getElementById('searchResultsDialog').style.display = 'block';
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      pdfDoc.getPage(i).then(page => {
-        page.getTextContent().then(tc => {
-          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
-          if (text.includes(term)) {
-      const li = document.createElement('li');
-      const idx = text.indexOf(term);
-      const start = Math.max(0, idx - 30);
-      const end = Math.min(text.length, idx + term.length + 30);
-      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
-      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
-            li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
-            resultsList.appendChild(li);
-          }
-        });
-      });
-    }
-  };
-
-</script>
-
-
-<script>
-// Bookmark dialog functionality
-
-
-function addBookmark() {
-  const noteInput = document.getElementById('bookmarkNote');
-  const note = noteInput.value.trim();
-  const key = `bookmark-${currentBook}-${pageNum}`;
-  
-  // Store both page number and note
-  const data = { page: pageNum, note };
-  localStorage.setItem(key, JSON.stringify(data));
-  
-  // Clear the note input after bookmarking
-  noteInput.value = '';
-  
-  loadBookmarks();
-}
-
-function loadBookmarks() {
-    const profile = localStorage.getItem("activeProfile") || "Guest";
-  const list = document.getElementById('bookmarkList');
-  list.innerHTML = '';
-  
-  Object.keys(localStorage).forEach(k => {
-    if (k.startsWith(`bookmark-${profile}-${currentBook}-`))) {
-      const value = localStorage.getItem(k);
-      let data;
-      
-      try {
-        data = JSON.parse(value);
-        // Handle old format where only page number was stored
-        if (typeof data === 'number') {
-          data = { page: data, note: '' };
-        }
-      } catch (e) {
-        data = { page: parseInt(value, 10), note: '' };
-      }
-
-      const li = document.createElement('li');
-      
-      // Top row: Page number and remove button
-      const topRow = document.createElement('div');
-      topRow.style.display = 'flex';
-      topRow.style.justifyContent = 'space-between';
-      topRow.style.alignItems = 'center';
-      
-      const pageSpan = document.createElement('span');
-      pageSpan.textContent = `Page ${data.page}`;
-      
-      const removeBtn = document.createElement('button');
-      removeBtn.textContent = '×';
-      removeBtn.className = 'remove-btn';
-      removeBtn.onclick = (e) => {
-        e.stopPropagation();
-        localStorage.removeItem(k);
-        loadBookmarks();
-      };
-      
-      topRow.appendChild(pageSpan);
-      topRow.appendChild(removeBtn);
-      li.appendChild(topRow);
-      
-      // Add note if exists
-      if (data.note) {
-        const noteDiv = document.createElement('div');
-        noteDiv.className = 'bookmark-note';
-        noteDiv.textContent = data.note;
-        li.appendChild(noteDiv);
-      }
-      
-      li.onclick = () => {
-        pageNum = data.page;
-        renderDoublePage(pageNum);
-        closeBookmarkDialog();
-      };
-      
-      list.appendChild(li);
-    }
-  });
-}
-function goToPage() {
-  let p = parseInt(document.getElementById('inputPageNumber').value);
-  if (isNaN(p) || p < 1) return;
-  if (p % 2 === 0) p--;
-  pageNum = p;
-  renderDoublePage(pageNum);
-  closeBookmarkDialog();
-}
-function updatePageIndicator() {
-  let indicator = document.querySelector('.page-indicator');
-  if (!indicator) {
-    indicator = document.createElement('div');
-    indicator.className = 'page-indicator';
-    document.getElementById('reader-container').appendChild(indicator);
-  }
-  indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
-  indicator.style.cursor = 'pointer';
-  indicator.onclick = openBookmarkDialog;
-}
-// Hook into renderDoublePage
-const _orig = renderDoublePage;
-renderDoublePage = function(num) {
-  _orig(num);
-  updatePageIndicator();
-};
-// Enter key to go
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btnAddBookmark').onclick = addBookmark;
-  document.getElementById('btnGoPage').onclick = goToPage;
-  document.getElementById('btnCloseDialog').onclick = closeBookmarkDialog;
-  document.getElementById('inputPageNumber').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-      goToPage();
-    }
-  });
-});
-
-  // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
-    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
-    if (!pdfDoc || !term) return;
-    const resultsList = document.getElementById('resultsListDialog');
-    resultsList.innerHTML = '';
-    document.getElementById('searchResultsDialog').style.display = 'block';
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      pdfDoc.getPage(i).then(page => {
-        page.getTextContent().then(tc => {
-          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
-          if (text.includes(term)) {
-      const li = document.createElement('li');
-      const idx = text.indexOf(term);
-      const start = Math.max(0, idx - 30);
-      const end = Math.min(text.length, idx + term.length + 30);
-      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
-      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
-            li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
-            resultsList.appendChild(li);
-          }
-        });
-      });
-    }
-  };
-
-</script>
 
 
 <script>
@@ -1747,6 +1675,14 @@ function goToPage() {
   closeBookmarkDialog();
 }
 
+function clearPageIndicator() {
+  const container = document.getElementById('reader-container');
+  if (!container) return;
+  container.querySelector('.page-indicator')?.remove();
+  container.querySelector('.tile-indicator')?.remove();
+  container.querySelector('#pageNoteDisplay')?.remove();
+}
+
 function updatePageIndicator() {
   let indicator = document.querySelector('.page-indicator');
   if (!indicator) {
@@ -1783,7 +1719,7 @@ renderDoublePage = function(num) {
   updatePageIndicator();
   // Save current page progress per profile
   const profile = getActiveProfile();
-  localStorage.setItem(`bookPage-${profile}-${currentBook}`, pageNum);
+  persistProgressLocally(profile, currentBook, pageNum);
 };
 
 // Initialize bookmark functionality
@@ -1826,8 +1762,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
 </script>
-
-
 <script>
   // ==== SERVER-BASED PROGRESS MANAGEMENT ====
   const PROGRESS_PATH = '/Books/progress/';
@@ -1846,44 +1780,67 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Progress upload failed:', err);
     }
   }
-  async function loadPageProgress(profile, bookKey) {
-    console.log('Loading progress for', bookKey);
-    try {
-      const res = await fetch(`${PROGRESS_PATH}${encodeURIComponent(profile + '-' + bookKey)}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error('No server save');
-      const txt = await res.text();
-      const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
-      if (!m) throw new Error('Bad payload');
-      const parsed = JSON.parse(m[1]);
-      console.log('Server progress loaded:', parsed[bookKey]);
-      return parsed[bookKey] || null;
-    } catch (err) {
-      console.warn('Could not load server progress:', err);
-      return null;
+  async function loadPageProgress(profile, rawUrl) {
+    const scopedBookKey = getProgressBookKey(rawUrl);
+    const legacyBookKey = getLegacyProgressBookKey(rawUrl);
+    const bookKeys = scopedBookKey === legacyBookKey
+      ? [scopedBookKey]
+      : [scopedBookKey, legacyBookKey];
+
+    for (const bookKey of bookKeys) {
+      try {
+        const res = await fetch(`${PROGRESS_PATH}${encodeURIComponent(profile + '-' + bookKey)}`, { cache: 'no-store' });
+        if (!res.ok) continue;
+        const txt = await res.text();
+        const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
+        if (!m) continue;
+        const parsed = JSON.parse(m[1]);
+        const page = parseInt(parsed[bookKey], 10);
+        if (Number.isFinite(page) && page > 0) {
+          return page;
+        }
+        const legacyPage = parseInt(parsed[legacyBookKey], 10);
+        if (Number.isFinite(legacyPage) && legacyPage > 0) {
+          return legacyPage;
+        }
+      } catch (err) {
+        console.warn('Could not load server progress:', err);
+      }
     }
+
+    return null;
   }
-  // Override openPDF to load server progress
+  // Prefer server progress across devices, then fall back to local cache.
   (function(){
     const origOpen = window.openPDF;
-    window.openPDF = async function(url, title) {
-      origOpen(url, title);
-      const profile = localStorage.getItem('activeProfile') || 'Guest';
-      const bookKey = url.replace(/[^a-z0-9]/gi, '_');
-      const serverPage = await loadPageProgress(profile, bookKey);
-      if (serverPage !== null) {
-        pageNum = serverPage;
-        renderDoublePage(pageNum);
+    window.openPDF = async function(url, title, startPage = null) {
+      const explicitStartPage = Number.isFinite(startPage) && startPage > 0 ? startPage : null;
+      if (explicitStartPage) {
+        origOpen(url, title, startPage);
+        return;
       }
+
+      const sessionId = readerSessionId;
+      const profile = localStorage.getItem('activeProfile') || 'Guest';
+      const serverPage = await loadPageProgress(profile, url);
+      if (sessionId !== readerSessionId) return;
+
+      const fallbackLocalPage = readPersistedProgress(profile, url);
+      const start = Number.isFinite(serverPage) && serverPage > 0
+        ? serverPage
+        : (Number.isFinite(fallbackLocalPage) && fallbackLocalPage > 0 ? fallbackLocalPage : null);
+
+      origOpen(url, title, start);
     };
   })();
-  // Hook into page rendering
+  // Hook into page rendering  // Hook into page rendering
   const origRender = window.renderDoublePage;
   window.renderDoublePage = function(num) {
+    if (!pdfDoc || !currentBook) return;
     origRender(num);
+    if (!pdfDoc || !currentBook) return;
     const profile = localStorage.getItem('activeProfile') || 'Guest';
-    const bookKey = currentBook.replace(/[^a-z0-9]/gi, '_');
-    localStorage.setItem(`bookPage-${profile}-${bookKey}`, num);
-    uploadPageProgress(profile, bookKey, num);
+    persistProgress(profile, currentBook, num);
   };
 
   // Bookmark Dialog Search Functionality
@@ -1914,8 +1871,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
 </script>
-
-
 <script>
 // ==== SERVER-BASED BOOKMARK MANAGEMENT ====
 const BOOKMARK_PATH = '/Books/progress/';
@@ -2129,8 +2084,7 @@ if (typeof renderDoublePage === 'function') {
     originalRender(num);
     updatePageIndicator();
     const profile = getActiveProfile();
-    const bookKey = getBookKey(currentBook);
-    localStorage.setItem(`bookPage-${profile}-${bookKey}`, pageNum);
+    persistProgressLocally(profile, currentBook, pageNum);
   };
 }
 
@@ -2178,30 +2132,15 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
 </script>
-
-
 <script>
+  // Chapter dropdown is now populated by openBookmarkDialog() using a guarded fetch.
+  // This legacy auto-loader is intentionally disabled to avoid 404/JSON parse errors
+  // from stale per-book chapter paths like `Naruto v0001.json`.
   document.addEventListener('DOMContentLoaded', () => {
     const chapterSelect = document.getElementById('chapterSelect');
     const btnChapterGo = document.getElementById('btnChapterGo');
-    const item = items.find(i => i.title.startsWith("Naruto"));
-    fetch(item.chapters)
-      .then(res => res.json())
-      .then(data => {
-        // Clear existing options to avoid duplicates
-        chapterSelect.innerHTML = '';
-        data.forEach(chap => {
-          const opt = document.createElement('option');
-          opt.value = chap.page;
-          opt.textContent = `Pg. ${chap.page} - ${chap.title}`;
-          chapterSelect.appendChild(opt);
-        });
-      })
-      .catch(err => console.error('Fetch/JSON error', err));
-    btnChapterGo.addEventListener('click', () => {
-      const page = parseInt(chapterSelect.value);
-      if (!isNaN(page)) renderDoublePage(page);
-    });
+    if (chapterSelect) chapterSelect.style.display = 'none';
+    if (btnChapterGo) btnChapterGo.style.display = 'none';
   });
 
   // Bookmark Dialog Search Functionality
@@ -2232,31 +2171,89 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
 </script>
-
-
 <script>
-function openBookmarkDialog() {
+function normalizeChapterLookup(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[\s._-]/g, '');
+}
+
+function findChapterSourceForCurrentBook() {
+  const currentTitleKey = normalizeChapterLookup(currentBookTitle);
+  const currentFileKey = normalizeChapterLookup(currentBook);
+
+  const allItems = Array.isArray(items) ? items : [];
+  for (const entry of allItems) {
+    const books = entry && entry.group && Array.isArray(entry.books) ? entry.books : [entry];
+    for (const book of books) {
+      if (!book || !book.chapters) continue;
+
+      const titleKey = normalizeChapterLookup(book.title);
+      const fileKey = normalizeChapterLookup(book.file);
+
+      const titleMatch =
+        currentTitleKey &&
+        titleKey &&
+        (titleKey === currentTitleKey ||
+          titleKey.includes(currentTitleKey) ||
+          currentTitleKey.includes(titleKey));
+
+      const fileMatch =
+        currentFileKey &&
+        fileKey &&
+        fileKey === currentFileKey;
+
+      if (titleMatch || fileMatch) {
+        return book;
+      }
+    }
+  }
+  return null;
+}
+
+async function openBookmarkDialog() {
   document.getElementById('bookmarkTitle').textContent = `${currentBookTitle}'s Bookmarks`;
   const dialog = document.getElementById('bookmarkDialog');
   dialog.style.display = 'block';
   loadBookmarks();
-  // Dynamic chapters
+
   const chapterSelect = document.getElementById('chapterSelect');
   const btnChapterGo = document.getElementById('btnChapterGo');
-  const item = items.find(i => i.title === currentBookTitle);
-  if (item && item.chapters) {
+  if (!chapterSelect || !btnChapterGo) return;
+
+  // Start hidden until we confirm chapter data actually exists.
+  chapterSelect.style.display = 'none';
+  btnChapterGo.style.display = 'none';
+  chapterSelect.innerHTML = '<option value="">Select Chapter</option>';
+
+  const chapterSource = findChapterSourceForCurrentBook();
+  if (!chapterSource || !chapterSource.chapters) {
+    return;
+  }
+
+  try {
+    const response = await fetch(chapterSource.chapters, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      return;
+    }
+
+    data.forEach(chap => {
+      if (!chap || chap.page == null) return;
+      const opt = document.createElement('option');
+      opt.value = chap.page;
+      opt.textContent = `Pg. ${chap.page} - ${chap.title || 'Chapter'}`;
+      chapterSelect.appendChild(opt);
+    });
+
     chapterSelect.style.display = 'block';
     btnChapterGo.style.display = 'block';
-    chapterSelect.innerHTML = '<option value="">Select Chapter</option>';
-    fetch(item.chapters).then(res => res.json()).then(data => {
-      data.forEach(chap => {
-        const opt = document.createElement('option');
-        opt.value = chap.page;
-        opt.textContent = `Pg. ${chap.page} - ${chap.title}`;
-        chapterSelect.appendChild(opt);
-      });
-    }).catch(err => console.error(err));
-  } else {
+  } catch (err) {
+    console.warn('Chapter list could not be loaded for', currentBookTitle, err);
     chapterSelect.style.display = 'none';
     btnChapterGo.style.display = 'none';
   }
@@ -2290,9 +2287,6 @@ function openBookmarkDialog() {
   };
 
 </script>
-
-
-
 <!-- Auto-open based on query parameters -->
 <script>
 function normalizeTitleKey(value) {
@@ -2345,9 +2339,6 @@ window.addEventListener('DOMContentLoaded', function() {
   openPDF(found.file, found.title, startPage);
 });
 </script>
-
-
-
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   // Clear dialog search
@@ -2362,7 +2353,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 </script>
-
 <script>
 window.addEventListener("DOMContentLoaded", function() {
   // Clear dialog search on X button click
@@ -2389,236 +2379,156 @@ window.addEventListener("DOMContentLoaded", function() {
   }
 });
 </script>
-
-</body>
-
-
-
-</html>
-
-<!-- ==== SERVER-BASED PROGRESS MANAGEMENT AND BOOKMARK MANAGEMENT ====
-     Using only server; no localStorage. Cancelling previous uploads with AbortController. -->
 <script>
-const PROGRESS_PATH = '/Books/progress/';
-const BOOKMARK_PATH = '/Books/progress/';
-const uploadControllers = {};
-
-function wrapPayload(obj) {
-  return `[[[${JSON.stringify(obj)}]]]`;
-}
-
-async function uploadWithCancel(path, payloadObj, filename) {
-  // Cancel previous for this filename
-  if (uploadControllers[filename]) {
-    uploadControllers[filename].abort();
+(function () {
+  function getPageViewMode() {
+    if (window.pageViewMode) return window.pageViewMode;
+    if (window.halfMode) return 'half';
+    return 'double';
   }
-  const controller = new AbortController();
-  uploadControllers[filename] = controller;
 
-  const blob = new Blob([wrapPayload(payloadObj)], { type: 'application/json' });
-  const form = new FormData();
-  form.append('files[]', blob, filename);
+  function getBasePageNumber() {
+    const raw = (typeof pageNum !== 'undefined') ? pageNum : window.pageNum;
+    const n = parseInt(raw || 1, 10);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }
 
-  try {
-    await fetch(path + '?path=' + encodeURIComponent(path), {
-      method: 'PUT',
-      body: form,
-      signal: controller.signal
-    });
-    console.log('Upload success', filename);
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      console.log('Upload aborted', filename);
-    } else {
-      console.error('Upload failed', err);
+  function getCurrentTile() {
+    const raw = (typeof currentTile !== 'undefined') ? currentTile : window.currentTile;
+    const n = parseInt(raw || 1, 10);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }
+
+  function getDisplayedPageNumber() {
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+
+    if (mode === 'half') {
+      return getCurrentTile() >= 3 ? basePage + 1 : basePage;
     }
-  } finally {
-    delete uploadControllers[filename];
+
+    return basePage;
   }
-}
 
-async function uploadPageProgress(profile, bookKey, page) {
-  await uploadWithCancel('/api/file/upload', { [bookKey]: page }, `${profile}-${bookKey}`);
-}
+  function getPageIndicatorText() {
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
 
-async function loadPageProgress(profile, bookKey) {
-  try {
-    const res = await fetch(PROGRESS_PATH + encodeURIComponent(profile + '-' + bookKey), { cache: 'no-store' });
-    if (!res.ok) throw new Error();
-    const txt = await res.text();
-    const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
-    if (!m) throw new Error();
-    const parsed = JSON.parse(m[1]);
-    return parsed[bookKey] || 1;
-  } catch {
-    return 1;
+    if (mode === 'single') {
+      return `Pg. ${basePage}`;
+    }
+
+    if (mode === 'half') {
+      const displayedPage = getDisplayedPageNumber();
+      const tile = getCurrentTile();
+      const arrow = (tile === 1 || tile === 3) ? '↑' : '↓';
+      return `Pg. ${displayedPage}${arrow}`;
+    }
+
+    const totalPages = (typeof pdfDoc !== 'undefined' && pdfDoc && Number.isFinite(pdfDoc.numPages))
+      ? pdfDoc.numPages
+      : basePage + 1;
+    return `Pg. ${basePage} - ${Math.min(basePage + 1, totalPages)}`;
   }
-}
 
-(async function(){
-  const origOpen = window.openPDF;
-  window.openPDF = async function(url, title) {
-    origOpen(url, title);
-    const profile = getActiveProfile();
-    const bookKey = url.replace(/[^a-z0-9]/gi, '_');
-    const serverPage = await loadPageProgress(profile, bookKey);
-    pageNum = serverPage;
-    renderDoublePage(pageNum);
-  };
-})();
+  function buildModePreview(mode, basePage) {
+    const tileIndicator = document.createElement('div');
+    tileIndicator.className = `tile-indicator ${mode}`;
 
-(function(){
-  const origRender = window.renderDoublePage;
-  window.renderDoublePage = async function(num) {
-    origRender(num);
-    const profile = getActiveProfile();
-    const bookKey = currentBook.replace(/[^a-z0-9]/gi, '_');
-    await uploadPageProgress(profile, bookKey, num);
-  };
-})();
+    const tileCount = mode === 'half' ? 4 : 2;
+    const activeIndex = mode === 'half'
+      ? getCurrentTile()
+      : ((basePage % 2 === 0) ? 2 : 1);
 
-  // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
-    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
-    if (!pdfDoc || !term) return;
-    const resultsList = document.getElementById('resultsListDialog');
-    resultsList.innerHTML = '';
-    document.getElementById('searchResultsDialog').style.display = 'block';
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      pdfDoc.getPage(i).then(page => {
-        page.getTextContent().then(tc => {
-          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
-          if (text.includes(term)) {
-      const li = document.createElement('li');
-      const idx = text.indexOf(term);
-      const start = Math.max(0, idx - 30);
-      const end = Math.min(text.length, idx + term.length + 30);
-      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
-      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
-            li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
-            resultsList.appendChild(li);
+    for (let i = 1; i <= tileCount; i++) {
+      const tile = document.createElement('div');
+      tile.className = `tile ${i === activeIndex ? 'active' : ''}`;
+      tile.dataset.tile = String(i);
+
+      if (mode === 'half') {
+        const labels = ['Upper-left', 'Lower-left', 'Upper-right', 'Lower-right'];
+        tile.title = labels[i - 1];
+        tile.addEventListener('click', () => {
+          if (typeof window.currentTile !== 'undefined') {
+            window.currentTile = i;
           }
+          if (typeof currentTile !== 'undefined') {
+            currentTile = i;
+          }
+          if (typeof renderHalfPage === 'function') {
+            renderHalfPage(getBasePageNumber(), i);
+          }
+          updatePageIndicator();
         });
-      });
+      } else {
+        tile.title = i === 1 ? 'Left side' : 'Right side';
+      }
+
+      tileIndicator.appendChild(tile);
     }
-  };
 
-</script>
+    return tileIndicator;
+  }
 
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const chapterSelect = document.getElementById('chapterSelect');
-    const btnChapterGo = document.getElementById('btnChapterGo');
-    const item = items.find(i => i.title.startsWith("Naruto"));
-    fetch(item.chapters)
-      .then(res => res.json())
-      .then(data => {
-        // Clear existing options to avoid duplicates
-        chapterSelect.innerHTML = '';
-        data.forEach(chap => {
-          const opt = document.createElement('option');
-          opt.value = chap.page;
-          opt.textContent = `Pg. ${chap.page} - ${chap.title}`;
-          chapterSelect.appendChild(opt);
-        });
-      })
-      .catch(err => console.error('Fetch/JSON error', err));
-    btnChapterGo.addEventListener('click', () => {
-      const page = parseInt(chapterSelect.value);
-      if (!isNaN(page)) renderDoublePage(page);
-    });
+  function updatePageIndicator() {
+    const container = document.getElementById('reader-container');
+    if (!container) return;
+
+    container.querySelector('.page-indicator')?.remove();
+    container.querySelector('.tile-indicator')?.remove();
+    container.querySelector('#pageNoteDisplay')?.remove();
+
+    const mode = getPageViewMode();
+    const basePage = getBasePageNumber();
+    const indicator = document.createElement('div');
+    indicator.className = 'page-indicator';
+    indicator.textContent = getPageIndicatorText();
+    indicator.style.cursor = 'pointer';
+    indicator.onclick = typeof openBookmarkDialog === 'function' ? openBookmarkDialog : null;
+    container.appendChild(indicator);
+
+    if (mode === 'half' || mode === 'single') {
+      container.appendChild(buildModePreview(mode, basePage));
+    }
+
+    const profile = (typeof getActiveProfile === 'function') ? getActiveProfile() : 'Guest';
+    const notePage = getDisplayedPageNumber();
+    const noteKey = `bookmark-${profile}-${currentBook}-${notePage}`;
+    const bookmarkData = JSON.parse(localStorage.getItem(noteKey) || '{}');
+
+    if (bookmarkData.note) {
+      const noteEl = document.createElement('div');
+      noteEl.id = 'pageNoteDisplay';
+      noteEl.style.cssText = 'text-align:center; margin-top:4px; color:white; font-style:italic;';
+      noteEl.textContent = bookmarkData.note;
+      container.appendChild(noteEl);
+    }
+  }
+
+  window.updatePageIndicator = updatePageIndicator;
+
+  if (typeof window.renderDoublePage === 'function') {
+    const originalRenderDoublePage = window.renderDoublePage;
+    window.renderDoublePage = function (num) {
+      const result = originalRenderDoublePage.apply(this, arguments);
+      window.setTimeout(updatePageIndicator, 0);
+      return result;
+    };
+  }
+
+  window.addEventListener('load', () => {
+    window.setTimeout(updatePageIndicator, 0);
   });
-
-  // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
-    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
-    if (!pdfDoc || !term) return;
-    const resultsList = document.getElementById('resultsListDialog');
-    resultsList.innerHTML = '';
-    document.getElementById('searchResultsDialog').style.display = 'block';
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      pdfDoc.getPage(i).then(page => {
-        page.getTextContent().then(tc => {
-          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
-          if (text.includes(term)) {
-      const li = document.createElement('li');
-      const idx = text.indexOf(term);
-      const start = Math.max(0, idx - 30);
-      const end = Math.min(text.length, idx + term.length + 30);
-      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
-      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
-            li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
-            resultsList.appendChild(li);
-          }
-        });
-      });
-    }
-  };
-
+})();
 </script>
-
-
 <script>
-function openBookmarkDialog() {
-  document.getElementById('bookmarkTitle').textContent = `${currentBookTitle}'s Bookmarks`;
-  const dialog = document.getElementById('bookmarkDialog');
-  dialog.style.display = 'block';
-  loadBookmarks();
-  // Dynamic chapters
-  const chapterSelect = document.getElementById('chapterSelect');
-  const btnChapterGo = document.getElementById('btnChapterGo');
-  const item = items.find(i => i.title === currentBookTitle);
-  if (item && item.chapters) {
-    chapterSelect.style.display = 'block';
-    btnChapterGo.style.display = 'block';
-    chapterSelect.innerHTML = '<option value="">Select Chapter</option>';
-    fetch(item.chapters).then(res => res.json()).then(data => {
-      data.forEach(chap => {
-        const opt = document.createElement('option');
-        opt.value = chap.page;
-        opt.textContent = `Pg. ${chap.page} - ${chap.title}`;
-        chapterSelect.appendChild(opt);
-      });
-    }).catch(err => console.error(err));
-  } else {
-    chapterSelect.style.display = 'none';
-    btnChapterGo.style.display = 'none';
-  }
-}
+(function () {
+  const toggleBtn = document.getElementById('pageModeToggle');
+  if (!toggleBtn) return;
 
-  // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
-    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
-    if (!pdfDoc || !term) return;
-    const resultsList = document.getElementById('resultsListDialog');
-    resultsList.innerHTML = '';
-    document.getElementById('searchResultsDialog').style.display = 'block';
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      pdfDoc.getPage(i).then(page => {
-        page.getTextContent().then(tc => {
-          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
-          if (text.includes(term)) {
-      const li = document.createElement('li');
-      const idx = text.indexOf(term);
-      const start = Math.max(0, idx - 30);
-      const end = Math.min(text.length, idx + term.length + 30);
-      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
-      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
-            li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
-            resultsList.appendChild(li);
-          }
-        });
-      });
-    }
-  };
-// ────────────────────────────────────────────────────────────────
-// 1) Wire up the toggle button:
-const toggleBtn = document.getElementById('pageModeToggle');
-if (toggleBtn) {
   window.pageViewMode = window.pageViewMode || 'double'; // double | half | single
+  window.halfMode = window.pageViewMode === 'half';
+  window.currentTile = window.currentTile || 1;
 
   const syncToggleLabel = () => {
     const mode = window.pageViewMode || 'double';
@@ -2641,29 +2551,26 @@ if (toggleBtn) {
   const renderOnePage = function (num) {
     if (!pdfDoc) return;
     pageRendering = true;
+    const renderSessionId = readerSessionId;
 
     pdfDoc.getPage(num).then(page => {
-      const scale = 1.5;
-      const viewport = page.getViewport({ scale });
+      if (renderSessionId !== readerSessionId || !pdfDoc) return;
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = getFitScale(baseViewport.width, baseViewport.height);
       const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
       canvas.setAttribute('data-allow-page-nav', '1');
 
-      page.render({ canvasContext: ctx, viewport }).promise.then(() => {
+      renderPdfPageToCanvas(page, canvas, scale).then(() => {
         const viewer = document.getElementById('viewer');
+        if (!viewer || renderSessionId !== readerSessionId || !pdfDoc) return;
         viewer.innerHTML = '';
         viewer.appendChild(canvas);
 
         canvas.style.filter = isDarkMode ? 'invert(1)' : '';
+        if (renderSessionId !== readerSessionId || !pdfDoc) return;
         pageRendering = false;
 
-        localStorage.setItem(
-          `bookPage-${getActiveProfile()}-${currentBook}`,
-          num
-        );
+        persistProgress(getActiveProfile(), currentBook, num);
 
         updatePageIndicator();
       });
@@ -2703,6 +2610,7 @@ if (toggleBtn) {
       if (!pdfDoc) return;
 
       pageNum = Math.min(pdfDoc.numPages, pageNum + (mode === 'single' ? 1 : 2));
+      persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
       renderCurrent();
     };
 
@@ -2716,6 +2624,7 @@ if (toggleBtn) {
       if (!pdfDoc) return;
 
       pageNum = Math.max(1, pageNum - (mode === 'single' ? 1 : 2));
+      persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
       renderCurrent();
     };
   };
@@ -2728,81 +2637,107 @@ if (toggleBtn) {
     renderCurrent();
   };
 
-  toggleBtn.addEventListener('click', () => {
+  function togglePageMode() {
     const mode = window.pageViewMode || 'double';
     const nextMode = mode === 'double' ? 'half' : mode === 'half' ? 'single' : 'double';
     setMode(nextMode);
-  });
+  }
 
+  window.togglePageMode = togglePageMode;
+  toggleBtn.addEventListener('click', togglePageMode);
   window.applyPageMode = setMode;
 
-  // 2) Half-Page bootstrap (runs once, on demand)
+  function getViewportBudget() {
+    const viewer = document.getElementById('viewer');
+    const rect = viewer?.getBoundingClientRect?.();
+    return {
+      width: Math.max(320, Math.floor((rect?.width || window.innerWidth || 0) * 0.985)),
+      height: Math.max(320, Math.floor((rect?.height || window.innerHeight || 0) * 0.915))
+    };
+  }
+
+  function getFitScale(naturalWidth, naturalHeight, boost = 1.10) {
+    const budget = getViewportBudget();
+    let scale = Math.min(
+      budget.width / Math.max(1, naturalWidth),
+      budget.height / Math.max(1, naturalHeight)
+    );
+    scale *= boost;
+    if (!Number.isFinite(scale) || scale <= 0) scale = 1;
+    return scale;
+  }
+
   function initHalfPageMode() {
-    window.pageNum     = window.pageNum     || 1;
+    window.pageNum = window.pageNum || 1;
     window.currentTile = window.currentTile || 1;
-    window.halfMode    = true;
+    window.halfMode = true;
 
     window.renderHalfPage = function (pageNum, tile) {
       if (!pdfDoc) return;
       pageRendering = true;
-      let targetPage = (tile <= 2) ? pageNum : pageNum + 1;
+      const renderSessionId = readerSessionId;
+      const targetPage = (tile <= 2) ? pageNum : pageNum + 1;
 
       pdfDoc.getPage(targetPage).then(page => {
+        if (renderSessionId !== readerSessionId || !pdfDoc) return;
+        const naturalVp = page.getViewport({ scale: 1 });
+        const hCrop = { left: 0.01, right: 0.01 };
         const isTopTile = (tile % 2 === 1);
-        const baseScale = 1.5;
-        const fullVp    = page.getViewport({ scale: baseScale });
+        const vCrop = isTopTile
+          ? { yStart: 0.01, height: 0.49 }
+          : { yStart: 0.50, height: 0.49 };
 
-        // off-screen
+        const cropNaturalWidth = naturalVp.width * (1 - hCrop.left - hCrop.right);
+        const cropNaturalHeight = naturalVp.height * vCrop.height;
+        const scale = getFitScale(cropNaturalWidth, cropNaturalHeight);
+        const fullVp = page.getViewport({ scale });
+
         const offCanvas = document.createElement('canvas');
-        const offCtx    = offCanvas.getContext('2d');
-        offCanvas.width  = Math.round(fullVp.width);
-        offCanvas.height = Math.round(fullVp.height);
+        offCanvas.setAttribute('data-allow-page-nav', '1');
+        const offRender = {
+          canvasContext: offCanvas.getContext('2d'),
+          viewport: fullVp
+        };
+        const offPrep = prepareHiDPICanvas(offCanvas, fullVp.width, fullVp.height);
+        offRender.canvasContext = offPrep.ctx;
+        if (offPrep.transform) offRender.transform = offPrep.transform;
 
-        page.render({ canvasContext: offCtx, viewport: fullVp }).promise.then(() => {
-          const isOddPage = (targetPage % 2 === 1);
-          const hCrop = {
-            left:  isOddPage ? 0    : 0.01,
-            right: isOddPage ? 0.01 : 0
-          };
-          const vCrop = isTopTile
-            ? { yStart: 0.04, height: 0.47 }
-            : { yStart: 0.50, height: 0.47 };
-
-          const cropX = Math.round(fullVp.width  * hCrop.left);
-          const cropW = Math.round(fullVp.width  * (1 - hCrop.left - hCrop.right));
+        page.render(offRender).promise.then(() => {
+          const cropX = Math.round(fullVp.width * hCrop.left);
+          const cropW = Math.round(fullVp.width * (1 - hCrop.left - hCrop.right));
           const cropY = Math.round(fullVp.height * vCrop.yStart);
           const cropH = Math.round(fullVp.height * vCrop.height);
+          const dpr = GUIDEBOOK_RENDER_DPR;
 
-          // clear and draw
           const viewer = document.getElementById('viewer');
+          if (!viewer || renderSessionId !== readerSessionId || !pdfDoc) return;
           viewer.innerHTML = '';
           const canvas = document.createElement('canvas');
-          canvas.width  = cropW;
-          canvas.height = cropH;
+          canvas.setAttribute('data-allow-page-nav', '1');
+          const prep = prepareHiDPICanvas(canvas, cropW, cropH);
           canvas.style.filter = isDarkMode ? 'invert(1)' : '';
-          const ctx = canvas.getContext('2d');
-          ctx.imageSmoothingEnabled = false;
-
+          const ctx = prep.ctx;
           ctx.drawImage(
             offCanvas,
-            cropX, cropY, cropW, cropH,
-            0,    0,     cropW, cropH
+            Math.round(cropX * dpr),
+            Math.round(cropY * dpr),
+            Math.round(cropW * dpr),
+            Math.round(cropH * dpr),
+            0,
+            0,
+            Math.round(cropW * dpr),
+            Math.round(cropH * dpr)
           );
           viewer.appendChild(canvas);
+          if (renderSessionId !== readerSessionId || !pdfDoc) return;
           pageRendering = false;
 
-          if (tile === 1) {
-            localStorage.setItem(
-              `bookPage-${getActiveProfile()}-${currentBook}`,
-              pageNum
-            );
-          }
+          persistProgress(getActiveProfile(), currentBook, pageNum);
           updatePageIndicator();
         });
       });
     };
 
-    // c) nextHalf / prevHalf
     window.nextHalf = function() {
       if (!pdfDoc) return;
       if (currentTile < 4) {
@@ -2812,6 +2747,7 @@ if (toggleBtn) {
         currentTile = 1;
       }
       window.pageNum = pageNum;
+      persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
       renderHalfPage(pageNum, currentTile);
       updatePageIndicator();
     };
@@ -2825,17 +2761,16 @@ if (toggleBtn) {
         currentTile = 4;
       }
       window.pageNum = pageNum;
+      persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
       renderHalfPage(pageNum, currentTile);
       updatePageIndicator();
     };
 
-    // d) override Next/Prev globally
     const _origNext = window.nextPage;
     const _origPrev = window.prevPage;
     window.nextPage = () => window.pageViewMode === 'half' ? nextHalf() : _origNext();
     window.prevPage = () => window.pageViewMode === 'half' ? prevHalf() : _origPrev();
 
-    // e) initial draw
     renderHalfPage(pageNum, currentTile);
     updatePageIndicator();
   }
@@ -2867,75 +2802,8 @@ if (toggleBtn) {
 
   syncNav();
   syncToggleLabel();
-}
-
-// ────────────────────────────────────────────────────────────────
-// 3) Ensure default is Two-Page on load:
-window.addEventListener('load', () => {
-  window.pageViewMode = window.pageViewMode || 'double';
-  renderDoublePage(window.pageNum || 1);
-});
+})();
 </script>
-
-
-<!-- Auto-open Book based on query parameter -->
-<script>
-window.addEventListener("DOMContentLoaded", function() {
-  const params = new URLSearchParams(window.location.search);
-  const gb = params.get("Book");
-  if (gb) {
-    const item = items.find(i => i.title.replace(/\s+/g, '') === gb);
-    if (item) {
-      openPDF(item.file, item.title);
-    }
-  }
-});
-</script>
-
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  // Clear dialog search
-  const clearBtn = document.getElementById('btnClearSearchDialog');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      document.getElementById('searchTermDialog').value = '';
-      const list = document.getElementById('resultsListDialog');
-      if (list) list.innerHTML = '';
-      document.getElementById('searchResultsDialog').style.display = 'none';
-    });
-  }
-});
-</script>
-
-<script>
-window.addEventListener("DOMContentLoaded", function() {
-  // Clear dialog search on X button click
-  const clearBtn = document.getElementById('btnClearSearchDialog');
-  const searchInput = document.getElementById('searchTermDialog');
-  const resultsDiv = document.getElementById('searchResultsDialog');
-  const resultsList = document.getElementById('resultsListDialog');
-  if (clearBtn && searchInput && resultsDiv && resultsList) {
-    clearBtn.addEventListener('click', () => {
-      searchInput.value = '';
-      resultsList.innerHTML = '';
-      resultsDiv.style.display = 'none';
-      searchInput.focus();
-    });
-  }
-  // Close bookmark dialog when clicking outside its content
-  const dialog = document.getElementById('bookmarkDialog');
-  if (dialog) {
-    dialog.addEventListener('click', function(e) {
-      if (e.target === dialog) {
-        closeBookmarkDialog();
-      }
-    });
-  }
-});
-</script>
-
-
 <script>
 (function () {
   function initReaderLock() {
@@ -3020,7 +2888,7 @@ window.addEventListener("DOMContentLoaded", function() {
       toggleLocked();
     });
 
-    function wrap(name, fn) {
+    function wrap(name) {
       const original = window[name];
       if (typeof original !== 'function') return;
       window[name] = function (...args) {
@@ -3049,5 +2917,144 @@ window.addEventListener("DOMContentLoaded", function() {
   }
 })();
 </script>
+</div>
+<script>
+(function () {
+  const readerDPR = Math.max(2, window.devicePixelRatio || 1);
+
+  function getViewportSize() {
+    const viewer = document.getElementById('viewer');
+    const rect = viewer ? viewer.getBoundingClientRect() : null;
+    const width = Math.max(320, Math.floor((rect?.width || window.innerWidth || 0) * 0.985));
+    const height = Math.max(320, Math.floor((rect?.height || window.innerHeight || 0) * 0.915));
+    return { width, height };
+  }
+
+  function renderPageToOffscreen(page, scale) {
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('data-allow-page-nav', '1');
+    const prep = prepareHiDPICanvas(canvas, viewport.width, viewport.height);
+    const renderOptions = {
+      canvasContext: prep.ctx,
+      viewport
+    };
+    if (prep.transform) renderOptions.transform = prep.transform;
+    return page.render(renderOptions).promise.then(() => ({ canvas, viewport }));
+  }
+
+  async function renderSpread(num) {
+    if (!pdfDoc) return;
+    if (pageRendering) {
+      pageNumPending = num;
+      return;
+    }
+
+    pageRendering = true;
+    pageNum = num;
+
+    try {
+      const leftPageNum = num;
+      const rightPageNum = num + 1;
+      const leftPage = await pdfDoc.getPage(leftPageNum);
+      const rightPage = rightPageNum <= pdfDoc.numPages ? await pdfDoc.getPage(rightPageNum) : null;
+
+      const leftBase = leftPage.getViewport({ scale: 1 });
+      const rightBase = rightPage ? rightPage.getViewport({ scale: 1 }) : null;
+      const spreadNaturalWidth = leftBase.width + (rightBase ? rightBase.width : 0);
+      const spreadNaturalHeight = Math.max(leftBase.height, rightBase ? rightBase.height : 0);
+      const available = getViewportSize();
+
+      let scale = Math.min(
+        available.width / Math.max(1, spreadNaturalWidth),
+        available.height / Math.max(1, spreadNaturalHeight)
+      ) * 1.1;
+      if (!Number.isFinite(scale) || scale <= 0) scale = 1;
+
+      const left = await renderPageToOffscreen(leftPage, scale);
+      const right = rightPage ? await renderPageToOffscreen(rightPage, scale) : null;
+
+      const spreadWidth = Math.max(1, Math.round(left.viewport.width + (right ? right.viewport.width : 0)));
+      const spreadHeight = Math.max(1, Math.round(Math.max(left.viewport.height, right ? right.viewport.height : 0)));
+
+      const viewer = document.getElementById('viewer');
+      if (!viewer) {
+        pageRendering = false;
+        return;
+      }
+
+      const spreadCanvas = document.createElement('canvas');
+      spreadCanvas.setAttribute('data-allow-page-nav', '1');
+      spreadCanvas.style.maxWidth = 'none';
+      spreadCanvas.style.maxHeight = 'none';
+      const prep = prepareHiDPICanvas(spreadCanvas, spreadWidth, spreadHeight);
+      const ctx = prep.ctx;
+
+      ctx.clearRect(0, 0, spreadCanvas.width, spreadCanvas.height);
+      ctx.drawImage(left.canvas, 0, 0, left.canvas.width, left.canvas.height, 0, 0, left.canvas.width, left.canvas.height);
+      if (right) {
+        ctx.drawImage(
+          right.canvas,
+          0,
+          0,
+          right.canvas.width,
+          right.canvas.height,
+          left.canvas.width,
+          0,
+          right.canvas.width,
+          right.canvas.height
+        );
+      }
+
+      viewer.innerHTML = '';
+      viewer.style.display = 'flex';
+      viewer.style.flexDirection = 'row';
+      viewer.style.justifyContent = 'center';
+      viewer.style.alignItems = 'center';
+      viewer.style.gap = '0px';
+      viewer.style.columnGap = '0px';
+      viewer.style.rowGap = '0px';
+      viewer.style.padding = '0';
+      viewer.style.margin = '0';
+      viewer.style.fontSize = '0';
+      viewer.style.lineHeight = '0';
+      viewer.appendChild(spreadCanvas);
+
+      spreadCanvas.style.filter = isDarkMode ? 'invert(1)' : 'none';
+
+      localStorage.setItem(`bookPage_${currentBook}`, pageNum);
+      updatePageIndicator();
+    } catch (err) {
+      console.error('Spread render failed:', err);
+    } finally {
+      pageRendering = false;
+      const pending = pageNumPending;
+      pageNumPending = null;
+      if (pending !== null && pending !== num) {
+        setTimeout(() => renderSpread(pending), 0);
+      }
+      if (typeof window.__readerLockSync === 'function') {
+        queueMicrotask(window.__readerLockSync);
+      }
+    }
+  }
+
+  window.renderDoublePage = renderSpread;
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    const reader = document.getElementById('reader-container');
+    if (!reader || reader.style.display !== 'flex') return;
+    if ((window.pageViewMode || 'double') !== 'double') return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (typeof window.renderDoublePage === 'function') {
+        window.renderDoublePage(pageNum);
+      }
+    }, 150);
+  });
+})();
+</script>
 
 </body>
+</html>
