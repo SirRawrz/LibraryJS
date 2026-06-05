@@ -141,6 +141,66 @@
     .home-btn-label {
       display: inline-block;
     }
+
+.home-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.home-stack .home-btn { width: fit-content; }
+.repair-batch-launch {
+  align-self: flex-start;
+  min-width: 0;
+  width: fit-content;
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 8px;
+  line-height: 1.1;
+}
+.repair-batch-launch.hidden { display: none !important; }
+.repair-batch-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 42px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.02);
+  color: var(--text);
+  cursor: pointer;
+}
+.repair-batch-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ok);
+  cursor: pointer;
+}
+.repair-batch-toggle.is-done {
+  border-color: rgba(52,211,153,0.55);
+  background: rgba(52,211,153,0.12);
+  color: var(--ok);
+  font-weight: 700;
+}
+.repair-batch-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 16px;
+}
+.repair-batch-status.done {
+  color: var(--ok);
+  background: rgba(52,211,153,0.12);
+  border-color: rgba(52,211,153,0.45);
+}
+.repair-batch-status.failed {
+  color: var(--danger);
+  background: rgba(251,113,133,0.12);
+  border-color: rgba(251,113,133,0.45);
+}
     @media (max-width: 1280px) {
       .header { gap: 10px; padding: 14px 14px; }
       .header-brand { flex: 0 1 auto; gap: 0; }
@@ -207,10 +267,11 @@
     .stat-label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.3px; }
     .stat-value { font-size: 36px; font-weight: 700; line-height: 1.2; }
     .progress-container {
+      position: relative;
       margin: 20px 0 16px;
       background: rgba(255,255,255,0.04);
       border-radius: 40px;
-      height: 10px;
+      height: 12px;
       border: 1px solid var(--line);
       overflow: hidden;
     }
@@ -219,6 +280,21 @@
       width: 0%;
       background: linear-gradient(90deg, var(--accent2), var(--accent));
       transition: width 0.2s;
+    }
+    .progress-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(229, 231, 235, 0.9);
+      pointer-events: none;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+      mix-blend-mode: screen;
     }
     .toolbar {
       display: flex;
@@ -431,25 +507,33 @@
     .modal-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 12px;
       padding: 18px 22px;
       border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
     }
-    .modal-header h3 { font-size: 18px; font-weight: 600; }
-    .modal-close {
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-size: 24px;
-      cursor: pointer;
-      padding: 0 8px;
-    }
-    .modal-close:hover { color: var(--text); }
-    .modal-body {
-      padding: 16px 22px;
-      overflow-y: auto;
-      flex: 1;
-    }
+    .modal-header h3 { font-size: 18px; font-weight: 600; flex: 0 0 auto; }
+ .repair-modal-meta {
+   display: inline-flex;
+   align-items: center;
+   gap: 10px;
+   color: var(--muted);
+   font-size: 12px;
+   white-space: nowrap;
+   flex: 1 1 320px;
+   min-width: 0;
+ }
+     .modal-close {
+       background: none;
+       border: none;
+       color: var(--muted);
+       font-size: 24px;
+       cursor: pointer;
+       padding: 0 8px;
+       margin-left: auto;
+       flex: 0 0 auto;
+     }
     .missing-group {
       margin-bottom: 20px;
     }
@@ -505,18 +589,138 @@
     .add-note {
       white-space: normal;
     }
+    .modal-body {
+      padding: 18px 22px 22px;
+      overflow: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    .missing-modal-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding-bottom: 10px;
+      background: var(--panel);
+    }
+    .missing-modal-toolbar-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .missing-modal-toolbar-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .missing-modal-toolbar .btn {
+      flex: 0 0 auto;
+    }
+    .missing-modal-hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .missing-sub-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+      background: rgba(255,255,255,0.015);
+      margin-top: 8px;
+      cursor: pointer;
+    }
+    .missing-sub-row:hover {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(96,165,250,0.35);
+    }
+    .missing-sub-row.selected {
+      border-color: rgba(52,211,153,0.55);
+      background: rgba(52,211,153,0.08);
+    }
+    .missing-sub-meta {
+      min-width: 0;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .missing-sub-title {
+      font-weight: 650;
+      word-break: break-word;
+      line-height: 1.25;
+    }
+    .missing-sub-path {
+      color: var(--muted);
+      font-size: 12px;
+      word-break: break-word;
+      line-height: 1.2;
+    }
+    .missing-sub-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .missing-sub-select {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 46px;
+      min-height: 40px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.02);
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s, border-color 0.15s, filter 0.15s, transform 0.15s;
+    }
+    .missing-sub-select:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .missing-sub-select input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--ok);
+      cursor: pointer;
+    }
+    .missing-sub-select-icon {
+      margin-left: 8px;
+      font-size: 15px;
+      line-height: 1;
+    }
+    .missing-sub-select.is-selected {
+      border-color: rgba(52,211,153,0.55);
+      background: rgba(52,211,153,0.12);
+      color: var(--ok);
+    }
   </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <div class="header-home">
+    <div class="header-home home-stack">
       <button class="home-btn" id="homeButton" onclick="window.location.href='./index.html'" aria-label="Home" title="Home">
         <svg class="home-btn-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path fill="currentColor" d="M12 3.2 3.5 10.1v10.2c0 .99.8 1.8 1.8 1.8h5.2v-6.4c0-.66.54-1.2 1.2-1.2h1.6c.66 0 1.2.54 1.2 1.2V22h5.2c.99 0 1.8-.8 1.8-1.8V10.1L12 3.2Zm0-2.1c.43 0 .84.14 1.18.42l8.93 7.18c.47.38.52 1.08.11 1.53-.38.41-1.03.46-1.47.12L12 4.2 3.25 10.35c-.44.34-1.09.29-1.47-.12-.41-.45-.36-1.15.11-1.53l8.93-7.18c.34-.28.75-.42 1.18-.42Z"/>
         </svg>
         <span class="home-btn-label">Home</span>
       </button>
+      <button class="btn btn-primary btn-small repair-batch-launch hidden" id="runBatchRepairBtn" type="button">Run Batch Repair</button>
+      <button class="btn btn-primary btn-small repair-batch-launch hidden" id="runBatchFetchSubsBtn" type="button">Fetch Subs</button>
+      <button class="btn btn-primary btn-small repair-batch-launch hidden" id="runBatchSubsBtn" type="button">Generate Subs</button>
     </div>
 
     <div class="controls">
@@ -572,7 +776,7 @@
     </div>
   </div>
 
-  <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="progress-container"><div class="progress-bar" id="progressBar"></div><div class="progress-label" id="progressLabel">0 / 0</div></div>
   <div id="statusMessage" class="footnote" style="margin-bottom: 8px;">Ready. Load library and start scanning.</div>
 
   <div class="toolbar">
@@ -606,10 +810,11 @@
   <div class="modal repair-modal">
     <div class="modal-header">
       <h3 id="repairModalTitle">Repair File</h3>
+      <div class="repair-modal-meta" id="repairModalCounter" aria-live="polite"></div>
       <button class="modal-close" id="closeRepairModalBtn">&times;</button>
     </div>
     <iframe id="repairFrame" class="repair-frame" src="about:blank" title="ffmpeg repair"></iframe>
-    <div class="repair-note">This opens the ffmpeg repair page for the selected episode and uploads the repaired output back to the same server path.</div>
+    <div class="repair-note" id="repairModalNote">This opens the ffmpeg repair page for the selected episode and uploads the repaired output back to the same server path.</div>
   </div>
 </div>
 
@@ -636,6 +841,7 @@
     missingSecondary: document.getElementById('missingSubtitles'),
     progress: document.getElementById('scanProgress'),
     progressBar: document.getElementById('progressBar'),
+    progressLabel: document.getElementById('progressLabel'),
     status: document.getElementById('statusMessage'),
     search: document.getElementById('searchInput'),
     tree: document.getElementById('tree'),
@@ -658,7 +864,12 @@
     missingSecondaryCard: document.getElementById('missingSubsCard'),
     repairModal: document.getElementById('repairModal'),
     repairModalTitle: document.getElementById('repairModalTitle'),
+    repairModalCounter: document.getElementById('repairModalCounter'),
+    repairModalNote: document.getElementById('repairModalNote'),
     repairFrame: document.getElementById('repairFrame'),
+    runBatchRepairBtn: document.getElementById('runBatchRepairBtn'),
+    runBatchFetchSubsBtn: document.getElementById('runBatchFetchSubsBtn'),
+    runBatchSubsBtn: document.getElementById('runBatchSubsBtn'),
     closeRepairModalBtn: document.getElementById('closeRepairModalBtn'),
     addContentModal: document.getElementById('addContentModal'),
     addContentModalTitle: document.getElementById('addContentModalTitle'),
@@ -783,6 +994,116 @@
   let currentSource = '';
   const CONCURRENCY = 6;
   let uploadInput = null;
+  let repairBatchMode = false;
+  let repairBatchSelected = new Set();
+  let repairBatchCompleted = new Set();
+  let repairBatchFailed = new Set();
+  let repairBatchQueue = [];
+  let repairBatchCurrent = null;
+  let repairBatchTotal = 0;
+  let repairHoldTimer = null;
+  let repairHoldCandidate = null;
+  let repairHoldTriggered = false;
+  let subtitleBatchMode = false;
+  let subtitleBatchSelected = new Set();
+  let subtitleBatchCompleted = new Set();
+  let subtitleBatchFailed = new Set();
+  let subtitleBatchQueue = [];
+  let subtitleBatchCurrent = null;
+  let subtitleBatchTotal = 0;
+  let subtitleHoldTimer = null;
+  let subtitleHoldCandidate = null;
+  let subtitleHoldTriggered = false;
+  let repairGroupHoldTimer = null;
+  let repairGroupHoldCandidate = null;
+  let repairGroupHoldTriggered = false;
+  let subtitleGroupHoldTimer = null;
+  let subtitleGroupHoldCandidate = null;
+  let subtitleGroupHoldTriggered = false;
+
+  function clearRepairBatchState() {
+    repairBatchMode = false;
+    repairBatchSelected = new Set();
+    repairBatchCompleted = new Set();
+    repairBatchFailed = new Set();
+    repairBatchQueue = [];
+    repairBatchCurrent = null;
+    repairBatchTotal = 0;
+    clearTimeout(repairHoldTimer);
+    repairHoldTimer = null;
+    repairHoldCandidate = null;
+    repairHoldTriggered = false;
+  }
+
+  function clearSubtitleBatchState() {
+    subtitleBatchMode = false;
+    subtitleBatchSelected = new Set();
+    subtitleBatchCompleted = new Set();
+    subtitleBatchFailed = new Set();
+    subtitleBatchQueue = [];
+    subtitleBatchCurrent = null;
+    subtitleBatchTotal = 0;
+    clearTimeout(subtitleHoldTimer);
+    subtitleHoldTimer = null;
+    subtitleHoldCandidate = null;
+    subtitleHoldTriggered = false;
+  }
+
+  function clearRepairGroupHoldState() {
+    clearTimeout(repairGroupHoldTimer);
+    repairGroupHoldTimer = null;
+    repairGroupHoldCandidate = null;
+    repairGroupHoldTriggered = false;
+  }
+
+  function clearSubtitleGroupHoldState() {
+    clearTimeout(subtitleGroupHoldTimer);
+    subtitleGroupHoldTimer = null;
+    subtitleGroupHoldCandidate = null;
+    subtitleGroupHoldTriggered = false;
+  }
+
+  function collectSubtitleLeavesUnderNode(node) {
+    return collectLeavesUnderNode(node).filter(isSubtitleBatchLeaf);
+  }
+
+  function seedRepairBatchFromNode(node) {
+    const queue = collectRepairableLeavesUnderNode(node).filter(Boolean);
+    if (!queue.length) {
+      setStatus('✨ No repairable files found in that selection.');
+      return false;
+    }
+    repairBatchMode = true;
+    repairBatchSelected = new Set(queue.map(item => item.id));
+    repairBatchCompleted = new Set();
+    repairBatchFailed = new Set();
+    repairBatchQueue = [];
+    repairBatchCurrent = null;
+    repairBatchTotal = queue.length;
+    if (node && node.id) expandedNodes.add(node.id);
+    updateRepairBatchUi();
+    renderTree();
+    return true;
+  }
+
+  function seedSubtitleBatchFromNode(node) {
+    const queue = collectSubtitleLeavesUnderNode(node);
+    if (!queue.length) {
+      setStatus('✨ No subtitle jobs found in that selection.');
+      return false;
+    }
+    subtitleBatchMode = true;
+    subtitleBatchSelected = new Set(queue.map(item => item.id));
+    subtitleBatchCompleted = new Set();
+    subtitleBatchFailed = new Set();
+    subtitleBatchQueue = [];
+    subtitleBatchCurrent = null;
+    subtitleBatchTotal = queue.length;
+    if (node && node.id) expandedNodes.add(node.id);
+    updateSubtitleBatchUi();
+    renderTree();
+    return true;
+  }
 
   function escapeHtml(str) {
     return String(str ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
@@ -849,6 +1170,27 @@
     els.status.textContent = text;
   }
 
+  function setProgressDisplay(completed, total, detail = '') {
+    const safeCompleted = Number.isFinite(completed) ? completed : 0;
+    const safeTotal = Number.isFinite(total) ? total : 0;
+    const pct = safeTotal > 0 ? Math.round((safeCompleted / safeTotal) * 100) : 0;
+    els.progress.textContent = `${safeCompleted} / ${safeTotal}`;
+    els.progressBar.style.width = safeTotal ? `${pct}%` : '0%';
+    if (els.progressLabel) {
+      els.progressLabel.textContent = detail || `${safeCompleted} / ${safeTotal}`;
+    }
+  }
+
+  function setUploadProgress(loaded, total, partIndex, partCount, fileName) {
+    const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
+    els.progress.textContent = `${partIndex} / ${partCount}`;
+    els.progressBar.style.width = total ? `${pct}%` : '0%';
+    if (els.progressLabel) {
+      const name = fileName ? ` • ${fileName}` : '';
+      els.progressLabel.textContent = `Slice ${partIndex}/${partCount}${name}`;
+    }
+  }
+
   function setLibraryUI(key) {
     activeKey = key;
     activeConfig = LIBRARIES[key];
@@ -882,6 +1224,7 @@
     const wheelBtns = els.libraryWheel.querySelectorAll('[data-library]');
     wheelBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.library === activeKey));
     updateActionVisibility();
+    if (typeof updateSubtitleBatchUi === 'function') updateSubtitleBatchUi();
   }
 
   function supportsSecondaryScan() {
@@ -890,8 +1233,19 @@
 
   function updateActionVisibility() {
     const secondaryVisible = supportsSecondaryScan();
+    const subtitleActive = subtitleBatchMode && subtitleBatchSelected.size > 0;
+    const repairActive = repairBatchMode && repairBatchSelected.size > 0;
     els.scanSecondaryBtn.classList.toggle('hidden', !secondaryVisible);
     els.missingSecondaryCard.classList.toggle('hidden', !secondaryVisible);
+    if (els.runBatchSubsBtn) {
+      const canGenerate = activeKey === 'video' && secondaryVisible;
+      els.runBatchSubsBtn.classList.toggle('hidden', !canGenerate || !subtitleActive);
+      els.runBatchSubsBtn.disabled = !canGenerate || !subtitleActive;
+    }
+    if (els.runBatchRepairBtn) {
+      els.runBatchRepairBtn.classList.toggle('hidden', !repairActive);
+      els.runBatchRepairBtn.disabled = !repairActive;
+    }
   }
 
   async function readServerBaseFromTxt() {
@@ -1886,32 +2240,56 @@
     return html;
   }
 
-  function leafActionsHtml(node) {
-    const secondaryIcon = activeKey === 'video' ? '📝' : '🖼️';
-    let html = `<button class="btn btn-small" data-action="scan-leaf-primary" data-node-id="${escapeHtml(node.id)}" title="Check ${escapeHtml(activeConfig.primaryVerb)}">${activeConfig.icon}</button>`;
-    if (node.secondaryCandidates && node.secondaryCandidates.length) {
+
+function leafActionsHtml(node) {
+  const secondaryIcon = activeKey === 'video' ? '📝' : '🖼️';
+  let html = `<button class="btn btn-small" data-action="scan-leaf-primary" data-node-id="${escapeHtml(node.id)}" title="Check ${escapeHtml(activeConfig.primaryVerb)}">${activeConfig.icon}</button>`;
+  if (node.secondaryCandidates && node.secondaryCandidates.length) {
+    if (isSubtitleBatchLeaf(node) && subtitleBatchMode && subtitleBatchSelected.size) {
+      const checked = subtitleBatchSelected.has(node.id);
+      html += `<label class="repair-batch-toggle${checked ? ' is-done' : ''}" title="${checked ? 'Selected' : 'Select for subtitle generation'}"><input type="checkbox" data-action="subtitle-batch-toggle" data-node-id="${escapeHtml(node.id)}" ${checked ? 'checked' : ''}><span>${checked ? '✅' : '📝'}</span></label>`;
+    } else if (node.subtitleBatchState === 'done') {
+      html += `<span class="repair-batch-status done">✅</span>`;
+    } else if (node.subtitleBatchState === 'failed') {
+      html += `<span class="repair-batch-status failed">❌</span>`;
+    } else {
       html += `<button class="btn btn-small btn-warn" data-action="scan-leaf-secondary" data-node-id="${escapeHtml(node.id)}" title="Check ${escapeHtml(activeConfig.secondaryVerb)}">${secondaryIcon}</button>`;
     }
-    if (node.repairable && activeConfig.showRepair) {
+  }
+  if (node.repairable && activeConfig.showRepair) {
+    if (repairBatchMode && repairBatchSelected.size) {
+      const checked = repairBatchSelected.has(node.id);
+      const done = node.repairBatchState === 'done';
+      html += `<label class="repair-batch-toggle${done ? ' is-done' : ''}" title="${done ? 'Finished' : 'Select for batch repair'}"><input type="checkbox" data-action="repair-batch-toggle" data-node-id="${escapeHtml(node.id)}" ${checked ? 'checked' : ''} ${done ? 'disabled' : ''}><span>${done ? '✅' : 'ffmpeg'}</span></label>`;
+    } else if (node.repairBatchState === 'done') {
+      html += `<span class="repair-batch-status done">✅</span>`;
+    } else if (node.repairBatchState === 'failed') {
+      html += `<span class="repair-batch-status failed">❌</span>`;
+    } else {
       html += `<button class="btn btn-small btn-primary" data-action="repair-leaf" data-node-id="${escapeHtml(node.id)}" title="Repair with ffmpeg">🛠️</button>`;
     }
-    return html;
   }
+  return html;
+}
 
-  function groupActionsHtml(node) {
-    const counts = countNodeIssues(node);
-    if (!counts.total) return '';
-    let html = `<span class="node-actions">`;
-    html += `<button class="btn btn-small" data-action="scan-group-primary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.primaryLabel.toLowerCase())}">${activeConfig.icon}</button>`;
-    if (supportsSecondaryScan()) {
-      const secondaryIcon = activeKey === 'video' ? '📝' : '🖼️';
-      html += `<button class="btn btn-small btn-warn" data-action="scan-group-secondary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.secondaryLabel.toLowerCase())}">${secondaryIcon}</button>`;
-    }
-    html += `</span>`;
-    return html;
+function groupActionsHtml(node) {
+  const counts = countNodeIssues(node);
+  if (!counts.total) return '';
+  let html = `<span class="node-actions">`;
+  html += `<button class="btn btn-small" data-action="scan-group-primary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.primaryLabel.toLowerCase())}">${activeConfig.icon}</button>`;
+  if (supportsSecondaryScan()) {
+    const secondaryIcon = activeKey === 'video' ? '📝' : '🖼️';
+    html += `<button class="btn btn-small btn-warn" data-action="scan-group-secondary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.secondaryLabel.toLowerCase())}">${secondaryIcon}</button>`;
   }
+  if (activeConfig.showRepair && collectRepairableLeavesUnderNode(node).length) {
+    html += `<button class="btn btn-small btn-primary" data-action="repair-group" data-node-id="${escapeHtml(node.id)}" title="Repair all in this group">🛠️</button>`;
+  }
+  html += `</span>`;
+  return html;
+}
 
-  function renderLeaf(node) {
+function renderLeaf(node) {
+
     const title = escapeHtml(safeDecode(node.displayName || node.key || ''));
     const subtitle = escapeHtml(
       safeDecode(activeKey === 'music'
@@ -1936,7 +2314,60 @@
     `;
   }
 
-  function renderGroup(node) {
+  function normalizeSearchText(value) {
+    return String(value ?? '')
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  function buildSearchBlob(node) {
+    const parts = [
+      node.displayName,
+      node.key,
+      node.primaryUrl,
+      node.secondaryUrl,
+      node.genreName,
+      node.genreCode,
+      node.platform,
+      node.artist,
+      node.groupLabel,
+      node.category,
+      node.parentKey,
+      node.fileName
+    ].filter(Boolean);
+    return parts.map(normalizeSearchText).join(' ');
+  }
+
+  function matchesSearch(node, term) {
+    if (!term) return true;
+    const normalizedTerm = normalizeSearchText(term);
+    if (!normalizedTerm) return true;
+
+    const tokens = normalizedTerm.split(/\s+/).filter(Boolean);
+    if (!tokens.length) return true;
+
+    const blob = buildSearchBlob(node);
+    const compactBlob = blob.replace(/\s+/g, '');
+    return tokens.every(token => blob.includes(token) || compactBlob.includes(token));
+  }
+
+  function countVisibleLeaves(node, term, ancestorMatched = false) {
+    if (!node) return 0;
+    const selfMatched = !term || ancestorMatched || matchesSearch(node, term);
+    if (!selfMatched) return 0;
+    if (node.type === 'leaf') return 1;
+    const nextAncestorMatched = ancestorMatched || matchesSearch(node, term);
+    return [...(node.children || []), ...(node.episodes || [])]
+      .reduce((sum, child) => sum + countVisibleLeaves(child, term, nextAncestorMatched), 0);
+  }
+
+  function renderGroup(node, term, ancestorMatched = false) {
+    const selfMatched = !term || ancestorMatched || matchesSearch(node, term);
+    if (!selfMatched) return '';
+
     const isExpanded = expandedNodes.has(node.id);
     const hasKids = (node.children && node.children.length) || (node.episodes && node.episodes.length);
     const counts = countNodeIssues(node);
@@ -1955,7 +2386,8 @@
       return compareNodes(a, b);
     });
 
-    const childrenHtml = isExpanded ? kids.map(renderNode).join('') : '';
+    const nextAncestorMatched = ancestorMatched || matchesSearch(node, term);
+    const childrenHtml = isExpanded ? kids.map(child => renderNode(child, term, nextAncestorMatched)).join('') : '';
     const statsHtml = counts.total > 0 ? `
       <span class="node-stats">
         <span title="${escapeHtml(activeConfig.primaryLabel)} missing" style="color:${counts.primaryMissing ? 'var(--danger)' : 'var(--muted)'}">${escapeHtml(activeConfig.primaryLabel)} ${counts.primaryMissing}</span>
@@ -1978,37 +2410,19 @@
     `;
   }
 
-  function renderNode(node) {
-    if (!filterNode(node, els.search.value.trim().toLowerCase())) return '';
+  function renderNode(node, term, ancestorMatched = false) {
+    const searchTerm = term ?? els.search.value.trim();
+    const selfMatched = !searchTerm || ancestorMatched || matchesSearch(node, searchTerm);
+    if (!selfMatched) return '';
     if (node.type === 'leaf') return renderLeaf(node);
-    return renderGroup(node);
-  }
-
-  function filterNode(node, term) {
-    if (!term) return true;
-    if (node.type === 'leaf') {
-      const fields = [
-        node.displayName,
-        node.key,
-        node.primaryUrl,
-        node.secondaryUrl,
-        node.genreName,
-        node.genreCode,
-        node.platform,
-        node.artist
-      ].filter(Boolean).join(' ').toLowerCase();
-      return fields.includes(term);
-    }
-    if ((node.key || '').toLowerCase().includes(term)) return true;
-    const kids = [...(node.children || []), ...(node.episodes || [])];
-    return kids.some(child => filterNode(child, term));
+    return renderGroup(node, searchTerm, ancestorMatched);
   }
 
   function renderTree() {
-    const term = els.search.value.trim().toLowerCase();
-    const visibleRoots = hierarchyRoots.filter(root => filterNode(root, term));
-    els.tree.innerHTML = visibleRoots.map(renderNode).join('') || '<div class="empty-message">No matching items</div>';
-    els.visibleCount.textContent = `${flatItems.filter(item => filterNode(item, term)).length} items shown`;
+    const term = els.search.value.trim();
+    const visibleRoots = hierarchyRoots.filter(root => matchesSearch(root, term) || !term || countVisibleLeaves(root, term) > 0);
+    els.tree.innerHTML = visibleRoots.map(root => renderNode(root, term, false)).join('') || '<div class="empty-message">No matching items</div>';
+    els.visibleCount.textContent = `${hierarchyRoots.reduce((sum, root) => sum + countVisibleLeaves(root, term), 0)} items shown`;
     updateActionVisibility();
   }
 
@@ -2181,6 +2595,8 @@
     scanIndex = 0;
     scanning = false;
     paused = false;
+    clearRepairBatchState();
+    clearSubtitleBatchState();
     els.pauseBtn.disabled = true;
     els.stopBtn.disabled = true;
     els.scanPrimaryBtn.disabled = false;
@@ -2198,50 +2614,137 @@
     els.total.textContent = total;
     els.missingPrimary.textContent = primaryMissing;
     els.missingSecondary.textContent = secondaryMissing;
-    els.progress.textContent = `${checked} / ${total}`;
-    els.progressBar.style.width = total ? `${(checked / total) * 100}%` : '0%';
+    setProgressDisplay(checked, total);
   }
 
   function updateProgress() {
     const total = flatItems.length;
     const checked = flatItems.filter(item => item.primaryStatus !== STATUS.UNCHECKED || item.secondaryStatus !== STATUS.UNCHECKED).length;
-    els.progress.textContent = `${checked} / ${total}`;
-    els.progressBar.style.width = total ? `${(checked / total) * 100}%` : '0%';
+    setProgressDisplay(checked, total);
   }
 
-  function showMissingModal(which) {
-    const isPrimary = which === 'primary';
-    const label = isPrimary ? activeConfig.primaryLabel : activeConfig.secondaryLabel;
-    const missing = flatItems.filter(item => isPrimary
-      ? (item.primaryStatus === STATUS.MISSING || item.primaryStatus === STATUS.ERROR)
-      : (item.secondaryCandidates && item.secondaryCandidates.length && (item.secondaryStatus === STATUS.MISSING || item.secondaryStatus === STATUS.ERROR))
-    );
 
-    if (!missing.length) {
-      els.modalTitle.textContent = `No missing ${String(label || '').toLowerCase()}`;
-      els.modalBody.innerHTML = '<p class="empty-message" style="padding:20px">Everything is present! 🎉</p>';
-      els.missingModal.style.display = 'flex';
-      return;
-    }
+  function refreshMissingSubtitleModalIfOpen() {
+    if (!els.missingModal || els.missingModal.style.display === 'none') return;
+    const title = String(els.modalTitle?.textContent || '');
+    if (!/^Missing\s+Subtitles\b/i.test(title) && !/^No missing\s+Subtitles\b/i.test(title)) return;
+    showMissingModal('secondary');
+  }
 
-    els.modalTitle.textContent = `Missing ${label} (${missing.length})`;
-    const grouped = {};
-    missing.forEach(item => {
-      const group = getGroupPath(item);
-      if (!grouped[group]) grouped[group] = [];
-      grouped[group].push(item.displayName || item.key || '');
+  function getMissingDisplayName(item, isPrimary) {
+  // For primary missing (videos/ROMs/tracks), use primaryUrl
+  // For secondary missing (subtitles/art/icons), use secondaryUrl
+  const url = isPrimary ? (item.primaryUrl || '') : (item.secondaryUrl || '');
+  if (url) {
+    try {
+      let filename = url.split('/').pop() || '';
+      filename = filename.split('?')[0].split('#')[0];
+      if (filename) return decodeURIComponent(filename);
+    } catch {}
+  }
+  return item.displayName || item.key || 'Untitled';
+}
+
+function getMissingSubtitleItems() {
+  return flatItems.filter(item => item.secondaryCandidates && item.secondaryCandidates.length && (item.secondaryStatus === STATUS.MISSING || item.secondaryStatus === STATUS.ERROR));
+}
+
+function renderMissingSubtitleModal(missing) {
+  const selectedCount = subtitleBatchMode ? subtitleBatchSelected.size : 0;
+  const selectedIds = subtitleBatchSelected;
+  const grouped = {};
+  missing.forEach(item => {
+    const group = getGroupPath(item);
+    if (!grouped[group]) grouped[group] = [];
+    grouped[group].push(item);
+  });
+
+  let html = '<div class="missing-modal-toolbar">';
+  html += '<div class="missing-modal-toolbar-stack">';
+  html += '  <div class="missing-modal-toolbar-row">';
+  html += '    <button class="btn btn-primary" data-action="missing-subtitles-fetch-all">Fetchs all Subs</button>';
+  html += '  </div>';
+  if (selectedCount) {
+    html += '  <div class="missing-modal-toolbar-row">';
+    html += '    <button class="btn btn-warn" data-action="missing-subtitles-fetch-selected">Fetchs Selected Subs</button>';
+    html += `    <span class="badge ok">${selectedCount} selected</span>`;
+    html += '  </div>';
+  }
+  html += '</div>';
+  html += '<div class="missing-modal-hint">Hold a subtitle checkbox to select it, or click the row to fetch that item by itself.</div>';
+  html += '</div>';
+
+  Object.keys(grouped).sort().forEach(group => {
+    const items = grouped[group].slice().sort((a, b) => {
+      const aName = getMissingDisplayName(a, false);
+      const bName = getMissingDisplayName(b, false);
+      return aName.localeCompare(bName, undefined, { numeric: true, sensitivity: 'base' });
     });
-
-    let html = '';
-    Object.keys(grouped).sort().forEach(group => {
-      const files = grouped[group].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-      html += `<div class="missing-group"><div class="missing-group-title">${escapeHtml(group)} (${files.length})</div><ul class="missing-file-list">`;
-      files.forEach(f => { html += `<li>${escapeHtml(f)}</li>`; });
-      html += `</ul></div>`;
+    html += `<div class="missing-group"><div class="missing-group-title">${escapeHtml(group)} (${items.length})</div>`;
+    items.forEach(item => {
+      const display = getMissingDisplayName(item, false);
+      const selected = selectedIds.has(item.id);
+      const rowTitle = safeDecode(item.displayName || item.key || display || 'Untitled');
+      html += `
+        <div class="missing-sub-row${selected ? ' selected' : ''}" data-action="missing-subtitle-open" data-node-id="${escapeHtml(item.id)}">
+          <div class="missing-sub-meta">
+            <div class="missing-sub-title" title="${escapeHtml(rowTitle)}">${escapeHtml(display)}</div>
+            <div class="missing-sub-path">${escapeHtml(group)}</div>
+          </div>
+          <div class="missing-sub-actions">
+            <label class="missing-sub-select${selected ? ' is-selected' : ''}" title="${escapeHtml(selected ? 'Selected' : 'Hold to select subtitle')}" data-action="missing-subtitle-toggle" data-node-id="${escapeHtml(item.id)}">
+              <input type="checkbox" ${selected ? 'checked' : ''} aria-label="${escapeHtml(display)}">
+              <span class="missing-sub-select-icon">${selected ? '✅' : '📝'}</span>
+            </label>
+          </div>
+        </div>`;
     });
-    els.modalBody.innerHTML = html;
+    html += '</div>';
+  });
+
+  return html;
+}
+
+function showMissingModal(which) {
+  const isPrimary = which === 'primary';
+  const label = isPrimary ? activeConfig.primaryLabel : activeConfig.secondaryLabel;
+  const missing = flatItems.filter(item => isPrimary
+    ? (item.primaryStatus === STATUS.MISSING || item.primaryStatus === STATUS.ERROR)
+    : (item.secondaryCandidates && item.secondaryCandidates.length && (item.secondaryStatus === STATUS.MISSING || item.secondaryStatus === STATUS.ERROR))
+  );
+
+  if (!missing.length) {
+    els.modalTitle.textContent = `No missing ${label || ''}`.trim();
+    els.modalBody.innerHTML = `<p class="empty-message" style="padding:20px">No missing ${escapeHtml(label || '')}</p>`;
     els.missingModal.style.display = 'flex';
+    return;
   }
+
+  els.modalTitle.textContent = `Missing ${label} (${missing.length})`;
+
+  if (!isPrimary) {
+    els.modalBody.innerHTML = renderMissingSubtitleModal(missing);
+    els.missingModal.style.display = 'flex';
+    return;
+  }
+
+  const grouped = {};
+  missing.forEach(item => {
+    const group = getGroupPath(item);
+    if (!grouped[group]) grouped[group] = [];
+    grouped[group].push(getMissingDisplayName(item, isPrimary));
+  });
+
+  let html = '';
+  Object.keys(grouped).sort().forEach(group => {
+    const files = grouped[group].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    html += `<div class="missing-group"><div class="missing-group-title">${escapeHtml(group)} (${files.length})</div><ul class="missing-file-list">`;
+    files.forEach(f => { html += `<li>${escapeHtml(f)}</li>`; });
+    html += `</ul></div>`;
+  });
+  els.modalBody.innerHTML = html;
+  els.missingModal.style.display = 'flex';
+}
 
   function hideModal() {
     els.missingModal.style.display = 'none';
@@ -2257,6 +2760,32 @@
     try { els.addContentFrame.src = 'about:blank'; } catch {}
   }
 
+  function finishRepairBatchJob(ok, detail, currentNode) {
+    if (currentNode) {
+      markRepairBatchResult(currentNode.id, ok, detail);
+    }
+    closeRepairIfNeeded();
+    if (repairBatchCurrent) {
+      repairBatchCurrent = null;
+      updateRepairBatchUi();
+      setTimeout(() => {
+        runNextRepairBatchJob();
+      }, 120);
+    }
+  }
+
+  function finishSubtitleBatchJob(ok, detail, currentNode) {
+    if (currentNode) {
+      markSubtitleBatchResult(currentNode.id, ok, detail);
+    }
+    closeSubtitleIfNeeded();
+    subtitleBatchCurrent = null;
+    updateSubtitleBatchUi();
+    setTimeout(() => {
+      runNextSubtitleBatchJob();
+    }, 120);
+  }
+
   window.addEventListener('message', async (event) => {
     if (event.origin !== window.location.origin) return;
     if (event.data?.type === 'lib-flow-complete') {
@@ -2266,6 +2795,32 @@
         setStatus(`❌ Reload failed: ${err.message}`);
       } finally {
         hideAddContentModal();
+      }
+      return;
+    }
+    if (event.data?.type === 'repair-complete' || event.data?.type === 'repair-failed') {
+      const subtitleFlow = !!subtitleBatchCurrent && !repairBatchCurrent;
+      const currentNode = subtitleFlow ? subtitleBatchCurrent : repairBatchCurrent;
+      const jobId = String(event.data?.jobId || currentNode?.id || '');
+      const ok = event.data?.type === 'repair-complete';
+      const detail = String(event.data?.message || event.data?.error || '').trim();
+      const serverJobId = String(event.data?.serverJobId || '').trim();
+      if (currentNode && jobId && currentNode.id !== jobId && currentNode.id !== serverJobId) return;
+
+      if (currentNode) {
+        if (subtitleFlow) {
+          finishSubtitleBatchJob(ok, detail, currentNode);
+        } else {
+          finishRepairBatchJob(ok, detail, currentNode);
+        }
+      } else {
+        const label = ok ? '✅ Job complete.' : `❌ Job failed${detail ? `: ${detail}` : '.'}`;
+        setStatus(label);
+        if (subtitleFlow) {
+          closeSubtitleIfNeeded();
+        } else {
+          closeRepairIfNeeded();
+        }
       }
     }
   });
@@ -2302,29 +2857,518 @@
     els.addContentModal.style.display = 'flex';
   }
 
-  function buildRepairPageUrl(ep) {
-    const sourceUrl = String(ep?.primaryUrl || '').trim();
-    const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
-    const outputName = decodeURIComponent(sourceUrl.split('/').pop() || 'video');
-    const params = new URLSearchParams({
-      source: sourceUrl,
-      name: outputName,
-      folder: folderUrl,
-      mode: 'seek-repair',
-      auto: '1'
-    });
-    return `/ffmpeg/repair.html?${params.toString()}`;
+
+function isRepairableLeaf(node) {
+  return !!(node && node.type === 'leaf' && node.repairable && activeConfig.showRepair);
+}
+
+function collectRepairableLeavesUnderNode(node) {
+  return collectLeavesUnderNode(node).filter(isRepairableLeaf);
+}
+
+function updateRepairBatchUi() {
+  if (!els.runBatchRepairBtn) return;
+  const repairActive = repairBatchMode && repairBatchSelected.size > 0;
+  els.runBatchRepairBtn.classList.toggle('hidden', !repairActive);
+  els.runBatchRepairBtn.disabled = !repairActive || !!repairBatchCurrent;
+
+  if (els.repairModalCounter) {
+    const processed = repairBatchCompleted.size + repairBatchFailed.size;
+    const total = repairBatchTotal || repairBatchSelected.size || (repairBatchQueue.length + processed);
+    const failed = repairBatchFailed.size;
+    const pending = Math.max(total - processed - (repairBatchCurrent ? 1 : 0), 0);
+    const currentLabel = repairBatchCurrent ? ` · working on ${escapeHtml(getRepairFileName(repairBatchCurrent))}` : '';
+    els.repairModalCounter.innerHTML = total
+      ? `<span>${processed}/${total} processed</span><span>• ${failed} failed</span>${pending ? `<span>• ${pending} pending</span>` : ''}${currentLabel}`
+      : '';
+  }
+}
+
+function setRepairBatchMode(enabled, seedNode = null) {
+  if (enabled) {
+    repairBatchMode = true;
+    repairBatchSelected = new Set();
+    repairBatchCompleted = new Set();
+    repairBatchFailed = new Set();
+    repairBatchQueue = [];
+    repairBatchCurrent = null;
+    repairBatchTotal = 0;
+    if (seedNode && isRepairableLeaf(seedNode)) {
+      repairBatchSelected.add(seedNode.id);
+    }
+  } else {
+    clearRepairBatchState();
+  }
+  updateRepairBatchUi();
+  renderTree();
+}
+
+function selectRepairLeaf(id, checked) {
+  if (!id) return;
+  if (checked) repairBatchSelected.add(id);
+  else repairBatchSelected.delete(id);
+
+  if (!repairBatchSelected.size) {
+    clearRepairBatchState();
   }
 
-  function openRepairModal(ep) {
-    if (!ep?.primaryUrl) return;
-    const outputName = decodeURIComponent(ep.primaryUrl.split('/').pop() || 'video');
-    els.repairModalTitle.textContent = `🛠️ Repair ${outputName}`;
-    els.repairFrame.src = buildRepairPageUrl(ep);
-    els.repairModal.style.display = 'flex';
+  updateRepairBatchUi();
+  renderTree();
+}
+
+function getRepairFileName(node) {
+  const raw = String(node?.primaryUrl || node?.secondaryUrl || node?.key || node?.displayName || 'Repair item').trim();
+  if (!raw) return 'Repair item';
+  try {
+    const parsed = new URL(raw, window.location.href);
+    const segment = parsed.pathname.split('/').pop() || '';
+    return safeDecode(segment || parsed.pathname || raw);
+  } catch {
+    const segment = raw.split('/').pop() || raw;
+    return safeDecode(segment);
+  }
+}
+
+
+function isSubtitleBatchLeaf(node) {
+  return !!(node && node.type === 'leaf' && activeKey === 'video' && node.repairable && node.secondaryCandidates && node.secondaryCandidates.length);
+}
+
+function updateSubtitleBatchUi() {
+  const canGenerate = activeKey === 'video' && supportsSecondaryScan();
+  const subtitleActive = subtitleBatchMode && subtitleBatchSelected.size > 0;
+  if (els.runBatchFetchSubsBtn) {
+    els.runBatchFetchSubsBtn.classList.toggle('hidden', !canGenerate || !subtitleActive);
+    els.runBatchFetchSubsBtn.disabled = !canGenerate || !subtitleActive;
+    if (!els.runBatchFetchSubsBtn.title) els.runBatchFetchSubsBtn.title = 'Fetch subtitles from Open Subtitles';
+  }
+  if (els.runBatchSubsBtn) {
+    els.runBatchSubsBtn.classList.toggle('hidden', !canGenerate || !subtitleActive);
+    els.runBatchSubsBtn.disabled = !canGenerate || !subtitleActive;
   }
 
-  function toggleWheel(force) {
+  if (els.repairModalCounter && subtitleBatchCurrent) {
+    const processed = subtitleBatchCompleted.size + subtitleBatchFailed.size;
+    const total = subtitleBatchTotal || subtitleBatchSelected.size || (subtitleBatchQueue.length + processed);
+    const failed = subtitleBatchFailed.size;
+    const pending = Math.max(total - processed - 1, 0);
+    const currentLabel = subtitleBatchCurrent ? ` · working on ${escapeHtml(getRepairFileName(subtitleBatchCurrent))}` : '';
+    els.repairModalCounter.innerHTML = total
+      ? `<span>${processed}/${total} processed</span><span>• ${failed} failed</span>${pending ? `<span>• ${pending} pending</span>` : ''}${currentLabel}`
+      : '';
+  }
+
+  if (els.repairModalNote && subtitleBatchCurrent) {
+    els.repairModalNote.textContent = 'This opens the subtitle fetch page in the repair iframe so the batch can wait through the API-key prompt and continue automatically when the job reports back.';
+  }
+}
+
+function setSubtitleBatchMode(enabled, seedNode = null) {
+  if (enabled) {
+    subtitleBatchMode = true;
+    subtitleBatchSelected = new Set();
+    subtitleBatchCompleted = new Set();
+    subtitleBatchFailed = new Set();
+    subtitleBatchQueue = [];
+    subtitleBatchCurrent = null;
+    subtitleBatchTotal = 0;
+    if (seedNode && isSubtitleBatchLeaf(seedNode)) {
+      subtitleBatchSelected.add(seedNode.id);
+    }
+  } else {
+    clearSubtitleBatchState();
+  }
+  updateSubtitleBatchUi();
+  renderTree();
+}
+
+function selectSubtitleLeaf(id, checked) {
+  if (!id) return;
+  if (checked) {
+    subtitleBatchMode = true;
+    subtitleBatchSelected.add(id);
+  } else {
+    subtitleBatchSelected.delete(id);
+  }
+
+  if (!subtitleBatchSelected.size) {
+    clearSubtitleBatchState();
+  }
+
+  updateSubtitleBatchUi();
+  renderTree();
+}
+
+function collectSelectedSubtitleQueue() {
+  return [...subtitleBatchSelected].map(id => nodeMap.get(id)).filter(isSubtitleBatchLeaf);
+}
+
+function markSubtitleBatchResult(jobId, ok, detail = '') {
+  if (!jobId) return;
+  if (ok) {
+    subtitleBatchCompleted.add(jobId);
+    subtitleBatchFailed.delete(jobId);
+  } else {
+    subtitleBatchFailed.add(jobId);
+  }
+  const node = nodeMap.get(jobId);
+  if (node) {
+    node.subtitleBatchState = ok ? 'done' : 'failed';
+    node.subtitleBatchDetail = detail || '';
+    if (ok) {
+      node.secondaryStatus = STATUS.EXISTS;
+      node.secondaryUrl = node.secondaryCandidates?.[0] || node.secondaryUrl || '';
+      subtitleBatchSelected.delete(jobId);
+    }
+  }
+  updateStats();
+  updateSubtitleBatchUi();
+  renderTree();
+  refreshMissingSubtitleModalIfOpen();
+}
+
+function finishSubtitleBatch() {
+  const ran = subtitleBatchCompleted.size + subtitleBatchFailed.size;
+  const failedNodes = [...subtitleBatchFailed].map(id => nodeMap.get(id)).filter(isSubtitleBatchLeaf);
+  const failedNames = failedNodes.map(node => getRepairFileName(node)).filter(Boolean);
+  const failureText = failedNames.length ? `; failed: ${failedNames.join(', ')}` : '; no failures';
+  setStatus(`✅ Subtitle fetch complete: ${ran} ran${failureText}`);
+  subtitleBatchCurrent = null;
+  subtitleBatchQueue = [];
+  subtitleBatchTotal = 0;
+  updateStats();
+  updateSubtitleBatchUi();
+  renderTree();
+  refreshMissingSubtitleModalIfOpen();
+
+  if (failedNodes.length) {
+    subtitleBatchMode = true;
+    subtitleBatchSelected = new Set(failedNodes.map(node => node.id));
+    updateSubtitleBatchUi();
+    showMissingModal('secondary');
+    return;
+  }
+
+  clearSubtitleBatchState();
+  updateSubtitleBatchUi();
+}
+
+function runNextSubtitleBatchJob() {
+  if (!subtitleBatchQueue.length) {
+    finishSubtitleBatch();
+    return;
+  }
+  const next = subtitleBatchQueue.shift();
+  if (!next) {
+    finishSubtitleBatch();
+    return;
+  }
+  subtitleBatchCurrent = next;
+  updateSubtitleBatchUi();
+  openSubtitleModal(next, { batch: true });
+}
+
+function closeSubtitleIfNeeded() {
+  hideRepairModal();
+}
+
+function getCurrentMissingSubtitleQueue() {
+  return getMissingSubtitleItems();
+}
+
+function startFetchedSubtitleBatch(queue) {
+  const items = (queue || []).filter(isSubtitleBatchLeaf);
+  if (!items.length) {
+    setStatus('✨ No subtitle jobs found in that selection.');
+    return;
+  }
+  subtitleBatchMode = true;
+  subtitleBatchSelected = new Set(items.map(node => node.id));
+  subtitleBatchCompleted = new Set();
+  subtitleBatchFailed = new Set();
+  subtitleBatchQueue = items.slice();
+  subtitleBatchCurrent = null;
+  subtitleBatchTotal = items.length;
+  hideModal();
+  updateSubtitleBatchUi();
+  renderTree();
+  runNextSubtitleBatchJob();
+}
+
+function launchSelectedSubtitles() {
+  const queue = collectSelectedSubtitleQueue();
+  if (!queue.length) {
+    setStatus('✨ Select at least one subtitle job first.');
+    return;
+  }
+
+  let opened = 0;
+  const blocked = [];
+  for (const node of queue) {
+    const url = buildWhisperPageUrl(node);
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (win) opened++;
+    else blocked.push(getRepairFileName(node));
+  }
+
+  setStatus(opened
+    ? `🚀 Opened ${opened} Whisper tab${opened === 1 ? '' : 's'} for subtitles.${blocked.length ? ` Blocked: ${blocked.join(', ')}` : ''}`
+    : `❌ The browser blocked the new Whisper tabs.${blocked.length ? ` Blocked: ${blocked.join(', ')}` : ''}`);
+
+  clearSubtitleBatchState();
+  updateSubtitleBatchUi();
+  renderTree();
+}
+
+function startSelectedFetchedSubtitleBatch() {
+  const queue = collectSelectedSubtitleQueue();
+  if (!queue.length) {
+    setStatus('✨ Select at least one subtitle job first.');
+    return;
+  }
+  startFetchedSubtitleBatch(queue);
+}
+
+function launchSelectedFetchedSubtitles() {
+  startSelectedFetchedSubtitleBatch();
+}
+
+function launchAllMissingFetchedSubtitles() {
+  const queue = getCurrentMissingSubtitleQueue();
+  if (!queue.length) {
+    setStatus('✨ No missing subtitles found.');
+    return;
+  }
+  startFetchedSubtitleBatch(queue);
+}
+
+function launchSingleFetchedSubtitle(node) {
+  if (!isSubtitleBatchLeaf(node)) return;
+  startFetchedSubtitleBatch([node]);
+}
+
+function collectSelectedRepairQueue() {
+  return [...repairBatchSelected].map(id => nodeMap.get(id)).filter(isRepairableLeaf);
+}
+
+function collectSelectedRepairQueue() {
+  return [...repairBatchSelected].map(id => nodeMap.get(id)).filter(isRepairableLeaf);
+}
+
+function startRepairBatch(nodes) {
+  const queue = (nodes || []).flatMap(collectRepairableLeavesUnderNode).filter(Boolean);
+  if (!queue.length) {
+    setStatus('✨ No repairable files found in that selection.');
+    return;
+  }
+  repairBatchMode = true;
+  repairBatchSelected = new Set(queue.map(node => node.id));
+  repairBatchCompleted = new Set();
+  repairBatchFailed = new Set();
+  repairBatchQueue = queue.slice();
+  repairBatchCurrent = null;
+  repairBatchTotal = queue.length;
+  updateRepairBatchUi();
+  renderTree();
+  runNextRepairBatchJob();
+}
+
+function startSelectedRepairBatch() {
+  const queue = collectSelectedRepairQueue();
+  if (!queue.length) {
+    setStatus('✨ Select at least one repairable item first.');
+    return;
+  }
+  repairBatchMode = true;
+  repairBatchSelected = new Set(queue.map(node => node.id));
+  repairBatchQueue = queue.slice();
+  repairBatchCompleted = new Set();
+  repairBatchFailed = new Set();
+  repairBatchCurrent = null;
+  repairBatchTotal = queue.length;
+  updateRepairBatchUi();
+  renderTree();
+  runNextRepairBatchJob();
+}
+
+function markRepairBatchResult(jobId, ok, detail = '') {
+  if (!jobId) return;
+  if (ok) {
+    repairBatchCompleted.add(jobId);
+    repairBatchFailed.delete(jobId);
+  } else {
+    repairBatchFailed.add(jobId);
+  }
+  const node = nodeMap.get(jobId);
+  if (node) {
+    node.repairBatchState = ok ? 'done' : 'failed';
+    node.repairBatchDetail = detail || '';
+  }
+  updateRepairBatchUi();
+  renderTree();
+}
+
+function finishRepairBatch() {
+  const ran = repairBatchCompleted.size + repairBatchFailed.size;
+  const failedNames = [...repairBatchFailed].map(id => getRepairFileName(nodeMap.get(id))).filter(Boolean);
+  const failureText = failedNames.length ? `; failed: ${failedNames.join(', ')}` : '; no failures';
+  setStatus(`✅ Batch repair complete: ${ran} ran with ffmpeg${failureText}`);
+  repairBatchCurrent = null;
+  repairBatchQueue = [];
+  repairBatchMode = false;
+  repairBatchSelected = new Set();
+  repairBatchTotal = 0;
+  updateRepairBatchUi();
+  renderTree();
+}
+
+function runNextRepairBatchJob() {
+  if (!repairBatchQueue.length) {
+    finishRepairBatch();
+    return;
+  }
+  const next = repairBatchQueue.shift();
+  if (!next) {
+    finishRepairBatch();
+    return;
+  }
+  repairBatchCurrent = next;
+  updateRepairBatchUi();
+  openRepairModal(next, { batch: true });
+}
+
+function closeRepairIfNeeded() {
+  hideRepairModal();
+}
+
+
+function buildRepairPageUrl(ep) {
+  const sourceUrl = String(ep?.primaryUrl || '').trim();
+  const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
+  const outputName = decodeURIComponent(sourceUrl.split('/').pop() || 'video');
+  const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
+  const params = new URLSearchParams({
+    source: sourceUrl,
+    sourceUrl,
+    name: outputName,
+    folder: folderUrl,
+    upload: uploadUrl,
+    targetUrl: uploadUrl,
+    mode: 'seek-repair',
+    flow: '1',
+    auto: '1',
+    close: '1',
+    proxy: '1',
+    jobId: String(ep?.id || '')
+  });
+  return `/ffmpeg/repair.html?${params.toString()}`;
+}
+
+function openRepairModal(ep, options = {}) {
+  if (!ep?.primaryUrl) return;
+  const outputName = decodeURIComponent(ep.primaryUrl.split('/').pop() || 'video');
+  els.repairModalTitle.textContent = options.batch ? `🛠️ Batch repair: ${outputName}` : `🛠️ Repair ${outputName}`;
+  if (els.repairModalNote) {
+    els.repairModalNote.textContent = 'This opens the ffmpeg repair page for the selected episode and uploads the repaired output back to the same server path.';
+  }
+  els.repairFrame.src = buildRepairPageUrl(ep);
+  els.repairModal.style.display = 'flex';
+  updateRepairBatchUi();
+}
+
+function openSubtitleModal(ep, options = {}) {
+  if (!ep?.primaryUrl) return;
+  const outputName = decodeURIComponent(ep.primaryUrl.split('/').pop() || 'subtitle');
+  els.repairModalTitle.textContent = options.batch ? `📝 Batch fetch: ${outputName}` : `📝 Fetch ${outputName}`;
+  if (els.repairModalNote) {
+    els.repairModalNote.textContent = 'This opens the subtitle fetch page in the repair iframe so the batch can wait through the API-key prompt and continue automatically when the job reports back.';
+  }
+  els.repairFrame.src = buildopensubtitlesPageUrl(ep);
+  els.repairModal.style.display = 'flex';
+  updateSubtitleBatchUi();
+}
+
+function buildWhisperPageUrl(ep) {
+  const sourceUrl = String(ep?.primaryUrl || '').trim();
+  const safeSource = sourceUrl ? safeFileUrl(sourceUrl, window.location.href) : '';
+  const folderUrl = safeSource ? new URL('.', safeSource).href : '';
+  const baseName = safeSource
+    ? safeDecode(new URL(safeSource).pathname.split('/').pop() || '')
+    : safeDecode(String(ep?.displayName || ep?.key || 'subtitle'));
+  const outputName = `${baseName.replace(/\.[^.]+$/, '') || 'subtitle'}.vtt`;
+  const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
+  const params = new URLSearchParams({
+    source: safeSource || sourceUrl,
+    name: outputName,
+    folder: folderUrl,
+    upload: uploadUrl,
+    mode: 'flow',
+    flow: '1',
+    auto: '1',
+    proxy: '1',
+    jobId: String(ep?.id || '')
+  });
+  return `/whisper-subtitles.html?${params.toString()}`;
+}
+
+function buildopensubtitlesPageUrl(ep) {
+  const sourceUrl = String(ep?.primaryUrl || '').trim();
+  const safeSource = sourceUrl ? safeFileUrl(sourceUrl, window.location.href) : '';
+  const folderUrl = safeSource ? new URL('.', safeSource).href : '';
+  const baseName = safeSource
+    ? safeDecode(new URL(safeSource).pathname.split('/').pop() || '')
+    : safeDecode(String(ep?.displayName || ep?.key || 'subtitle'));
+  const outputName = `${baseName.replace(/\.[^.]+$/, '') || 'subtitle'}.vtt`;
+  const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
+  const seriesHint = (() => {
+    try {
+      if (typeof getGroupPath === 'function') {
+        const path = String(getGroupPath(ep) || '').trim();
+        if (path) return path;
+      }
+    } catch (e) {}
+    const parts = [];
+    let parent = ep && ep.parentKey && nodeMap && typeof nodeMap.get === 'function' ? nodeMap.get(ep.parentKey) : null;
+    while (parent) {
+      const label = String(parent.displayName || parent.key || '').trim();
+      if (label) parts.unshift(label);
+      parent = parent.parentKey && nodeMap && typeof nodeMap.get === 'function' ? nodeMap.get(parent.parentKey) : null;
+    }
+    return parts.join(' › ');
+  })();
+  const episodeTitle = safeDecode(String(ep?.displayName || ep?.key || 'subtitle'));
+  const search = [seriesHint, episodeTitle, baseName].filter(Boolean).join(' ').trim();
+  const parsedMatch = baseName.match(/\bS(\d{1,2})\s*E?(\d{1,3})\b/i) || baseName.match(/\b(\d{1,2})x(\d{1,3})\b/i);
+  const season = parsedMatch ? Number.parseInt(parsedMatch[1], 10) : '';
+  const episode = parsedMatch ? Number.parseInt(parsedMatch[2], 10) : '';
+  const params = new URLSearchParams({
+    source: safeSource || sourceUrl,
+    name: outputName,
+    folder: folderUrl,
+    upload: uploadUrl,
+    language: 'en',
+    provider: '',
+    mode: 'fetch',
+    flow: '1',
+    auto: '1',
+    close: '1',
+    proxy: '1',
+    jobId: String(ep?.id || ''),
+    series: seriesHint,
+    show: seriesHint,
+    librarySeries: seriesHint,
+    title: episodeTitle,
+    episodeTitle,
+    libraryTitle: episodeTitle || baseName,
+    search
+  });
+  if (Number.isFinite(season)) params.set('season', String(season));
+  if (Number.isFinite(episode)) params.set('episode', String(episode));
+  return `/opensubtitles-subtitles.html?${params.toString()}`;
+}
+
+function toggleWheel(force) {
+
     const open = typeof force === 'boolean' ? force : !els.libraryWheel.classList.contains('open');
     els.libraryWheel.classList.toggle('open', open);
     els.libraryWheel.setAttribute('aria-hidden', String(!open));
@@ -2366,19 +3410,59 @@
     return uploadInput;
   }
 
-  async function uploadFileToTarget(targetUrl, file) {
-    // Send raw bytes so the browser does not auto-attach a Content-Type header
-    // that would trigger a stricter CORS preflight on lightweight file servers.
-    const payload = await file.arrayBuffer();
-    const res = await fetch(targetUrl, {
-      method: 'PUT',
-      body: payload
-    });
+  function makeUploadId(targetUrl, file) {
+    const base = String(file?.name || targetUrl || 'upload').replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'upload';
+    const stamp = Date.now().toString(36);
+    const rand = Math.random().toString(36).slice(2, 10);
+    return `${base}-${stamp}-${rand}`;
+  }
 
-    if (!res.ok) {
-      throw new Error(`Upload failed: HTTP ${res.status}`);
+  async function uploadFileInSlices(targetUrl, file, onProgress) {
+    const total = Number(file?.size || 0);
+    if (!total) throw new Error('Selected file is empty.');
+
+    const chunkSize = Math.max(1024 * 1024, Math.min(8 * 1024 * 1024, total));
+    const partCount = Math.max(1, Math.ceil(total / chunkSize));
+    const uploadId = makeUploadId(targetUrl, file);
+    let sent = 0;
+
+    for (let partIndex = 0; partIndex < partCount; partIndex++) {
+      const start = partIndex * chunkSize;
+      const end = Math.min(total, start + chunkSize);
+      const chunk = file.slice(start, end, file.type || 'application/octet-stream');
+
+      const res = await fetch(targetUrl, {
+        method: 'PUT',
+        body: chunk,
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Range': `bytes ${start}-${end - 1}/${total}`,
+          'X-LibraryJS-Upload-Id': uploadId,
+          'X-LibraryJS-Upload-Name': file.name || 'upload',
+          'X-LibraryJS-Upload-Size': String(total),
+          'X-LibraryJS-Upload-Offset': String(start),
+          'X-LibraryJS-Chunk-Index': String(partIndex),
+          'X-LibraryJS-Chunk-Count': String(partCount),
+          'X-Upload-Id': uploadId,
+          'X-Upload-Name': file.name || 'upload',
+          'X-Upload-Size': String(total),
+          'X-Upload-Offset': String(start),
+          'X-Upload-Part': String(partIndex),
+          'X-Upload-Count': String(partCount)
+        }
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Upload slice ${partIndex + 1}/${partCount} failed: HTTP ${res.status}${body ? ` - ${body.slice(0, 240)}` : ''}`);
+      }
+
+      sent = end;
+      onProgress?.(sent, total, partIndex + 1, partCount);
     }
-    return res;
+
+    return { ok: true, status: 200, slices: partCount };
   }
 
   async function promptUpload(node, which) {
@@ -2393,9 +3477,16 @@
     input.onchange = async () => {
       const file = input.files && input.files[0];
       if (!file) return;
+
       setStatus(`Uploading ${file.name}…`);
+      setProgressDisplay(0, 1, `Uploading ${file.name}`);
+
       try {
-        await uploadFileToTarget(targetUrl, file);
+        await uploadFileInSlices(targetUrl, file, (loaded, total, partIndex, partCount) => {
+          setUploadProgress(loaded, total, partIndex, partCount, file.name);
+          const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
+          setStatus(`Uploading ${file.name}… ${pct}% (${partIndex}/${partCount})`);
+        });
         if (which === 'primary') node.primaryStatus = STATUS.EXISTS;
         else node.secondaryStatus = STATUS.EXISTS;
         setStatus(`✅ Uploaded ${file.name}`);
@@ -2404,6 +3495,8 @@
       } catch (err) {
         setStatus(`❌ ${err.message}`);
         renderTree();
+      } finally {
+        updateProgress();
       }
     };
     input.click();
@@ -2478,6 +3571,134 @@
     return nodeMap.get(id);
   }
 
+
+els.tree.addEventListener('pointerdown', (e) => {
+  const repairBtn = e.target.closest('[data-action="repair-leaf"]');
+  if (repairBtn) {
+    const node = getNodeById(repairBtn.dataset.nodeId);
+    if (!node || !isRepairableLeaf(node)) return;
+    clearTimeout(repairHoldTimer);
+    repairHoldCandidate = node;
+    repairHoldTriggered = false;
+    repairHoldTimer = setTimeout(() => {
+      repairHoldTriggered = true;
+      setRepairBatchMode(true, node);
+      updateRepairBatchUi();
+      renderTree();
+    }, 420);
+    return;
+  }
+
+  const subtitleBtn = e.target.closest('[data-action="scan-leaf-secondary"]');
+  if (subtitleBtn && activeKey === 'video') {
+    const node = getNodeById(subtitleBtn.dataset.nodeId);
+    if (!node || !isSubtitleBatchLeaf(node)) return;
+    clearTimeout(subtitleHoldTimer);
+    subtitleHoldCandidate = node;
+    subtitleHoldTriggered = false;
+    subtitleHoldTimer = setTimeout(() => {
+      subtitleHoldTriggered = true;
+      setRepairBatchMode(false);
+      setSubtitleBatchMode(true, node);
+      updateSubtitleBatchUi();
+      renderTree();
+    }, 420);
+    return;
+  }
+
+  const repairGroupBtn = e.target.closest('[data-action="repair-group"]');
+  if (repairGroupBtn) {
+    const node = getNodeById(repairGroupBtn.dataset.nodeId);
+    if (!node) return;
+    clearTimeout(repairGroupHoldTimer);
+    repairGroupHoldCandidate = node;
+    repairGroupHoldTriggered = false;
+    repairGroupHoldTimer = setTimeout(() => {
+      repairGroupHoldTriggered = true;
+      seedRepairBatchFromNode(node);
+    }, 420);
+    return;
+  }
+
+  const subtitleGroupBtn = e.target.closest('[data-action="scan-group-secondary"]');
+  if (subtitleGroupBtn && activeKey === 'video') {
+    const node = getNodeById(subtitleGroupBtn.dataset.nodeId);
+    if (!node) return;
+    clearTimeout(subtitleGroupHoldTimer);
+    subtitleGroupHoldCandidate = node;
+    subtitleGroupHoldTriggered = false;
+    subtitleGroupHoldTimer = setTimeout(() => {
+      subtitleGroupHoldTriggered = true;
+      seedSubtitleBatchFromNode(node);
+    }, 420);
+  }
+});
+
+els.tree.addEventListener('pointerup', (e) => {
+  const repairBtn = e.target.closest('[data-action="repair-leaf"]');
+  if (repairBtn) {
+    clearTimeout(repairHoldTimer);
+    if (repairHoldTriggered) {
+      e.preventDefault();
+      repairHoldCandidate = null;
+      return;
+    }
+  }
+
+  const subtitleBtn = e.target.closest('[data-action="scan-leaf-secondary"]');
+  if (subtitleBtn && activeKey === 'video') {
+    clearTimeout(subtitleHoldTimer);
+    if (subtitleHoldTriggered) {
+      e.preventDefault();
+      subtitleHoldCandidate = null;
+      return;
+    }
+  }
+
+  const repairGroupBtn = e.target.closest('[data-action="repair-group"]');
+  if (repairGroupBtn) {
+    clearTimeout(repairGroupHoldTimer);
+    if (repairGroupHoldTriggered) {
+      e.preventDefault();
+      repairGroupHoldCandidate = null;
+      return;
+    }
+  }
+
+  const subtitleGroupBtn = e.target.closest('[data-action="scan-group-secondary"]');
+  if (subtitleGroupBtn && activeKey === 'video') {
+    clearTimeout(subtitleGroupHoldTimer);
+    if (subtitleGroupHoldTriggered) {
+      e.preventDefault();
+      subtitleGroupHoldCandidate = null;
+      return;
+    }
+  }
+});
+
+els.tree.addEventListener('pointerleave', () => {
+  clearTimeout(repairHoldTimer);
+  clearTimeout(subtitleHoldTimer);
+  clearRepairGroupHoldState();
+  clearSubtitleGroupHoldState();
+});
+
+els.tree.addEventListener('change', async (e) => {
+  const repairToggle = e.target.closest('[data-action="repair-batch-toggle"]');
+  if (repairToggle) {
+    const node = getNodeById(repairToggle.dataset.nodeId);
+    if (!node || !isRepairableLeaf(node)) return;
+    selectRepairLeaf(node.id, repairToggle.checked);
+    return;
+  }
+  const subtitleToggle = e.target.closest('[data-action="subtitle-batch-toggle"]');
+  if (subtitleToggle) {
+    const node = getNodeById(subtitleToggle.dataset.nodeId);
+    if (!node || !isSubtitleBatchLeaf(node)) return;
+    selectSubtitleLeaf(node.id, subtitleToggle.checked);
+  }
+});
+
   els.tree.addEventListener('click', async (e) => {
     const actionBtn = e.target.closest('[data-action]');
     if (actionBtn) {
@@ -2489,13 +3710,48 @@
       if (action === 'scan-group-primary') {
         startScan([node], true, false, true);
       } else if (action === 'scan-group-secondary') {
-        startScan([node], false, true, true);
+        if (subtitleGroupHoldTriggered) {
+          subtitleGroupHoldTriggered = false;
+          subtitleGroupHoldCandidate = null;
+        } else {
+          startScan([node], false, true, true);
+        }
+      } else if (action === 'repair-group') {
+        if (repairGroupHoldTriggered) {
+          repairGroupHoldTriggered = false;
+          repairGroupHoldCandidate = null;
+        } else {
+          startRepairBatch([node]);
+        }
       } else if (action === 'scan-leaf-primary') {
         startScan([node], true, false, true);
       } else if (action === 'scan-leaf-secondary') {
-        startScan([node], false, true, true);
+        if (subtitleHoldTriggered) {
+          subtitleHoldTriggered = false;
+          subtitleHoldCandidate = null;
+        } else {
+          startScan([node], false, true, true);
+        }
       } else if (action === 'repair-leaf') {
-        openRepairModal(node);
+        if (repairHoldTriggered) {
+          repairHoldTriggered = false;
+          repairHoldCandidate = null;
+        } else {
+          openRepairModal(node);
+        }
+      } else if (action === 'repair-batch-toggle') {
+        selectRepairLeaf(node.id, !!actionBtn.checked);
+      } else if (action === 'subtitle-batch-toggle') {
+        selectSubtitleLeaf(node.id, !!actionBtn.checked);
+      } else if (action === 'missing-subtitle-open') {
+        if (subtitleHoldTriggered) {
+          subtitleHoldTriggered = false;
+          subtitleHoldCandidate = null;
+        } else if (subtitleBatchMode && subtitleBatchSelected.size) {
+          selectSubtitleLeaf(node.id, !subtitleBatchSelected.has(node.id));
+        } else {
+          launchSingleFetchedSubtitle(node);
+        }
       } else if (action === 'upload-primary' || action === 'upload-secondary') {
         await repairOrUploadFromAction(node, action);
       }
@@ -2510,6 +3766,74 @@
       renderTree();
     }
   });
+
+  els.modalBody.addEventListener('pointerdown', e => {
+    const btn = e.target.closest('[data-action="missing-subtitle-toggle"]');
+    if (!btn) return;
+    const node = getNodeById(btn.dataset.nodeId);
+    if (!node || !isSubtitleBatchLeaf(node)) return;
+    clearTimeout(subtitleHoldTimer);
+    subtitleHoldCandidate = node;
+    subtitleHoldTriggered = false;
+    subtitleHoldTimer = setTimeout(() => {
+      subtitleHoldTriggered = true;
+      if (!subtitleBatchMode) {
+        setSubtitleBatchMode(true, node);
+      }
+      selectSubtitleLeaf(node.id, true);
+      updateSubtitleBatchUi();
+      renderTree();
+    }, 420);
+  });
+
+  const cancelSubtitleHold = () => {
+    clearTimeout(subtitleHoldTimer);
+    subtitleHoldTimer = null;
+    subtitleHoldCandidate = null;
+  };
+  els.modalBody.addEventListener('pointerup', cancelSubtitleHold);
+  els.modalBody.addEventListener('pointercancel', cancelSubtitleHold);
+  els.modalBody.addEventListener('pointerleave', cancelSubtitleHold);
+
+  els.modalBody.addEventListener('click', async e => {
+    const actionBtn = e.target.closest('[data-action]');
+    if (!actionBtn) return;
+
+    const action = actionBtn.dataset.action;
+    if (action === 'missing-subtitles-fetch-all') {
+      launchAllMissingFetchedSubtitles();
+      return;
+    }
+    if (action === 'missing-subtitles-fetch-selected') {
+      launchSelectedFetchedSubtitles();
+      return;
+    }
+    if (action === 'missing-subtitle-toggle') {
+      const node = getNodeById(actionBtn.dataset.nodeId);
+      if (!node || !isSubtitleBatchLeaf(node)) return;
+      const input = actionBtn.querySelector('input[type="checkbox"]');
+      const nextChecked = input ? input.checked : !subtitleBatchSelected.has(node.id);
+      if (!subtitleBatchMode) subtitleBatchMode = true;
+      selectSubtitleLeaf(node.id, nextChecked);
+      return;
+    }
+    if (action === 'missing-subtitle-open') {
+      const node = getNodeById(actionBtn.dataset.nodeId);
+      if (!node || !isSubtitleBatchLeaf(node)) return;
+      if (subtitleHoldTriggered) {
+        subtitleHoldTriggered = false;
+        subtitleHoldCandidate = null;
+        return;
+      }
+      if (subtitleBatchMode && subtitleBatchSelected.size) {
+        return;
+      }
+      launchSingleFetchedSubtitle(node);
+      return;
+    }
+  });
+
+
 
   els.search.addEventListener('input', renderTree);
   els.expandAllBtn.addEventListener('click', expandAll);
@@ -2526,6 +3850,27 @@
   els.scanPrimaryBtn.addEventListener('click', () => startScan(flatItems, true, false, true));
   els.scanSecondaryBtn.addEventListener('click', () => startScan(flatItems, false, true, true));
 
+  if (els.runBatchRepairBtn) {
+    els.runBatchRepairBtn.addEventListener('click', () => {
+      if (!repairBatchMode) return;
+      startSelectedRepairBatch();
+    });
+  }
+
+  if (els.runBatchFetchSubsBtn) {
+    els.runBatchFetchSubsBtn.addEventListener('click', () => {
+      if (!subtitleBatchMode) return;
+      launchSelectedFetchedSubtitles();
+    });
+  }
+
+  if (els.runBatchSubsBtn) {
+    els.runBatchSubsBtn.addEventListener('click', () => {
+      if (!subtitleBatchMode) return;
+      launchSelectedSubtitles();
+    });
+  }
+
   els.pauseBtn.addEventListener('click', () => {
     if (!scanning) return;
     if (paused) resumeScan();
@@ -2541,9 +3886,39 @@
     if (e.target === els.missingModal) hideModal();
   });
 
-  els.closeRepairModalBtn.addEventListener('click', hideRepairModal);
+  els.closeRepairModalBtn.addEventListener('click', () => {
+    if (repairBatchCurrent) {
+      repairBatchQueue = [];
+      repairBatchCurrent = null;
+      clearRepairBatchState();
+      updateRepairBatchUi();
+    }
+    if (subtitleBatchCurrent) {
+      subtitleBatchQueue = [];
+      subtitleBatchCurrent = null;
+      clearSubtitleBatchState();
+      updateSubtitleBatchUi();
+    }
+    hideRepairModal();
+  });
   els.repairModal.addEventListener('click', e => {
-    if (e.target === els.repairModal) hideRepairModal();
+    if (e.target === els.repairModal) {
+      if (repairBatchCurrent) {
+        repairBatchQueue = [];
+        repairBatchCurrent = null;
+        repairBatchMode = false;
+        repairBatchSelected = new Set();
+        updateRepairBatchUi();
+      }
+      if (subtitleBatchCurrent) {
+        subtitleBatchQueue = [];
+        subtitleBatchCurrent = null;
+        subtitleBatchMode = false;
+        subtitleBatchSelected = new Set();
+        updateSubtitleBatchUi();
+      }
+      hideRepairModal();
+    }
   });
 
   els.closeAddContentModalBtn?.addEventListener('click', hideAddContentModal);
@@ -2553,6 +3928,7 @@
   els.nestCollectionBtn?.addEventListener('click', () => openAddContentModal('nest'));
   els.genreContentBtn?.addEventListener('click', openGenreEditorModal);
   els.addContentBtn?.addEventListener('click', () => openAddContentModal('add'));
+  els.runBatchRepairBtn?.addEventListener('click', () => startSelectedRepairBatch());
 
   els.libraryHub.addEventListener('click', e => {
     e.stopPropagation();
@@ -2581,6 +3957,9 @@
       hideModal();
       hideRepairModal();
       hideAddContentModal();
+      clearSubtitleBatchState();
+      updateSubtitleBatchUi();
+      renderTree();
     }
   });
 

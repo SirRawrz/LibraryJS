@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 
 <html lang="en">
@@ -95,9 +94,9 @@
 (function () {
   const lib = new URLSearchParams(window.location.search).get('lib') || 'books';
   const map = {
-    books: './books.js',
-    manga: './manga.js',
-    guidebooks: './guidebooks.js'
+    books: '/books.js',
+    manga: '/manga.js',
+    guidebooks: '/guidebooks.js'
   };
   const src = map[lib] || map.books;
   document.write('<script src="' + src + '"><\/script>');
@@ -149,27 +148,173 @@
     .bookmark-dialog li {
       margin-bottom: 10px;
     }
-.page-indicator {
+.page-status-group {
   position: absolute;
   top: 40px;
   right: 75px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 10003;
+  width: fit-content;
+}
+
+.page-status-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: fit-content;
+}
+
+.page-indicator {
+  position: relative;
   background: rgba(0,0,0,0.5);
   color: white;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.9rem;
   z-index: 10003;
+  white-space: nowrap;
+  width: fit-content;
+}
+
+/* Audio Toggle Icon Styling */
+.audio-toggle-icon {
+  position: relative;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 1rem;
+  z-index: 10003;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  flex: 0 0 24px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.audio-toggle-icon:hover {
+  background: rgba(90, 90, 90, 0.55);
+}
+.audio-toggle-icon.audio-playing {
+  background: rgba(76, 175, 80, 0.8);
+  color: white;
+}
+.audio-toggle-icon.audio-paused {
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+}
+.page-status-note {
+  text-align: center;
+  margin-top: 4px;
+  color: white;
+  font-style: italic;
+  max-width: 100%;
+}
+#audioPlayerBar {
+  position: fixed;
+  bottom: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 600px;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 12px;
+  display: none !important;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10005;
+  color: #eee;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.8);
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+#audioPlayerBar.visible {
+  display: none !important;
+}
+.audio-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.audio-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+#audioPlayBtn {
+  background: #4CAF50;
+  border: none;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+#audioPlayBtn:hover { background: #45a049; }
+#audioPlayBtn.playing { background: #f44336; }
+#audioProgress {
+  flex-grow: 1;
+  cursor: pointer;
+  accent-color: #4CAF50;
+  height: 6px;
+}
+#audioTime, #audioDuration {
+  font-size: 0.8rem;
+  font-family: monospace;
+  min-width: 50px;
+  text-align: center;
+}
+#syncToggleBtn {
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  background: #555;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+#syncToggleBtn.active {
+  background: #4CAF50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+}
+#audioPageSync {
+  font-size: 0.75rem;
+  color: #aaa;
+  text-align: center;
+  padding-top: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Tile indicator styles */
 .tile-indicator {
-  position: absolute;
-  top: 65px;
-  right: 75px;
+  position: relative;
   display: grid;
   gap: 3px;
   z-index: 10003;
   pointer-events: auto;
+  align-self: center;
 }
 
 .tile-indicator.half {
@@ -571,7 +716,7 @@
   justify-content: flex-start;
 }
 </style>
-<script src="./js/pdf.min.js">
+<script src="/js/pdf.min.js">
   document.getElementById('btnSearch').onclick = function searchPDF() {
     const term = document.getElementById('searchTerm').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
@@ -589,7 +734,7 @@
       const end = Math.min(text.length, idx + term.length + 30);
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
-            li.onclick = () => { pageNum = i; renderDoublePage(i); document.getElementById('searchResults').style.display = 'none'; };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { hideSearchResultsId: 'searchResults' }); };
             resultsList.appendChild(li);
           }
         });
@@ -616,7 +761,7 @@
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
             li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
             resultsList.appendChild(li);
           }
         });
@@ -627,17 +772,12 @@
 </script>
 </head>
 <body class="dark-mode">
-<!-- Bookmark Dialog -->
 <div class="bookmark-dialog" id="bookmarkDialog" style="text-align:center;">
-<!-- dynamically-updated title -->
 <h3 id="bookmarkTitle" style="text-align:center; margin-bottom:12px;"></h3>
-<!-- bookmark button -->
-<!-- Chapters dropdown -->
 <select id="chapterSelect" style="display:block; margin:8px auto; padding:6px; width:80%; border-radius:4px; border:1px solid #555; background:#444; color:white;">
 <option value="">Select Chapter</option>
 </select>
 <button id="btnChapterGo" style="display:block; margin:4px auto; padding:8px 12px; border-radius:8px;">Go to Chapter</button>
-<!-- Dialog Search controls -->
 <div id="searchControlsDialog" style="margin-bottom:8px;">
 <input id="searchTermDialog" placeholder="Search text..." style="width:80%; padding:4px; border-radius:4px; border:1px solid #555;" type="text"/> <button id="btnClearSearchDialog" style="padding:4px 8px; margin-left:4px;">X</button>
 <button id="btnSearchDialog" style="padding:4px 8px; margin-left:4px;">Search</button>
@@ -648,55 +788,39 @@
 <button id="btnAddBookmark" style="display:block; margin:8px auto;">
     Bookmark this Page
   </button>
-<!-- note input -->
 <input id="bookmarkNote" placeholder="Add note (optional)" style="display:block; margin:8px auto; padding:6px;
                 width:80%; border-radius:4px;
                 border:1px solid #555;
                 background:#444; color:white;" type="text"/>
-<!-- go-to page controls -->
 <div style="text-align:center; margin:10px 0;">
 <input id="inputPageNumber" placeholder="Go to page #" style="padding:5px; width:40%; margin-right:8px;" type="number"/>
 <button id="btnGoPage">Go</button>
 </div>
-<!-- your list of bookmarks (left-aligned) -->
 <ul id="bookmarkList" style="list-style:none; padding:0;
              width:80%; margin:0 auto;
              text-align:left;">
 </ul>
-<!-- close dialog -->
 <button id="btnCloseDialog" style="display:block; margin:10px auto;">
     Close
   </button>
 </div>
-<!-- Main-screen controls (Home / Profile / Fullscreen / Light Mode) -->
-<!-- Main-screen controls (Home / Profile / Fullscreen / Light Mode) -->
-<!-- <div id="bookmarkDialog" class="bookmark-dialog dark-mode">
-    <h3>Bookmarks</h3>
-    <button onclick="newBookmark()">New Bookmark</button>
-    <ul id="bookmarkList"></ul>
-    <button onclick="manageBookmarks()">Manage Bookmarks</button>
-    <button onclick="closeBookmarks()">Close</button>
-  </div> -->
 <div class="reader-buttons main-buttons">
-<!--  <button class="bookmark-button" onclick="openBookmarks()">Bookmarks</button> -->
 <button class="toggle-button" onclick="toggleMode()">🌗</button>
 <button class="fullscreen-button" onclick="toggleFullscreen()">Fullscreen</button>
-<button class="home-button" onclick="window.location.href='./index.html'">Home</button>
-<img alt="Profile" class="profile-icon" onclick="window.location.href='./profile.html';" src="./Profiles/Guest.jpg" style="width:32px; height:32px; border-radius:8px; cursor:pointer; margin-left: -4px;" tabindex="0"/>
+<button class="home-button" onclick="window.location.href='/index.html'">Home</button>
+<img alt="Profile" class="profile-icon" onclick="window.location.href='/profile.html';" src="/Profiles/Guest.jpg" style="width:32px; height:32px; border-radius:8px; cursor:pointer; margin-left: -4px;" tabindex="0"/>
 </div>
 <h1 class="centered-title">Book Library</h1>
 <div class="container" id="bookContainer"></div>
 <div class="dark-mode" id="reader-container">
 <div class="reader-buttons">
-<!--  <button class="bookmark-button" onclick="openBookmarks()">Bookmarks</button>-->
 <button class="fullscreen-button" onclick="toggleFullscreen()">Fullscreen</button>
 <div class="home-group" style="display:flex; align-items:center; gap:8px;">
-<button class="home-button" onclick="window.location.href='./index.html'" style="margin:0;">
+<button class="home-button" onclick="window.location.href='/index.html'" style="margin:0;">
           Home
         </button>
-<img alt="Profile" class="profile-icon" onclick="window.location.href='./profile.html';" src="./Profiles/Guest.jpg" style="width:32px; height:32px; border-radius:8px; cursor:pointer;" tabindex="0"/>
+<img alt="Profile" class="profile-icon" onclick="window.location.href='/profile.html';" src="/Profiles/Guest.jpg" style="width:32px; height:32px; border-radius:8px; cursor:pointer;" tabindex="0"/>
 </div>
-<!-- Page‑mode toggle moved to the left of the 🌗 invert button -->
 <button class="page-mode-toggle" data-mode="double" id="pageModeToggle" style="position: relative; left: -120px;">
         Half‑Page
       </button>
@@ -704,8 +828,21 @@
 <button class="close-button" onclick="closeReader()">×</button>
 </div>
 <div id="viewer" style=""></div>
+<div id="audioPlayerBar" aria-label="Audiobook player">
+  <div class="audio-info-row">
+    <span id="audioStatus">Audio: Not loaded</span>
+    <span id="audioDuration">0:00</span>
+  </div>
+  <div class="audio-controls-row">
+    <button id="audioPlayBtn" type="button" aria-label="Play or pause audiobook">▶</button>
+    <input id="audioProgress" type="range" min="0" max="100" value="0" aria-label="Audiobook progress">
+    <span id="audioTime">0:00</span>
+    <button id="syncToggleBtn" type="button" class="active">Auto-Sync: ON</button>
+  </div>
+  <div id="audioPageSync">Page sync: Not loaded</div>
+  <audio id="audioEl" preload="metadata" style="display:none"></audio>
+</div>
 <div class="controls">
-<!-- Prev/Next (wired to nextPage()/prevPage()) -->
 <button aria-label="Previous page" id="prevBtn" onclick="prevPage()">Previous</button>
 <button aria-label="Next page" id="nextBtn" onclick="nextPage()">Next</button>
 </div>
@@ -718,6 +855,20 @@
   let isDarkMode = false;    // Default to light mode off
   let isFullscreen = false;  // Track fullscreen state
   let currentBook = "";      // To track the current book file
+  let audiobookManifest = null;
+  let audiobookCues = [];
+  let audiobookLoaded = false;
+  let audiobookAvailable = false;
+  let audioHasEverPlayed = false;
+  let audiobookPlaybackState = 'paused';
+  let audiobookPausedSnapshot = null;
+  let audiobookAudioUrl = "";
+  let audiobookManifestUrl = "";
+  let isAutoSync = true;
+  let audioInterval = null;
+  let lastSyncTime = 0;
+  let audioCurrentPage = 1;
+  const SYNC_THRESHOLD = 1000; // Sync only if > 1 second difference
   let readerSessionId = 0;   // Invalidates stale PDF loads/renders after close/switch
 
 
@@ -725,6 +876,13 @@
 const items = (window.libraryData && window.libraryData.items) || [];
 
 const GUIDEBOOK_RENDER_DPR = Math.max(2, window.devicePixelRatio || 1);
+
+function rootAssetUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return raw;
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|data:|blob:|about:|javascript:)/i.test(raw)) return raw;
+  return '/' + raw.replace(/^[.\/]+/, '');
+}
 
 function normalizeGuidebookKey(value) {
   return String(value || '').replace(/[\s\-]/g, '').toLowerCase();
@@ -746,6 +904,741 @@ function resolveGuidebookDisplayTitle(item) {
   }
 
   return String(item.title || '').trim();
+}
+
+
+function getBookPathParts(bookUrl) {
+  const cleaned = String(bookUrl || '').split(/[?#]/)[0];
+  const parts = cleaned.split('/').filter(Boolean);
+  const filename = parts.pop() || '';
+  const baseName = filename.replace(/\.[^/.]+$/, '');
+  const folder = parts.length ? '/' + parts.join('/') : '';
+  return { folder, baseName };
+}
+
+function buildAudiobookManifestUrl(bookUrl) {
+  const { folder, baseName } = getBookPathParts(bookUrl);
+  return `${folder}/${baseName}-audiobook.json`;
+}
+
+function buildAudiobookAudioCandidates(bookUrl) {
+  const { folder, baseName } = getBookPathParts(bookUrl);
+  const audioFolder = `${folder}/audiobooks`;
+  return ['.m4a', '.mp3', '.mp4'].map(ext => `${audioFolder}/${baseName}${ext}`);
+}
+
+function parseAudiobookTime(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const text = String(value).trim();
+  if (!text) return null;
+  const clean = text.replace(',', '.');
+  if (/^\d+(\.\d+)?$/.test(clean)) return Number(clean);
+  const parts = clean.split(':');
+  let seconds = 0;
+  if (parts.length === 3) {
+    seconds = (parseInt(parts[0], 10) * 3600) + (parseInt(parts[1], 10) * 60) + parseFloat(parts[2]);
+  } else if (parts.length === 2) {
+    seconds = (parseInt(parts[0], 10) * 60) + parseFloat(parts[1]);
+  } else {
+    seconds = parseFloat(parts[0]);
+  }
+  return Number.isFinite(seconds) ? seconds : null;
+}
+
+function formatAudiobookTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+}
+
+function normalizeAudiobookPositionHint(value) {
+  const hint = String(value ?? '').trim();
+  if (!hint) return null;
+  if (hint === '↑' || hint === 'upper' || hint === 'top' || hint === 'start') return '↑';
+  if (hint === '↓' || hint === 'lower' || hint === 'bottom' || hint === 'end') return '↓';
+  return null;
+}
+
+function getPageViewMode() {
+  if (typeof window.pageViewMode === 'string' && window.pageViewMode) return window.pageViewMode;
+  if (window.halfMode) return 'half';
+  return 'double';
+}
+
+window.getPageViewMode = getPageViewMode;
+
+function getAudiobookPreferredPositionForView() {
+  const mode = window.pageViewMode || 'double';
+  if (mode === 'half') {
+    const tile = Number(window.currentTile || currentTile || 1);
+    return (tile === 2 || tile === 4) ? '↓' : '↑';
+  }
+  return '↑';
+}
+
+function getAudiobookPreferredPositionForPageJump() {
+  const mode = window.pageViewMode || 'double';
+  if (mode === 'half') return '↑';
+  return '↑';
+}
+
+
+function getCuePositionHint(cue) {
+  if (!cue) return null;
+  const anchor = String(cue.pageAnchor || cue.page_anchor || '').trim();
+  if (anchor) {
+    const anchorPos = normalizeAudiobookPositionHint(anchor);
+    if (anchorPos) return anchorPos;
+    if (anchor.includes('↑')) return '↑';
+    if (anchor.includes('↓')) return '↓';
+  }
+
+  const pos = normalizeAudiobookPositionHint(cue.pagePosition);
+  if (pos) return pos;
+
+  const slot = String(cue.pageSlot || '').toLowerCase();
+  if (slot.includes('upper') || slot.includes('top') || slot === 'u' || slot === 'up') return '↑';
+  if (slot.includes('lower') || slot.includes('bottom') || slot === 'l' || slot === 'down') return '↓';
+  return null;
+}
+
+
+function getAudiobookReadingContext() {
+  const mode = window.pageViewMode || (window.halfMode ? 'half' : 'double') || 'double';
+  const rawBasePage = (typeof pageNum !== 'undefined') ? pageNum : window.pageNum;
+  const basePage = Math.max(1, Math.floor(Number(rawBasePage || 1) || 1));
+  const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
+
+  if (mode === 'half') {
+    const rawTile = (typeof currentTile !== 'undefined') ? currentTile : window.currentTile;
+    const tile = Math.max(1, Math.floor(Number(rawTile || 1) || 1));
+    let displayPage;
+    if (isManga) {
+      displayPage = tile <= 2 ? basePage + 1 : basePage;
+    } else {
+      displayPage = tile >= 3 ? basePage + 1 : basePage;
+    }
+    const position = (tile === 2 || tile === 4) ? '↓' : '↑';
+    return {
+      mode,
+      basePage,
+      displayPage,
+      position,
+      tile,
+      page: displayPage
+    };
+  }
+
+  return {
+    mode,
+    basePage,
+    displayPage: basePage,
+    position: '↑',
+    tile: 1,
+    page: basePage
+  };
+}
+
+function getAudiobookViewSignature() {
+  const ctx = getAudiobookReadingContext();
+  return [ctx.mode, ctx.basePage, ctx.displayPage, ctx.position, ctx.tile].join(':');
+}
+
+function captureAudiobookPauseSnapshot() {
+  const audioEl = document.getElementById('audioEl');
+  if (!audioEl) {
+    audiobookPausedSnapshot = null;
+    return;
+  }
+
+  audiobookPausedSnapshot = {
+    currentTime: Number.isFinite(audioEl.currentTime) ? audioEl.currentTime : 0,
+    viewSignature: getAudiobookViewSignature()
+  };
+}
+
+function shouldResyncAudiobookOnResume() {
+  if (!audiobookPausedSnapshot) return false;
+  return audiobookPausedSnapshot.viewSignature !== getAudiobookViewSignature();
+}
+
+function clearAudiobookPauseSnapshot() {
+  audiobookPausedSnapshot = null;
+}
+
+function getVisiblePageNumberForAudiobook() {
+  return getAudiobookReadingContext().displayPage;
+}
+
+window.getVisiblePageNumberForAudiobook = getVisiblePageNumberForAudiobook;
+window.getDisplayedPageNumber = getVisiblePageNumberForAudiobook;
+window.getDisplayedPagePosition = function getDisplayedPagePosition() {
+  return getAudiobookReadingContext().position;
+};
+
+function getAudiobookPreferredPositionForView() {
+  return getAudiobookReadingContext().position;
+}
+
+function getAudiobookPreferredPositionForPageJump() {
+  return '↑';
+}
+
+function getDisplayPageForMode(targetPage, mode = window.pageViewMode || 'double') {
+  const pageNumber = Math.max(1, Math.floor(Number(targetPage) || 1));
+  if (mode === 'single') return pageNumber;
+  return (pageNumber % 2 === 0) ? Math.max(1, pageNumber - 1) : pageNumber;
+}
+
+function renderCurrentModePage() {
+  const mode = window.pageViewMode || 'double';
+  if (typeof window.applyPageMode === 'function') {
+    window.applyPageMode(mode);
+    return true;
+  }
+  return false;
+}
+
+function normalizeAudiobookManifest(rawManifest) {
+  const entries = Array.isArray(rawManifest)
+    ? rawManifest
+    : Array.isArray(rawManifest?.cues)
+      ? rawManifest.cues
+      : Array.isArray(rawManifest?.entries)
+        ? rawManifest.entries
+        : [];
+
+  const cues = entries.map((entry) => {
+    const start = parseAudiobookTime(entry.start_seconds ?? entry.start_time ?? entry.start);
+    const end = parseAudiobookTime(entry.end_seconds ?? entry.end_time ?? entry.end);
+    const page = Number(entry.page ?? entry.page_number ?? entry.pageNum);
+
+    if (!Number.isFinite(start) || !Number.isFinite(page)) return null;
+
+    return {
+      start,
+      end: Number.isFinite(end) ? end : start + 5,
+      page,
+      pagePosition: normalizeAudiobookPositionHint(entry.page_position ?? entry.pagePosition ?? entry.position),
+      pageSlot: String(entry.page_slot ?? entry.pageSlot ?? '').trim().toLowerCase() || null,
+      pageAnchor: String(entry.page_anchor ?? entry.pageAnchor ?? '').trim() || null,
+      text: String(entry.cue_text ?? entry.book_text ?? entry.text ?? '').trim()
+    };
+  }).filter(Boolean);
+
+  cues.sort((a, b) => a.start - b.start);
+  return cues;
+}
+
+function findAudiobookTimeForPage(targetPage, preferredPosition = null) {
+  if (!Array.isArray(audiobookCues) || !audiobookCues.length) return null;
+
+  const pageNumber = Number(targetPage);
+  if (!Number.isFinite(pageNumber) || pageNumber <= 0) return null;
+
+  const positionHint = normalizeAudiobookPositionHint(preferredPosition);
+  const matchesPage = audiobookCues.filter((cue) => cue.page === pageNumber);
+  if (!matchesPage.length) return null;
+
+  const exactMatch = positionHint
+    ? matchesPage.find((cue) => getCuePositionHint(cue) === positionHint)
+    : null;
+  if (exactMatch) return exactMatch.start;
+
+  const upperMatch = matchesPage.find((cue) => getCuePositionHint(cue) === '↑');
+  if (upperMatch) return upperMatch.start;
+
+  const positionlessMatch = matchesPage.find((cue) => !getCuePositionHint(cue));
+  if (positionlessMatch) return positionlessMatch.start;
+
+  return matchesPage[0].start;
+}
+
+function updateAudiobookAudioUI() {
+
+  const audioEl = document.getElementById('audioEl');
+  if (!audioEl || !audioEl.duration || !Number.isFinite(audioEl.duration)) return;
+
+  const timeEl = document.getElementById('audioTime');
+  const durationEl = document.getElementById('audioDuration');
+  const progressEl = document.getElementById('audioProgress');
+
+  if (timeEl) timeEl.textContent = formatAudiobookTime(audioEl.currentTime || 0);
+  if (durationEl) durationEl.textContent = formatAudiobookTime(audioEl.duration || 0);
+  if (progressEl) progressEl.value = audioEl.duration ? ((audioEl.currentTime / audioEl.duration) * 100) : 0;
+}
+
+function startAudiobookSync() {
+  if (audioInterval) clearInterval(audioInterval);
+  audioInterval = setInterval(() => {
+    const audioEl = document.getElementById('audioEl');
+    if (!audioEl || audioEl.paused || !isAutoSync || !audiobookCues.length) return;
+    syncPageToAudiobookTime(audioEl.currentTime);
+  }, 1000);
+}
+
+function stopAudiobookSync() {
+  if (audioInterval) {
+    clearInterval(audioInterval);
+    audioInterval = null;
+  }
+}
+
+function findAudiobookCueForTime(currentTime) {
+  if (!Array.isArray(audiobookCues) || !audiobookCues.length) return null;
+
+  let targetCue = null;
+  for (const cue of audiobookCues) {
+    if (currentTime >= cue.start && currentTime <= cue.end) {
+      targetCue = cue;
+      break;
+    }
+  }
+
+  if (targetCue === null) {
+    let closestIndex = -1;
+    let closestDiff = Infinity;
+    for (let i = 0; i < audiobookCues.length; i++) {
+      const diff = currentTime - audiobookCues[i].start;
+      if (diff >= 0 && diff < closestDiff) {
+        closestDiff = diff;
+        closestIndex = i;
+      }
+    }
+    if (closestIndex >= 0) targetCue = audiobookCues[closestIndex];
+  }
+
+  return targetCue;
+}
+
+function findAudiobookCuePageForTime(currentTime) {
+  const cue = findAudiobookCueForTime(currentTime);
+  return cue ? cue.page : null;
+}
+
+function getHalfModeTileForPage(pageNumber, preferredPosition = '↑') {
+  const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
+  const page = Math.max(1, Math.floor(Number(pageNumber) || 1));
+  const pos = normalizeAudiobookPositionHint(preferredPosition) || '↑';
+  const isEven = page % 2 === 0;
+  
+  if (isManga) {
+    if (isEven) {
+      return pos === '↓' ? 2 : 1;
+    }
+    return pos === '↓' ? 4 : 3;
+  } else {
+    if (isEven) {
+      return pos === '↓' ? 4 : 3;
+    }
+    return pos === '↓' ? 2 : 1;
+  }
+}
+
+function syncPageToAudiobookTime(currentTime) {
+  if (!pdfDoc || !audiobookCues.length) return;
+
+  const cue = findAudiobookCueForTime(currentTime);
+  if (!cue || !Number.isFinite(cue.page) || cue.page <= 0) return;
+
+  const mode = window.pageViewMode || (window.halfMode ? 'half' : 'double') || 'double';
+  const normalizedTarget = Math.max(1, Math.min(Math.floor(cue.page), pdfDoc.numPages));
+  const cuePosition = getCuePositionHint(cue) || '↑';
+  const previousPage = Math.max(1, Math.floor(Number(pageNum || 1) || 1));
+  const previousTile = Math.max(1, Math.floor(Number(window.currentTile || currentTile || 1) || 1));
+
+  let nextPage = getDisplayPageForMode(normalizedTarget, mode);
+  let nextTile = 1;
+
+  if (mode === 'half') {
+    nextTile = getHalfModeTileForPage(normalizedTarget, cuePosition);
+    nextPage = Math.max(1, Math.min(nextPage, pdfDoc.numPages));
+    if (nextPage === previousPage && nextTile === previousTile) {
+      audioCurrentPage = normalizedTarget;
+      return;
+    }
+    currentTile = nextTile;
+    window.currentTile = currentTile;
+  } else {
+    nextPage = Math.max(1, Math.min(nextPage, pdfDoc.numPages));
+    if (nextPage === previousPage) {
+      audioCurrentPage = normalizedTarget;
+      return;
+    }
+    currentTile = 1;
+    window.currentTile = 1;
+  }
+
+  audioCurrentPage = normalizedTarget;
+  pageNum = nextPage;
+  window.pageNum = pageNum;
+
+  if (!renderCurrentModePage()) {
+    if (mode === 'double' && typeof renderDoublePage === 'function') {
+      renderDoublePage(pageNum);
+    }
+  }
+}
+
+function syncAudiobookToPage(targetPage, preferredPosition = null) {
+
+  const audioEl = document.getElementById('audioEl');
+  if (!audioEl || !audiobookCues.length) return null;
+
+  const exactTime = findAudiobookTimeForPage(targetPage, preferredPosition ?? getAudiobookPreferredPositionForPageJump());
+  if (exactTime !== null) {
+    audioEl.currentTime = exactTime;
+    updateAudiobookAudioUI();
+    return exactTime;
+  }
+
+  const pageNumber = Number(targetPage);
+  if (!Number.isFinite(pageNumber)) return null;
+
+  let fallbackTime = null;
+  let fallbackPage = -Infinity;
+  for (const cue of audiobookCues) {
+    if (cue.page <= pageNumber && cue.page > fallbackPage) {
+      fallbackPage = cue.page;
+      fallbackTime = cue.start;
+    }
+  }
+
+  if (fallbackTime === null) return null;
+  audioEl.currentTime = fallbackTime;
+  updateAudiobookAudioUI();
+  return fallbackTime;
+}
+
+function syncAudiobookToCurrentView(targetPage = null, preferredPosition = null) {
+  const context = getAudiobookReadingContext();
+  const resolvedPage = targetPage === null || targetPage === undefined
+    ? context.displayPage
+    : Number(targetPage);
+  const resolvedPosition = normalizeAudiobookPositionHint(preferredPosition) || context.position;
+  return syncAudiobookToPage(resolvedPage, resolvedPosition);
+}
+
+function resetAudiobookState() {
+
+
+  stopAudiobookSync();
+
+  const audioEl = document.getElementById('audioEl');
+  if (audioEl) {
+    try { audioEl.pause(); } catch (err) {}
+    audioEl.removeAttribute('src');
+    audioEl.load();
+  }
+
+  audiobookManifest = null;
+  audiobookCues = [];
+  audiobookLoaded = false;
+  audiobookAvailable = false;
+  audioHasEverPlayed = false;
+  audiobookPlaybackState = 'paused';
+  audiobookPausedSnapshot = null;
+  audiobookAudioUrl = '';
+  audiobookManifestUrl = '';
+  audioCurrentPage = 1;
+  lastSyncTime = 0;
+  isAutoSync = true;
+
+  const audioStatus = document.getElementById('audioStatus');
+  if (audioStatus) audioStatus.textContent = 'Audio: Not loaded';
+  const audioPageSync = document.getElementById('audioPageSync');
+  if (audioPageSync) audioPageSync.textContent = 'Page sync: Not loaded';
+  const audioTime = document.getElementById('audioTime');
+  if (audioTime) audioTime.textContent = '0:00';
+  const audioDuration = document.getElementById('audioDuration');
+  if (audioDuration) audioDuration.textContent = '0:00';
+  const audioProgress = document.getElementById('audioProgress');
+  if (audioProgress) audioProgress.value = 0;
+  const syncToggleBtn = document.getElementById('syncToggleBtn');
+  if (syncToggleBtn) {
+    syncToggleBtn.textContent = 'Auto-Sync: ON';
+    syncToggleBtn.classList.add('active');
+  }
+  const playBtn = document.getElementById('audioPlayBtn');
+  if (playBtn) {
+    playBtn.textContent = '▶';
+    playBtn.classList.remove('playing');
+  }
+
+  const audioIcon = document.querySelector('.audio-toggle-icon');
+  if (audioIcon) {
+    audioIcon.classList.remove('audio-playing', 'audio-paused');
+    audioIcon.title = 'Toggle Audiobook Player';
+  }
+
+  const bar = document.getElementById('audioPlayerBar');
+  if (bar) bar.classList.remove('visible');
+}
+
+async function loadAudiobookForBook(bookUrl, sessionId = readerSessionId) {
+  const manifestUrl = buildAudiobookManifestUrl(bookUrl);
+  audiobookManifestUrl = manifestUrl;
+  audiobookAvailable = false;
+  audiobookLoaded = false;
+  audiobookManifest = null;
+  audiobookCues = [];
+  audiobookAudioUrl = '';
+
+  console.log('[Audiobook] checking manifest:', manifestUrl);
+
+  let response;
+  try {
+    response = await fetch(manifestUrl, { cache: 'no-store' });
+  } catch (err) {
+    console.log('[Audiobook] manifest fetch failed:', manifestUrl, err);
+    if (sessionId === readerSessionId) {
+      resetAudiobookState();
+      if (typeof updatePageIndicator === 'function') updatePageIndicator();
+    }
+    return;
+  }
+
+  if (sessionId !== readerSessionId) return;
+
+  if (!response.ok) {
+    console.log('[Audiobook] no audiobook JSON found for book:', bookUrl);
+    resetAudiobookState();
+    if (typeof updatePageIndicator === 'function') updatePageIndicator();
+    return;
+  }
+
+  try {
+    audiobookManifest = await response.json();
+    audiobookCues = normalizeAudiobookManifest(audiobookManifest);
+    audiobookAvailable = true;
+    console.log('[Audiobook] manifest found:', manifestUrl, 'cue count:', audiobookCues.length);
+    console.log('[Audiobook] audiobook JSON exists for book:', bookUrl);
+    const pageSyncEl = document.getElementById('audioPageSync');
+    if (pageSyncEl) {
+      pageSyncEl.textContent = `Page sync: Loaded (${audiobookCues.length} cues)`;
+    }
+  } catch (err) {
+    console.log('[Audiobook] manifest parsed but could not be read:', manifestUrl, err);
+    resetAudiobookState();
+    if (typeof updatePageIndicator === 'function') updatePageIndicator();
+    return;
+  }
+
+  const audioCandidates = buildAudiobookAudioCandidates(bookUrl);
+  const audioEl = document.getElementById('audioEl');
+  let audioFound = false;
+
+  for (const audioPath of audioCandidates) {
+    console.log('[Audiobook] checking audio file:', audioPath);
+    try {
+      const audioResponse = await fetch(audioPath, { method: 'HEAD', cache: 'no-store' });
+      if (sessionId !== readerSessionId) return;
+      if (audioResponse.ok) {
+        audiobookAudioUrl = audioPath;
+        audioFound = true;
+        if (audioEl) {
+          audioEl.src = audioPath;
+          audioEl.load();
+        }
+        console.log('[Audiobook] audio file found:', audioPath);
+        break;
+      }
+    } catch (err) {
+      console.log('[Audiobook] audio probe failed:', audioPath, err);
+    }
+  }
+
+  audiobookLoaded = audioFound;
+  if (!audioFound) {
+    console.log('[Audiobook] manifest found but audio file was not found for:', bookUrl);
+    const cueCount = audiobookCues.length;
+    resetAudiobookState();
+    const statusEl = document.getElementById('audioStatus');
+    if (statusEl) statusEl.textContent = 'Audio: Not found';
+    const pageSyncEl = document.getElementById('audioPageSync');
+    if (pageSyncEl) pageSyncEl.textContent = `Page sync: Audio missing (${cueCount} cues)`;
+    if (typeof updatePageIndicator === 'function') updatePageIndicator();
+    return;
+  }
+
+  const statusEl = document.getElementById('audioStatus');
+  if (statusEl) {
+    statusEl.textContent = audioFound ? 'Audio: Loaded' : 'Audio: Not found';
+  }
+
+  if (typeof updatePageIndicator === 'function') updatePageIndicator();
+}
+
+function syncAudiobookToggleIconState(state) {
+  const audioIcon = document.querySelector('.audio-toggle-icon');
+  if (!audioIcon) return;
+
+  const isPlaying = state === 'playing';
+  audioIcon.classList.toggle('audio-playing', isPlaying);
+  audioIcon.classList.remove('audio-paused');
+  audioIcon.title = isPlaying
+    ? 'Audiobook playing - click to pause'
+    : 'Audiobook paused - click to play';
+}
+
+function initAudiobookPlayer() {
+  const audioEl = document.getElementById('audioEl');
+  const playBtn = document.getElementById('audioPlayBtn');
+  const progress = document.getElementById('audioProgress');
+  const syncBtn = document.getElementById('syncToggleBtn');
+
+  if (!audioEl || !playBtn || !progress || !syncBtn) return;
+
+  function syncAudioToVisiblePageBeforePlay() {
+    if (!audiobookCues.length) return null;
+
+    const context = getAudiobookReadingContext();
+    const targetPage = Number.isFinite(context.displayPage) && context.displayPage > 0 ? Math.floor(context.displayPage) : 1;
+    const targetPosition = normalizeAudiobookPositionHint(context.position) || '↑';
+    const seekTime = syncAudiobookToCurrentView(targetPage, targetPosition);
+    if (Number.isFinite(seekTime)) {
+      audioEl.currentTime = seekTime;
+      updateAudiobookAudioUI();
+      lastSyncTime = 0;
+      console.log('[Audiobook] play re-anchored to visible page:', {
+        mode: context.mode,
+        basePage: context.basePage,
+        displayPage: targetPage,
+        position: targetPosition,
+        tile: context.tile,
+        seekTime
+      });
+    } else {
+      console.log('[Audiobook] no exact audiobook cue for visible page:', {
+        mode: context.mode,
+        basePage: context.basePage,
+        displayPage: targetPage,
+        position: targetPosition,
+        tile: context.tile
+      });
+    }
+    return seekTime;
+  }
+
+  playBtn.addEventListener('click', () => {
+    if (audioEl.paused) {
+      const resumeShouldResync = shouldResyncAudiobookOnResume();
+      const shouldRestorePausedTime = audiobookPausedSnapshot && !resumeShouldResync && Number.isFinite(audiobookPausedSnapshot.currentTime);
+      const seekTime = shouldRestorePausedTime
+        ? audiobookPausedSnapshot.currentTime
+        : syncAudioToVisiblePageBeforePlay();
+
+      audiobookPlaybackState = 'playing';
+      syncAudiobookToggleIconState('playing');
+
+      if (Number.isFinite(seekTime)) {
+        audioEl.currentTime = seekTime;
+        updateAudiobookAudioUI();
+        lastSyncTime = 0;
+      }
+
+      audioEl.play().then(() => {
+        playBtn.textContent = '⏸';
+        playBtn.classList.add('playing');
+        startAudiobookSync();
+      }).catch(err => {
+        console.error('[Audiobook] audio play failed:', err);
+        audiobookPlaybackState = 'paused';
+        syncAudiobookToggleIconState('paused');
+        const statusEl = document.getElementById('audioStatus');
+        if (statusEl) statusEl.textContent = 'Audio: Play failed';
+      });
+    } else {
+      audiobookPlaybackState = 'paused';
+      captureAudiobookPauseSnapshot();
+      audioEl.pause();
+      playBtn.textContent = '▶';
+      playBtn.classList.remove('playing');
+      syncAudiobookToggleIconState('paused');
+      stopAudiobookSync();
+    }
+  });
+
+  audioEl.addEventListener('play', () => {
+    audioHasEverPlayed = true;
+    audiobookPlaybackState = 'playing';
+    playBtn.textContent = '⏸';
+    playBtn.classList.add('playing');
+    syncAudiobookToggleIconState('playing');
+    startAudiobookSync();
+  });
+
+  audioEl.addEventListener('pause', () => {
+    audiobookPlaybackState = 'paused';
+    captureAudiobookPauseSnapshot();
+    playBtn.textContent = '▶';
+    playBtn.classList.remove('playing');
+    syncAudiobookToggleIconState('paused');
+    stopAudiobookSync();
+  });
+
+  progress.addEventListener('input', (e) => {
+    if (!audioEl.duration) return;
+    audioEl.currentTime = (Number(e.target.value) / 100) * audioEl.duration;
+    updateAudiobookAudioUI();
+    if (!audioEl.paused && isAutoSync && audiobookCues.length) {
+      syncPageToAudiobookTime(audioEl.currentTime);
+    }
+  });
+
+  audioEl.addEventListener('timeupdate', () => {
+    updateAudiobookAudioUI();
+    if (!audioEl.paused && isAutoSync && audiobookCues.length) {
+      const now = Date.now();
+      if (now - lastSyncTime > SYNC_THRESHOLD) {
+        syncPageToAudiobookTime(audioEl.currentTime);
+        lastSyncTime = now;
+      }
+    }
+  });
+
+  audioEl.addEventListener('ended', () => {
+    audiobookPlaybackState = 'paused';
+    clearAudiobookPauseSnapshot();
+    playBtn.textContent = '▶';
+    playBtn.classList.remove('playing');
+    syncAudiobookToggleIconState('paused');
+    stopAudiobookSync();
+  });
+
+  audioEl.addEventListener('loadedmetadata', () => {
+    const statusEl = document.getElementById('audioStatus');
+    if (statusEl) statusEl.textContent = 'Audio: Loaded';
+    const durationEl = document.getElementById('audioDuration');
+    if (durationEl) durationEl.textContent = formatAudiobookTime(audioEl.duration || 0);
+    const pageSyncEl = document.getElementById('audioPageSync');
+    if (pageSyncEl && audiobookCues.length) {
+      pageSyncEl.textContent = `Page sync: Ready (${audiobookCues.length} cues)`;
+    }
+    audiobookLoaded = true;
+    syncAudiobookToggleIconState(audiobookPlaybackState);
+  });
+
+  syncBtn.addEventListener('click', () => {
+    isAutoSync = !isAutoSync;
+    syncBtn.classList.toggle('active', isAutoSync);
+    syncBtn.textContent = `Auto-Sync: ${isAutoSync ? 'ON' : 'OFF'}`;
+  });
+
+  const audioIcon = document.querySelector('.audio-toggle-icon');
+  if (audioIcon) {
+    audioIcon.onclick = () => playBtn.click();
+  }
+
+  syncAudiobookToggleIconState(audiobookPlaybackState);
+}
+
+function toggleAudiobookPlayer() {
+  const playBtn = document.getElementById('audioPlayBtn');
+  if (!playBtn) return;
+  playBtn.click();
 }
 
 function prepareHiDPICanvas(canvas, logicalWidth, logicalHeight) {
@@ -795,7 +1688,7 @@ function renderPdfPageToCanvas(page, canvas, scale) {
       groupHeader.classList.add('group-header');
       const groupTitle = resolveGuidebookDisplayTitle(item) || String(item.title || '').trim();
       groupHeader.innerHTML = `
-        <img src="${item.cover}" alt="${groupTitle}">
+        <img src="${rootAssetUrl(item.cover)}" alt="${groupTitle}">
         <p>${groupTitle}</p>
       `;
       groupHeader.onclick = () => {
@@ -815,10 +1708,10 @@ function renderPdfPageToCanvas(page, canvas, scale) {
         bookDiv.classList.add('book');
         const displayTitle = resolveGuidebookDisplayTitle(book) || String(book.title || '').trim();
         bookDiv.innerHTML = `
-          <img src="${book.cover}" alt="${displayTitle}">
+          <img src="${rootAssetUrl(book.cover)}" alt="${displayTitle}">
           <p>${displayTitle}</p>
         `;
-        bookDiv.onclick = () => { openPDF(book.file, displayTitle); };
+        bookDiv.onclick = () => { openPDF(rootAssetUrl(book.file), displayTitle); };
         groupContainer.appendChild(bookDiv);
       });
       container.appendChild(groupContainer);
@@ -828,10 +1721,10 @@ function renderPdfPageToCanvas(page, canvas, scale) {
       bookDiv.classList.add('book');
       const displayTitle = resolveGuidebookDisplayTitle(item) || String(item.title || '').trim();
       bookDiv.innerHTML = `
-        <img src="${item.cover}" alt="${displayTitle}">
+        <img src="${rootAssetUrl(item.cover)}" alt="${displayTitle}">
         <p>${displayTitle}</p>
       `;
-      bookDiv.onclick = () => { openPDF(item.file, displayTitle); };
+      bookDiv.onclick = () => { openPDF(rootAssetUrl(item.file), displayTitle); };
       container.appendChild(bookDiv);
     }
   });
@@ -858,7 +1751,7 @@ function renderPdfPageToCanvas(page, canvas, scale) {
     for (const item of items) {
       if (!item.group) {
         if (matchesItem(item)) {
-          openPDF(item.file, resolveGuidebookDisplayTitle(item) || String(item.title || '').trim());
+          openPDF(rootAssetUrl(item.file), resolveGuidebookDisplayTitle(item) || String(item.title || '').trim());
           found = true;
           break;
         }
@@ -876,7 +1769,7 @@ function renderPdfPageToCanvas(page, canvas, scale) {
                   hdr.nextElementSibling.style.display = 'flex';
                 }
               });
-              openPDF(Guidebook.file, resolveGuidebookDisplayTitle(Guidebook) || String(Guidebook.title || '').trim());
+              openPDF(rootAssetUrl(Guidebook.file), resolveGuidebookDisplayTitle(Guidebook) || String(Guidebook.title || '').trim());
               found = true;
               break;
             }
@@ -890,21 +1783,25 @@ function renderPdfPageToCanvas(page, canvas, scale) {
       console.warn(`Guidebook "${decoded}" not found in items. Redirecting to booklib flow.`);
       const cleanGuidebook = decoded.replace(/\.(pdf|cbz|cbr)$/i, '');
       const redirectUrl =
-        `./booklib.html?flow=1&step=2&Guidebook=${encodeURIComponent(cleanGuidebook)}`;
+        `${location.origin}/emulator/iframehelper.html?flow=1&step=2&Guidebook=${encodeURIComponent(cleanGuidebook)}`;
+      const payload = {
+        type: 'open-booklib-flow',
+        url: redirectUrl,
+        guidebook: cleanGuidebook
+      };
+      try {
+        window.parent && window.parent !== window && window.parent.postMessage(payload, '*');
+      } catch {}
+      try {
+        window.top && window.top !== window && window.top !== window.parent && window.top.postMessage(payload, '*');
+      } catch {}
+      if (window.parent && window.parent !== window) {
+        return;
+      }
       window.location.replace(redirectUrl);
       return;
     }
   }
-  // -------- Deep‑link handling ends here --------
-    // -------- Deep‑link handling ends here --------
-	  // -------- Deep‑link handling ends here ------
-	      // -------- Deep‑link handling ends here --------
-	  // -------- Deep‑link handling ends here --------
-	    // -------- Deep‑link handling ends here --------
-		  // -------- Deep‑link handling ends here --------
-		    // -------- Deep‑link handling ends here --------
-			  // -------- Deep‑link handling ends here --------  // -------- Deep‑link handling ends here --------
-
 
 });
     function toggleMode() {
@@ -928,14 +1825,19 @@ function renderPdfPageToCanvas(page, canvas, scale) {
 
       isDarkMode = !isDarkMode;
       // Re-render the current page in the new mode
-      renderDoublePage(pageNum);
+      if (typeof window.renderDoublePage === 'function') {
+        window.renderDoublePage(pageNum);
+      }
     }
     updateButtonZ();
 
     function openPDF(url, title, startPage = null) {
       const sessionId = ++readerSessionId;
+      const normalizedUrl = rootAssetUrl(url);
       currentBookTitle = title;
-      currentBook = url;
+      currentBook = normalizedUrl;
+      clearHalfViewState();
+      resetAudiobookState();
       clearPageIndicator();
       pageRendering = false;
       pageNumPending = null;
@@ -953,23 +1855,28 @@ function renderPdfPageToCanvas(page, canvas, scale) {
       const profile = getActiveProfile();
       const explicitStartPage = Number.isFinite(startPage) && startPage > 0 ? startPage : null;
       const savedPage =
-        readPersistedProgress(profile, url) ??
+        readPersistedProgress(profile, normalizedUrl) ??
         readPersistedProgress(profile, currentBook) ??
         null;
       pageNum = explicitStartPage || (savedPage ? parseInt(savedPage, 10) : 1);
 
-      pdfjsLib.getDocument(url).promise.then(pdf => {
+      loadAudiobookForBook(normalizedUrl, sessionId);
+
+      pdfjsLib.getDocument(normalizedUrl).promise.then(pdf => {
         if (sessionId !== readerSessionId) {
           try { pdf.destroy && pdf.destroy(); } catch (err) {}
           return;
         }
         pdfDoc = pdf;
-        renderDoublePage(pageNum);
+        if (typeof window.renderDoublePage === 'function') {
+          window.renderDoublePage(pageNum);
+        }
       }).catch(err => {
         if (sessionId !== readerSessionId) return;
         console.error('Failed to open PDF:', err);
       });
     }
+
 function renderDoublePage(num) {
   if (!pdfDoc) return;
   pageRendering = true;
@@ -1044,7 +1951,7 @@ function renderDoublePage(num) {
             if (pageNumPending !== null) {
               const pending = pageNumPending;
               pageNumPending = null;
-              renderDoublePage(pending);
+              if (typeof window.renderDoublePage === 'function') window.renderDoublePage(pending);
             }
           });
         });
@@ -1084,27 +1991,110 @@ function renderDoublePage(num) {
         if (pageNumPending !== null) {
           const pending = pageNumPending;
           pageNumPending = null;
-          renderDoublePage(pending);
+          if (typeof window.renderDoublePage === 'function') window.renderDoublePage(pending);
         }
       }
     });
   });
 }
     function nextPage() {
-      if (pdfDoc && pageNum < pdfDoc.numPages) {
-        pageNum += 2;
-        renderDoublePage(pageNum);
+      const mode = window.pageViewMode || (window.halfMode ? 'half' : 'double') || 'double';
+
+      if (mode === 'half') {
+        if (typeof window.nextHalf === 'function') return window.nextHalf();
+        if (!pdfDoc) return;
+        if (currentTile < 4) {
+          currentTile++;
+        } else {
+          if (pageNum + 2 <= pdfDoc.numPages) pageNum += 2;
+          currentTile = 1;
+        }
+        window.pageNum = pageNum;
+        window.currentTile = currentTile;
+        persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
+        if (typeof renderCurrentModePage === 'function') renderCurrentModePage();
+        syncAudiobookToCurrentView();
+        return;
       }
+
+      if (!pdfDoc) return;
+      const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
+
+      if (mode === 'single') {
+          clearHalfViewState();
+          if (isManga) {
+              if (pageNum % 2 === 0) {
+                  pageNum = pageNum - 1;
+              } else {
+                  let nextVal = pageNum + 3;
+                  if (nextVal > pdfDoc.numPages) {
+                      nextVal = pageNum + 2;
+                      if (nextVal > pdfDoc.numPages) nextVal = pageNum;
+                  }
+                  pageNum = nextVal;
+              }
+          } else {
+              pageNum = Math.min(pdfDoc.numPages, pageNum + 1);
+          }
+      } else {
+          clearHalfViewState();
+          pageNum = Math.min(pdfDoc.numPages, pageNum + 2);
+      }
+      window.pageNum = pageNum;
+      persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
+      if (typeof renderCurrentModePage === 'function') renderCurrentModePage();
+      syncAudiobookToCurrentView();
     }
 
     function prevPage() {
-      if (pageNum > 1) {
-        pageNum -= 2;
-        renderDoublePage(pageNum);
+      const mode = window.pageViewMode || (window.halfMode ? 'half' : 'double') || 'double';
+
+      if (mode === 'half') {
+        if (typeof window.prevHalf === 'function') return window.prevHalf();
+        if (!pdfDoc) return;
+        if (currentTile > 1) {
+          currentTile--;
+        } else {
+          if (pageNum - 2 >= 1) pageNum -= 2;
+          currentTile = 4;
+        }
+        window.pageNum = pageNum;
+        window.currentTile = currentTile;
+        persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
+        if (typeof renderCurrentModePage === 'function') renderCurrentModePage();
+        syncAudiobookToCurrentView();
+        return;
       }
+
+      if (!pdfDoc) return;
+      const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
+
+      if (mode === 'single') {
+          clearHalfViewState();
+          if (isManga) {
+              if (pageNum % 2 === 0) {
+                  pageNum = pageNum - 3;
+                  if (pageNum < 1) pageNum = 2;
+              } else {
+                  let nextVal = pageNum + 1;
+                  if (nextVal > pdfDoc.numPages) nextVal = pageNum - 2;
+                  pageNum = nextVal;
+              }
+          } else {
+              pageNum = Math.max(1, pageNum - 1);
+          }
+      } else {
+          clearHalfViewState();
+          pageNum = Math.max(1, pageNum - 2);
+      }
+      window.pageNum = pageNum;
+      persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
+      if (typeof renderCurrentModePage === 'function') renderCurrentModePage();
+      syncAudiobookToCurrentView();
     }
 
     function closeReader() {
+
     readerSessionId++;
     pageRendering = false;
     pageNumPending = null;
@@ -1128,6 +2118,7 @@ function renderDoublePage(num) {
     pdfDoc = null;
     currentBook = '';
     currentBookTitle = '';
+    resetAudiobookState();
     clearPageIndicator();
 
     const viewer = document.getElementById('viewer');
@@ -1400,7 +2391,7 @@ document.addEventListener('keydown', (e) => {
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
             li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
             resultsList.appendChild(li);
           }
         });
@@ -1424,7 +2415,7 @@ document.addEventListener('keydown', (e) => {
       if (!img || !nameSpan) return;
 
       if (profile) {
-        img.src = `./Profiles/${profile}.jpg`;
+        img.src = rootAssetUrl(`Profiles/${profile}.jpg`);
         img.alt = profile;
         img.style.display = "block";
 
@@ -1458,7 +2449,7 @@ document.addEventListener('keydown', (e) => {
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
             li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
             resultsList.appendChild(li);
           }
         });
@@ -1488,7 +2479,7 @@ function toggleMode() {
   }
 
   isDarkMode = !isDarkMode;
-  renderDoublePage(pageNum);
+  if (typeof window.renderDoublePage === 'function') window.renderDoublePage(pageNum);
   updateButtonZ?.();
 }
 
@@ -1521,16 +2512,15 @@ function toggleFullscreen() {
   updateButtonZ?.();
 }
 </script>
-<!-- Active Profile Loader (from radio.html), updated for multiple icons -->
 <script>
     (async () => {
       const profile = localStorage.getItem("activeProfile") || "Guest";
       document.querySelectorAll(".profile-icon").forEach(img => {
-        img.src = `./Profiles/${profile}.jpg`;
+        img.src = rootAssetUrl(`Profiles/${profile}.jpg`);
         img.alt = profile;
         img.style.display = "block";
         img.addEventListener('click', () => {
-          window.location.href = `./profile.html?profile=${profile}`;
+          window.location.href = `/profile.html?profile=${profile}`;
         });
       });
     })();
@@ -1554,7 +2544,7 @@ function toggleFullscreen() {
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
             li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
             resultsList.appendChild(li);
           }
         });
@@ -1656,9 +2646,7 @@ function loadBookmarks() {
       }
 
       li.onclick = () => {
-        pageNum = data.page;
-        renderDoublePage(pageNum);
-        closeBookmarkDialog();
+        jumpToPageAndSyncAudio(data.page, { closeDialog: true });
       };
 
       list.appendChild(li);
@@ -1669,10 +2657,7 @@ function loadBookmarks() {
 function goToPage() {
   let p = parseInt(document.getElementById('inputPageNumber').value);
   if (isNaN(p) || p < 1) return;
-  if (p % 2 === 0) p--;
-  pageNum = p;
-  renderDoublePage(pageNum);
-  closeBookmarkDialog();
+  jumpToPageAndSyncAudio(p, { closeDialog: true });
 }
 
 function clearPageIndicator() {
@@ -1680,42 +2665,125 @@ function clearPageIndicator() {
   if (!container) return;
   container.querySelector('.page-indicator')?.remove();
   container.querySelector('.tile-indicator')?.remove();
+  container.querySelector('.audio-toggle-icon')?.remove();
   container.querySelector('#pageNoteDisplay')?.remove();
 }
 
 function updatePageIndicator() {
-  let indicator = document.querySelector('.page-indicator');
-  if (!indicator) {
-    indicator = document.createElement('div');
-    indicator.className = 'page-indicator';
-    document.getElementById('reader-container').appendChild(indicator);
+  const container = document.getElementById('reader-container');
+  if (!container) return;
+
+  // Remove any stale standalone nodes from earlier layout versions.
+  container.querySelector('.page-status-group')?.remove();
+  container.querySelector('.tile-indicator')?.remove();
+  container.querySelector('.page-indicator')?.remove();
+  container.querySelector('.audio-toggle-icon')?.remove();
+  document.getElementById('pageNoteDisplay')?.remove();
+
+  const group = document.createElement('div');
+  group.className = 'page-status-group';
+
+  const row = document.createElement('div');
+  row.className = 'page-status-row';
+
+  if (audiobookAvailable) {
+    const audioIcon = document.createElement('div');
+    audioIcon.className = 'audio-toggle-icon';
+    audioIcon.textContent = '♫';
+    audioIcon.title = audiobookPlaybackState === 'playing'
+      ? 'Audiobook playing - click to pause'
+      : 'Audiobook paused - click to play';
+    audioIcon.onclick = toggleAudiobookPlayer;
+    row.appendChild(audioIcon);
+
+    syncAudiobookToggleIconState(audiobookPlaybackState);
   }
-  indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
+
+  const rightPage = pdfDoc ? Math.min(pageNum + 1, pdfDoc.numPages) : pageNum + 1;
+  const indicator = document.createElement('div');
+  indicator.className = 'page-indicator';
+  indicator.textContent = `Pg. ${pageNum} - ${rightPage}`;
   indicator.style.cursor = 'pointer';
   indicator.onclick = openBookmarkDialog;
+  row.appendChild(indicator);
 
-  // Display saved note under the indicator
-  let existingNote = document.getElementById('pageNoteDisplay');
-  if (existingNote) existingNote.remove();
+  group.appendChild(row);
 
-  // Retrieve note for current page using active profile
+  if (window.halfMode || window.pageViewMode === 'single') {
+    const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
+    const modePreview = document.createElement('div');
+    modePreview.className = `tile-indicator ${window.halfMode ? 'half' : 'single'}`;
+    modePreview.style.marginTop = '1px';
+    
+    // CSS-level direction reverse handles layout seamlessly for manga
+    if (isManga) {
+      modePreview.style.direction = 'rtl';
+    }
+
+    const tileCount = window.halfMode ? 4 : 2;
+    let activeIndex;
+    
+    if (window.halfMode) {
+        activeIndex = Number(currentTile || window.currentTile || 1) || 1;
+    } else {
+        if (isManga) {
+            activeIndex = (pageNum % 2 === 0) ? 1 : 2;
+        } else {
+            activeIndex = (pageNum % 2 === 0) ? 2 : 1;
+        }
+    }
+
+    for (let i = 1; i <= tileCount; i++) {
+      const tile = document.createElement('div');
+      tile.className = `tile ${i === activeIndex ? 'active' : ''}`;
+      tile.dataset.tile = String(i);
+      
+      if (window.halfMode) {
+        const labels = isManga
+          ? ['Upper-right', 'Lower-right', 'Upper-left', 'Lower-left']
+          : ['Upper-left', 'Lower-left', 'Upper-right', 'Lower-right'];
+        tile.title = labels[i - 1];
+        tile.addEventListener('click', () => {
+          currentTile = i;
+          if (typeof renderHalfPage === 'function') renderHalfPage(pageNum, currentTile);
+          if (typeof updatePageIndicator === 'function') updatePageIndicator();
+        });
+      } else {
+        const labels = isManga
+          ? ['Right side', 'Left side']
+          : ['Left side', 'Right side'];
+        tile.title = labels[i - 1];
+      }
+      modePreview.appendChild(tile);
+    }
+    group.appendChild(modePreview);
+  }
+
   const profile = getActiveProfile();
   const noteKey = `bookmark-${profile}-${currentBook}-${pageNum}`;
-  const bookmarkData = JSON.parse(localStorage.getItem(noteKey) || '{}');
+  let bookmarkData = {};
+  try {
+    bookmarkData = JSON.parse(localStorage.getItem(noteKey) || '{}') || {};
+  } catch (e) {
+    bookmarkData = {};
+  }
 
   if (bookmarkData.note) {
     const noteEl = document.createElement('div');
     noteEl.id = 'pageNoteDisplay';
-    noteEl.style.cssText = 'text-align:center; margin-top:4px; color:white; font-style:italic;';
+    noteEl.className = 'page-status-note';
     noteEl.textContent = bookmarkData.note;
-    indicator.parentNode.appendChild(noteEl);
+    group.appendChild(noteEl);
   }
+
+  container.appendChild(group);
 }
 
 // Hook into renderDoublePage
+
 const _origRender = renderDoublePage;
 renderDoublePage = function(num) {
-  _origRender(num);
+  if (typeof _origRender === 'function') _origRender(num);
   updatePageIndicator();
   // Save current page progress per profile
   const profile = getActiveProfile();
@@ -1724,6 +2792,7 @@ renderDoublePage = function(num) {
 
 // Initialize bookmark functionality
 document.addEventListener('DOMContentLoaded', () => {
+  initAudiobookPlayer();
   document.getElementById('btnAddBookmark').onclick = addBookmark;
   document.getElementById('btnGoPage').onclick = goToPage;
   document.getElementById('btnCloseDialog').onclick = closeBookmarkDialog;
@@ -1753,7 +2822,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
             li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
             resultsList.appendChild(li);
           }
         });
@@ -1816,7 +2885,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openPDF = async function(url, title, startPage = null) {
       const explicitStartPage = Number.isFinite(startPage) && startPage > 0 ? startPage : null;
       if (explicitStartPage) {
-        origOpen(url, title, startPage);
+        if (typeof origOpen === 'function') origOpen(url, title, startPage);
         return;
       }
 
@@ -1830,14 +2899,14 @@ document.addEventListener('DOMContentLoaded', () => {
         ? serverPage
         : (Number.isFinite(fallbackLocalPage) && fallbackLocalPage > 0 ? fallbackLocalPage : null);
 
-      origOpen(url, title, start);
+      if (typeof origOpen === 'function') origOpen(url, title, start);
     };
   })();
   // Hook into page rendering  // Hook into page rendering
   const origRender = window.renderDoublePage;
   window.renderDoublePage = function(num) {
     if (!pdfDoc || !currentBook) return;
-    origRender(num);
+    if (typeof origRender === 'function') origRender(num);
     if (!pdfDoc || !currentBook) return;
     const profile = localStorage.getItem('activeProfile') || 'Guest';
     persistProgress(profile, currentBook, num);
@@ -1862,7 +2931,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
             li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
             resultsList.appendChild(li);
           }
         });
@@ -2008,74 +3077,95 @@ async function loadBookmarks() {
         li.appendChild(noteDiv);
       }
       li.onclick = () => {
-        pageNum = data.page;
-        if (typeof renderDoublePage === 'function') renderDoublePage(pageNum);
-        closeBookmarkDialog();
+        jumpToPageAndSyncAudio(data.page, { closeDialog: true });
       };
       list.appendChild(li);
     }
   }
 }
-function updatePageIndicator() {
-  // Remove any old indicators
-  document.querySelector('.page-indicator')?.remove();
-  document.querySelector('.tile-indicator')?.remove();
 
+function renderPageStatusGroup({ indicatorText, onIndicatorClick, noteText = '', includeAudio = true, modePreview = null }) {
   const container = document.getElementById('reader-container');
+  if (!container) return null;
 
-  if (window.halfMode) {
-    // --- Tile indicator (as before) ---
-  const tileIndicator = document.createElement('div');
-    tileIndicator.className = 'tile-indicator';
-    // ↑ add some space below the tiles so they don't overlap the page‑indicator
-    tileIndicator.style.marginBottom = '1em';
-    for (let i = 1; i <= 4; i++) {
-      const tile = document.createElement('div');
-      tile.className = `tile ${i === currentTile ? 'active' : ''}`;
-      tile.dataset.tile = i;
-      tile.addEventListener('click', () => {
-        currentTile = i;
-        renderHalfPage(pageNum, currentTile);
-        updatePageIndicator();
-      });
-      tileIndicator.appendChild(tile);
-    }
-    container.appendChild(tileIndicator);
+  container.querySelector('.page-status-group')?.remove();
+  container.querySelector('.tile-indicator')?.remove();
+  container.querySelector('.page-indicator')?.remove();
+  container.querySelector('.audio-toggle-icon')?.remove();
+  container.querySelector('#pageNoteDisplay')?.remove();
 
-    // --- Pg. X‑Y indicator (new for halfMode) ---
-    const indicator = document.createElement('div');
-    indicator.className = 'page-indicator';
-    indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
-    indicator.style.cursor = 'pointer';
-    indicator.onclick = openBookmarkDialog;
-    container.appendChild(indicator);
+  const group = document.createElement('div');
+  group.className = 'page-status-group';
 
-  } else {
-    // --- Normal two‑page indicator (unchanged) ---
-    const indicator = document.createElement('div');
-    indicator.className = 'page-indicator';
-    indicator.textContent = `Pg. ${pageNum} - ${pageNum + 1}`;
-    indicator.style.cursor = 'pointer';
-    indicator.onclick = openBookmarkDialog;
-    container.appendChild(indicator);
+  const row = document.createElement('div');
+  row.className = 'page-status-row';
 
-    // (Existing server‑note logic can remain here)
-    const profile = getActiveProfile();
-    const bookKey = getBookKey(currentBook);
-    (async () => {
-      const serverBookmarks = await loadServerBookmarks(profile, bookKey);
-      const note = serverBookmarks?.[pageNum] || '';
-      if (note) {
-        const noteEl = document.createElement('div');
-        noteEl.id = 'pageNoteDisplay';
-        noteEl.style.cssText = 'text-align:center; margin-top:4px; color:white; font-style:italic;';
-        noteEl.textContent = note;
-        indicator.parentNode.appendChild(noteEl);
-      }
-    })();
+  if (includeAudio && audiobookAvailable) {
+    const audioIcon = document.createElement('div');
+    audioIcon.className = 'audio-toggle-icon';
+    audioIcon.textContent = '♫';
+    audioIcon.title = audiobookPlaybackState === 'playing'
+      ? 'Audiobook playing - click to pause'
+      : 'Audiobook paused - click to play';
+    audioIcon.onclick = toggleAudiobookPlayer;
+    row.appendChild(audioIcon);
+    syncAudiobookToggleIconState(audiobookPlaybackState);
   }
+
+  const indicator = document.createElement('div');
+  indicator.className = 'page-indicator';
+  indicator.textContent = indicatorText;
+  indicator.style.cursor = 'pointer';
+  if (typeof onIndicatorClick === 'function') {
+    indicator.onclick = onIndicatorClick;
+  }
+  row.appendChild(indicator);
+  group.appendChild(row);
+
+  if (modePreview) {
+    const preview = modePreview;
+    preview.style.marginTop = '1px';
+    group.appendChild(preview);
+  }
+
+  if (noteText) {
+    const noteEl = document.createElement('div');
+    noteEl.id = 'pageNoteDisplay';
+    noteEl.className = 'page-status-note';
+    noteEl.textContent = noteText;
+    group.appendChild(noteEl);
+  }
+
+  container.appendChild(group);
+  return group;
 }
 
+function updatePageIndicator() {
+  const container = document.getElementById('reader-container');
+  if (!container) return;
+
+  const mode = getPageViewMode();
+  const basePage = getBasePageNumber();
+  const profile = typeof getActiveProfile === 'function' ? getActiveProfile() : 'Guest';
+  const notePage = getDisplayedPageNumber();
+  const noteKey = `bookmark-${profile}-${currentBook}-${notePage}`;
+  let bookmarkData = {};
+  try {
+    bookmarkData = JSON.parse(localStorage.getItem(noteKey) || '{}') || {};
+  } catch (e) {
+    bookmarkData = {};
+  }
+
+  const preview = (mode === 'half' || mode === 'single') ? buildModePreview(mode, basePage) : null;
+
+  renderPageStatusGroup({
+    indicatorText: getPageIndicatorText(),
+    onIndicatorClick: typeof openBookmarkDialog === 'function' ? openBookmarkDialog : null,
+    noteText: bookmarkData.note || '',
+    includeAudio: true,
+    modePreview: preview
+  });
+}
 
 // Hook into renderDoublePage to save progress and update indicator
 if (typeof renderDoublePage === 'function') {
@@ -2088,6 +3178,55 @@ if (typeof renderDoublePage === 'function') {
   };
 }
 
+
+function jumpToPageAndSyncAudio(targetPage, options = {}) {
+  const pageNumber = Number(targetPage);
+  if (!Number.isFinite(pageNumber) || pageNumber < 1) return;
+
+  const totalPages = (pdfDoc && Number.isFinite(pdfDoc.numPages)) ? pdfDoc.numPages : null;
+  const boundedPage = totalPages ? Math.min(totalPages, Math.max(1, Math.floor(pageNumber))) : Math.max(1, Math.floor(pageNumber));
+  const mode = window.pageViewMode || (window.halfMode ? 'half' : 'double') || 'double';
+  clearHalfViewState();
+
+  if (mode === 'half') {
+    const desiredPosition = normalizeAudiobookPositionHint(options.position) || '↑';
+    pageNum = getDisplayPageForMode(boundedPage, 'half');
+    window.pageNum = pageNum;
+    currentTile = getHalfModeTileForPage(boundedPage, desiredPosition);
+    window.currentTile = currentTile;
+  } else if (mode === 'single') {
+    pageNum = boundedPage;
+    window.pageNum = pageNum;
+    currentTile = 1;
+    window.currentTile = 1;
+  } else {
+    pageNum = getDisplayPageForMode(boundedPage, 'double');
+    window.pageNum = pageNum;
+    currentTile = 1;
+    window.currentTile = 1;
+  }
+
+  if (!renderCurrentModePage()) {
+    if (mode === 'double' && typeof renderDoublePage === 'function') {
+      renderDoublePage(pageNum);
+    } else if (mode === 'single' && typeof renderOnePage === 'function') {
+      renderOnePage(pageNum);
+    } else if (mode === 'half' && typeof renderHalfPage === 'function') {
+      renderHalfPage(pageNum, currentTile || 1);
+    }
+  }
+
+  syncAudiobookToCurrentView(boundedPage, mode === 'half' ? getAudiobookPreferredPositionForView() : '↑');
+
+  if (options.closeDialog && typeof closeBookmarkDialog === 'function') {
+    closeBookmarkDialog();
+  }
+  if (options.hideSearchResultsId) {
+    const panel = document.getElementById(options.hideSearchResultsId);
+    if (panel) panel.style.display = 'none';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const btnAdd = document.getElementById('btnAddBookmark');
   if (btnAdd) btnAdd.onclick = addBookmark;
@@ -2097,10 +3236,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnGo) btnGo.onclick = () => {
     let p = parseInt(document.getElementById('inputPageNumber').value);
     if (isNaN(p) || p < 1) return;
-    if (p % 2 === 0) p--;
-    pageNum = p;
-    if (typeof renderDoublePage === 'function') renderDoublePage(pageNum);
-    closeBookmarkDialog();
+    jumpToPageAndSyncAudio(p, { closeDialog: true });
   };
 });
 
@@ -2123,7 +3259,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
             li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
             resultsList.appendChild(li);
           }
         });
@@ -2162,7 +3298,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
             li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
             resultsList.appendChild(li);
           }
         });
@@ -2278,7 +3414,7 @@ async function openBookmarkDialog() {
       const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
       li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
             li.style.cursor = 'pointer';
-            li.onclick = () => { pageNum = i; renderDoublePage(i); closeBookmarkDialog(); };
+            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
             resultsList.appendChild(li);
           }
         });
@@ -2287,7 +3423,6 @@ async function openBookmarkDialog() {
   };
 
 </script>
-<!-- Auto-open based on query parameters -->
 <script>
 function normalizeTitleKey(value) {
   return (value || '').replace(/[\s\-]/g, '').toLowerCase();
@@ -2336,7 +3471,7 @@ window.addEventListener('DOMContentLoaded', function() {
   if (!found) return;
 
   const startPage = readStartPageFromQuery(params);
-  openPDF(found.file, found.title, startPage);
+  if (typeof openPDF === 'function') openPDF(rootAssetUrl(found.file), found.title, startPage);
 });
 </script>
 <script>
@@ -2373,7 +3508,7 @@ window.addEventListener("DOMContentLoaded", function() {
   if (dialog) {
     dialog.addEventListener('click', function(e) {
       if (e.target === dialog) {
-        closeBookmarkDialog();
+        if (typeof closeBookmarkDialog === 'function') closeBookmarkDialog();
       }
     });
   }
@@ -2399,12 +3534,19 @@ window.addEventListener("DOMContentLoaded", function() {
     return Number.isFinite(n) && n > 0 ? n : 1;
   }
 
+  window.getCurrentTile = getCurrentTile;
+
   function getDisplayedPageNumber() {
     const mode = getPageViewMode();
     const basePage = getBasePageNumber();
 
     if (mode === 'half') {
-      return getCurrentTile() >= 3 ? basePage + 1 : basePage;
+      const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
+      if (isManga) {
+        return getCurrentTile() <= 2 ? basePage + 1 : basePage;
+      } else {
+        return getCurrentTile() >= 3 ? basePage + 1 : basePage;
+      }
     }
 
     return basePage;
@@ -2432,13 +3574,25 @@ window.addEventListener("DOMContentLoaded", function() {
   }
 
   function buildModePreview(mode, basePage) {
+    const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
     const tileIndicator = document.createElement('div');
     tileIndicator.className = `tile-indicator ${mode}`;
+    
+    if (isManga) {
+      tileIndicator.style.direction = 'rtl';
+    }
 
     const tileCount = mode === 'half' ? 4 : 2;
-    const activeIndex = mode === 'half'
-      ? getCurrentTile()
-      : ((basePage % 2 === 0) ? 2 : 1);
+    let activeIndex;
+    if (mode === 'half') {
+      activeIndex = getCurrentTile();
+    } else {
+      if (isManga) {
+        activeIndex = (basePage % 2 === 0) ? 1 : 2;
+      } else {
+        activeIndex = (basePage % 2 === 0) ? 2 : 1;
+      }
+    }
 
     for (let i = 1; i <= tileCount; i++) {
       const tile = document.createElement('div');
@@ -2446,7 +3600,9 @@ window.addEventListener("DOMContentLoaded", function() {
       tile.dataset.tile = String(i);
 
       if (mode === 'half') {
-        const labels = ['Upper-left', 'Lower-left', 'Upper-right', 'Lower-right'];
+        const labels = isManga
+          ? ['Upper-right', 'Lower-right', 'Upper-left', 'Lower-left']
+          : ['Upper-left', 'Lower-left', 'Upper-right', 'Lower-right'];
         tile.title = labels[i - 1];
         tile.addEventListener('click', () => {
           if (typeof window.currentTile !== 'undefined') {
@@ -2458,10 +3614,13 @@ window.addEventListener("DOMContentLoaded", function() {
           if (typeof renderHalfPage === 'function') {
             renderHalfPage(getBasePageNumber(), i);
           }
-          updatePageIndicator();
+          if (typeof updatePageIndicator === 'function') updatePageIndicator();
         });
       } else {
-        tile.title = i === 1 ? 'Left side' : 'Right side';
+        const labels = isManga
+          ? ['Right side', 'Left side']
+          : ['Left side', 'Right side'];
+        tile.title = labels[i - 1];
       }
 
       tileIndicator.appendChild(tile);
@@ -2474,38 +3633,33 @@ window.addEventListener("DOMContentLoaded", function() {
     const container = document.getElementById('reader-container');
     if (!container) return;
 
-    container.querySelector('.page-indicator')?.remove();
-    container.querySelector('.tile-indicator')?.remove();
-    container.querySelector('#pageNoteDisplay')?.remove();
-
     const mode = getPageViewMode();
     const basePage = getBasePageNumber();
-    const indicator = document.createElement('div');
-    indicator.className = 'page-indicator';
-    indicator.textContent = getPageIndicatorText();
-    indicator.style.cursor = 'pointer';
-    indicator.onclick = typeof openBookmarkDialog === 'function' ? openBookmarkDialog : null;
-    container.appendChild(indicator);
-
-    if (mode === 'half' || mode === 'single') {
-      container.appendChild(buildModePreview(mode, basePage));
-    }
 
     const profile = (typeof getActiveProfile === 'function') ? getActiveProfile() : 'Guest';
     const notePage = getDisplayedPageNumber();
     const noteKey = `bookmark-${profile}-${currentBook}-${notePage}`;
-    const bookmarkData = JSON.parse(localStorage.getItem(noteKey) || '{}');
+    let bookmarkData = {};
+    try {
+      bookmarkData = JSON.parse(localStorage.getItem(noteKey) || '{}') || {};
+    } catch (e) {
+      bookmarkData = {};
+    }
 
-    if (bookmarkData.note) {
-      const noteEl = document.createElement('div');
-      noteEl.id = 'pageNoteDisplay';
-      noteEl.style.cssText = 'text-align:center; margin-top:4px; color:white; font-style:italic;';
-      noteEl.textContent = bookmarkData.note;
-      container.appendChild(noteEl);
+    if (typeof renderPageStatusGroup === 'function') {
+        renderPageStatusGroup({
+          indicatorText: getPageIndicatorText(),
+          onIndicatorClick: typeof openBookmarkDialog === 'function' ? openBookmarkDialog : null,
+          noteText: bookmarkData.note || '',
+          includeAudio: true,
+          modePreview: (mode === 'half' || mode === 'single') ? buildModePreview(mode, basePage) : null
+        });
     }
   }
 
   window.updatePageIndicator = updatePageIndicator;
+  window.syncAudiobookToCurrentView = syncAudiobookToCurrentView;
+  window.jumpToPageAndSyncAudio = jumpToPageAndSyncAudio;
 
   if (typeof window.renderDoublePage === 'function') {
     const originalRenderDoublePage = window.renderDoublePage;
@@ -2529,6 +3683,34 @@ window.addEventListener("DOMContentLoaded", function() {
   window.pageViewMode = window.pageViewMode || 'double'; // double | half | single
   window.halfMode = window.pageViewMode === 'half';
   window.currentTile = window.currentTile || 1;
+  window.lastHalfViewState = window.lastHalfViewState || null;
+
+  const getLibraryMode = () => (new URLSearchParams(window.location.search).get('lib') || 'books');
+  const isMangaLibrary = () => getLibraryMode() === 'manga';
+  const rememberHalfViewState = () => {
+    if ((window.pageViewMode || 'double') !== 'half') return;
+    window.lastHalfViewState = {
+      book: currentBook,
+      lib: getLibraryMode(),
+      pageNum: Math.max(1, Math.floor(Number(pageNum || 1) || 1)),
+      tile: Math.max(1, Math.floor(Number(currentTile || window.currentTile || 1) || 1))
+    };
+  };
+  const clearHalfViewState = () => {
+    window.lastHalfViewState = null;
+  };
+  const restoreHalfViewState = () => {
+    const state = window.lastHalfViewState;
+    if (!state || state.book !== currentBook || state.lib !== getLibraryMode()) return false;
+    pageNum = Math.max(1, Math.floor(Number(state.pageNum || 1) || 1));
+    currentTile = Math.max(1, Math.floor(Number(state.tile || 1) || 1));
+    window.pageNum = pageNum;
+    window.currentTile = currentTile;
+    return true;
+  };
+  window.clearHalfViewState = clearHalfViewState;
+  window.rememberHalfViewState = rememberHalfViewState;
+  window.restoreHalfViewState = restoreHalfViewState;
 
   const syncToggleLabel = () => {
     const mode = window.pageViewMode || 'double';
@@ -2572,7 +3754,7 @@ window.addEventListener("DOMContentLoaded", function() {
 
         persistProgress(getActiveProfile(), currentBook, num);
 
-        updatePageIndicator();
+        if (typeof updatePageIndicator === 'function') updatePageIndicator();
       });
     });
   };
@@ -2593,10 +3775,10 @@ window.addEventListener("DOMContentLoaded", function() {
       renderOnePage(pageNum);
     } else {
       window.halfMode = false;
-      renderDoublePage(pageNum);
+      if (typeof renderDoublePage === 'function') renderDoublePage(pageNum);
     }
 
-    updatePageIndicator();
+    if (typeof updatePageIndicator === 'function') updatePageIndicator();
   };
 
   const syncNav = () => {
@@ -2609,9 +3791,29 @@ window.addEventListener("DOMContentLoaded", function() {
 
       if (!pdfDoc) return;
 
-      pageNum = Math.min(pdfDoc.numPages, pageNum + (mode === 'single' ? 1 : 2));
+      const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
+
+      if (mode === 'single') {
+          if (isManga) {
+              if (pageNum % 2 === 0) {
+                  pageNum = pageNum - 1;
+              } else {
+                  let nextVal = pageNum + 3;
+                  if (nextVal > pdfDoc.numPages) {
+                      nextVal = pageNum + 2;
+                      if (nextVal > pdfDoc.numPages) nextVal = pageNum;
+                  }
+                  pageNum = nextVal;
+              }
+          } else {
+              pageNum = Math.min(pdfDoc.numPages, pageNum + 1);
+          }
+      } else {
+          pageNum = Math.min(pdfDoc.numPages, pageNum + 2);
+      }
       persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
       renderCurrent();
+      syncAudiobookToCurrentView();
     };
 
     window.prevPage = () => {
@@ -2623,15 +3825,67 @@ window.addEventListener("DOMContentLoaded", function() {
 
       if (!pdfDoc) return;
 
-      pageNum = Math.max(1, pageNum - (mode === 'single' ? 1 : 2));
+      const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
+
+      if (mode === 'single') {
+          if (isManga) {
+              if (pageNum % 2 === 0) {
+                  pageNum = pageNum - 3;
+                  if (pageNum < 1) pageNum = 2;
+              } else {
+                  let nextVal = pageNum + 1;
+                  if (nextVal > pdfDoc.numPages) nextVal = pageNum - 2;
+                  pageNum = nextVal;
+              }
+          } else {
+              pageNum = Math.max(1, pageNum - 1);
+          }
+      } else {
+          pageNum = Math.max(1, pageNum - 2);
+      }
       persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
       renderCurrent();
+      syncAudiobookToCurrentView();
     };
   };
 
   const setMode = (mode) => {
+    const fromMode = typeof getPageViewMode === 'function' ? getPageViewMode() : (window.pageViewMode || (window.halfMode ? 'half' : 'double') || 'double');
+    const visiblePage = (typeof getDisplayedPageNumber === 'function') ? getDisplayedPageNumber() : pageNum;
+    const visibleTile = (typeof getCurrentTile === 'function') ? getCurrentTile() : (typeof window.currentTile !== 'undefined' ? (parseInt(window.currentTile || 1, 10) || 1) : 1);
+    const visiblePosition = fromMode === 'half' && (visibleTile === 2 || visibleTile === 4) ? '↓' : '↑';
+    const isManga = isMangaLibrary();
+
+    if (fromMode === 'half') {
+      rememberHalfViewState();
+    }
+
     window.pageViewMode = mode;
     window.halfMode = mode === 'half';
+
+    if (pdfDoc) {
+      if (mode === 'half') {
+        if (!restoreHalfViewState()) {
+          pageNum = getDisplayPageForMode(visiblePage, 'double');
+          if (fromMode === 'double' && isManga) {
+            currentTile = 1;
+          } else {
+            currentTile = (typeof getHalfModeTileForPage === 'function') ? getHalfModeTileForPage(visiblePage, visiblePosition) : 1;
+          }
+        }
+      } else if (mode === 'single') {
+        pageNum = visiblePage;
+        currentTile = 1;
+      } else {
+        pageNum = getDisplayPageForMode(visiblePage, 'double');
+        currentTile = 1;
+      }
+
+      pageNum = Math.max(1, Math.min(pageNum, pdfDoc.numPages));
+      window.pageNum = pageNum;
+      window.currentTile = currentTile;
+    }
+
     syncToggleLabel();
     syncNav();
     renderCurrent();
@@ -2676,7 +3930,14 @@ window.addEventListener("DOMContentLoaded", function() {
       if (!pdfDoc) return;
       pageRendering = true;
       const renderSessionId = readerSessionId;
-      const targetPage = (tile <= 2) ? pageNum : pageNum + 1;
+      const isManga = (new URLSearchParams(window.location.search).get('lib') || 'books') === 'manga';
+
+      let targetPage;
+      if (isManga) {
+          targetPage = (tile <= 2) ? pageNum + 1 : pageNum;
+      } else {
+          targetPage = (tile <= 2) ? pageNum : pageNum + 1;
+      }
 
       pdfDoc.getPage(targetPage).then(page => {
         if (renderSessionId !== readerSessionId || !pdfDoc) return;
@@ -2732,8 +3993,9 @@ window.addEventListener("DOMContentLoaded", function() {
           if (renderSessionId !== readerSessionId || !pdfDoc) return;
           pageRendering = false;
 
+          rememberHalfViewState();
           persistProgress(getActiveProfile(), currentBook, pageNum);
-          updatePageIndicator();
+          if (typeof updatePageIndicator === 'function') updatePageIndicator();
         });
       });
     };
@@ -2749,7 +4011,8 @@ window.addEventListener("DOMContentLoaded", function() {
       window.pageNum = pageNum;
       persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
       renderHalfPage(pageNum, currentTile);
-      updatePageIndicator();
+      if (typeof updatePageIndicator === 'function') updatePageIndicator();
+      syncAudiobookToCurrentView();
     };
 
     window.prevHalf = function() {
@@ -2763,16 +4026,17 @@ window.addEventListener("DOMContentLoaded", function() {
       window.pageNum = pageNum;
       persistProgress(getActiveProfile(), currentBook, pageNum, { upload: true });
       renderHalfPage(pageNum, currentTile);
-      updatePageIndicator();
+      if (typeof updatePageIndicator === 'function') updatePageIndicator();
+      syncAudiobookToCurrentView();
     };
 
     const _origNext = window.nextPage;
     const _origPrev = window.prevPage;
-    window.nextPage = () => window.pageViewMode === 'half' ? nextHalf() : _origNext();
-    window.prevPage = () => window.pageViewMode === 'half' ? prevHalf() : _origPrev();
+    window.nextPage = () => window.pageViewMode === 'half' ? nextHalf() : (typeof _origNext === 'function' ? _origNext() : null);
+    window.prevPage = () => window.pageViewMode === 'half' ? prevHalf() : (typeof _origPrev === 'function' ? _origPrev() : null);
 
     renderHalfPage(pageNum, currentTile);
-    updatePageIndicator();
+    if (typeof updatePageIndicator === 'function') updatePageIndicator();
   }
 
   window.initHalfPageMode = initHalfPageMode;
@@ -2788,16 +4052,20 @@ window.addEventListener("DOMContentLoaded", function() {
         return;
       }
       window.halfMode = true;
-      return renderHalfPage(num, currentTile || 1);
+      const result = renderHalfPage(num, currentTile || 1);
+      syncAudiobookToCurrentView();
+      return result;
     }
 
     if (mode === 'single') {
       window.halfMode = false;
-      return renderOnePage(num);
+      const result = renderOnePage(num);
+      syncAudiobookToCurrentView();
+      return result;
     }
 
     window.halfMode = false;
-    return originalRenderDoublePage(num);
+    if (typeof originalRenderDoublePage === 'function') return originalRenderDoublePage(num);
   };
 
   syncNav();
@@ -2847,6 +4115,10 @@ window.addEventListener("DOMContentLoaded", function() {
       #reader-container.reader-locked .controls button:hover {
         opacity: 0.2 !important;
         transform: none !important;
+      }
+      #reader-container.reader-locked .audio-toggle-icon,
+      #reader-container.reader-locked #audioPlayerBar {
+        display: none !important;
       }
       #reader-container.reader-locked #readerLockBtn {
         opacity: 0.5 !important;
@@ -3023,7 +4295,7 @@ window.addEventListener("DOMContentLoaded", function() {
       spreadCanvas.style.filter = isDarkMode ? 'invert(1)' : 'none';
 
       localStorage.setItem(`bookPage_${currentBook}`, pageNum);
-      updatePageIndicator();
+      if (typeof updatePageIndicator === 'function') updatePageIndicator();
     } catch (err) {
       console.error('Spread render failed:', err);
     } finally {

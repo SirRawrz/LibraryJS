@@ -396,6 +396,15 @@
     </div>
     <div class="body">
       <div class="flow-only">
+        <div class="row" style="margin-bottom:10px;">
+          <button id="flowMusicModeBtn" class="secondary" type="button" aria-pressed="true">Music</button>
+          <button id="flowAudiobookModeBtn" class="secondary" type="button" aria-pressed="false">Audiobook</button>
+        </div>
+        <div class="field hidden" id="audiobookPickerField">
+          <label for="audiobookBookSelect">Audiobook book list</label>
+          <select id="audiobookBookSelect"></select>
+          <div class="status" id="audiobookModeStatus">Loading book list…</div>
+        </div>
         <div class="flow-dropgrid">
           <label class="dropzone" id="audioDropzone" for="audioFileInput">
             <input id="audioFileInput" type="file" accept="audio/*,video/mp4,video/*" multiple />
@@ -579,12 +588,20 @@ Stressed Out - Twenty One Pilots$A
   const EXTENSION_FLOW_MODE = flowParams.has('flow');
   const MANAGED_FLOW_MODE = flowParams.has('mflow');
   const FLOW_MODE = EXTENSION_FLOW_MODE || MANAGED_FLOW_MODE;
+  let flowMode = String(flowParams.get('mode') || '').toLowerCase() === 'audiobook' ? 'audiobook' : 'music';
   document.body.classList.toggle('flow-mode', FLOW_MODE);
   document.body.classList.toggle('flow-extension', EXTENSION_FLOW_MODE && !MANAGED_FLOW_MODE);
   document.body.classList.toggle('flow-managed', MANAGED_FLOW_MODE);
+  document.body.classList.toggle('flow-audiobook', flowMode === 'audiobook');
   if (FLOW_MODE) {
     document.title = 'Music Library Manager — Flow';
   }
+
+  const audiobookState = {
+    items: [],
+    selectedKey: '',
+    loading: null
+  };
 
   const flowState = {
     audioFile: null,
@@ -669,6 +686,46 @@ Stressed Out - Twenty One Pilots$A
     return new URL(cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`, base).href;
   }
 
+  function getConfiguredStorageBaseUrl() {
+    const explicit = String(
+      flowParams.get('musicStorageUrl')
+      || flowParams.get('storageUrl')
+      || flowParams.get('musicLibUrl')
+      || ''
+    ).trim();
+
+    if (explicit) {
+      try {
+        return new URL(explicit.includes('://') ? explicit : `http://${explicit}`).origin;
+      } catch {
+        // ignore and fall back below
+      }
+    }
+
+    const legacyHost = String(flowParams.get('musicLibHost') || '').trim();
+    const legacyPort = String(flowParams.get('musicLibPort') || '').trim();
+    if (legacyHost) {
+      try {
+        const base = new URL(/^https?:\/\//i.test(legacyHost) ? legacyHost : `http://${legacyHost}`);
+        if (legacyPort) base.port = legacyPort;
+        return base.origin;
+      } catch {
+        // ignore and fall back below
+      }
+    }
+
+    return window.location.origin || '';
+  }
+
+  function uploadTargetUrl(url) {
+    const raw = String(url || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    const base = getConfiguredStorageBaseUrl();
+    if (!base) return raw;
+    return new URL(raw, base.endsWith('/') ? base : `${base}/`).href;
+  }
+
   function setFlowStatus(message, kind = '') {
     const el = $('flowDropStatus');
     if (!el) return;
@@ -701,7 +758,7 @@ Stressed Out - Twenty One Pilots$A
     const imageInput = $('artistImageInput');
     if (audioInput) audioInput.value = '';
     if (imageInput) imageInput.value = '';
-    setFlowStatus('Drop an audio file or an mp4 video to start.');
+    setFlowStatus(flowMode === 'audiobook' ? 'Audiobook mode is active. Choose a book, then drop or import the audiobook audio.' : 'Drop an audio file or an mp4 video to start.');
     setPreviewImage(DEFAULT_IMAGE, 'No artist selected');
   }
 
@@ -714,11 +771,31 @@ Stressed Out - Twenty One Pilots$A
     return bytes;
   }
 
-  function makeFileFromTransfer(payload) {
+  async function makeFileFromTransfer(payload) {
     const fileName = sanitizeText(payload?.fileName || payload?.filename || 'download.bin') || 'download.bin';
     const mimeType = String(payload?.mimeType || 'application/octet-stream').trim() || 'application/octet-stream';
-    const bytes = bytesFromBase64(payload?.bodyBase64 || payload?.body || '');
-    return new File([bytes], fileName, { type: mimeType });
+    const bodyBase64 = String(payload?.bodyBase64 || payload?.body || '').trim();
+    if (bodyBase64) {
+      const bytes = bytesFromBase64(bodyBase64);
+      return new File([bytes], fileName, { type: mimeType });
+    }
+
+    const sourceUrl = String(payload?.sourceDownloadUrl || payload?.downloadUrl || payload?.sourceUrl || '').trim();
+    if (!sourceUrl) {
+      throw new Error('No file bytes or download URL were provided.');
+    }
+
+    const response = await fetch(sourceUrl, {
+      cache: 'no-store',
+      credentials: 'omit'
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch source file (${response.status})`);
+    }
+
+    const blob = await response.blob();
+    const type = response.headers.get('content-type') || mimeType;
+    return new File([blob], fileName, { type });
   }
 
   function clampProgress(value) {
@@ -764,12 +841,12 @@ Stressed Out - Twenty One Pilots$A
     }
   }
 
-  function handleIncomingFlowImport(payload) {
+  async function handleIncomingFlowImport(payload) {
     if (!payload) return;
     try {
       setFlowActivity('busy', { phase: 'Importing stream', progress: 72, title: 'MusicLib receiving file…' });
-      updateFlowProgress(72, 'Receiving stream', 'Decoding the downloaded file and loading it into MusicLib.', 'Importing');
-      const file = makeFileFromTransfer(payload);
+      updateFlowProgress(72, 'Receiving stream', 'Downloading the source file into MusicLib.', 'Importing');
+      const file = await makeFileFromTransfer(payload);
       applyFlowAudio(file);
       setFlowStatus(`Received <strong>${escapeHtml(file.name)}</strong> from the extension.`, 'good');
       updateFlowProgress(100, 'Import complete', `Loaded ${file.name} into the flow page.`, 'Ready');
@@ -1008,10 +1085,6 @@ Stressed Out - Twenty One Pilots$A
     return { file, originalName: file.name, converted: false };
   }
 
-  function uploadTargetUrl(url) {
-    return String(url || '').trim().replace(/([^:]\/)\/+/g, '$1');
-  }
-
   async function uploadBinaryToUrl(file, url) {
     const requestUrl = uploadTargetUrl(url);
     let response;
@@ -1071,25 +1144,46 @@ Stressed Out - Twenty One Pilots$A
 
   async function uploadSelectedSongFiles(title, artist) {
     const tasks = [];
-    if (flowState.audioFile instanceof File) {
-      const preparedAudio = await prepareAudioUploadFile(flowState.audioFile, title, artist);
+
+    if (flowMode === 'audiobook') {
+      const bookItem = getSelectedAudiobookItem();
+      if (!bookItem) {
+        throw new Error('Choose a book from the list first.');
+      }
+      if (!(flowState.audioFile instanceof File)) {
+        throw new Error('Drop or import the audiobook audio first.');
+      }
+
       tasks.push({
-        label: preparedAudio.converted ? 'mp4 → mp3' : 'audio',
-        file: preparedAudio.file,
+        label: 'audiobook',
+        file: flowState.audioFile,
         sourceName: flowState.audioFile.name,
-        targetPath: getAudioUploadTargetPath(title, artist, preparedAudio.file.name, preparedAudio.converted ? '.mp3' : preparedAudio.file.name),
-        targetUrl: getAudioUploadTargetUrl(title, artist, preparedAudio.file.name, preparedAudio.converted ? '.mp3' : preparedAudio.file.name)
+        targetPath: getAudiobookUploadTargetPath(bookItem),
+        targetUrl: getAudiobookTargetUrl(bookItem),
+        bookItem
       });
+    } else {
+      if (flowState.audioFile instanceof File) {
+        const preparedAudio = await prepareAudioUploadFile(flowState.audioFile, title, artist);
+        tasks.push({
+          label: preparedAudio.converted ? 'mp4 → mp3' : 'audio',
+          file: preparedAudio.file,
+          sourceName: flowState.audioFile.name,
+          targetPath: getAudioUploadTargetPath(title, artist, preparedAudio.file.name, preparedAudio.converted ? '.mp3' : preparedAudio.file.name),
+          targetUrl: getAudioUploadTargetUrl(title, artist, preparedAudio.file.name, preparedAudio.converted ? '.mp3' : preparedAudio.file.name)
+        });
+      }
+      if (flowState.imageFile instanceof File) {
+        tasks.push({
+          label: 'image',
+          file: flowState.imageFile,
+          sourceName: flowState.imageFile.name,
+          targetPath: getArtistImageUploadTargetPath(artist, flowState.imageFile.name),
+          targetUrl: getArtistImageUploadTargetUrl(artist, flowState.imageFile.name)
+        });
+      }
     }
-    if (flowState.imageFile instanceof File) {
-      tasks.push({
-        label: 'image',
-        file: flowState.imageFile,
-        sourceName: flowState.imageFile.name,
-        targetPath: getArtistImageUploadTargetPath(artist, flowState.imageFile.name),
-        targetUrl: getArtistImageUploadTargetUrl(artist, flowState.imageFile.name)
-      });
-    }
+
     if (!tasks.length) {
       return [];
     }
@@ -1120,9 +1214,183 @@ Stressed Out - Twenty One Pilots$A
     return normalizeBase(fileName).replace(/^(?:artist|cover|image)?\s*[\d._-]+\s*/i, '').trim();
   }
 
+  function flattenAudiobookItems(items, prefix = '') {
+    const out = [];
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      if (!item) return;
+      const groupTitle = sanitizeText(item.title || '').trim();
+
+      if (item.group && Array.isArray(item.books)) {
+        const nextPrefix = groupTitle ? (prefix ? `${prefix} › ${groupTitle}` : groupTitle) : prefix;
+        out.push(...flattenAudiobookItems(item.books, nextPrefix));
+        return;
+      }
+
+      const fileName = String(item.file || '').trim();
+      const stem = normalizeBase(fileName || item.title || '');
+      const title = sanitizeText(item.title || stem || 'Untitled');
+      const key = fileName || `${prefix || 'book'}::${title}` || title;
+      out.push({
+        key,
+        title,
+        file: fileName,
+        stem,
+        cover: String(item.cover || '').trim(),
+        label: prefix ? `${prefix} › ${title}` : title
+      });
+    });
+    return out;
+  }
+
+  async function loadAudiobookLibrary() {
+    if (audiobookState.items.length) return audiobookState.items;
+    if (audiobookState.loading) return audiobookState.loading;
+
+    audiobookState.loading = (async () => {
+      if (!window.booksLibrary || !Array.isArray(window.booksLibrary) || !window.libraryData) {
+        const src = await resolveAssetUrl('/books.js');
+        await loadScriptOnce(src);
+      }
+
+      const rawItems = Array.isArray(window.booksLibrary)
+        ? window.booksLibrary
+        : (Array.isArray(window.libraryData?.items) ? window.libraryData.items : []);
+
+      audiobookState.items = flattenAudiobookItems(rawItems);
+      if (!audiobookState.selectedKey && audiobookState.items.length) {
+        audiobookState.selectedKey = audiobookState.items[0].key;
+      }
+      renderAudiobookPicker();
+      if (flowMode === 'audiobook') {
+        renderPreview();
+      }
+      return audiobookState.items;
+    })();
+
+    try {
+      return await audiobookState.loading;
+    } finally {
+      audiobookState.loading = null;
+    }
+  }
+
+  function getSelectedAudiobookItem() {
+    const select = $('audiobookBookSelect');
+    const key = String(select?.value || audiobookState.selectedKey || '').trim();
+    return audiobookState.items.find((item) => item.key === key) || audiobookState.items[0] || null;
+  }
+
+  function getAudiobookFileStem(bookItem) {
+    const rawFile = String(bookItem?.file || '').trim();
+    const fromFile = rawFile.split(/[\\/]/).pop().replace(/\.[^.]+$/, '');
+    const fromStem = normalizeBase(bookItem?.stem || bookItem?.title || '');
+    return sanitizeText(fromFile || fromStem || bookItem?.title || 'audiobook') || 'audiobook';
+  }
+
+  function getAudiobookUploadTargetPath(bookItem) {
+    const stem = getAudiobookFileStem(bookItem);
+    return `/Books/audiobooks/${encodeUploadSegment(stem)}.m4a`;
+  }
+
+  function getAudiobookTargetUrl(bookItem) {
+    return getAudiobookUploadTargetPath(bookItem);
+  }
+
+  function renderAudiobookPicker() {
+    const field = $('audiobookPickerField');
+    const select = $('audiobookBookSelect');
+    const status = $('audiobookModeStatus');
+    if (!field || !select) return;
+
+    const items = audiobookState.items;
+    select.innerHTML = items.map((item) => `<option value="${escapeHtml(item.key)}">${escapeHtml(item.label)}</option>`).join('');
+    if (audiobookState.selectedKey && items.some((item) => item.key === audiobookState.selectedKey)) {
+      select.value = audiobookState.selectedKey;
+    } else if (items.length) {
+      select.value = items[0].key;
+      audiobookState.selectedKey = items[0].key;
+    }
+
+    field.classList.toggle('hidden', flowMode !== 'audiobook');
+    if (status) {
+      const selected = getSelectedAudiobookItem();
+      status.textContent = items.length
+        ? `Choose a book. The uploaded file will be stored as ${getAudiobookUploadTargetPath(selected).split('/').pop()}.`
+        : 'Loading book list…';
+      status.className = 'status';
+    }
+  }
+
+  function setFlowMode(nextMode) {
+    flowMode = nextMode === 'audiobook' ? 'audiobook' : 'music';
+    document.body.classList.toggle('flow-audiobook', flowMode === 'audiobook');
+
+    const musicBtn = $('flowMusicModeBtn');
+    const audiobookBtn = $('flowAudiobookModeBtn');
+    if (musicBtn) musicBtn.setAttribute('aria-pressed', String(flowMode === 'music'));
+    if (audiobookBtn) audiobookBtn.setAttribute('aria-pressed', String(flowMode === 'audiobook'));
+
+    const hideAudiobook = flowMode === 'audiobook';
+    const toggleWrap = (el, hidden) => { if (el) el.classList.toggle('hidden', hidden); };
+    toggleWrap($('audioDropzone'), hideAudiobook);
+    toggleWrap($('artistDropzone'), hideAudiobook);
+    toggleWrap($('flowUseAudioBtn'), hideAudiobook);
+    toggleWrap($('flowUseImageBtn'), hideAudiobook);
+    toggleWrap($('flowClearFilesBtn'), hideAudiobook);
+    toggleWrap($('addAndNextBtn'), hideAudiobook);
+
+    const titleField = $('songTitle')?.closest('.field');
+    const artistField = $('songArtist')?.closest('.field');
+    const genreField = $('genreCode')?.closest('.field');
+    const customField = $('customCode')?.closest('.field');
+    const gridField = $('customCode')?.closest('.grid2');
+    toggleWrap(titleField, hideAudiobook);
+    toggleWrap(artistField, hideAudiobook);
+    toggleWrap(genreField, hideAudiobook);
+    toggleWrap(customField, hideAudiobook);
+    toggleWrap(gridField, hideAudiobook);
+
+    const addBtn = $('addSongBtn');
+    if (addBtn) addBtn.textContent = flowMode === 'audiobook' ? 'Upload audiobook to server' : 'Add song & update server';
+
+    const statusText = flowMode === 'audiobook'
+      ? 'Audiobook mode is active. Choose a book from the list, then upload the incoming audiobook audio.'
+      : 'Drop an audio file or an mp4 video to start.';
+    setFlowStatus(statusText);
+
+    try {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('mode', flowMode);
+      history.replaceState({}, '', currentUrl.href);
+    } catch {
+      // ignore URL updates that fail
+    }
+
+    if (flowMode === 'audiobook') {
+      loadAudiobookLibrary().catch((err) => {
+        console.error(err);
+        const status = $('audiobookModeStatus');
+        if (status) {
+          status.textContent = `Could not load books.js: ${err.message}`;
+          status.className = 'status bad';
+        }
+      });
+    } else {
+      renderAudiobookPicker();
+    }
+    renderPreview();
+  }
+
   function applyFlowAudio(file) {
     if (!file) return;
     flowState.audioFile = file;
+
+    if (flowMode === 'audiobook') {
+      renderPreview();
+      setFlowStatus(`Loaded audiobook audio: <strong>${escapeHtml(file.name)}</strong>.`, 'good');
+      return;
+    }
+
     const derived = deriveFromAudioFilename(file.name);
     const titleInput = $('songTitle');
     const artistInput = $('songArtist');
@@ -1443,6 +1711,37 @@ Stressed Out - Twenty One Pilots$A
   }
 
   async function renderPreview() {
+    const img = $('artistPreviewImg');
+    const status = $('artistImageStatus');
+
+    if (flowMode === 'audiobook') {
+      const item = getSelectedAudiobookItem();
+      const coverUrl = item?.cover ? await resolveAssetUrl(item.cover) : DEFAULT_IMAGE;
+      const title = item?.title || 'No book selected';
+      const outputName = item ? `${getAudiobookFileStem(item)}.m4a` : '';
+      const sourceFile = item?.file ? sanitizeText(item.file) : '';
+
+      $('previewLabel').textContent = title;
+      $('previewMeta').innerHTML = item
+        ? `Book file: ${escapeHtml(sourceFile || '(missing file)')}<br>Upload name: ${escapeHtml(outputName)}`
+        : 'Choose a book from the list above to preview the audiobook output name.';
+      const chips = [];
+      if (item?.title) chips.push(`Book: ${item.title}`);
+      if (item?.file) chips.push(`Source: ${getAudiobookFileStem(item)}.pdf`);
+      if (outputName) chips.push(`Upload: ${outputName}`);
+      $('previewChips').innerHTML = chips.map(chip => `<span class="chip">${escapeHtml(chip)}</span>`).join('');
+      img.src = coverUrl;
+      img.alt = item?.title ? `${item.title} cover` : 'No book selected';
+
+      if (status) {
+        status.textContent = item
+          ? `Selected ${item.label}. The upload will be stored as ${outputName}.`
+          : 'Choose a book from the list above.';
+        status.className = item ? 'status good' : 'status';
+      }
+      return;
+    }
+
     const title = sanitizeText($('songTitle').value);
     const artist = sanitizeText($('songArtist').value);
     const selectedCode = sanitizeText($('customCode').value) || $('genreCode').value || 'A';
@@ -1460,8 +1759,6 @@ Stressed Out - Twenty One Pilots$A
     if (code) chips.push(`Code: ${code}`);
     $('previewChips').innerHTML = chips.map(chip => `<span class="chip">${escapeHtml(chip)}</span>`).join('');
 
-    const status = $('artistImageStatus');
-    const img = $('artistPreviewImg');
     img.src = DEFAULT_IMAGE;
     img.alt = artist ? `${artist} art preview` : 'No artist selected';
 
@@ -1732,20 +2029,34 @@ Stressed Out - Twenty One Pilots$A
     $('searchInput').addEventListener('input', renderLibrary);
     $('sortSelect').addEventListener('change', renderLibrary);
 
+    $('flowMusicModeBtn')?.addEventListener('click', () => setFlowMode('music'));
+    $('flowAudiobookModeBtn')?.addEventListener('click', () => setFlowMode('audiobook'));
+    $('audiobookBookSelect')?.addEventListener('change', () => {
+      const select = $('audiobookBookSelect');
+      audiobookState.selectedKey = String(select?.value || '').trim();
+      const item = getSelectedAudiobookItem();
+      const status = $('audiobookModeStatus');
+      if (status && item) {
+        status.textContent = `Selected ${item.label}. The upload will be stored as ${getAudiobookUploadTargetPath(item).split('/').pop()}.`;
+        status.className = 'status good';
+      }
+      renderPreview();
+    });
+
     $('addSongBtn').onclick = async () => {
       const title = $('songTitle').value;
       const artist = $('songArtist').value;
       const code = $('customCode').value || $('genreCode').value;
       const cleanTitle = sanitizeText(title);
       const cleanArtist = sanitizeText(artist);
-      if (!cleanTitle || !cleanArtist) {
-        setStatus('Both song title and artist are required.', 'bad');
-        return;
-      }
+
       try {
         const uploads = await uploadSelectedSongFiles(cleanTitle, cleanArtist);
         if (uploads.length) {
-          setFlowStatus(`Uploaded ${uploads.length} file${uploads.length === 1 ? '' : 's'} for <strong>${escapeHtml(cleanTitle)}</strong>.`, 'good');
+          const label = flowMode === 'audiobook'
+            ? `Uploaded audiobook as <strong>${escapeHtml(uploads[0].targetPath.split('/').pop())}</strong>.`
+            : `Uploaded ${uploads.length} file${uploads.length === 1 ? '' : 's'} for <strong>${escapeHtml(cleanTitle)}</strong>.`;
+          setFlowStatus(label, 'good');
         } else if (FLOW_MODE) {
           setFlowStatus('No files were selected, so nothing was uploaded.', 'warn');
         }
@@ -1754,6 +2065,16 @@ Stressed Out - Twenty One Pilots$A
         setFlowStatus(`Upload failed: ${escapeHtml(err.message)}`, 'bad');
         return;
       }
+
+      if (flowMode === 'audiobook') {
+        return;
+      }
+
+      if (!cleanTitle || !cleanArtist) {
+        setStatus('Both song title and artist are required.', 'bad');
+        return;
+      }
+
       if (addSongEntry(cleanTitle, cleanArtist, code)) {
         $('outputText').value = buildOutputText(state.entries);
         await refreshAll();
@@ -1877,6 +2198,10 @@ Stressed Out - Twenty One Pilots$A
     bindEvents();
     if (FLOW_MODE) {
       initFlowMode();
+      setFlowMode(flowMode);
+      if (flowMode === 'audiobook') {
+        await loadAudiobookLibrary().catch(() => {});
+      }
       if (MANAGED_FLOW_MODE) {
         document.body.classList.add('flow-ready');
         hideFlowProgress();

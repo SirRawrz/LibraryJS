@@ -432,18 +432,63 @@
   #videoPlayer .tvd-top-button { padding:6px 8px; font-size:14px; min-width:36px; height:36px; border-radius:6px; line-height:1; flex:0 1 auto; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
   #videoPlayer .tvd-top-button[data-icon]::after { font-size:16px; }
   @media (max-width: 480px) {
-    #videoPlayer .tvd-top-button { padding:4px 6px; font-size:13px; min-width:32px; height:32px; border-radius:5px; }
-    #videoPlayer .tvd-top-button[data-icon]::after { font-size:15px; }
+    #videoPlayer .tvd-top-button {
+      padding:4px 6px;
+      font-size:13px;
+      min-width:32px;
+      height:32px;
+      border-radius:5px;
+      color: transparent !important;
+    }
+    #videoPlayer .tvd-top-button[data-icon]::after {
+      font-size:15px;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
     #videoPlayer .tvd-center-buttons { gap:4px; }
     #videoPlayer .tvd-top-button { flex-basis: 0; flex-grow: 1; max-width: 48px; }
     #videoPlayer .tvd-center-buttons { max-width: 70%; }
     #videoPlayer .tvd-topbar .left, #videoPlayer .tvd-topbar .right { flex: 0 0 auto; }
   }
   @media (orientation: portrait) and (max-width: 900px) {
-    #videoPlayer .tvd-top-button { padding:4px 6px; min-width:34px; height:34px; font-size:14px; }
+    #videoPlayer .tvd-top-button {
+      padding:4px 6px;
+      min-width:34px;
+      height:34px;
+      font-size:14px;
+      color: transparent !important;
+    }
     #videoPlayer .tvd-top-button[data-icon]::after { font-size:18px; }
     #videoPlayer .tvd-center-buttons { gap:6px; }
   }
+  @media (max-width: 720px) {
+    #videoPlayer .tvd-top-bar #tvdPlayPauseBtn[data-icon],
+    #videoPlayer .tvd-center-buttons .tvd-top-button[data-icon],
+    #videoPlayer .tvd-top-bar > .tvd-top-button[data-icon] {
+      position: relative;
+      font-size: 0 !important;
+      line-height: 0 !important;
+      color: transparent !important;
+      min-width: 34px;
+      padding: 4px 6px;
+    }
+    #videoPlayer .tvd-top-bar #tvdPlayPauseBtn[data-icon]::after,
+    #videoPlayer .tvd-center-buttons .tvd-top-button[data-icon]::after,
+    #videoPlayer .tvd-top-bar > .tvd-top-button[data-icon]::after {
+      content: attr(data-icon);
+      color: #fff;
+      font-size: 18px;
+      line-height: 1;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    #videoPlayer .tvd-center-buttons { gap: 4px; }
+  }
+
 
   /* --- QR label toggle: show full labels by default, short labels on mobile --- */
   .qr-button .full-text { display: inline; }
@@ -637,14 +682,49 @@ function showProfilesButton() {
   document.getElementById("profilesButton").style.display = "inline-block";
 }
 
+function cullCurrentVideoPlayback() {
+  try {
+  } catch (e) {}
+
+  const video = document.getElementById("video");
+  const videoPlayerEl = document.getElementById("videoPlayer");
+  const topNow = document.getElementById("topNowPlaying");
+  const nextEpisodePopup = document.getElementById("nextEpisodePopup");
+  const episodeList = document.getElementById("episodeList");
+
+  try {
+    if (document.fullscreenElement && videoPlayerEl &&
+        (document.fullscreenElement === videoPlayerEl ||
+         (typeof document.fullscreenElement.contains === 'function' && document.fullscreenElement.contains(videoPlayerEl)))) {
+      try { document.exitFullscreen(); } catch (e) {}
+    }
+  } catch (e) {}
+
+  if (video) {
+    try { video.pause(); } catch (e) {}
+    try { video.removeAttribute("src"); } catch (e) {}
+    try {
+      if (video.querySelectorAll) {
+        Array.from(video.querySelectorAll("source")).forEach(source => {
+          try { source.removeAttribute("src"); } catch (e) {}
+        });
+      }
+    } catch (e) {}
+    try { if (typeof video.load === "function") video.load(); } catch (e) {}
+    try { video.currentTime = 0; } catch (e) {}
+  }
+
+  if (topNow) topNow.style.display = "none";
+  if (videoPlayerEl) videoPlayerEl.style.display = "none";
+  if (nextEpisodePopup) nextEpisodePopup.style.display = "none";
+  if (episodeList) episodeList.innerHTML = "";
+}
+
 function returnToHome() {
-  // First: remove any temporary "Continue"/action containers so they don't persist
-  // across navigation. This removes #series-continue-container and #movie-action-container.
   try {
     if (typeof cleanupResumeActionContainers === 'function') {
       cleanupResumeActionContainers();
     } else {
-      // defensive fallback: try removing known IDs/classes directly
       try { const sc = document.getElementById('series-continue-container'); if (sc && sc.parentNode) sc.parentNode.removeChild(sc); } catch(e){}
       try { const mc = document.getElementById('movie-action-container'); if (mc && mc.parentNode) mc.parentNode.removeChild(mc); } catch(e){}
       try { Array.from(document.querySelectorAll('.movie-action-container')).forEach(el => { if (el && el.parentNode) el.parentNode.removeChild(el); }); } catch(e){}
@@ -653,15 +733,8 @@ function returnToHome() {
     console.warn('returnToHome cleanup failed', e);
   }
 
-  // Hide player + pause video
-  const vp = document.getElementById("videoPlayer");
-  if (vp) vp.style.display = "none";
-  const topNow = document.getElementById("topNowPlaying");
-  if (topNow) topNow.style.display = "none";
-  const video = document.getElementById("video");
-  if (video) try { video.pause(); } catch(e){}
+  cullCurrentVideoPlayback();
 
-  // Reset folder UI state and load main folders
   try { folderContainer.innerHTML = ""; } catch(e){}
   lastFolderScroll = 0;
   lastViewedFolder = null;
@@ -672,6 +745,7 @@ function returnToHome() {
 }
 
 function fetchVersion() {
+
             return fetch('version.txt')
                 .then(response => response.text())
                 .then(version => version.trim());
@@ -718,7 +792,9 @@ window.onload = async () => {
     console.warn('Could not load platform.txt at startup, defaulting to "windows".', e);
   }
 
-  updateActiveProfileIcon();
+  if (typeof window.updateActiveProfileIcon === 'function') {
+    window.updateActiveProfileIcon();
+  }
   if (typeof window.updateQRButtonVisibility === 'function') {
     window.updateQRButtonVisibility();
   }
@@ -749,8 +825,9 @@ window.onload = async () => {
 function normalizeSeasonsArrayInPlace(arr) {
   if (!Array.isArray(arr)) return;
 
-  const urlParams = new URLSearchParams(window.location.search || '');
-  const kidsMode = urlParams.has('l');
+  const kidsMode = (typeof window.isKidsModeActive === 'function')
+    ? window.isKidsModeActive()
+    : false;
 
   for (let i = arr.length - 1; i >= 0; i--) {
     const v = arr[i];
@@ -890,7 +967,6 @@ function normalizeSeasonsArrayInPlace(arr) {
 </script>
 
 
-</head>
 	<script>
     function appendUniqueQueryStrings() {
         const assets = document.querySelectorAll('img, link[rel="stylesheet"], script');
@@ -945,11 +1021,125 @@ function normalizeSeasonsArrayInPlace(arr) {
     display: block;
     background: #0c1018;
   }
+  #repairOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: stretch;
+    justify-content: stretch;
+    background: rgba(0,0,0,0.72);
+    z-index: 200001;
+  }
+  #repairOverlay.show { display: flex; }
+  #repairOverlay .repair-shell {
+    position: relative;
+    width: min(1400px, calc(100vw - 24px));
+    height: min(960px, calc(100vh - 24px));
+    margin: auto;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 25px 70px rgba(0,0,0,.55);
+    background: #0c1018;
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  #repairOverlay .repair-topbar {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 0 18px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    background: rgba(12,16,24,.96);
+    gap: 12px;
+  }
+  #repairOverlay .repair-topbar h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 0;
+  }
+  #repairOverlay .repair-topbar .repair-close {
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 8px;
+  }
+  #repairOverlay iframe {
+    width: 100%;
+    height: calc(100% - 52px);
+    border: 0;
+    display: block;
+    background: #0c1018;
+  }
+
+  #repairResumeOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.55);
+    z-index: 200002;
+  }
+  #repairResumeOverlay.show { display: flex; }
+  #repairResumeModal {
+    background: #0f1720;
+    color: #e6eef8;
+    min-width: 320px;
+    max-width: 720px;
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    font-family: Inter, system-ui, Arial, sans-serif;
+  }
+  #repairResumeModal h3 { margin: 0 0 8px 0; font-size: 18px; color: #fff; }
+  #repairResumeModal p { margin: 0 0 16px 0; color: #cfe6ff; line-height: 1.35; }
+  .repair-resume-btns { display: flex; gap: 10px; }
+  .repair-resume-btn {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    height: 44px;
+    box-sizing: border-box;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .repair-resume-continue { background: #10b981; color: #fff; }
+  .repair-resume-startover { background: #1f2937; color: #fff; }
+  @media (max-width: 420px) {
+    #repairResumeModal { margin: 12px; width: auto; }
+    .repair-resume-btns { flex-direction: column; }
+    .repair-resume-btn { width: 100%; height: 46px; }
+  }
 </style>
 
 <div id="setupOverlay" aria-hidden="true">
   <div class="setup-shell">
     <iframe id="setupIframe" title="Setup" src="./setup.html?flow=1"></iframe>
+  </div>
+</div>
+<div id="repairOverlay" aria-hidden="true">
+  <div class="repair-shell">
+    <div class="repair-topbar">
+      <h3 id="repairOverlayTitle">FFmpeg repair</h3>
+      <button class="repair-close" id="repairOverlayClose" aria-label="Close repair">&times;</button>
+    </div>
+    <iframe id="repairIframe" title="FFmpeg repair" src="about:blank"></iframe>
+  </div>
+</div>
+<div id="repairResumeOverlay" aria-hidden="true">
+  <div id="repairResumeModal" role="dialog" aria-modal="true" aria-labelledby="repairResumeTitle" aria-describedby="repairResumeDesc">
+    <h3 id="repairResumeTitle">Resume playback</h3>
+    <p id="repairResumeDesc">Resume the repaired video from where it was before repair?</p>
+    <div class="repair-resume-btns" role="toolbar" aria-label="Repair resume options">
+      <button class="repair-resume-btn repair-resume-continue" id="repairResumeContinue">Yes, Continue</button>
+      <button class="repair-resume-btn repair-resume-startover" id="repairResumeStartOver">Start Over</button>
+    </div>
   </div>
 </div>
 <div id="sys-resume-overlay" aria-hidden="true">
@@ -1364,8 +1554,14 @@ function normalizeSeasonsArrayInPlace(arr) {
  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
  overflow: hidden;
 ">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-    <strong style="font-size:18px;">Episode Settings</strong>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px;">
+    <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+      <strong style="font-size:18px;">Episode Settings</strong>
+      <button id="episodeRepairBtn" type="button" title="Repair current episode" aria-label="Repair current episode"
+        style="border:none; background:transparent; color:white; font-size:18px; cursor:pointer; padding:0 4px; line-height:1;">🛠️</button>
+      <button id="episodeSubtitleBtn" type="button" title="Generate subtitles for current episode" aria-label="Generate subtitles for current episode"
+        style="border:none; background:transparent; color:white; font-size:18px; cursor:pointer; padding:0 4px; line-height:1;">📝</button>
+    </div>
     <button id="settingsBackBtn" style="background:transparent; border:none; color:white; font-size:16px;" aria-label="Back" tabindex="0">Back</button>
   </div>
 
@@ -1428,9 +1624,12 @@ function normalizeSeasonsArrayInPlace(arr) {
     toggle.style.textAlign = 'center';
 
     function updateVisual(v) {
-      toggle.textContent = v ? 'ON' : 'OFF';
-      toggle.setAttribute('aria-checked', !!v);
-      toggle.style.background = v ? 'rgba(0,150,0,0.9)' : 'rgba(80,80,80,0.9)';
+      const checked = !!v;
+      toggle.textContent = checked ? 'ON' : 'OFF';
+      toggle.setAttribute('aria-checked', checked);
+      toggle.dataset.checked = checked ? 'true' : 'false';
+      toggle.checked = checked; // keep checkbox-style callers working too
+      toggle.style.background = checked ? 'rgba(0,150,0,0.9)' : 'rgba(80,80,80,0.9)';
       toggle.style.color = 'white';
     }
 
@@ -1483,7 +1682,14 @@ function normalizeSeasonsArrayInPlace(arr) {
     settingsList.appendChild(makeSettingRow('Auto Fullscreen', 'autoFullscreen', fullscreenDefault, (v) => {
       const cb = document.getElementById('autoFullscreen');
       if (cb) { cb.checked = !!v; }
-      if (typeof toggleFullscreen === 'function') toggleFullscreen();
+      if (typeof setAutoFullscreenEnabled === 'function') setAutoFullscreenEnabled(cb ? cb.checked : !!v);
+    }));
+
+    const pauseAfterFullscreenDefault = readPref('pref-pauseAfterFullscreen', typeof pauseAfterFullscreenEnabled !== 'undefined' ? pauseAfterFullscreenEnabled : true);
+    settingsList.appendChild(makeSettingRow('Pause after leaving Fullscreen', 'pauseAfterFullscreen', pauseAfterFullscreenDefault, (v) => {
+      const cb = document.getElementById('pauseAfterFullscreen');
+      if (cb) { cb.checked = !!v; }
+      if (typeof setPauseAfterFullscreenEnabled === 'function') setPauseAfterFullscreenEnabled(cb ? cb.checked : !!v);
     }));
 
     settingsList.appendChild(makeSettingRow('Skip Intro/Outro', 'skipIntroOutro', skipDefault, (v) => {
@@ -1525,7 +1731,362 @@ function normalizeSeasonsArrayInPlace(arr) {
     }, 20);
   }
 
-   function adjustGearText() {
+
+  function getRepairSourceUrl() {
+    const vid = document.getElementById('video');
+    if (!vid) return '';
+    const raw = String(vid.currentSrc || vid.src || vid.getAttribute('src') || '').trim();
+    if (!raw || raw.startsWith('blob:') || raw.startsWith('data:')) return '';
+    try {
+      const url = new URL(raw, window.location.href);
+      return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function getRepairSourceName(sourceUrl) {
+    if (!sourceUrl) return '';
+    try {
+      const url = new URL(sourceUrl, window.location.href);
+      return decodeURIComponent(url.pathname.split('/').pop() || '').trim();
+    } catch (e) {
+      return decodeURIComponent(String(sourceUrl).split('/').pop() || '').trim();
+    }
+  }
+
+  function formatRepairResumeTime(totalSeconds) {
+    const secs = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    const pad2 = (n) => String(n).padStart(2, '0');
+    return h > 0 ? `${h}:${pad2(m)}:${pad2(s)}` : `${m}:${pad2(s)}`;
+  }
+
+  function getRepairSnapshotLabel() {
+    const folderName = String(window.currentFolder || currentFolder || '').trim();
+    const rawEpisodeIndex = Number.isFinite(Number(window.currentEpisodeIndex))
+      ? Number(window.currentEpisodeIndex)
+      : Number(currentEpisodeIndex || 0);
+
+    const list = (typeof episodes !== 'undefined' && folderName && Array.isArray(episodes[folderName]))
+      ? episodes[folderName]
+      : null;
+
+    if (folderName && list && list.length) {
+      const clampedIndex = Math.max(0, Math.min(list.length - 1, rawEpisodeIndex));
+      const ep = list[clampedIndex] || {};
+      if (list.length === 1) return `${folderName}`;
+      return `${folderName} - Episode ${clampedIndex + 1}: "${String(ep.name || 'Episode').trim()}"`;
+    }
+
+    const sourceName = getRepairSourceName(getRepairSourceUrl());
+    return sourceName || 'current video';
+  }
+
+  function captureRepairResumeSnapshot() {
+    const vid = document.getElementById('video');
+    const resumeTime = vid && Number.isFinite(vid.currentTime) ? Number(vid.currentTime) : 0;
+    const sourceUrl = getRepairSourceUrl();
+    const label = getRepairSnapshotLabel();
+
+    window.__repairResumeSnapshot = {
+      time: resumeTime,
+      sourceUrl,
+      label,
+      capturedAt: Date.now()
+    };
+
+    return window.__repairResumeSnapshot;
+  }
+
+  function getRepairResumeSnapshot() {
+    return window.__repairResumeSnapshot || null;
+  }
+
+  function hideRepairResumeModal() {
+    const overlay = document.getElementById('repairResumeOverlay');
+    if (overlay) {
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    window.__resumeModalPriorityOpen = false;
+  }
+
+  function showRepairResumeModal(snapshot = getRepairResumeSnapshot()) {
+    const overlay = document.getElementById('repairResumeOverlay');
+    const titleEl = document.getElementById('repairResumeTitle');
+    const descEl = document.getElementById('repairResumeDesc');
+    const btnContinue = document.getElementById('repairResumeContinue');
+    const btnStartOver = document.getElementById('repairResumeStartOver');
+
+    if (!overlay || !titleEl || !descEl || !btnContinue || !btnStartOver) return false;
+
+    window.__resumeModalPriorityOpen = true;
+
+    const safeSnapshot = snapshot || {};
+    const label = String(safeSnapshot.label || getRepairSnapshotLabel() || 'current video').trim();
+    const resumeTime = Number.isFinite(Number(safeSnapshot.time)) ? Number(safeSnapshot.time) : 0;
+
+    titleEl.textContent = 'Resume playback';
+    descEl.textContent = `Resume ${label} at ${formatRepairResumeTime(resumeTime)}?`;
+
+    const cleanup = () => {
+      try { btnContinue.removeEventListener('click', onContinue); } catch (e) {}
+      try { btnStartOver.removeEventListener('click', onStartOver); } catch (e) {}
+      try { document.removeEventListener('keydown', onKey); } catch (e) {}
+      try { overlay.removeEventListener('click', onOverlayClick); } catch (e) {}
+    };
+
+    const finish = () => {
+      cleanup();
+      hideRepairResumeModal();
+    };
+
+    const onContinue = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      finish();
+      refreshCurrentVideoStream({ resumeTime, sourceUrl: safeSnapshot.sourceUrl });
+    };
+
+    const onStartOver = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      finish();
+      refreshCurrentVideoStream({ resumeTime: 0, sourceUrl: safeSnapshot.sourceUrl });
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') onStartOver(e);
+    };
+
+    const onOverlayClick = (e) => {
+      if (e.target === overlay) onStartOver(e);
+    };
+
+    btnContinue.addEventListener('click', onContinue);
+    btnStartOver.addEventListener('click', onStartOver);
+    document.addEventListener('keydown', onKey);
+    overlay.addEventListener('click', onOverlayClick);
+
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+
+    try {
+      const focusContinue = () => {
+        if (!window.__resumeModalPriorityOpen) return;
+        try { btnContinue.focus({ preventScroll: true }); return; } catch (e) {}
+        try { btnContinue.focus(); } catch (e) {}
+      };
+      try { document.activeElement && document.activeElement !== document.body && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
+      requestAnimationFrame(() => focusContinue());
+      setTimeout(focusContinue, 30);
+      setTimeout(focusContinue, 120);
+    } catch (e) {}
+
+    return true;
+  }
+
+  function buildRepairUrlForCurrentVideo() {
+    const sourceUrl = getRepairSourceUrl();
+    if (!sourceUrl) return '';
+    const name = getRepairSourceName(sourceUrl);
+    if (!name) return '';
+    const folder = new URL('.', sourceUrl).href;
+    const params = new URLSearchParams({
+      source: sourceUrl,
+      name,
+      folder,
+      upload: new URL(encodeURIComponent(name), folder).href,
+      mode: 'seek-repair',
+      flow: '1',
+      auto: '1',
+      close: '1',
+      proxy: '1',
+      jobId: 'single'
+    });
+    return `${window.location.origin}/ffmpeg/repair.html?${params.toString()}`;
+  }
+
+  function buildSubtitleUrlForCurrentVideo() {
+    const sourceUrl = getRepairSourceUrl();
+    if (!sourceUrl) return '';
+    const name = getRepairSourceName(sourceUrl);
+    if (!name) return '';
+    const baseName = String(name).replace(/\.[^.]+$/, '') || 'subtitle';
+    const folderName = String(window.currentFolder || currentFolder || '').trim();
+    const episodeList = (typeof episodes !== 'undefined' && folderName && Array.isArray(episodes[folderName])) ? episodes[folderName] : [];
+    const episodeIndex = Number.isFinite(Number(window.currentEpisodeIndex))
+      ? Number(window.currentEpisodeIndex)
+      : Number(currentEpisodeIndex || 0);
+    const episodeEntry = episodeList[Number.isFinite(episodeIndex) ? episodeIndex : 0] || {};
+    const episodeTitle = String(episodeEntry.name || episodeEntry.title || '').trim();
+
+    const parsedMatch = baseName.match(/\bS(\d{1,2})\s*E?(\d{1,3})\b/i) || baseName.match(/\b(\d{1,2})x(\d{1,3})\b/i);
+    const season = parsedMatch ? Number.parseInt(parsedMatch[1], 10) : '';
+    const episode = parsedMatch ? Number.parseInt(parsedMatch[2], 10) : '';
+
+    const search = [folderName, episodeTitle, baseName].filter(Boolean).join(' ').trim();
+    const params = new URLSearchParams({
+      source: sourceUrl,
+      name: `${baseName}.vtt`,
+      folder: new URL('.', sourceUrl).href,
+      upload: new URL(encodeURIComponent(`${baseName}.vtt`), new URL('.', sourceUrl).href).href,
+      language: 'en',
+      provider: '',
+      mode: 'fetch',
+      flow: '1',
+      auto: '1',
+      close: '1',
+      proxy: '1',
+      jobId: 'single',
+      series: folderName,
+      show: folderName,
+      librarySeries: folderName,
+      title: episodeTitle,
+      episodeTitle,
+      libraryTitle: episodeTitle || baseName,
+      search
+    });
+    if (Number.isFinite(season)) params.set('season', String(season));
+    if (Number.isFinite(episode)) params.set('episode', String(episode));
+    return `${window.location.origin}/opensubtitles-subtitles.html?${params.toString()}`;
+  }
+
+  function openEpisodeOverlay(kind = 'repair') {
+    const iframe = document.getElementById('repairIframe');
+    const overlay = document.getElementById('repairOverlay');
+    const title = document.getElementById('repairOverlayTitle');
+    const sourceUrl = getRepairSourceUrl();
+    const url = kind === 'subtitle' ? buildSubtitleUrlForCurrentVideo() : buildRepairUrlForCurrentVideo();
+    if (!iframe || !overlay || !title || !url) return false;
+
+    window.__episodeJobFlow = kind;
+
+    try { hideRepairResumeModal(); } catch (e) {}
+    try { closeSettingsDialog(); } catch (e) {}
+
+    captureRepairResumeSnapshot();
+
+    const sourceName = getRepairSourceName(sourceUrl) || 'current video';
+    title.textContent = kind === 'subtitle'
+      ? `📝 Generate subtitles for ${sourceName}`
+      : `🛠️ Repair ${sourceName}`;
+    iframe.src = url;
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+    return true;
+  }
+
+  function openRepairOverlay() {
+    return openEpisodeOverlay('repair');
+  }
+
+  function openSubtitleOverlay() {
+    return openEpisodeOverlay('subtitle');
+  }
+
+  function closeRepairOverlay() {
+    const iframe = document.getElementById('repairIframe');
+    const overlay = document.getElementById('repairOverlay');
+    if (overlay) {
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    window.__episodeJobFlow = '';
+    try { hideRepairResumeModal(); } catch (e) {}
+    try { if (iframe) iframe.src = 'about:blank'; } catch (e) {}
+  }
+
+  function normalizeRepairSourceUrl(value) {
+
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw, window.location.href);
+      return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  async function refreshCurrentVideoStream(options = {}) {
+    const vid = document.getElementById('video');
+    const snapshot = getRepairResumeSnapshot() || {};
+    const sourceUrl = normalizeRepairSourceUrl(options.sourceUrl || snapshot.sourceUrl || getRepairSourceUrl());
+    if (!vid || !sourceUrl) return false;
+
+    try {
+      const url = new URL(sourceUrl, window.location.href);
+      url.searchParams.set('_repairReload', String(Date.now()));
+
+      const resumeTime = Number.isFinite(Number(options.resumeTime))
+        ? Number(options.resumeTime)
+        : (Number.isFinite(Number(snapshot.time)) ? Number(snapshot.time) : 0);
+
+      try { vid.pause(); } catch (e) {}
+      try { vid.removeAttribute('src'); } catch (e) {}
+      try {
+        if (vid.querySelectorAll) {
+          Array.from(vid.querySelectorAll('source')).forEach(source => {
+            try { source.removeAttribute('src'); } catch (e) {}
+          });
+        }
+      } catch (e) {}
+      try { vid.load(); } catch (e) {}
+
+      vid.src = url.href;
+      try { vid.load(); } catch (e) {}
+
+      const videoReady = new Promise((resolve) => {
+        try {
+          vid.addEventListener('loadeddata', resolve, { once: true });
+        } catch (e) {
+          resolve();
+        }
+      });
+
+      const subtitlesReady = (typeof setSubtitleWithFetch === 'function')
+        ? Promise.resolve(setSubtitleWithFetch(sourceUrl))
+        : Promise.resolve();
+
+      await Promise.all([videoReady, subtitlesReady]);
+
+      try { vid.currentTime = Math.max(0, resumeTime); } catch (e) {}
+      try { await vid.play(); } catch (e) {}
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  if (!window.__repairFlowMessageListenerAdded) {
+    window.__repairFlowMessageListenerAdded = true;
+    window.addEventListener('message', function(event) {
+      const data = event && event.data ? event.data : {};
+      if (!data || typeof data !== 'object') return;
+      if (event.origin && event.origin !== window.location.origin) return;
+
+      if (data.type === 'repair-complete') {
+        try { closeRepairOverlay(); } catch (e) {}
+        try {
+          if (!showRepairResumeModal(getRepairResumeSnapshot())) {
+            refreshCurrentVideoStream();
+          }
+        } catch (e) {
+          console.warn('Failed to show repair resume modal', e);
+          refreshCurrentVideoStream();
+        }
+      }
+
+      if (data.type === 'repair-failed') {
+        const flow = window.__episodeJobFlow === 'subtitle' ? 'Subtitle generation' : 'Repair';
+        try { showToast && showToast(`${flow} failed.`); } catch (e) {}
+      }
+    });
+  }
+  function adjustGearText() {
     const container = document.getElementById('resetGearContainer');
     const reset = document.getElementById('resetResumeBtn');
     const gear = document.getElementById('settingsGearBtn');
@@ -1555,16 +2116,38 @@ function normalizeSeasonsArrayInPlace(arr) {
     const gear = document.getElementById('settingsGearBtn');
     if (gear) gear.addEventListener('click', function(e){ e.stopPropagation(); openSettingsDialog(); });
 
+    const repairBtn = document.getElementById('episodeRepairBtn');
+    if (repairBtn) repairBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (!openRepairOverlay()) {
+        try { showToast && showToast('No video source is loaded for repair.'); } catch(err) {}
+      }
+    });
+
+    const subtitleBtn = document.getElementById('episodeSubtitleBtn');
+    if (subtitleBtn) subtitleBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (!openSubtitleOverlay()) {
+        try { showToast && showToast('No video source is loaded for subtitle generation.'); } catch(err) {}
+      }
+    });
+
     const back = document.getElementById('settingsBackBtn');
     if (back) back.addEventListener('click', function(){ closeSettingsDialog(); });
 
     const overlay = document.getElementById('settingsOverlay');
     if (overlay) overlay.addEventListener('click', function(){ closeSettingsDialog(); });
 
+    const repairOverlay = document.getElementById('repairOverlay');
+    const repairClose = document.getElementById('repairOverlayClose');
+    if (repairOverlay) repairOverlay.addEventListener('click', function(e){ if (e.target === repairOverlay) closeRepairOverlay(); });
+    if (repairClose) repairClose.addEventListener('click', closeRepairOverlay);
+
     document.addEventListener('keydown', function(e){
       if (e.key === 'Escape') {
         const sd = document.getElementById('settingsDialog');
         if (sd && sd.style.display === 'block') closeSettingsDialog();
+        closeRepairOverlay();
       }
     });
 
@@ -1572,7 +2155,7 @@ function normalizeSeasonsArrayInPlace(arr) {
     if (resetBtn) resetBtn.addEventListener('click', function(){ try { resetResume(); } catch(e){ console.warn('resetResume error', e); } });
 
     // ensure hidden checkboxes exist (backwards compatibility)
-    const ids = ['autoplay','autoNextSequel','autoFullscreen','skipIntroOutro','subtitlesEnabled'];
+    const ids = ['autoplay','autoNextSequel','autoFullscreen','pauseAfterFullscreen','skipIntroOutro','subtitlesEnabled'];
     ids.forEach(id => {
       if (!document.getElementById(id)) {
         const inp = document.createElement('input');
@@ -1586,7 +2169,8 @@ function normalizeSeasonsArrayInPlace(arr) {
         } else {
           if (id === 'autoplay' && typeof autoplayEnabled !== 'undefined') inp.checked = !!autoplayEnabled;
           if (id === 'autoNextSequel' && typeof autoNextSequelEnabled !== 'undefined') inp.checked = !!autoNextSequelEnabled;
-          if (id === 'autoFullscreen' && typeof fullscreenEnabled !== 'undefined') inp.checked = !!fullscreenEnabled;
+          if (id === 'autoFullscreen') { inp.checked = !!fullscreenEnabled; try { fullscreenEnabled = !!inp.checked; } catch(e){} }
+          if (id === 'pauseAfterFullscreen') { inp.checked = (typeof pauseAfterFullscreenEnabled !== 'undefined') ? !!pauseAfterFullscreenEnabled : true; try { pauseAfterFullscreenEnabled = !!inp.checked; } catch(e){} }
           if (id === 'skipIntroOutro' && typeof skipEnabled !== 'undefined') inp.checked = !!skipEnabled;
           if (id === 'subtitlesEnabled') inp.checked = true;
         }
@@ -1761,6 +2345,154 @@ let lastViewedFolder = null; // name of the folder tile we last opened (for scro
 let autoplayEnabled = true;
 let autoNextSequelEnabled = true;
 let fullscreenEnabled = true;
+try {
+  const storedAutoFullscreen = localStorage.getItem('pref-autoFullscreen');
+  if (storedAutoFullscreen === 'true') fullscreenEnabled = true;
+  else if (storedAutoFullscreen === 'false') fullscreenEnabled = false;
+} catch (e) {}
+
+function getAutoFullscreenEnabled() {
+  try {
+    const cb = document.getElementById('autoFullscreen');
+    if (cb) {
+      const aria = cb.getAttribute && cb.getAttribute('aria-checked');
+      if (aria === 'true') return true;
+      if (aria === 'false') return false;
+      if (typeof cb.checked !== 'undefined') return !!cb.checked;
+    }
+  } catch (e) {}
+  try {
+    const stored = localStorage.getItem('pref-autoFullscreen');
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+  } catch (e) {}
+  return !!fullscreenEnabled;
+}
+
+function setAutoFullscreenEnabled(val) {
+  fullscreenEnabled = !!val;
+  try { localStorage.setItem('pref-autoFullscreen', fullscreenEnabled ? 'true' : 'false'); } catch (e) {}
+  try {
+    const cb = document.getElementById('autoFullscreen');
+    if (cb) {
+      cb.checked = fullscreenEnabled;
+      cb.dataset.checked = fullscreenEnabled ? 'true' : 'false';
+      cb.setAttribute('aria-checked', fullscreenEnabled ? 'true' : 'false');
+    }
+  } catch (e) {}
+}
+
+let pauseAfterFullscreenEnabled = true;
+try {
+  const storedPauseAfterFullscreen = localStorage.getItem('pref-pauseAfterFullscreen');
+  if (storedPauseAfterFullscreen === 'true') pauseAfterFullscreenEnabled = true;
+  else if (storedPauseAfterFullscreen === 'false') pauseAfterFullscreenEnabled = false;
+} catch (e) {}
+
+function getPauseAfterFullscreenEnabled() {
+  try {
+    const cb = document.getElementById('pauseAfterFullscreen');
+    if (cb) {
+      const aria = cb.getAttribute && cb.getAttribute('aria-checked');
+      if (aria === 'true') return true;
+      if (aria === 'false') return false;
+      if (typeof cb.checked !== 'undefined') return !!cb.checked;
+    }
+  } catch (e) {}
+  try {
+    const stored = localStorage.getItem('pref-pauseAfterFullscreen');
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+  } catch (e) {}
+  return !!pauseAfterFullscreenEnabled;
+}
+
+function setPauseAfterFullscreenEnabled(val) {
+  pauseAfterFullscreenEnabled = !!val;
+  try { localStorage.setItem('pref-pauseAfterFullscreen', pauseAfterFullscreenEnabled ? 'true' : 'false'); } catch (e) {}
+  try {
+    const cb = document.getElementById('pauseAfterFullscreen');
+    if (cb) {
+      cb.checked = pauseAfterFullscreenEnabled;
+      cb.dataset.checked = pauseAfterFullscreenEnabled ? 'true' : 'false';
+      cb.setAttribute('aria-checked', pauseAfterFullscreenEnabled ? 'true' : 'false');
+    }
+  } catch (e) {}
+}
+
+function isVideoActuallyLoaded() {
+  try {
+    const v = document.getElementById('video');
+    return !!(v && typeof v.src === 'string' && v.src.trim() !== '');
+  } catch (e) {
+    return false;
+  }
+}
+
+function maybeAutoFullscreenActivePlayback() {
+  const autoFs = (typeof getAutoFullscreenEnabled === 'function') ? getAutoFullscreenEnabled() : !!fullscreenEnabled;
+  if (!autoFs) return;
+
+  const video = document.getElementById('video');
+  const videoPlayer = document.getElementById('videoPlayer');
+  const target = videoPlayer || video;
+  if (!video || !target || !isVideoActuallyLoaded()) return;
+
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+      return;
+    }
+  } catch (e) {}
+
+  try {
+    const now = Date.now();
+    if (window.__autoFullscreenRequestInFlight) return;
+    if (window.__autoFullscreenLastRequestAt && (now - window.__autoFullscreenLastRequestAt) < 900) return;
+
+    window.__autoFullscreenRequestInFlight = true;
+
+    const finish = function() {
+      window.__autoFullscreenRequestInFlight = false;
+      window.__autoFullscreenLastRequestAt = Date.now();
+    };
+
+    const req = (typeof _requestPlayerFullscreen === 'function')
+      ? _requestPlayerFullscreen
+      : (target.requestFullscreen ? target.requestFullscreen.bind(target)
+        : (video && video.requestFullscreen ? video.requestFullscreen.bind(video) : null));
+
+    if (!req) {
+      finish();
+      return;
+    }
+
+    const maybe = req();
+    if (maybe && typeof maybe.then === 'function') {
+      maybe.then(finish, function() { window.__autoFullscreenRequestInFlight = false; });
+    } else {
+      finish();
+    }
+  } catch (e) {
+    window.__autoFullscreenRequestInFlight = false;
+  }
+}
+
+function handleFullscreenChangeForPlayback() {
+  try {
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    if (isFs) return;
+
+    if (!getPauseAfterFullscreenEnabled()) return;
+
+    const video = document.getElementById('video');
+    if (!video) return;
+
+    if (!video.paused && !video.ended) {
+      try { video.pause(); } catch (e) {}
+    }
+  } catch (e) {}
+}
+
 let skipEnabled = true;
 let currentSeries = ""; // e.g., "Rage of Bahamut"
 // Make this global so any function (playEpisode, loadEpisodes, etc.) can call it.
@@ -2048,8 +2780,9 @@ function decodeLoaderNameToDisplayName(fnName) {
         const re = /(['"])(.*?)\1/g;
         let m;
         const titlesInBlock = [];
-        const urlParams = new URLSearchParams(window.location.search || '');
-        const kidsMode = urlParams.has('l');
+        const kidsMode = (typeof window.isKidsModeActive === 'function')
+          ? window.isKidsModeActive()
+          : false;
 
         while ((m = re.exec(cleaned)) !== null) {
           const raw = m[2];
@@ -2432,71 +3165,145 @@ function decodeLoaderNameToDisplayName(fnName) {
     if (old && old.parentNode) old.parentNode.removeChild(old);
   }
 
-  function renderGameMatches(matches, rawQuery) {
-    const container = document.getElementById('folderContainer');
-    if (!container) return;
-    removeGamesSection();
-    if (!matches || matches.length === 0) return;
+function renderGameMatches(matches, rawQuery) {
+  const container = document.getElementById('folderContainer');
+  if (!container) return;
+  removeGamesSection();
+  if (!matches || matches.length === 0) return;
 
-    const section = document.createElement('div');
-    section.id = 'gamesSearchSection';
-    section.style.width = '100%';
-    section.style.marginTop = '18px';
-    section.style.paddingTop = '8px';
-    section.style.borderTop = '1px solid rgba(255,255,255,0.06)';
+  const section = document.createElement('div');
+  section.id = 'gamesSearchSection';
+  section.style.width = '100%';
+  section.style.marginTop = '18px';
+  section.style.paddingTop = '8px';
+  section.style.borderTop = '1px solid rgba(255,255,255,0.06)';
 
-    const header = document.createElement('div');
-    header.style.color = '#fff';
-    header.style.fontSize = '14px';
-    header.style.margin = '8px 12px';
-    header.innerText = `Games matches for "${rawQuery}"`;
-    section.appendChild(header);
+  const header = document.createElement('div');
+  header.style.color = '#fff';
+  header.style.fontSize = '14px';
+  header.style.margin = '8px 12px';
+  header.innerText = `Games matches for "${rawQuery}"`;
+  section.appendChild(header);
 
-    const grid = document.createElement('div');
-    grid.style.display = 'flex';
-    grid.style.flexWrap = 'wrap';
-    grid.style.gap = '12px';
-    grid.style.justifyContent = 'center';
-    grid.style.padding = '6px 12px';
+  const grid = document.createElement('div');
+  grid.style.display = 'flex';
+  grid.style.flexWrap = 'wrap';
+  grid.style.gap = '12px';
+  grid.style.justifyContent = 'center';
+  grid.style.padding = '6px 12px';
 
-    matches.forEach(m => {
-      const div = document.createElement('div');
-      div.className = 'game-tile';
-      div.style.width = '160px';
-      div.style.cursor = 'pointer';
-      div.style.textAlign = 'center';
-      div.style.color = '#fff';
+  matches.forEach(m => {
+    const isMultiDisk =
+      m && m.specialSet === 'multidisk' &&
+      Array.isArray(m.disks) &&
+      m.disks.length > 0;
 
-      const img = document.createElement('img');
-      img.src = m.img || '';
-      img.alt = m.name || '';
-      img.style.width = '100%';
-      img.style.height = 'auto';
-      img.style.borderRadius = '6px';
-      img.onerror = function(){ this.onerror = null; };
+    const card = document.createElement('div');
+    card.className = 'game-match-card';
+    card.style.width = '170px';
+    card.style.cursor = 'default';
+    card.style.textAlign = 'center';
+    card.style.color = '#fff';
+    card.style.display = 'flex';
+    card.style.flexDirection = 'column';
+    card.style.alignItems = 'center';
+    card.style.gap = '8px';
 
-      const p = document.createElement('div');
-      p.style.fontSize = '13px';
-      p.style.margin = '6px 0 0';
-      p.innerText = m.name || '';
+    const rootTile = document.createElement('div');
+    rootTile.style.cursor = 'pointer';
+    rootTile.style.width = '170px';
 
-      div.appendChild(img);
-      div.appendChild(p);
-      div.addEventListener('click', () => {
-        try {
-          if (!m.link) return;
-          if (/^https?:\/\//i.test(m.link)) window.open(m.link, '_blank');
-          else window.location.href = m.link;
-        } catch(e){ console.error('game tile click', e); }
-      });
+    const rootImg = document.createElement('img');
+    rootImg.src = m.img || '';
+    rootImg.alt = m.name || '';
+    rootImg.style.width = '150px';
+    rootImg.style.height = '210px';
+    rootImg.style.objectFit = 'cover';
+    rootImg.style.borderRadius = '10px';
+    rootImg.style.display = 'block';
+    rootImg.style.margin = '0 auto';
 
-      grid.appendChild(div);
+    const rootTitle = document.createElement('p');
+    rootTitle.style.fontSize = '13px';
+    rootTitle.style.margin = '6px 0 0';
+    rootTitle.style.fontWeight = 'bold';
+    rootTitle.innerText = m.name || '';
+
+    rootTile.appendChild(rootImg);
+    rootTile.appendChild(rootTitle);
+
+    rootTile.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window._searchResultMode = true;
+      try {
+        if (isMultiDisk && typeof window.displayDisks === 'function') {
+          window.displayDisks(m);
+          return;
+        }
+
+        if (!m.link) return;
+        if (/^https?:\/\//i.test(m.link)) window.open(m.link, '_blank');
+        else window.location.href = m.link;
+      } catch(err) { console.error('game tile click error', err); }
     });
 
-    section.appendChild(grid);
-    container.appendChild(section);
-    showHome();
-  }
+    card.appendChild(rootTile);
+
+    if (isMultiDisk) {
+      const diskRow = document.createElement('div');
+      diskRow.style.display = 'flex';
+      diskRow.style.flexWrap = 'wrap';
+      diskRow.style.gap = '6px';
+      diskRow.style.justifyContent = 'center';
+      diskRow.style.width = '100%';
+
+      m.disks.forEach(disk => {
+        const diskTile = document.createElement('div');
+        diskTile.style.width = '48px';
+        diskTile.style.cursor = 'pointer';
+        diskTile.style.textAlign = 'center';
+        diskTile.style.color = '#fff';
+
+        const diskImg = document.createElement('img');
+        diskImg.src = disk.img || m.img || '';
+        diskImg.alt = `${m.name || m.baseName || 'Game'} - Disk ${disk.disk}`;
+        diskImg.style.width = '48px';
+        diskImg.style.height = '68px';
+        diskImg.style.objectFit = 'cover';
+        diskImg.style.borderRadius = '6px';
+        diskImg.style.display = 'block';
+
+        const diskLabel = document.createElement('div');
+        diskLabel.textContent = `D${disk.disk}`;
+        diskLabel.style.fontSize = '11px';
+        diskLabel.style.marginTop = '3px';
+
+        diskTile.appendChild(diskImg);
+        diskTile.appendChild(diskLabel);
+
+        diskTile.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window._searchResultMode = true;
+          if (disk.link) {
+            window.location.href = disk.link;
+          }
+        });
+
+        diskRow.appendChild(diskTile);
+      });
+
+      card.appendChild(diskRow);
+    }
+
+    grid.appendChild(card);
+  });
+
+  section.appendChild(grid);
+  container.appendChild(section);
+  showHome();
+}
 
   async function renderMusicMatches(matches, rawQuery) {
     const container = document.getElementById('folderContainer');
@@ -3080,7 +3887,12 @@ function renderResults(matches, rawQuery, options = {}){
     div.addEventListener('click', () => {
       try {
         if (m && m.source === 'library' && m.lib) {
-          const url = `./reader.html?lib=${encodeURIComponent(m.lib)}&Guidebook=${encodeURIComponent(m.title || '')}`;
+          const guidebookParam = buildGuidebookParam(m);
+          if (!guidebookParam) {
+            console.warn('guidebook click missing ROM-safe base', m);
+            return;
+          }
+          const url = `./reader.html?lib=${encodeURIComponent(m.lib || 'books')}&Guidebook=${encodeURIComponent(guidebookParam)}`;
           window.location.href = url;
           return;
         }
@@ -3155,8 +3967,9 @@ function renderResults(matches, rawQuery, options = {}){
       const parsed = [];
       const normalizeTitle = s => (s || '').replace(/\s+/g, ' ').trim();
       const seasonPattern = /\bseason\b/i;
-      const urlParams = new URLSearchParams(window.location.search || '');
-      const kidsMode = urlParams.has('l');
+      const kidsMode = (typeof window.isKidsModeActive === 'function')
+        ? window.isKidsModeActive()
+        : false;
 
       for (const b of blocks) {
         // nearest preceding loader function name as parent hint
@@ -3261,6 +4074,65 @@ function renderResults(matches, rawQuery, options = {}){
     { lib: 'guidebooks', category: 'Guidebooks', path: './guidebooks.js' }
   ];
 
+
+  function resolveLibraryDisplayTitle(item) {
+    if (!item || typeof item !== 'object') return '';
+
+    const preferredFields = [
+      item.matchedGame,
+      item.matchedGameBase,
+      item.title,
+      item.matchedGameRomBase
+    ];
+
+    for (const value of preferredFields) {
+      const resolved = String(value || '').trim();
+      if (resolved) return resolved;
+    }
+
+    return '';
+  }
+
+  function resolveGuidebookQueryBase(item) {
+    if (!item || typeof item !== 'object') return '';
+
+    const exact = String(item.guidebookQueryBase || item.matchedGameRomBase || '').trim();
+    if (exact) return exact;
+
+    const fileStem = String(item.file || '').split(/[\/]/).pop().replace(/\.[^.]+$/, '').trim();
+    if (fileStem) {
+      const fromFile = fileStem.replace(/\s*Guidebook$/i, '').trim();
+      if (fromFile) {
+        const cleanedFile = fromFile.replace(/[^a-zA-Z0-9,]+/g, '');
+        if (cleanedFile) return cleanedFile;
+      }
+    }
+
+    const fallbackFields = [
+      item.matchedGameBase,
+      item.matchedGame,
+      item.rawTitle,
+      item.title
+    ];
+
+    for (const value of fallbackFields) {
+      const resolved = String(value || '').trim();
+      if (!resolved) continue;
+      const stripped = resolved.replace(/\s*Guidebook$/i, '').trim();
+      if (!stripped) continue;
+      const cleaned = stripped.replace(/[^a-zA-Z0-9,]+/g, '');
+      if (cleaned) return cleaned;
+    }
+
+    return '';
+  }
+
+  function buildGuidebookParam(item) {
+    const base = resolveGuidebookQueryBase(item);
+    if (!base) return '';
+    return /Guidebook$/i.test(base) ? base : `${base}Guidebook`;
+  }
+
   function flattenLibraryItems(items, meta, parentTitle = null) {
     const out = [];
     const list = Array.isArray(items) ? items : [];
@@ -3268,16 +4140,24 @@ function renderResults(matches, rawQuery, options = {}){
       if (!item || typeof item !== 'object') continue;
 
       if (item.group && Array.isArray(item.books)) {
-        const groupTitle = String(item.title || '').trim();
+        const groupTitle = resolveLibraryDisplayTitle(item) || String(item.title || '').trim();
         out.push(...flattenLibraryItems(item.books, meta, groupTitle || parentTitle));
         continue;
       }
 
-      const title = String(item.title || '').trim();
+      const displayTitle = resolveLibraryDisplayTitle(item);
+      const rawTitle = String(item.title || '').trim();
+      const title = displayTitle || rawTitle;
       if (!title) continue;
 
       out.push({
         title,
+        displayTitle: title,
+        rawTitle,
+        matchedGame: String(item.matchedGame || '').trim(),
+        matchedGameBase: String(item.matchedGameBase || '').trim(),
+        matchedGameRomBase: String(item.matchedGameRomBase || '').trim(),
+        guidebookQueryBase: resolveGuidebookQueryBase(item),
         parent: meta.category,
         source: 'library',
         lib: meta.lib,
@@ -3327,9 +4207,23 @@ return window.libraryData;`)(sandbox);
     const arr = await getLibraryIndex();
     return arr.filter(it => {
       const title = String(it.title || '').toLowerCase();
+      const displayTitle = String(it.displayTitle || '').toLowerCase();
+      const rawTitle = String(it.rawTitle || '').toLowerCase();
       const parent = String(it.parent || '').toLowerCase();
       const lib = String(it.lib || '').toLowerCase();
-      return title.includes(lc) || parent.includes(lc) || lib.includes(lc);
+      const matchedGame = String(it.matchedGame || '').toLowerCase();
+      const matchedGameBase = String(it.matchedGameBase || '').toLowerCase();
+      const matchedGameRomBase = String(it.matchedGameRomBase || '').toLowerCase();
+      return (
+        title.includes(lc) ||
+        displayTitle.includes(lc) ||
+        rawTitle.includes(lc) ||
+        parent.includes(lc) ||
+        lib.includes(lc) ||
+        matchedGame.includes(lc) ||
+        matchedGameBase.includes(lc) ||
+        matchedGameRomBase.includes(lc)
+      );
     });
   }
 
@@ -3390,7 +4284,8 @@ return window.libraryData;`)(sandbox);
 
         let idx = 0;
         const imgEl = document.createElement('img');
-        imgEl.alt = m.title || '';
+        const displayTitle = String(m.displayTitle || m.title || '').trim();
+        imgEl.alt = displayTitle;
         imgEl.style.width = '150px';
         imgEl.style.height = '210px';
         imgEl.style.objectFit = 'cover';
@@ -3413,7 +4308,7 @@ return window.libraryData;`)(sandbox);
         titleP.style.fontWeight = 'bold';
         titleP.style.color = '#fff';
         titleP.style.margin = '10px 0 0';
-        titleP.innerText = m.title || '';
+        titleP.innerText = displayTitle || 'Untitled';
 
         const parentP = document.createElement('p');
         parentP.style.fontSize = '11px';
@@ -3427,7 +4322,12 @@ return window.libraryData;`)(sandbox);
 
         div.addEventListener('click', () => {
           try {
-            const url = `./reader.html?lib=${encodeURIComponent(m.lib || 'books')}&Guidebook=${encodeURIComponent(m.title || '')}`;
+            const guidebookParam = buildGuidebookParam(m);
+            if (!guidebookParam) {
+              console.warn('guidebook click missing ROM-safe base', m);
+              return;
+            }
+            const url = `./reader.html?lib=${encodeURIComponent(m.lib || 'books')}&Guidebook=${encodeURIComponent(guidebookParam)}`;
             window.location.href = url;
           } catch(e){ console.error('library tile click', e); }
         });
@@ -3533,8 +4433,8 @@ return window.libraryData;`)(sandbox);
         renderResults(mainMatches, raw, { suppressEmptyState: hasExtras });
       }
 
-      renderBookMangaMatches(libraryMatches, raw);
       renderGameMatches(gameMatches, raw);
+      renderBookMangaMatches(libraryMatches, raw);
       renderMusicMatches(musicMatches, raw).catch(()=>{});
       renderGenreMatches(genreMatches, raw).catch(()=>{});
       try { console.info('send buttons created:', sendButtonsCount); } catch(e){}
@@ -3931,8 +4831,140 @@ function buildSeasonImageCandidates(seriesName, seasonName) {
   return candidates;
 }
 
+// Adds the same top-left favorite star mechanic used in the main folder and search tiles,
+// while keeping the season tile itself as the focusable / navigable surface for remote users.
+function attachSeasonFavoriteStar(tile, folderName) {
+  if (!tile || !folderName) return null;
+
+  const readFavs = () => {
+    try {
+      if (typeof getStoredFavorites === 'function') {
+        const favs = getStoredFavorites();
+        return Array.isArray(favs) ? favs : [];
+      }
+      return JSON.parse(localStorage.getItem('favorites') || '[]');
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const starBtn = document.createElement('button');
+  starBtn.type = 'button';
+  starBtn.className = 'tile-fav-star';
+  starBtn.setAttribute('aria-label', `Favorite ${folderName}`);
+  starBtn.setAttribute('title', `Favorite ${folderName}`);
+  starBtn.setAttribute('aria-hidden', 'true');
+  starBtn.tabIndex = -1;
+  starBtn.style.display = 'none';
+
+  const glyph = document.createElement('span');
+  glyph.className = 'tile-fav-glyph';
+  glyph.style.pointerEvents = 'none';
+  glyph.textContent = '☆';
+  starBtn.appendChild(glyph);
+
+  function refreshStarVisual() {
+    const favs = readFavs();
+    const isFav = Array.isArray(favs) && favs.includes(folderName);
+
+    glyph.textContent = isFav ? '★' : '☆';
+    glyph.style.color = isFav ? '#ffcf33' : '#fff';
+    starBtn.classList.toggle('favorited', isFav);
+  }
+
+  function toggleFavorite() {
+    try {
+      if (typeof toggleFavoriteByName === 'function') {
+        toggleFavoriteByName(folderName);
+      } else {
+        const favs = readFavs();
+        const idx = favs.indexOf(folderName);
+        if (idx === -1) favs.push(folderName);
+        else favs.splice(idx, 1);
+
+        if (typeof setStoredFavorites === 'function') {
+          setStoredFavorites(favs);
+        } else {
+          localStorage.setItem('favorites', JSON.stringify(favs));
+        }
+
+        if (typeof saveFavoritesToServer === 'function') {
+          try { saveFavoritesToServer(favs).catch(() => {}); } catch (e) {}
+        }
+
+        if (typeof updateFavoriteButtonUI === 'function') {
+          try { updateFavoriteButtonUI(); } catch (e) {}
+        }
+      }
+    } catch (e) {
+      console.warn('season favorite toggle failed', e);
+    }
+
+    refreshStarVisual();
+    try {
+      if (typeof updateFavoriteButtonUI === 'function') updateFavoriteButtonUI();
+    } catch (e) {}
+  }
+
+  starBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    toggleFavorite();
+  });
+
+  starBtn.addEventListener('pointerdown', function (e) {
+    e.stopPropagation();
+  }, { passive: true });
+
+  tile.addEventListener('pointerenter', function (ev) {
+    const pType = (ev && ev.pointerType) ? String(ev.pointerType).toLowerCase() : 'mouse';
+    if (pType === 'mouse' || pType === 'pen') {
+      refreshStarVisual();
+      starBtn.style.display = 'flex';
+    }
+  }, { passive: true });
+
+  tile.addEventListener('pointerleave', function () {
+    starBtn.style.display = 'none';
+  }, { passive: true });
+
+  tile.addEventListener('pointerdown', function (ev) {
+    if (ev && String(ev.pointerType).toLowerCase() === 'touch') {
+      refreshStarVisual();
+      starBtn.style.display = 'flex';
+      setTimeout(() => {
+        try { starBtn.style.display = 'none'; } catch (e) {}
+      }, 2500);
+    }
+  }, { passive: true });
+
+  tile.addEventListener('focus', function () {
+    refreshStarVisual();
+    starBtn.style.display = 'flex';
+  });
+
+  tile.addEventListener('blur', function () {
+    starBtn.style.display = 'none';
+  });
+
+  tile.addEventListener('keydown', function (e) {
+    const key = e.key || '';
+    if (key === 'Enter' || key === ' ' || key === 'Spacebar' || e.keyCode === 13 || e.keyCode === 32) {
+      e.preventDefault();
+      tile.click();
+    } else if (key === 'f' || key === 'F') {
+      e.preventDefault();
+      toggleFavorite();
+    }
+  });
+
+  tile.style.position = tile.style.position || 'relative';
+  tile.appendChild(starBtn);
+  refreshStarVisual();
+  return starBtn;
+}
+
 function createSeasonButtons(seasons, series) {
-currentSeries = series;
+  currentSeries = series;
   const profile = localStorage.getItem("activeProfile") || "Guest";
   let latestValidSeason = null;
   let latestTimestamp = 0;
@@ -3953,32 +4985,45 @@ currentSeries = series;
   seasons.forEach(season => {
     const div = document.createElement("div");
     div.className = "folder";
+    div.style.position = 'relative';
+    div.tabIndex = 0;
+    div.setAttribute('role', 'button');
+    div.setAttribute('aria-label', `Open ${season}`);
     if (season === latestValidSeason) {
       div.classList.add("highlight-season");
     }
 
-const imageCandidates = buildSeasonImageCandidates(series, season);
-let imageIndex = 0;
+    const imageCandidates = buildSeasonImageCandidates(series, season);
+    let imageIndex = 0;
 
-const img = document.createElement('img');
-img.alt = season;
-img.src = imageCandidates[imageIndex];
+    const img = document.createElement('img');
+    img.alt = season;
+    img.src = imageCandidates[imageIndex];
 
-img.onerror = function() {
-  if (imageIndex < imageCandidates.length - 1) {
-    imageIndex += 1;
-    this.src = imageCandidates[imageIndex];
-  } else {
-    this.onerror = null;
-  }
-};
+    img.onerror = function() {
+      if (imageIndex < imageCandidates.length - 1) {
+        imageIndex += 1;
+        this.src = imageCandidates[imageIndex];
+      } else {
+        this.onerror = null;
+      }
+    };
 
-const title = document.createElement('p');
-title.textContent = season;
+    const title = document.createElement('p');
+    title.textContent = season;
 
-div.appendChild(img);
-div.appendChild(title);
+    div.appendChild(img);
+    div.appendChild(title);
+    attachSeasonFavoriteStar(div, season);
+
     div.onclick = () => loadEpisodes(season);
+    div.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 32) {
+        e.preventDefault();
+        div.click();
+      }
+    });
+
     folderContainer.appendChild(div);
   });
 
@@ -4091,9 +5136,6 @@ try { updateEpisodeListHighlight(); } catch (e) {}
   const currentEpisodeTitle = document.getElementById("currentEpisodeTitle");
   const nextEpisodePopup = document.getElementById("nextEpisodePopup");
 
-  // Signal we are doing a programmatic load so pause-handlers don't kill fullscreen
-  window._suppressExitOnPause = true;
-
   // Encoded file path (replaces # with %23)
   const safeSrc = safeFileUrl(episode.file);
   video.src = safeSrc;
@@ -4109,9 +5151,7 @@ try { updateEpisodeListHighlight(); } catch (e) {}
 
     // Attempt play; once play resolves, clear suppression flag.
     video.play().then(() => {
-      // Clear suppression now that playback started
-      window._suppressExitOnPause = false;
-
+  
       // Ensure any transient resume UI is removed as soon as playback begins
       try {
         if (typeof cleanupResumeActionContainers === 'function') {
@@ -4126,35 +5166,20 @@ try { updateEpisodeListHighlight(); } catch (e) {}
         console.warn('playEpisode: cleanup on play start failed', err);
       }
 
-      if (episodes[folderName].length === 1) {
-        currentEpisodeTitle.textContent = `Now Playing: ${folderName}`;
-      } else {
-        currentEpisodeTitle.textContent = `Now Playing: ${folderName}: Episode ${episodeIndex + 1} - ${episode.name}`;
+      if (currentEpisodeTitle) {
+        if (episodes[folderName].length === 1) {
+          currentEpisodeTitle.textContent = `Now Playing: ${folderName}`;
+        } else {
+          currentEpisodeTitle.textContent = `Now Playing: ${folderName}: Episode ${episodeIndex + 1} - ${episode.name}`;
+        }
       }
-      nextEpisodePopup.style.display = 'none';
+      if (nextEpisodePopup) nextEpisodePopup.style.display = 'none';
 
-      // Preserve original behavior: try to ensure container is fullscreen when play begins.
-      let attempts = 0;
-      const tryFullscreen = () => {
-        try {
-          if (videoPlayer && videoPlayer.requestFullscreen) {
-            videoPlayer.requestFullscreen().catch(() => {});
-          } else if (video && video.requestFullscreen) {
-            video.requestFullscreen().catch(() => {});
-          }
-        } catch (err) {}
-        attempts++;
-        if (attempts < 3) setTimeout(tryFullscreen, 400);
-      };
-      tryFullscreen();
+      // Auto fullscreen is now handled centrally by playback event listeners.
     }).catch(err => {
       console.error("Error playing video:", err);
-      // If play() failed (autoplay blocked), clear the suppression flag after a short safety window
-      setTimeout(() => { window._suppressExitOnPause = false; }, 700);
     });
 
-    // Safety: if play() never resolves, clear suppression after 2s to avoid a stuck flag
-    setTimeout(() => { if (window._suppressExitOnPause) window._suppressExitOnPause = false; }, 2000);
   };
 
   // update every 5 seconds instead of every second
@@ -4200,13 +5225,12 @@ function returnToHome() {
   // cleanup any transient resume UI we inserted earlier
   cleanupResumeActionContainers();
 
-  document.getElementById("videoPlayer").style.display = "none";
-  document.getElementById("topNowPlaying").style.display = "none";
-  const video = document.getElementById("video");
-  if (video) try { video.pause(); } catch(e){}
+  cullCurrentVideoPlayback();
 
   folderContainer.innerHTML = "";
-  lastFolderScroll = 0; lastViewedFolder = null; window.scrollTo({top:0, behavior:'auto'});
+  lastFolderScroll = 0;
+  lastViewedFolder = null;
+  window.scrollTo({top:0, behavior:'auto'});
   loadMainFolders();
   showProfilesButton();
 }
@@ -4214,6 +5238,7 @@ function returnToHome() {
 
 
 // Helper: remove any transient resume / action containers that were inserted
+
 function cleanupResumeActionContainers() {
   try {
     // Remove by ID if present
@@ -4224,6 +5249,20 @@ function cleanupResumeActionContainers() {
 
     // Defensive: remove any stray container using the same class
     Array.from(document.querySelectorAll('.movie-action-container')).forEach(el => {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+
+    // Remove transient resume buttons that sit above the video / inside the top bar.
+    // These are only needed before playback starts.
+    const topBarCenter = document.getElementById('top-bar-center');
+    if (topBarCenter) {
+      Array.from(topBarCenter.querySelectorAll('.sys-episode-btn')).forEach(el => {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      });
+    }
+
+    // Safety net for any stray buttons that may have been rendered elsewhere.
+    Array.from(document.querySelectorAll('.sys-episode-btn.sys-episode-continue, .sys-episode-btn.sys-episode-startover')).forEach(el => {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
   } catch (e) {
@@ -4394,6 +5433,7 @@ if (isSingle) {
 
         // Focus Continue so remote users can press Select/Enter immediately
         setTimeout(() => {
+          if (window.__resumeModalPriorityOpen) return;
           try { btnContinue.focus(); } catch (e) {}
         }, 30);
 
@@ -4450,7 +5490,10 @@ if (isSingle) {
         // Append it to the center container
         centerDiv.appendChild(btnContinueSeries);
 
-        setTimeout(() => { try { btnContinueSeries.focus(); } catch (e) {} }, 30);
+        setTimeout(() => {
+          if (window.__resumeModalPriorityOpen) return;
+          try { btnContinueSeries.focus(); } catch (e) {}
+        }, 30);
       }
     } catch (e) {
       console.warn('failed to render series continue button in top bar', e);
@@ -4895,29 +5938,65 @@ function playNext() {
 function toggleAutoNextSequel() {
     autoNextSequelEnabled = document.getElementById("autoNextSequel").checked;
 }
-
 // fullscreen on play
-function toggleFullscreen() {
-  fullscreenEnabled = document.getElementById("autoFullscreen").checked;
+function syncAutoFullscreenSetting() {
+  setAutoFullscreenEnabled(document.getElementById("autoFullscreen")?.checked);
 }
- const videoEl = document.getElementById("video");
- videoEl.addEventListener("play", () => {
-   if (fullscreenEnabled && videoEl.requestFullscreen) {
-     // first attempt
-     videoEl.requestFullscreen().catch(err => {
-       console.warn("Fullscreen request failed:", err);
-     });
 
-     // retry once after half a second
-     setTimeout(() => {
-       if (fullscreenEnabled && videoEl.requestFullscreen) {
-         videoEl.requestFullscreen().catch(err => {
-           console.warn("Delayed fullscreen request failed:", err);
-         });
-       }
-     }, 500);
-   }
- });
+const videoEl = document.getElementById("video");
+if (videoEl && !window.__autoFullscreenPlaybackHooksAdded) {
+  window.__autoFullscreenPlaybackHooksAdded = true;
+
+  let __autoFsRetryTimer = null;
+  let __autoFsCooldownUntil = 0;
+
+  const _autoFsRequest = function () {
+    const autoFs = (typeof getAutoFullscreenEnabled === "function")
+      ? getAutoFullscreenEnabled()
+      : !!fullscreenEnabled;
+
+    if (!autoFs || !videoEl || !videoEl.requestFullscreen) return;
+
+    const now = Date.now();
+    if (now < __autoFsCooldownUntil) return;
+    __autoFsCooldownUntil = now + 250;
+
+    const doRequest = () => {
+      return videoEl.requestFullscreen().catch(err => {
+        console.warn("Fullscreen request failed:", err);
+      });
+    };
+
+    if (__autoFsRetryTimer) {
+      clearTimeout(__autoFsRetryTimer);
+      __autoFsRetryTimer = null;
+    }
+
+    doRequest();
+
+    __autoFsRetryTimer = setTimeout(() => {
+      const stillAutoFs = (typeof getAutoFullscreenEnabled === "function")
+        ? getAutoFullscreenEnabled()
+        : !!fullscreenEnabled;
+
+      if (!stillAutoFs) return;
+      if (document.fullscreenElement) return;
+
+      doRequest();
+    }, 180);
+  };
+
+  const _onFsChange = function () {
+    handleFullscreenChangeForPlayback();
+  };
+
+  videoEl.addEventListener("play", _autoFsRequest);
+  videoEl.addEventListener("playing", _autoFsRequest);
+  document.addEventListener("fullscreenchange", _onFsChange);
+  document.addEventListener("webkitfullscreenchange", _onFsChange);
+  document.addEventListener("mozfullscreenchange", _onFsChange);
+  document.addEventListener("MSFullscreenChange", _onFsChange);
+}
     // Function to close the next episode popup
     function closePopup() {
         document.getElementById("nextEpisodePopup").style.display = 'none';
@@ -4929,13 +6008,8 @@ function toggleFullscreen() {
 // 1) “Back to Folder Selection” — hides player, pauses video, then re-draws the season grid
    
 function returnToFolderSelection() {
-  // Hide player UI and pause
-  const videoPlayerEl = document.getElementById("videoPlayer");
-  if (videoPlayerEl) videoPlayerEl.style.display = "none";
-  const topNow = document.getElementById("topNowPlaying");
-  if (topNow) topNow.style.display = "none";
-  const video = document.getElementById("video");
-  if (video) try { video.pause(); } catch(e){}
+  // Hide player UI, cull the loaded media, and clear transient playback state
+  cullCurrentVideoPlayback();
 
   // Clear episode list and any popups
   try { document.getElementById("episodeList").innerHTML = ''; } catch(e){}
@@ -5095,7 +6169,7 @@ function returnToFolderSelection() {
     }
 
     // Full Screen button function
-    function toggleFullscreen() {
+    function enterFullscreen() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen();
         } else {
@@ -5107,11 +6181,7 @@ function returnToFolderSelection() {
 
     // Auto Fullscreen on play if enabled
     document.getElementById("video").addEventListener("play", function () {
-        if (fullscreenEnabled) {
-            this.requestFullscreen().catch(err => {
-                console.warn("Fullscreen on play failed:", err);
-            });
-        }
+        maybeAutoFullscreenActivePlayback();
     });
 	
 document.getElementById("video").addEventListener("ended", () => {
@@ -5125,11 +6195,12 @@ function setupCustomVideoControls() {
  const video = document.getElementById("video");
 
  function togglePlayPause() {
- if (video.paused || video.ended) {
- video.play();
- } else {
- video.pause();
- }
+  if (!video || !video.src || !String(video.src).trim()) return;
+  if (video.paused || video.ended) {
+    video.play().catch(()=>{});
+  } else {
+    video.pause();
+  }
  }
 
  function skipBackward15() {
@@ -5313,6 +6384,10 @@ function _unifiedKeyHandler(e) {
 
     case "Space":
     case "Spacebar":
+      // On the main folder page (or anywhere no media is loaded), leave Space alone
+      // so the browser/page can keep its normal scroll behavior.
+      if (!hasVideo) break;
+
       _markKeyHandled && _markKeyHandled(e);
       try { togglePlayPause(); } catch(_) {}
       break;
@@ -5499,6 +6574,8 @@ btnLeftPlay.className = "tvd-top-button";
 // Keep the existing id so existing refreshPlayButton(...) still finds/updates it
 btnLeftPlay.id = "tvdPlayPauseBtn";
 btnLeftPlay.textContent = "Play";
+btnLeftPlay.setAttribute('aria-label', 'Play');
+btnLeftPlay.title = 'Play';
 // set initial icon (play)
 btnLeftPlay.setAttribute('data-icon', '▶'); // play glyph
 btnLeftPlay.onclick = function(){
@@ -5600,6 +6677,8 @@ var makeBtn = (label, handler)=>{
   b.className = "tvd-top-button";
   // set the textual label (so existing code that reads/writes textContent still works)
   b.textContent = label;
+  b.setAttribute('aria-label', label);
+  b.title = label;
   // attach a data-icon attribute for the mobile CSS to use
   if (__tvdIconMap[label]) b.setAttribute('data-icon', __tvdIconMap[label]);
   b.onclick = handler;
@@ -5618,6 +6697,8 @@ var btnNext = makeBtn("Next",     function(){ try{ if (typeof playNext==="functi
 var btnFS = document.createElement("button");
 btnFS.className = "tvd-top-button";
 btnFS.textContent = "Fullscreen";
+btnFS.setAttribute('aria-label', 'Fullscreen');
+btnFS.title = 'Fullscreen';
 if (__tvdIconMap["Fullscreen"]) btnFS.setAttribute('data-icon', __tvdIconMap["Fullscreen"]);
 
 btnFS.onclick = async function(){
@@ -5670,11 +6751,15 @@ btnFS.onclick = async function(){
   if (!b || !v) return;
   var isPaused = (v.paused || v.ended);
   b.textContent = isPaused ? "Play" : "Pause";
+  b.setAttribute('aria-label', isPaused ? 'Play' : 'Pause');
   // Update the data-icon so mobile portrait shows the right symbol
   b.setAttribute('data-icon', isPaused ? '▶' : '⏸');
 }
-    function show(){ overlayEl && overlayEl.classList.add("visible"); syncTopNowPlaying(); }
-    function hide(){ overlayEl && overlayEl.classList.remove("visible"); syncTopNowPlaying(); }
+    function show(){ updateTopBarVisibility(getVideo()); }
+    function hide(){
+      if (overlayEl) overlayEl.classList.remove("visible");
+      syncTopNowPlaying();
+    }
 
     // Expose helpers globally
     window._showTopBar = show;
@@ -5699,7 +6784,7 @@ btnFS.onclick = async function(){
         var top = $("topNowPlaying");
         if (!top) return;
         var visible = isPlayerVisible();
-        // If overlay is visible we should also show topNowPlaying (and vice-versa if player visible)
+        // Keep the title bar aligned with the player container, not playback state.
         if (visible) {
           top.style.display = 'block';
           top.style.color = '#fff';
@@ -5710,6 +6795,33 @@ btnFS.onclick = async function(){
       } catch(e){}
     }
 
+    function isFullscreenActive() {
+      try {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function shouldShowTopBar(v) {
+      try {
+        var videoEl = v || getVideo();
+        return !!(videoEl && (videoEl.paused || videoEl.ended) && !isFullscreenActive());
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function updateTopBarVisibility(v) {
+      try {
+        if (overlayEl) {
+          if (shouldShowTopBar(v)) overlayEl.classList.add('visible');
+          else overlayEl.classList.remove('visible');
+        }
+      } catch (e) {}
+      syncTopNowPlaying();
+    }
+
     function bindVideoEvents() {
       var v = getVideo();
       if (!v) return;
@@ -5718,38 +6830,16 @@ btnFS.onclick = async function(){
       v.__tvdBound = true;
       
       v.addEventListener("pause", function(){
-        // Show overlay and update play/pause state
+        // Only show the top bar when paused and not in fullscreen.
         show();
         refreshPlayButton(v);
-        try {
-          // If the videoPlayer is currently fullscreen, exit fullscreen and then center it in the viewport.
-          var fsEl = document.fullscreenElement;
-          var isPlayerFs = fsEl && (fsEl === videoPlayer || (fsEl.contains && fsEl.contains(videoPlayer)));
-          if (isPlayerFs) {
-            var handler = function() {
-              try { document.removeEventListener('fullscreenchange', handler); } catch(e){}
-              setTimeout(function(){
-                try {
-                  if (videoPlayer && videoPlayer.scrollIntoView) {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }
-                } catch(e){}
-              }, 60);
-            };
-            document.addEventListener('fullscreenchange', handler, { once: true });
-            try {
-              document.exitFullscreen();
-            } catch (e) {
-              handler();
-            }
-          }
-        } catch(e){}
       }, {passive:true});
     
       v.addEventListener("play",  function(){ hide(); refreshPlayButton(v); }, {passive:true});
       v.addEventListener("ended", function(){ show(); refreshPlayButton(v); }, {passive:true});
+      document.addEventListener('fullscreenchange', function(){ updateTopBarVisibility(v); }, { passive: true });
       // Initial state
-      setTimeout(function(){ (v.paused || v.ended) ? show() : hide(); refreshPlayButton(v); syncTopNowPlaying(); }, 0);
+      setTimeout(function(){ updateTopBarVisibility(v); refreshPlayButton(v); }, 0);
     }
     bindVideoEvents();
 
@@ -6095,11 +7185,12 @@ function _requestPlayerFullscreen() {
   }, { capture: true, passive: false });
 
   // fullscreenchange: some devices/processes exit fullscreen first and only then JS sees anything.
-  // If fullscreen exited while the video is still playing, pause it immediately and re-add sentinel.
+  // Pause on fullscreen exit only when the setting is enabled.
   document.addEventListener('fullscreenchange', () => {
     const fs = !!document.fullscreenElement;
-    log('fullscreenchange, fullscreen?', fs, 'playing=', !vid.paused && !vid.ended);
-    if (!fs) {
+    const pauseAfterFs = typeof getPauseAfterFullscreenEnabled === 'function' ? getPauseAfterFullscreenEnabled() : true;
+    log('fullscreenchange, fullscreen?', fs, 'pauseAfterFs=', pauseAfterFs, 'playing=', !vid.paused && !vid.ended);
+    if (!fs && pauseAfterFs) {
       // just exited fullscreen
       if (!vid.paused && !vid.ended) {
         try { vid.pause(); } catch(e){ log('pause error on fullscreenchange', e); }
@@ -6222,13 +7313,19 @@ function _requestPlayerFullscreen() {
   const btnNotYet = document.getElementById('sys-resume-notyet');
   const btnSendTV = document.getElementById('sys-resume-sendtv');
 
+  function setResumeModalPriority(isOpen) {
+    window.__resumeModalPriorityOpen = !!isOpen;
+  }
+
   function hideModal() {
     if (!overlay) return;
     overlay.classList.remove('show');
     overlay.setAttribute('aria-hidden', 'true');
+    setResumeModalPriority(false);
   }
   function showModal() {
     if (!overlay) return;
+    setResumeModalPriority(true);
     overlay.classList.add('show');
     overlay.setAttribute('aria-hidden', 'false');
   }
@@ -6436,13 +7533,21 @@ function _requestPlayerFullscreen() {
 
       // focus Continue by default so Enter will resume
       try {
-        setTimeout(()=> {
+        const focusContinue = () => {
+          if (!window.__resumeModalPriorityOpen) return;
           if (btnContinue && typeof btnContinue.focus === 'function') {
-            btnContinue.focus();
-          } else if (btnNotYet && typeof btnNotYet.focus === 'function') {
-            btnNotYet.focus();
+            try { btnContinue.focus({ preventScroll: true }); return; } catch (e) {}
+            try { btnContinue.focus(); return; } catch (e) {}
           }
-        }, 30);
+          if (btnNotYet && typeof btnNotYet.focus === 'function') {
+            try { btnNotYet.focus({ preventScroll: true }); } catch (e) {}
+            try { btnNotYet.focus(); } catch (e) {}
+          }
+        };
+        try { document.activeElement && document.activeElement !== document.body && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
+        requestAnimationFrame(() => focusContinue());
+        setTimeout(focusContinue, 30);
+        setTimeout(focusContinue, 120);
       } catch(e){}
 
     });
@@ -6454,9 +7559,28 @@ function _requestPlayerFullscreen() {
 
 })();
 
+function buildSubtitleVttUrl(episodeFile) {
+  const raw = String(episodeFile || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw, window.location.href);
+    url.hash = '';
+    url.searchParams.delete('_repairReload');
+    url.searchParams.delete('_subtitleReload');
+    url.pathname = url.pathname.replace(/\.[^./\\?]+$/, '.vtt');
+    url.searchParams.set('_subtitleReload', String(Date.now()));
+    return url.href;
+  } catch (e) {
+    const base = raw.split('#')[0].split('?')[0];
+    return `${base.replace(/\.[^.]+$/, '.vtt')}?_subtitleReload=${Date.now()}`;
+  }
+}
+
 async function setSubtitleWithFetch(episodeFile) {
-  const vttUrl = episodeFile.replace(/\.\w+$/, '.vtt');
+  const vttUrl = buildSubtitleVttUrl(episodeFile);
   const videoEl = document.getElementById('video');
+
+  if (!videoEl || !vttUrl) return false;
 
   // remove old track if present
   const old = document.getElementById('subtitleTrack');
@@ -6472,35 +7596,37 @@ async function setSubtitleWithFetch(episodeFile) {
   videoEl.appendChild(t);
 
   try {
-    const res = await fetch(vttUrl, { cache: "no-store" });
+    const res = await fetch(vttUrl, { cache: 'no-store' });
     if (!res.ok) throw new Error();
 
     const text = await res.text();
 
     // validate VTT
     if (!/^\s*WEBVTT/m.test(text)) {
-      console.warn("Invalid VTT:", vttUrl);
-      return;
+      console.warn('Invalid VTT:', vttUrl);
+      return false;
     }
 
-    const blob = new Blob([text], { type: "text/vtt" });
+    const blob = new Blob([text], { type: 'text/vtt' });
     const blobUrl = URL.createObjectURL(blob);
     t.src = blobUrl;
 
     setTimeout(() => {
-      if (t.track) t.track.mode = "showing";
+      if (t.track) t.track.mode = 'showing';
     }, 200);
 
+    return true;
   } catch (err) {
-    console.warn("Subtitle fetch failed, fallback direct:", vttUrl);
+    console.warn('Subtitle fetch failed, fallback direct:', vttUrl);
     t.src = vttUrl;
 
     setTimeout(() => {
-      if (t.track) t.track.mode = "showing";
+      if (t.track) t.track.mode = 'showing';
     }, 200);
+
+    return false;
   }
 }
-
 </script>
 <script>
   (function(){
@@ -7316,11 +8442,12 @@ window.loadFavorites = loadFavorites;
     }
   }
 
-  // Show only when player is present/visible AND the video is not playing
+  // Show only when player is present/visible, the video is paused/ended, and not fullscreen
   function updateButtonsVisibility() {
     const playerVisible = isPlayerActuallyVisible();
     const videoNotPlaying = !video || video.paused || video.ended;
-    const shouldShow = playerVisible && videoNotPlaying;
+    const fullscreenActive = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    const shouldShow = playerVisible && videoNotPlaying && !fullscreenActive;
 
     // Buttons to manage: return, send, favorite (any may be null)
     [returnBtn, sendBtn, favoriteBtn].forEach(btn => {
@@ -7354,7 +8481,8 @@ window.loadFavorites = loadFavorites;
     // MutationObserver not available — still fine
   }
 
-  // Also watch for window resize / scroll in case layout changes cause player to become 0-sized
+  // Also watch for fullscreen, resize / scroll in case layout changes cause player to become 0-sized
+  document.addEventListener('fullscreenchange', updateButtonsVisibility, { passive: true });
   window.addEventListener('resize', updateButtonsVisibility, { passive: true });
   window.addEventListener('scroll', updateButtonsVisibility, { passive: true });
 
@@ -7698,11 +8826,414 @@ window.loadFavorites = loadFavorites;
 
 </script>
   <script src="./games.js"></script>
+<script>
+(function () {
+  /* =========================================================
+     Games favorites overlay for index(2).html
+     - Keeps a separate per-profile games favorite list
+     - Stores to localStorage + server using the same helper style
+     - Renders favorite games at the top of the Games tab
+     - Leaves the main Favorites system untouched
+     ========================================================= */
+
+  function _gamesFavoritesKeyForProfile(profile) {
+    profile = profile || (localStorage.getItem('activeProfile') || 'Guest');
+    return `gamesFavorites-${profile}`;
+  }
+
+  function normalizeGameFavoriteList(arr) {
+    if (!Array.isArray(arr)) return [];
+    const out = [];
+    const seen = new Set();
+
+    for (const item of arr) {
+      const name = String(item || '').trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(name);
+    }
+
+    return out;
+  }
+
+  function getStoredGameFavorites() {
+    try {
+      const profile = localStorage.getItem('activeProfile') || 'Guest';
+      const key = _gamesFavoritesKeyForProfile(profile);
+      const perRaw = localStorage.getItem(key);
+      if (perRaw) {
+        try {
+          return normalizeGameFavoriteList(JSON.parse(perRaw));
+        } catch (e) {
+          console.warn('[games favorites] parse failed', e);
+          return [];
+        }
+      }
+
+      const legacyRaw = localStorage.getItem('gamesFavorites') || localStorage.getItem('gameFavorites');
+      if (legacyRaw) {
+        try {
+          const normalized = normalizeGameFavoriteList(JSON.parse(legacyRaw));
+          try { localStorage.setItem(key, JSON.stringify(normalized)); } catch (e) {}
+          return normalized;
+        } catch (e) {
+          console.warn('[games favorites] legacy parse failed', e);
+        }
+      }
+
+      return [];
+    } catch (e) {
+      console.warn('[games favorites] getStoredGameFavorites failed', e);
+      return [];
+    }
+  }
+
+  function setStoredGameFavorites(arr) {
+    try {
+      const profile = localStorage.getItem('activeProfile') || 'Guest';
+      const key = _gamesFavoritesKeyForProfile(profile);
+      localStorage.setItem(key, JSON.stringify(normalizeGameFavoriteList(arr)));
+    } catch (e) {
+      console.warn('[games favorites] setStoredGameFavorites failed', e);
+    }
+  }
+
+  async function saveGameFavoritesToServer(arr) {
+    const profile = localStorage.getItem('activeProfile') || 'Guest';
+    const slug = 'gamesFavorites';
+
+    if (typeof window.savePlaylistFileToServer === 'function') {
+      try {
+        await window.savePlaylistFileToServer(profile, slug, arr);
+        return true;
+      } catch (e) {
+        console.warn('[games favorites] savePlaylistFileToServer failed', e);
+      }
+    }
+
+    try {
+      const fileName = `${profile}-${slug}.txt`;
+      const payloadText = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
+      if (typeof pocketReplace === 'function') {
+        const ok = await pocketReplace(fileName, null, payloadText).catch(() => false);
+        if (ok) return true;
+      }
+    } catch (e) {
+      console.warn('[games favorites] pocketReplace failed', e);
+    }
+
+    try {
+      const nameNoExt = `${profile}-${slug}`;
+      const url = `/Profiles/${encodeURIComponent(nameNoExt)}.txt`;
+      const payloadText = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
+      const maxAttempts = 3;
+      const baseDelay = 250;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const r = await fetch(url + `?_=${Date.now()}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'text/plain' },
+            body: payloadText,
+            credentials: 'include'
+          });
+          if (r.ok) return true;
+        } catch (e) {
+          console.warn('[games favorites] PUT attempt error', e);
+        }
+        await new Promise(res => setTimeout(res, baseDelay * Math.pow(2, attempt)));
+      }
+    } catch (e) {
+      console.warn('[games favorites] fallback failed', e);
+    }
+
+    return false;
+  }
+
+  async function loadGameFavoritesFromServer() {
+    const profile = localStorage.getItem('activeProfile') || 'Guest';
+    const slug = 'gamesFavorites';
+    const fileName = `${profile}-${slug}.txt`;
+    const perKey = _gamesFavoritesKeyForProfile(profile);
+
+    if (typeof fetchAndParseJsonArray === 'function') {
+      try {
+        const arr = await fetchAndParseJsonArray(`/Profiles/${encodeURIComponent(fileName)}`);
+        if (Array.isArray(arr)) {
+          const normalized = normalizeGameFavoriteList(arr);
+          try { localStorage.setItem(perKey, JSON.stringify(normalized)); } catch (e) {}
+          return normalized;
+        }
+      } catch (e) {
+        console.warn('[games favorites] fetchAndParseJsonArray failed', e);
+      }
+    }
+
+    try {
+      const r = await fetch(`/Profiles/${encodeURIComponent(fileName)}?_=${Date.now()}`, {
+        cache: 'no-store',
+        credentials: 'include'
+      });
+
+      let text = null;
+      if (r && r.ok) {
+        text = await r.text();
+      } else {
+        const alt = `/Profiles/${encodeURIComponent(fileName.replace(/\.txt$/, ''))}?_=${Date.now()}`;
+        const r2 = await fetch(alt, { cache: 'no-store', credentials: 'include' });
+        if (r2 && r2.ok) text = await r2.text();
+        else {
+          try { localStorage.removeItem(perKey); } catch (e) {}
+          return [];
+        }
+      }
+
+      try {
+        const m = text.match(/\[\[\[\s*([\s\S]*?)\s*\]\]\]/);
+        const arr = (m && m[1]) ? JSON.parse(m[1]) : JSON.parse(text);
+        if (Array.isArray(arr)) {
+          const normalized = normalizeGameFavoriteList(arr);
+          try { localStorage.setItem(perKey, JSON.stringify(normalized)); } catch (e) {}
+          return normalized;
+        }
+        try { localStorage.removeItem(perKey); } catch (e) {}
+        return [];
+      } catch (e) {
+        console.warn('[games favorites] parse error', e);
+        try { localStorage.removeItem(perKey); } catch (e) {}
+        return [];
+      }
+    } catch (e) {
+      console.warn('[games favorites] fetch failed', e);
+      try { localStorage.removeItem(perKey); } catch (e) {}
+      return [];
+    }
+  }
+
+  function isGameFavorited(gameName) {
+    const favs = getStoredGameFavorites();
+    const key = String(gameName || '').trim().toLowerCase();
+    return favs.some(n => String(n).trim().toLowerCase() === key);
+  }
+
+  function toggleGameFavoriteByName(gameName) {
+    const name = String(gameName || '').trim();
+    if (!name) return;
+
+    const favs = getStoredGameFavorites();
+    const idx = favs.findIndex(n => String(n).trim().toLowerCase() === name.toLowerCase());
+    if (idx === -1) favs.push(name);
+    else favs.splice(idx, 1);
+
+    setStoredGameFavorites(favs);
+    try { saveGameFavoritesToServer(favs).catch(() => {}); } catch (e) {}
+  }
+
+  function attachGameFavoriteStar(tile, gameName) {
+    if (!tile || !gameName) return;
+
+    const starBtn = document.createElement('button');
+    starBtn.className = 'tile-fav-star';
+    starBtn.type = 'button';
+    starBtn.title = 'Favorite';
+    starBtn.tabIndex = 0;
+    starBtn.setAttribute('aria-label', `Toggle favorite for ${gameName}`);
+
+    const glyph = document.createElement('span');
+    glyph.className = 'tile-fav-glyph';
+    glyph.textContent = '☆';
+    starBtn.appendChild(glyph);
+
+    function refreshStarVisual() {
+      const fav = isGameFavorited(gameName);
+      if (fav) {
+        starBtn.classList.add('favorited');
+        glyph.textContent = '★';
+      } else {
+        starBtn.classList.remove('favorited');
+        glyph.textContent = '☆';
+      }
+    }
+
+    starBtn.addEventListener('click', function (e) {
+      e.stopPropagation(); // IMPORTANT: prevents tile open
+      toggleGameFavoriteByName(gameName);
+      refreshStarVisual();
+    });
+
+    starBtn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 32) {
+        e.preventDefault();
+        e.stopPropagation();
+        starBtn.click();
+        return;
+      }
+      e.stopPropagation();
+    });
+
+    // Optional: keyboard shortcut when tile focused (press F)
+    tile.addEventListener('keydown', function (e) {
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleGameFavoriteByName(gameName);
+        refreshStarVisual();
+      }
+    });
+
+    tile.style.position = tile.style.position || 'relative';
+    tile.appendChild(starBtn);
+    refreshStarVisual();
+  }
+
+  function openGameEntry(game) {
+    if (!game) return;
+    if (game.specialSet === 'multidisk' && Array.isArray(game.disks)) {
+      displayDisks(game);
+      return;
+    }
+    if (game.link) window.location.href = game.link;
+  }
+
+  function createGameTile(container, game, onclickFunction) {
+    const gameTile = document.createElement('div');
+    gameTile.classList.add('folder');
+    gameTile.innerHTML = `
+      <img src="${game.img}" alt="${game.name}">
+      <p>${game.name}</p>
+    `;
+
+    gameTile.onclick = onclickFunction || (() => openGameEntry(game));
+    attachGameFavoriteStar(gameTile, game.name);
+    container.appendChild(gameTile);
+  }
+
+  function createBackTitleTile(container) {
+    const backButton = document.createElement('button');
+    backButton.className = 'return-button';
+    backButton.innerText = 'Back to Title Selection';
+    backButton.onclick = () => {
+      folderContainer.innerHTML = '';
+      loadMainFolders();
+    };
+    container.appendChild(backButton);
+  }
+
+  async function displayGames() {
+    const container = document.getElementById('folderContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    try { await loadGameFavoritesFromServer().catch(() => {}); } catch (e) {}
+
+    const favNames = getStoredGameFavorites();
+    const favSet = new Set(favNames.map(n => String(n).trim().toLowerCase()));
+    const favoriteGames = (window.games || []).filter(g => favSet.has(String(g.name || '').trim().toLowerCase()));
+    const otherGames = (window.games || []).filter(g => !favSet.has(String(g.name || '').trim().toLowerCase()));
+
+    const orderedGames = [...favoriteGames, ...otherGames];
+    const grid = document.createElement('div');
+    grid.className = 'container';
+
+    // Keep the back control as a full-size folder tile in the same row as games.
+    createBackTitleTile(grid);
+    orderedGames.forEach(game => createGameTile(grid, game, () => openGameEntry(game)));
+
+    container.appendChild(grid);
+  }
+
+  function displayDisks(gameOrName, disksOverride) {
+    const game = typeof gameOrName === 'object' && gameOrName ? gameOrName : {
+      baseName: String(gameOrName || ''),
+      disks: Array.isArray(disksOverride) ? disksOverride : []
+    };
+    const disks = Array.isArray(game.disks) ? game.disks : (Array.isArray(disksOverride) ? disksOverride : []);
+    const gameName = game.baseName || game.name || '';
+    const container = document.getElementById('folderContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const topBack = document.createElement('button');
+    topBack.className = 'return-button';
+    topBack.innerText = 'Back to Games';
+    topBack.onclick = displayGames;
+    container.appendChild(topBack);
+
+    disks.forEach(disk => {
+      const diskTile = document.createElement('div');
+      diskTile.classList.add('folder');
+      const image = disk.img || `./Images/${gameName.toLowerCase().replace(/ /g, '')}-${disk.disk}.jpg`;
+      diskTile.innerHTML = `
+        <img src="${image}" alt="${gameName} - Disk ${disk.disk}">
+        <p>${gameName} - Disk ${disk.disk}</p>
+      `;
+      diskTile.onclick = () => window.location.href = disk.link;
+      container.appendChild(diskTile);
+    });
+
+    const backButton = document.createElement('button');
+    backButton.className = 'return-button';
+    backButton.innerText = 'Back to Games';
+    backButton.onclick = displayGames;
+    container.appendChild(backButton);
+  }
+
+  window.getStoredGameFavorites = getStoredGameFavorites;
+  window.toggleGameFavoriteByName = toggleGameFavoriteByName;
+  window.loadGameFavoritesFromServer = loadGameFavoritesFromServer;
+  window.displayGames = displayGames;
+  window.createGameTile = createGameTile;
+  window.displayDisks = displayDisks;
+
+  // if the Games tab is already open, re-render it with the new layout
+  try {
+    const title = String(document.getElementById('mainFolderTitle')?.textContent || '');
+    if (title.toLowerCase().includes('games')) {
+      displayGames();
+    }
+  } catch (e) {}
+})();
+</script>
+
+
 
 <script>
 (function () {
   const overlay = document.getElementById('setupOverlay');
   const iframe = document.getElementById('setupIframe');
+
+  const DEFAULT_PROFILES_JS = `/* Generated by profile.html editor */
+
+window.profiles = [
+  {
+    "name": "Guest",
+    "image": "./Profiles/Guest.jpg",
+    "bgColors": []
+  }
+];
+// Example: window._customServerTitle = "Family Media Library";
+window._customServerTitle = "Our LibraryJS Server";
+
+(function setServerTitle(){
+  const el = document.getElementById('siteTitle');
+  if (!el) return;
+  const img = el.querySelector('img');
+  const imgHtml = img ? img.outerHTML : '';
+  const safeTitle = (typeof window._customServerTitle === 'string' && window._customServerTitle.length)
+    ? window._customServerTitle
+    : '';
+  el.innerHTML = safeTitle + ' ' + imgHtml;
+  try { document.title = safeTitle; } catch(e){}
+})();
+`;
+
+
+  function normalizeText(value) {
+    return String(value ?? '').split('\r\n').join('\n').trim();
+  }
+
 
   function setSetupOverlayVisible(show) {
     if (!overlay) return;
@@ -7715,6 +9246,26 @@ window.loadFavorites = loadFavorites;
       return new URLSearchParams(window.location.search || '').has('setup');
     } catch (e) {
       return false;
+    }
+  }
+
+  async function profilesJsLooksDefault() {
+    if (hasSetupQuery()) return true;
+
+    try {
+      const r = await fetch(`./profiles.js?_=${Date.now()}`, {
+        cache: 'no-store',
+        credentials: 'include'
+      });
+
+      if (!r || !r.ok) {
+        return true; // missing or inaccessible => treat as not set up yet
+      }
+
+      const text = await r.text();
+      return normalizeText(text) === normalizeText(DEFAULT_PROFILES_JS);
+    } catch (e) {
+      return true; // on fetch failure, err on the side of setup
     }
   }
 
@@ -7758,16 +9309,33 @@ window.loadFavorites = loadFavorites;
       return;
     }
     const data = event.data || {};
-    if (data.type === 'setup-close-request' || data.type === 'setup-finished') {
+    if (data.type === 'setup-finished') {
       closeSetupOverlay(true);
+      return;
+    }
+    if (data.type === 'repair-complete') {
+      window.closeRepairOverlay?.();
+      window.refreshCurrentVideoStream?.();
+      return;
+    }
+    if (data.type === 'repair-failed') {
+      window.closeRepairOverlay?.();
+      try { showToast && showToast(data.error ? `Repair failed: ${data.error}` : 'Repair failed.'); } catch (e) {}
     }
   });
 
-  document.addEventListener('DOMContentLoaded', function () {
-    if (hasSetupQuery()) openSetupOverlay();
-  });
+  let initRan = false;
+  async function initSetupOverlay() {
+    if (initRan) return;
+    initRan = true;
+    const shouldOpen = await profilesJsLooksDefault();
+    if (shouldOpen) openSetupOverlay();
+  }
 
-  if (hasSetupQuery()) openSetupOverlay();
+  document.addEventListener('DOMContentLoaded', initSetupOverlay);
+  if (document.readyState !== 'loading') {
+    initSetupOverlay();
+  }
 })();
 </script>
 

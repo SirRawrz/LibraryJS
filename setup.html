@@ -553,11 +553,11 @@
           </div>
           <div class="field">
             <label for="serverIp">serverip.txt</label>
-            <input id="serverIp" type="text" placeholder="192.168.1.100" />
+            <input id="serverIp" type="text" placeholder="http(s)://192.168.1.100" />
           </div>
           <div class="field">
             <label for="tailscaleIp">tailscaleip.txt</label>
-            <input id="tailscaleIp" type="text" placeholder="100.x.x.x" />
+            <input id="tailscaleIp" type="text" placeholder="http(s)://100.x.x.x" />
           </div>
         </div>
         <div class="mini">These text files are exported exactly as typed, so you can use hostnames, LAN IPs, or Tailscale addresses.</div>
@@ -1013,21 +1013,19 @@
   }
 
 
+
   function requestSetupClose() {
     try {
       if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ type: 'setup-close-request' }, '*');
-        setTimeout(() => {
-          if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type: 'setup-finished' }, '*');
-          }
-        }, 50);
+        window.parent.postMessage({ type: 'setup-finished' }, '*');
         return;
       }
     } catch (e) {}
 
     try { window.close(); } catch (e) {}
   }
+
+
 
   async function finishSetupFlow() {
     try {
@@ -1057,6 +1055,7 @@
     requestSetupClose();
     return true;
   }
+
 
   function renderFlowNav() {
     const bar = el('flowStepBar');
@@ -1714,16 +1713,30 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     setStatus(`Prepared ${filename} for download.`, 'good');
   }
 
-  async function uploadTextToServer(targetPath, text) {
+
+    function normalizeUploadedText(text) {
+    return String(text ?? '').replace(/\r\n/g, '\n').trim();
+  }
+
+  async function verifyTextUpload(targetPath, expectedText, maxAttempts = 6, delayMs = 250) {
+    const expected = normalizeUploadedText(expectedText);
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const r = await fetch(encodeURI(targetPath + `?_verify=${Date.now()}_${attempt}`), { cache: 'no-store', credentials: 'include' });
+        if (r && r.ok) {
+          const actual = normalizeUploadedText(await r.text());
+          if (actual === expected) return true;
+        }
+      } catch (e) {}
+      await new Promise(res => setTimeout(res, delayMs));
+    }
+    return false;
+  }
+
+async function uploadTextToServer(targetPath, text) {
     const blob = new Blob([text], { type: targetPath.endsWith('.js') ? 'application/javascript' : 'text/plain' });
 
-    try {
-      const form = new FormData();
-      form.append('files[]', blob, targetPath.split('/').pop());
-      const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form });
-      if (r && r.ok) return true;
-    } catch (e) {}
-
+    // Prefer a direct PUT for overwrite semantics.
     try {
       const r2 = await fetch(encodeURI(targetPath + `?_=${Date.now()}`), {
         method: 'PUT',
@@ -1734,8 +1747,17 @@ window._customServerTitle = ${JSON.stringify(titleString)};
       if (r2 && r2.ok) return true;
     } catch (e) {}
 
+    // Fallback for environments that only accept the upload endpoint.
+    try {
+      const form = new FormData();
+      form.append('files[]', blob, targetPath.split('/').pop());
+      const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form });
+      if (r && r.ok) return true;
+    } catch (e) {}
+
     return false;
   }
+
 
   async function uploadFileToServer(file, targetPath) {
     try {
@@ -1761,6 +1783,7 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     setStatus(ok ? `Uploaded ${filename}.` : `Upload failed for ${filename}.`, ok ? 'good' : 'bad');
   }
 
+
   async function uploadAllFiles() {
     readStateFromUi();
     const outputs = generateOutputs();
@@ -1773,9 +1796,16 @@ window._customServerTitle = ${JSON.stringify(titleString)};
 
     for (const [filename, target] of items) {
       setStatus(`Uploading ${filename}...`);
-      const ok = await uploadTextToServer(target, outputs[filename]);
+      const content = outputs[filename];
+      const ok = await uploadTextToServer(target, content);
       if (!ok) {
         setStatus(`Upload failed for ${filename}.`, 'bad');
+        return false;
+      }
+
+      const verified = await verifyTextUpload(target, content);
+      if (!verified) {
+        setStatus(`Upload verification failed for ${filename}.`, 'bad');
         return false;
       }
     }
@@ -1809,6 +1839,7 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     setStatus('Server updated with all files and QR images.', 'good');
     return true;
   }
+
 
   function saveDraft() {
     readStateFromUi();

@@ -1372,8 +1372,8 @@ async function setSubtitleWithFetch(episodeFile, folderName, episodeIndex) {
 // Helper: safely encode '#' in file paths
 function safeFileUrl(raw) {
     // Only target '#' that appears in the path; does not affect query/hash (none in your URLs)
-    return raw.replace(/#/g, '%23');
-}async function playEpisode(folderName, epIndex = 0, startTime = 0) {
+    return String(raw || '').replace(/#/g, '%23');
+}async function playEpisode(folderName, epIndex = 0, startTime = 0, options = {}) {
   currentFolder = folderName;
   currentEpisodeIndex = epIndex;
   // ensure the episode grid (dialog) shows the correct highlight
@@ -1398,12 +1398,16 @@ function safeFileUrl(raw) {
   videoContainer.style.display = "block";
 
   // Encoded file path (replaces # with %23)
-  const safeSrc = safeFileUrl(epObj.file);
+  const sourceFile = (options && options.sourceFile) ? options.sourceFile : epObj.file;
+  const cacheBustedSource = (options && options.cacheBust)
+    ? ((typeof window.addCacheBust === 'function') ? window.addCacheBust(sourceFile) : sourceFile)
+    : sourceFile;
+  const safeSrc = safeFileUrl(cacheBustedSource);
   videoEl.src = safeSrc;
 
   // prefer the shared fetch-and-validate helper when present
   if (typeof setSubtitleWithFetch === 'function') {
-    setSubtitleWithFetch(safeSrc, folderName, epIndex);
+    setSubtitleWithFetch((options && options.subtitleFile) ? options.subtitleFile : sourceFile, folderName, epIndex);
   } else {
     // fallback (old behavior) if helper not present
     const st = document.getElementById('subtitleTrack');
@@ -1780,13 +1784,142 @@ if (vid) {
 
 <script>
 /* Keep fullscreenchange behavior: pause when leaving fullscreen (robust ref) */
+window.isFullscreen = function() {
+  return !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement
+  );
+};
+
 document.addEventListener('fullscreenchange', () => {
   const v = window.videoEl || document.getElementById('video');
-  if (!isFullscreen()) {
+  if (!window.isFullscreen()) {
     try { if (v && !v.paused) v.pause(); } catch(e) {}
   }
 });
 </script>
+
+
+<style>
+  #repairOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: stretch;
+    justify-content: stretch;
+    background: rgba(0,0,0,0.72);
+    z-index: 200001;
+  }
+  #repairOverlay.show { display: flex; }
+  #repairOverlay .repair-shell {
+    position: relative;
+    width: min(1400px, calc(100vw - 24px));
+    height: min(960px, calc(100vh - 24px));
+    margin: auto;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 25px 70px rgba(0,0,0,.55);
+    background: #0c1018;
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  #repairOverlay .repair-topbar {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 0 18px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    background: rgba(12,16,24,.96);
+    gap: 12px;
+  }
+  #repairOverlay .repair-topbar h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 0;
+  }
+  #repairOverlay .repair-topbar .repair-close {
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 8px;
+  }
+  #repairOverlay iframe {
+    width: 100%;
+    height: calc(100% - 52px);
+    border: 0;
+    display: block;
+    background: #0c1018;
+  }
+
+  #repairResumeOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.55);
+    z-index: 200002;
+  }
+  #repairResumeOverlay.show { display: flex; }
+  #repairResumeModal {
+    background: #0f1720;
+    color: #e6eef8;
+    min-width: 320px;
+    max-width: 720px;
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    font-family: Inter, system-ui, Arial, sans-serif;
+  }
+  #repairResumeModal h3 { margin: 0 0 8px 0; font-size: 18px; color: #fff; }
+  #repairResumeModal p { margin: 0 0 16px 0; color: #cfe6ff; line-height: 1.35; }
+  .repair-resume-btns { display: flex; gap: 10px; }
+  .repair-resume-btn {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    height: 44px;
+    box-sizing: border-box;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .repair-resume-continue { background: #10b981; color: #fff; }
+  .repair-resume-startover { background: #1f2937; color: #fff; }
+  @media (max-width: 420px) {
+    #repairResumeModal { margin: 12px; width: auto; }
+    .repair-resume-btns { flex-direction: column; }
+    .repair-resume-btn { width: 100%; height: 46px; }
+  }
+</style>
+
+
+<div id="repairOverlay" aria-hidden="true">
+  <div class="repair-shell">
+    <div class="repair-topbar">
+      <h3 id="repairOverlayTitle">FFmpeg repair</h3>
+      <button class="repair-close" id="repairOverlayClose" aria-label="Close repair">&times;</button>
+    </div>
+    <iframe id="repairIframe" title="FFmpeg repair" src="about:blank"></iframe>
+  </div>
+</div>
+<div id="repairResumeOverlay" aria-hidden="true">
+  <div id="repairResumeModal" role="dialog" aria-modal="true" aria-labelledby="repairResumeTitle" aria-describedby="repairResumeDesc">
+    <h3 id="repairResumeTitle">Resume playback</h3>
+    <p id="repairResumeDesc">Resume the repaired video from where it was before repair?</p>
+    <div class="repair-resume-btns" role="toolbar" aria-label="Repair resume options">
+      <button class="repair-resume-btn repair-resume-continue" id="repairResumeContinue">Yes, Continue</button>
+      <button class="repair-resume-btn repair-resume-startover" id="repairResumeStartOver">Start Over</button>
+    </div>
+  </div>
+</div>
 
 <!-- Episode selection dialog -->
 <div id="episodeDialog" style="
@@ -1853,12 +1986,15 @@ document.addEventListener('fullscreenchange', () => {
  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
  overflow: hidden;
 ">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-    <strong style="font-size:18px;">Episode Settings</strong>
-    <button id="settingsBackBtn"
-      style="background:transparent; border:none; color:white; font-size:16px;"
-      aria-label="Back"
-      tabindex="0">Back</button>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px;">
+    <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+      <strong style="font-size:18px;">Episode Settings</strong>
+      <button id="episodeRepairBtn" type="button" title="Repair current episode" aria-label="Repair current episode"
+        style="border:none; background:transparent; color:white; font-size:18px; cursor:pointer; padding:0 4px; line-height:1;">🛠️</button>
+      <button id="episodeSubtitleBtn" type="button" title="Generate subtitles for current episode" aria-label="Generate subtitles for current episode"
+        style="border:none; background:transparent; color:white; font-size:18px; cursor:pointer; padding:0 4px; line-height:1;">📝</button>
+    </div>
+    <button id="settingsBackBtn" style="background:transparent; border:none; color:white; font-size:16px;" aria-label="Back" tabindex="0">Back</button>
   </div>
 
   <div id="settingsList" style="
@@ -2327,11 +2463,122 @@ function updateEpisodeGridHighlight() {
 })();
 </script>
 <script>
-// Episode settings UI wiring (open dialog, populate options, save pref)
+// Episode settings UI wiring (open dialog, populate options, save pref) + gamepad/remote navigation
+// Default focus: Back button when dialog opens
 
 (function(){
+  let settingsKeyHandler = null;
+  let topRowButtons = [];
+
   function getProfile() {
     return localStorage.getItem('activeProfile') || 'Guest';
+  }
+
+  // Update the list of top row buttons (order: Repair, Subtitles, Back)
+  function updateTopRowButtons() {
+    const repairBtn = document.getElementById('episodeRepairBtn');
+    const subtitleBtn = document.getElementById('episodeSubtitleBtn');
+    const backBtn = document.getElementById('settingsBackBtn');
+    topRowButtons = [repairBtn, subtitleBtn, backBtn].filter(btn => btn);
+  }
+
+  // Focus the Back button by default
+  function focusDefaultTopButton() {
+    const backBtn = document.getElementById('settingsBackBtn');
+    if (backBtn && typeof backBtn.focus === 'function') {
+      try {
+        backBtn.focus();
+      } catch(e) {}
+    }
+  }
+
+  // Get all focusable items inside the dialog (top row + settings rows)
+  function getFocusableItems() {
+    const items = [];
+    // top row buttons
+    for (const btn of topRowButtons) {
+      if (btn && btn.offsetParent !== null) items.push(btn);
+    }
+    // settings list items (e.g. Subtitles toggle button)
+    const settingsList = document.getElementById('settingsList');
+    if (settingsList) {
+      const rowInteractive = settingsList.querySelectorAll('button, [role="button"], a, input, select, textarea');
+      rowInteractive.forEach(el => {
+        if (el && el.offsetParent !== null) items.push(el);
+      });
+    }
+    return items;
+  }
+
+  // Arrow key navigation handler
+  function onSettingsKeyDown(e) {
+    const dialog = document.getElementById('settingsDialog');
+    if (!dialog || dialog.style.display !== 'block') return;
+
+    const key = e.key;
+    const focusableItems = getFocusableItems();
+    if (focusableItems.length === 0) return;
+
+    const currentIndex = focusableItems.findIndex(item => item === document.activeElement);
+    if (currentIndex === -1) return;
+
+    let newIndex = currentIndex;
+
+    switch (key) {
+      case 'ArrowLeft':
+        newIndex = (currentIndex - 1 + focusableItems.length) % focusableItems.length;
+        e.preventDefault();
+        break;
+      case 'ArrowRight':
+        newIndex = (currentIndex + 1) % focusableItems.length;
+        e.preventDefault();
+        break;
+      case 'ArrowUp':
+        // If currently on a top row button, wrap to last item (settings)
+        if (topRowButtons.includes(document.activeElement)) {
+          newIndex = focusableItems.length - 1;
+        } else {
+          newIndex = Math.max(0, currentIndex - 1);
+        }
+        e.preventDefault();
+        break;
+      case 'ArrowDown':
+        // If currently on last item, wrap to first (top row)
+        if (currentIndex === focusableItems.length - 1) {
+          newIndex = 0;
+        } else {
+          newIndex = Math.min(focusableItems.length - 1, currentIndex + 1);
+        }
+        e.preventDefault();
+        break;
+      case 'Enter':
+      case ' ':
+        if (key === ' ') {
+          e.preventDefault();
+          const active = document.activeElement;
+          if (active && typeof active.click === 'function') active.click();
+        }
+        break;
+      default:
+        return;
+    }
+
+    if (newIndex !== currentIndex && focusableItems[newIndex]) {
+      focusableItems[newIndex].focus();
+    }
+  }
+
+  function attachSettingsNavigation() {
+    if (settingsKeyHandler) return;
+    settingsKeyHandler = onSettingsKeyDown;
+    document.addEventListener('keydown', settingsKeyHandler);
+  }
+
+  function detachSettingsNavigation() {
+    if (settingsKeyHandler) {
+      document.removeEventListener('keydown', settingsKeyHandler);
+      settingsKeyHandler = null;
+    }
   }
 
   function openEpisodeSettings() {
@@ -2340,10 +2587,9 @@ function updateEpisodeGridHighlight() {
     const settingsList = document.getElementById('settingsList');
     if (!settingsDialog || !settingsList || !settingsOverlay) return;
 
-    // Clear previous
+    // Clear previous settings rows
     settingsList.innerHTML = '';
 
-    // gather context
     const profile = getProfile();
     const folder = window.currentFolder;
     const idx = Number(window.currentEpisodeIndex || 0);
@@ -2370,7 +2616,6 @@ function updateEpisodeGridHighlight() {
     toggle.style.borderRadius = '6px';
     toggle.style.cursor = 'pointer';
 
-    // read saved pref (reuse same key format used by setSubtitlePreference)
     const key = `subtitles-${profile}-${folder}-${idx}`;
     const enabled = localStorage.getItem(key) !== 'false'; // default true
 
@@ -2388,7 +2633,7 @@ function updateEpisodeGridHighlight() {
       try { localStorage.setItem(key, newVal ? 'true' : 'false'); } catch(e){}
       updateToggleVisual(newVal);
 
-      // apply immediately to the current subtitle track if present
+      // Apply immediately to subtitle track
       const t = document.getElementById('subtitleTrack');
       if (t && t.track) {
         t.track.mode = newVal ? 'showing' : 'hidden';
@@ -2398,16 +2643,19 @@ function updateEpisodeGridHighlight() {
     row.appendChild(toggle);
     settingsList.appendChild(row);
 
-    // Future: append more settings rows here (audio track, start offset, etc.)
+    // Additional settings rows can be added here later
 
-    // show dialog
+    // Refresh top row buttons and attach navigation
+    updateTopRowButtons();
+    attachSettingsNavigation();
+
+    // Show dialog
     settingsDialog.style.display = 'block';
     settingsOverlay.style.display = 'block';
 
-    // focus close/back button if present
+    // Focus the Back button by default
     setTimeout(() => {
-      const back = document.getElementById('settingsBackBtn');
-      try { if (back) back.focus(); } catch(e){}
+      focusDefaultTopButton();
     }, 60);
   }
 
@@ -2417,13 +2665,18 @@ function updateEpisodeGridHighlight() {
     if (settingsDialog) settingsDialog.style.display = 'none';
     if (settingsOverlay) settingsOverlay.style.display = 'none';
 
-    // return focus to episode info button
+    detachSettingsNavigation();
+
+    // Return focus to episode info button
     setTimeout(() => {
       try { const info = document.getElementById('episodeInfoBtn'); if (info) info.focus(); } catch(e){}
     }, 20);
   }
 
-  // hook UI controls once DOM ready
+  window.openEpisodeSettings = openEpisodeSettings;
+  window.closeEpisodeSettings = closeEpisodeSettings;
+
+  // Hook UI controls once DOM ready
   document.addEventListener('DOMContentLoaded', () => {
     const episodeInfoBtn = document.getElementById('episodeInfoBtn');
     if (episodeInfoBtn) {
@@ -2439,19 +2692,433 @@ function updateEpisodeGridHighlight() {
     const overlay = document.getElementById('settingsOverlay');
     if (overlay) overlay.addEventListener('click', closeEpisodeSettings);
 
-    // close on Escape
+    // Close on Escape
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        // only close if visible
         const sd = document.getElementById('settingsDialog');
         if (sd && sd.style.display === 'block') closeEpisodeSettings();
       }
     });
+
+    // Ensure top row buttons are focusable
+    const repairBtn = document.getElementById('episodeRepairBtn');
+    const subtitleBtn = document.getElementById('episodeSubtitleBtn');
+    if (repairBtn && !repairBtn.hasAttribute('tabindex')) repairBtn.setAttribute('tabindex', '0');
+    if (subtitleBtn && !subtitleBtn.hasAttribute('tabindex')) subtitleBtn.setAttribute('tabindex', '0');
   });
 })();
 </script>
 <script>
+(function(){
+  function addCacheBust(rawUrl) {
+    const clean = String(rawUrl || '').trim();
+    if (!clean) return '';
+    try {
+      const url = new URL(clean, window.location.href);
+      url.searchParams.set('_repairReload', String(Date.now()));
+      return url.href;
+    } catch (e) {
+      const sep = clean.includes('?') ? '&' : '?';
+      return clean + sep + '_repairReload=' + Date.now();
+    }
+  }
+
+  function getRepairSourceUrl() {
+    const vid = document.getElementById('video');
+    if (!vid) return '';
+    const raw = String(vid.currentSrc || vid.src || vid.getAttribute('src') || '').trim();
+    if (!raw || raw.startsWith('blob:') || raw.startsWith('data:')) return '';
+    try {
+      const url = new URL(raw, window.location.href);
+      return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function getRepairSourceName(sourceUrl) {
+    if (!sourceUrl) return '';
+    try {
+      const url = new URL(sourceUrl, window.location.href);
+      return decodeURIComponent(url.pathname.split('/').pop() || '').trim();
+    } catch (e) {
+      return decodeURIComponent(String(sourceUrl).split('/').pop() || '').trim();
+    }
+  }
+
+  function formatRepairResumeTime(totalSeconds) {
+    const secs = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    const pad2 = (n) => String(n).padStart(2, '0');
+    return h > 0 ? `${h}:${pad2(m)}:${pad2(s)}` : `${m}:${pad2(s)}`;
+  }
+
+  function getRepairSnapshotLabel() {
+    const folderName = String(window.currentFolder || currentFolder || '').trim();
+    const rawEpisodeIndex = Number.isFinite(Number(window.currentEpisodeIndex))
+      ? Number(window.currentEpisodeIndex)
+      : Number(currentEpisodeIndex || 0);
+
+    const list = (typeof episodes !== 'undefined' && folderName && Array.isArray(episodes[folderName]))
+      ? episodes[folderName]
+      : null;
+
+    if (folderName && list && list.length) {
+      const clampedIndex = Math.max(0, Math.min(list.length - 1, rawEpisodeIndex));
+      const ep = list[clampedIndex] || {};
+      if (list.length === 1) return `${folderName}`;
+      return `${folderName} - Episode ${clampedIndex + 1}: "${String(ep.name || 'Episode').trim()}"`;
+    }
+
+    const sourceName = getRepairSourceName(getRepairSourceUrl());
+    return sourceName || 'current video';
+  }
+
+  function captureRepairResumeSnapshot() {
+    const vid = document.getElementById('video');
+    const resumeTime = vid && Number.isFinite(vid.currentTime) ? Number(vid.currentTime) : 0;
+    const sourceUrl = getRepairSourceUrl();
+    const label = getRepairSnapshotLabel();
+
+    window.__repairResumeSnapshot = {
+      time: resumeTime,
+      sourceUrl,
+      label,
+      capturedAt: Date.now()
+    };
+
+    return window.__repairResumeSnapshot;
+  }
+
+  function getRepairResumeSnapshot() {
+    return window.__repairResumeSnapshot || null;
+  }
+
+  function hideRepairResumeModal() {
+    const overlay = document.getElementById('repairResumeOverlay');
+    if (overlay) {
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    window.__resumeModalPriorityOpen = false;
+  }
+
+  function showRepairResumeModal(snapshot = getRepairResumeSnapshot()) {
+    const overlay = document.getElementById('repairResumeOverlay');
+    const titleEl = document.getElementById('repairResumeTitle');
+    const descEl = document.getElementById('repairResumeDesc');
+    const btnContinue = document.getElementById('repairResumeContinue');
+    const btnStartOver = document.getElementById('repairResumeStartOver');
+
+    if (!overlay || !titleEl || !descEl || !btnContinue || !btnStartOver) return false;
+
+    window.__resumeModalPriorityOpen = true;
+
+    const safeSnapshot = snapshot || {};
+    const label = String(safeSnapshot.label || getRepairSnapshotLabel() || 'current video').trim();
+    const resumeTime = Number.isFinite(Number(safeSnapshot.time)) ? Number(safeSnapshot.time) : 0;
+
+    titleEl.textContent = 'Resume playback';
+    descEl.textContent = `Resume ${label} at ${formatRepairResumeTime(resumeTime)}?`;
+
+    const cleanup = () => {
+      try { btnContinue.removeEventListener('click', onContinue); } catch (e) {}
+      try { btnStartOver.removeEventListener('click', onStartOver); } catch (e) {}
+      try { document.removeEventListener('keydown', onKey); } catch (e) {}
+      try { overlay.removeEventListener('click', onOverlayClick); } catch (e) {}
+    };
+
+    const finish = () => {
+      cleanup();
+      hideRepairResumeModal();
+    };
+
+    const onContinue = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      finish();
+      refreshCurrentVideoStream({ resumeTime, sourceUrl: safeSnapshot.sourceUrl });
+      try { console.info('Resume continue: reloading source and subtitles'); } catch (e) {}
+    };
+
+    const onStartOver = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      finish();
+      refreshCurrentVideoStream({ resumeTime: 0, sourceUrl: safeSnapshot.sourceUrl });
+      try { console.info('Resume start over: reloading source and subtitles'); } catch (e) {}
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') onStartOver(e);
+    };
+
+    const onOverlayClick = (e) => {
+      if (e.target === overlay) onStartOver(e);
+    };
+
+    btnContinue.addEventListener('click', onContinue);
+    btnStartOver.addEventListener('click', onStartOver);
+    document.addEventListener('keydown', onKey);
+    overlay.addEventListener('click', onOverlayClick);
+
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+
+    setTimeout(() => {
+      try { btnContinue.focus({ preventScroll: true }); }
+      catch (e) { try { btnContinue.focus(); } catch (e2) {} }
+    }, 0);
+
+    return true;
+  }
+
+  function normalizeRepairSourceUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw, window.location.href);
+      return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function buildRepairUrlForCurrentVideo() {
+    const sourceUrl = normalizeRepairSourceUrl(getRepairSourceUrl());
+    if (!sourceUrl) return '';
+    const name = getRepairSourceName(sourceUrl);
+    if (!name) return '';
+    const folder = new URL('.', sourceUrl).href;
+    const params = new URLSearchParams({
+      source: sourceUrl,
+      name,
+      folder,
+      upload: new URL(encodeURIComponent(name), folder).href,
+      mode: 'seek-repair',
+      flow: '1',
+      auto: '1',
+      close: '1',
+      proxy: '1',
+      jobId: 'single'
+    });
+    return `${window.location.origin}/ffmpeg/repair.html?${params.toString()}`;
+  }
+
+  function buildSubtitleUrlForCurrentVideo() {
+    const sourceUrl = normalizeRepairSourceUrl(getRepairSourceUrl());
+    if (!sourceUrl) return '';
+    const name = getRepairSourceName(sourceUrl);
+    if (!name) return '';
+    const baseName = String(name).replace(/\.[^.]+$/, '') || 'subtitle';
+    const folderName = String(window.currentFolder || currentFolder || '').trim();
+    const episodeList = (typeof episodes !== 'undefined' && folderName && Array.isArray(episodes[folderName])) ? episodes[folderName] : [];
+    const episodeIndex = Number.isFinite(Number(window.currentEpisodeIndex))
+      ? Number(window.currentEpisodeIndex)
+      : Number(currentEpisodeIndex || 0);
+    const episodeEntry = episodeList[Number.isFinite(episodeIndex) ? episodeIndex : 0] || {};
+    const episodeTitle = String(episodeEntry.name || episodeEntry.title || '').trim();
+
+    const parsedMatch = baseName.match(/\bS(\d{1,2})\s*E?(\d{1,3})\b/i) || baseName.match(/\b(\d{1,2})x(\d{1,3})\b/i);
+    const season = parsedMatch ? Number.parseInt(parsedMatch[1], 10) : '';
+    const episode = parsedMatch ? Number.parseInt(parsedMatch[2], 10) : '';
+
+    const search = [folderName, episodeTitle, baseName].filter(Boolean).join(' ').trim();
+    const params = new URLSearchParams({
+      source: sourceUrl,
+      name: `${baseName}.vtt`,
+      folder: new URL('.', sourceUrl).href,
+      upload: new URL(encodeURIComponent(`${baseName}.vtt`), new URL('.', sourceUrl).href).href,
+      language: 'en',
+      provider: '',
+      mode: 'fetch',
+      flow: '1',
+      auto: '1',
+      close: '1',
+      proxy: '1',
+      jobId: 'single',
+      series: folderName,
+      show: folderName,
+      librarySeries: folderName,
+      title: episodeTitle,
+      episodeTitle,
+      libraryTitle: episodeTitle || baseName,
+      search
+    });
+    if (Number.isFinite(season)) params.set('season', String(season));
+    if (Number.isFinite(episode)) params.set('episode', String(episode));
+    return `${window.location.origin}/opensubtitles-subtitles.html?${params.toString()}`;
+  }
+
+  function openEpisodeOverlay(kind = 'repair') {
+    const iframe = document.getElementById('repairIframe');
+    const overlay = document.getElementById('repairOverlay');
+    const title = document.getElementById('repairOverlayTitle');
+    const sourceUrl = getRepairSourceUrl();
+    const url = kind === 'subtitle' ? buildSubtitleUrlForCurrentVideo() : buildRepairUrlForCurrentVideo();
+    if (!iframe || !overlay || !title || !url) return false;
+
+    window.__episodeJobFlow = kind;
+
+    try { hideRepairResumeModal(); } catch (e) {}
+    try { closeEpisodeSettings(); } catch (e) {}
+
+    captureRepairResumeSnapshot();
+
+    const sourceName = getRepairSourceName(sourceUrl) || 'current video';
+    title.textContent = kind === 'subtitle'
+      ? `📝 Generate subtitles for ${sourceName}`
+      : `🛠️ Repair ${sourceName}`;
+    iframe.src = url;
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+    return true;
+  }
+
+  function openRepairOverlay() {
+    return openEpisodeOverlay('repair');
+  }
+
+  function openSubtitleOverlay() {
+    return openEpisodeOverlay('subtitle');
+  }
+
+  function closeRepairOverlay() {
+    const iframe = document.getElementById('repairIframe');
+    const overlay = document.getElementById('repairOverlay');
+    if (overlay) {
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    window.__episodeJobFlow = '';
+    try { hideRepairResumeModal(); } catch (e) {}
+    try { if (iframe) iframe.src = 'about:blank'; } catch (e) {}
+  }
+
+  window.openRepairOverlay = openRepairOverlay;
+  window.openSubtitleOverlay = openSubtitleOverlay;
+  window.closeRepairOverlay = closeRepairOverlay;
+  window.refreshCurrentVideoStream = refreshCurrentVideoStream;
+  window.captureRepairResumeSnapshot = captureRepairResumeSnapshot;
+  window.showRepairResumeModal = showRepairResumeModal;
+
+  async function refreshCurrentVideoStream(options = {}) {
+    const folderName = String(window.currentFolder || currentFolder || '').trim();
+    const epIndex = Number.isFinite(Number(window.currentEpisodeIndex))
+      ? Number(window.currentEpisodeIndex)
+      : Number(currentEpisodeIndex || 0);
+    const list = (typeof episodes !== 'undefined' && folderName && Array.isArray(episodes[folderName]))
+      ? episodes[folderName]
+      : null;
+    const epObj = list ? list[Math.max(0, Math.min(list.length - 1, epIndex))] : null;
+    if (!folderName || !epObj) return false;
+
+    const resumeTime = Number.isFinite(Number(options.resumeTime))
+      ? Number(options.resumeTime)
+      : (getRepairResumeSnapshot() && Number.isFinite(Number(getRepairResumeSnapshot().time)) ? Number(getRepairResumeSnapshot().time) : 0);
+
+    const sourceFile = options.sourceUrl
+      ? options.sourceUrl
+      : epObj.file;
+
+    try {
+      const result = playEpisode(folderName, epIndex, resumeTime, {
+        cacheBust: true,
+        sourceFile,
+        subtitleFile: sourceFile
+      });
+      return !!result || true;
+    } catch (e) {
+      console.warn('refreshCurrentVideoStream failed', e);
+      return false;
+    }
+  }
+
+  if (!window.__repairFlowMessageListenerAdded) {
+    window.__repairFlowMessageListenerAdded = true;
+    window.addEventListener('message', function(event) {
+      const data = event && event.data ? event.data : {};
+      if (!data || typeof data !== 'object') return;
+      if (event.origin && event.origin !== window.location.origin) return;
+
+      if (data.type === 'repair-complete' || data.type === 'subtitle-complete') {
+        try { closeRepairOverlay(); } catch (e) {}
+        try {
+          if (!showRepairResumeModal(getRepairResumeSnapshot())) {
+            refreshCurrentVideoStream();
+          }
+        } catch (e) {
+          console.warn('Failed to show repair resume modal', e);
+          refreshCurrentVideoStream();
+        }
+      }
+
+      if (data.type === 'repair-failed' || data.type === 'subtitle-failed') {
+        const flow = window.__episodeJobFlow === 'subtitle' ? 'Subtitle generation' : 'Repair';
+        try { closeRepairOverlay(); } catch (e) {}
+        console.warn(flow + ' failed.');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const gear = document.getElementById('settingsGearBtn');
+    if (gear) gear.addEventListener('click', function(e){ e.stopPropagation(); openEpisodeSettings(); });
+
+    const repairBtn = document.getElementById('episodeRepairBtn');
+    if (repairBtn) repairBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (!openRepairOverlay()) {
+        console.warn('No video source is loaded for repair.');
+      }
+    });
+
+    const subtitleBtn = document.getElementById('episodeSubtitleBtn');
+    if (subtitleBtn) subtitleBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (!openSubtitleOverlay()) {
+        console.warn('No video source is loaded for subtitle generation.');
+      }
+    });
+
+    const overlay = document.getElementById('settingsOverlay');
+    if (overlay) overlay.addEventListener('click', closeEpisodeSettings);
+
+    const repairOverlay = document.getElementById('repairOverlay');
+    const repairClose = document.getElementById('repairOverlayClose');
+    if (repairOverlay) repairOverlay.addEventListener('click', function(e){ if (e.target === repairOverlay) closeRepairOverlay(); });
+    if (repairClose) repairClose.addEventListener('click', closeRepairOverlay);
+
+    const resumeOverlay = document.getElementById('repairResumeOverlay');
+    if (resumeOverlay) resumeOverlay.addEventListener('click', function(e){
+      const modal = document.getElementById('repairResumeModal');
+      if (e.target === resumeOverlay || (modal && !modal.contains(e.target))) {
+        const btn = document.getElementById('repairResumeStartOver');
+        if (btn) btn.click();
+      }
+    });
+
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape') {
+        const sd = document.getElementById('settingsDialog');
+        if (sd && sd.style.display === 'block') closeEpisodeSettings();
+        const ro = document.getElementById('repairOverlay');
+        if (ro && ro.classList.contains('show')) closeRepairOverlay();
+      }
+    });
+  });
+
+  window.addCacheBust = addCacheBust;
+  window.__addRepairCacheBust = addCacheBust;
+  window.__openRepairOverlay = openRepairOverlay;
+  window.__openSubtitleOverlay = openSubtitleOverlay;
+  window.__captureRepairResumeSnapshot = captureRepairResumeSnapshot;
+  window.__showRepairResumeModal = showRepairResumeModal;
+})();
+</script>
+<script>
 const episodeDialog = document.getElementById("episodeDialog");
+
 const dialogOverlay = document.getElementById("dialogOverlay");
 const toggleBtn = document.getElementById("toggleEpisodesBtn");
 const episodeGrid = document.getElementById("episodeGrid");
@@ -2678,7 +3345,6 @@ document.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
-
 
 
 

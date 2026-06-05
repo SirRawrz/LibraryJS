@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FFmpeg Repair</title>
+  <title>FFmpeg Repair (Server Assembled)</title>
   <style>
     :root{
       color-scheme: dark;
@@ -63,7 +63,7 @@
     .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     @media (max-width: 720px){.row{grid-template-columns:1fr}}
     label{display:grid;gap:6px;color:var(--muted);font-size:13px}
-    input[type="text"],input[type="url"],input[type="file"],select{
+    input[type="text"],input[type="url"],input[type="file"]{
       width:100%;
       padding:11px 12px;
       border:1px solid var(--line);
@@ -124,7 +124,7 @@
     pre{
       margin:0;
       padding:14px;
-      min-height:320px;
+      min-height:360px;
       border-radius:14px;
       border:1px solid var(--line);
       background:#060b12;
@@ -132,18 +132,6 @@
       overflow:auto;
       white-space:pre-wrap;
       word-break:break-word;
-    }
-    .download{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      text-decoration:none;
-      color:#07101b;
-      background:linear-gradient(180deg,#d6ffe9,#22c55e);
-      border-radius:12px;
-      padding:11px 14px;
-      font-weight:800;
-      margin-top:10px;
     }
     .help{
       border:1px solid var(--line);
@@ -161,16 +149,30 @@
       color:#d8e4ff;
     }
     .tiny{color:var(--muted);font-size:12px;margin:0}
+    a.download{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      text-decoration:none;
+      color:#07101b;
+      background:linear-gradient(180deg,#d6ffe9,#22c55e);
+      border-radius:12px;
+      padding:11px 14px;
+      font-weight:800;
+      margin-top:10px;
+      border: none;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <section class="hero">
       <div class="eyebrow">FFmpeg repair</div>
-      <h1>Fast-start remux with ffmpeg.wasm</h1>
+      <h1>Server-assembled fast-start remux</h1>
       <p class="lede">
-        This page replaces the old MediaBunny flow with a single ffmpeg remux pass:
-        <code>-c copy -movflags +faststart</code>.
+        This version pushes the heavy work into the Node server. The browser only submits the job and watches logs.
+        No browser-side concat, no giant final buffer.
       </p>
     </section>
 
@@ -180,34 +182,34 @@
         <div class="stack">
           <div class="row">
             <label>
-              Source URL
-              <input id="sourceUrl" type="url" placeholder="http://your-server/path/video.mp4" />
+              Source URL or path
+              <input id="sourceUrl" type="url" placeholder="https://host/path/video.mp4 or /path/video.mp4" />
             </label>
             <label>
               Output name
-              <input id="outputName" type="text" value="repaired.mp4" />
+              <input id="outputName" type="text" value="faststart.mp4" />
             </label>
           </div>
 
           <div class="row">
             <label>
               Upload URL override
-              <input id="uploadUrl" type="url" placeholder="Optional; otherwise derived from source folder" />
+              <input id="uploadUrl" type="url" placeholder="Optional; defaults to source folder" />
             </label>
             <label>
-              Load local MP4s
-              <input id="fileInput" type="file" accept="video/mp4,.mp4" multiple />
+              Optional local MP4
+              <input id="fileInput" type="file" accept="video/mp4,.mp4" />
             </label>
           </div>
 
           <div class="actions">
             <button id="loadBtn" class="secondary" type="button">Load source</button>
-            <button id="processBtn" type="button" disabled>Repair &amp; send back</button>
+            <button id="processBtn" type="button" disabled>Repair on server</button>
             <button id="clearBtn" class="secondary" type="button">Clear</button>
           </div>
 
           <p class="tiny">
-            <strong>Cross-Origin Note:</strong> To load from a different port (e.g. 8083), that server must send <code>Access-Control-Allow-Origin</code> headers, and uploads must allow <code>PUT</code> from this origin.
+            If you pick a local file, this page uploads it first to <code>/api/file/upload</code>, then asks the server to repair it.
           </p>
         </div>
       </section>
@@ -224,21 +226,20 @@
             <div id="bar" class="bar"></div>
           </div>
 
-          <div id="statusLine" class="statusline">Open from <code>manageffmpeg.html</code> or choose local MP4 files.</div>
+          <div id="statusLine" class="statusline">Open from <code>manage.html</code> or paste a source URL.</div>
           <pre id="log"></pre>
           <div id="downloadWrap"></div>
 
           <div class="help">
-            <div><strong>Expected local vendor files</strong></div>
-            <div><code>/ffmpeg/vendor/ffmpeg/dist/umd/ffmpeg.js</code></div>
-            <div><code>/ffmpeg/vendor/core/dist/umd/ffmpeg-core.js</code></div>
+            <div><strong>Server endpoint</strong></div>
+            <div><code>POST /api/ffmpeg/repair</code></div>
+            <div><code>GET /api/ffmpeg/repair/&lt;jobId&gt;</code></div>
           </div>
         </div>
       </aside>
     </div>
   </div>
 
-  <script src="/ffmpeg/vendor/ffmpeg/dist/umd/ffmpeg.js"></script>
   <script>
     (() => {
       const els = {
@@ -257,37 +258,73 @@
       };
 
       const state = {
-        ffmpeg: null,
-        loaded: false,
         busy: false,
-        sourceBlob: null,
-        sourceFile: null,
+        jobId: '',
+        flowJobId: '',
         sourceUrl: '',
-        uploadUrl: '',
-        objectUrl: '',
-        queue: [],
-        autoLaunchQueued: false,
-        autoLaunchDone: false
+        sourcePath: '',
+        uploadTarget: '',
+        stagePath: '',
+        logs: [],
+        lastRemoteLogCount: 0,
+        currentOutputUrl: ''
       };
 
       function q(name) {
         return new URLSearchParams(location.search).get(name) || '';
       }
 
-      function humanBytes(bytes) {
-        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        let value = Number(bytes) || 0;
-        let i = 0;
-        while (value >= 1024 && i < units.length - 1) {
-          value /= 1024;
-          i++;
-        }
-        return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+      const isFlowMode = !!q('flow');
+      const shouldAutoClose = !!q('close');
+      if (isFlowMode) document.documentElement.classList.add('flow-mode');
+
+      function notifyRepairParent(type, payload = {}) {
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type, ...payload }, window.location.origin);
+          }
+        } catch {}
+      }
+
+      function finishFlowIfEmbedded(type, payload = {}) {
+        notifyRepairParent(type, payload);
+      }
+
+      function maybeCloseWindow() {
+        if (!shouldAutoClose || window.top !== window) return;
+        setTimeout(() => {
+          try { window.close(); } catch {}
+        }, 250);
+      }
+
+      function getJobId() {
+        return q('jobId') || q('job') || '';
+      }
+
+      function getFlowJobId() {
+        return state.flowJobId || getJobId();
+      }
+
+      function reportFlowFailure(err, stage = 'repair') {
+        const message = String(err?.message || err || `${stage} failed`);
+        log(`${stage} error: ${message}`);
+        setStatus(`<span style="color:var(--bad)">${stage} error:</span> ${message}`);
+        finishFlowIfEmbedded('repair-failed', {
+          jobId: getFlowJobId(),
+          serverJobId: state.jobId || '',
+          stage,
+          error: message,
+          sourcePath: state.sourcePath,
+          sourceUrl: state.sourceUrl || state.sourcePath,
+          targetPath: state.uploadTarget
+        });
       }
 
       function log(message) {
         const line = `[${new Date().toLocaleTimeString()}] ${message}`;
-        els.log.textContent = els.log.textContent ? `${line}\n${els.log.textContent}` : line;
+        state.logs.unshift(line);
+        if (state.logs.length > 500) state.logs.length = 500;
+        els.log.textContent = state.logs.join('\n');
       }
 
       function setStatus(text, pct = null) {
@@ -307,11 +344,8 @@
       }
 
       function clearDownload() {
-        if (state.objectUrl) {
-          URL.revokeObjectURL(state.objectUrl);
-          state.objectUrl = '';
-        }
         els.downloadWrap.innerHTML = '';
+        state.currentOutputUrl = '';
       }
 
       function setBusy(isBusy) {
@@ -321,23 +355,14 @@
         els.uploadUrl.disabled = isBusy;
         els.fileInput.disabled = isBusy;
         els.loadBtn.disabled = isBusy;
-        els.processBtn.disabled = isBusy || !(state.sourceBlob || state.sourceFile || state.queue.length || (els.fileInput.files && els.fileInput.files.length));
+        els.processBtn.disabled = isBusy || !(state.sourceUrl || els.fileInput.files?.length);
         els.clearBtn.disabled = isBusy;
       }
 
       function sanitizeOutputName(name) {
         const raw = String(name || '').trim();
-        return raw || 'repaired.mp4';
-      }
-
-      function getBaseNameFromUrl(url) {
-        try {
-          const raw = new URL(url).pathname.split('/').pop() || '';
-          return decodeURIComponent(raw).replace(/\.[^.]+$/, '') || 'video';
-        } catch {
-          const raw = String(url || '').split('/').pop() || '';
-          return decodeURIComponent(raw).replace(/\.[^.]+$/, '') || 'video';
-        }
+        if (!raw) return 'repaired.mp4';
+        return /\.mp4$/i.test(raw) ? raw : `${raw}.mp4`;
       }
 
       function normalizeHttpUrl(value) {
@@ -352,325 +377,247 @@
         }
       }
 
-      function buildUploadTarget(folderUrl, outputName) {
-        const safeFolder = normalizeHttpUrl(folderUrl);
-        if (!safeFolder) return '';
-        try {
-          const folder = new URL('.', safeFolder).href;
-          return new URL(encodeURIComponent(sanitizeOutputName(outputName)), folder).href;
-        } catch {
-          return '';
-        }
+      function isHttpLike(value) {
+        return /^https?:\/\//i.test(String(value || '').trim());
       }
 
-      function deriveUploadUrlFromSource(sourceUrl, outputName) {
-        const override = normalizeHttpUrl(els.uploadUrl.value);
-        if (override) return override;
-        if (!sourceUrl) return '';
-        try {
-          return buildUploadTarget(new URL('.', sourceUrl).href, outputName);
-        } catch {
-          return '';
+      function stripTrailingFileSegment(raw) {
+        const text = String(raw || '').trim();
+        if (!text) return '';
+        if (isHttpLike(text)) {
+          try {
+            const url = new URL(text, location.href);
+            const folder = new URL('.', url.href).href;
+            return folder;
+          } catch {
+            return '';
+          }
         }
+        return text.replace(/[^/\\]*$/, '');
       }
 
-      function updateSummaries() {
-        const sourceText = state.queue.length
-          ? `${state.queue.length} local file(s) selected`
-          : state.sourceFile
-            ? `${state.sourceFile.name} • ${humanBytes(state.sourceFile.size)}`
-            : state.sourceUrl
-              ? state.sourceUrl
-              : 'none';
+      function derivePathFromSource(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        try {
+          const url = new URL(raw, location.href);
+          if (url.protocol === 'http:' || url.protocol === 'https:') return decodeURIComponent(url.pathname);
+          if (url.protocol === 'file:') return decodeURIComponent(url.pathname);
+        } catch {}
+        return raw.startsWith('/') ? raw : `/${raw}`;
+      }
 
-        const uploadText = state.uploadUrl || 'none';
+      function buildOutputTarget(sourceUrlOrPath, outputName) {
+        const desiredName = sanitizeOutputName(outputName);
+        const override = String(els.uploadUrl.value || '').trim();
+        if (override) {
+          if (isHttpLike(override)) {
+            try {
+              const url = new URL(override, location.href);
+              const folder = url.pathname.endsWith('/') ? url.href : new URL('.', url.href).href;
+              return new URL(encodeURIComponent(desiredName), folder).href;
+            } catch {
+              return '';
+            }
+          }
+          const folder = stripTrailingFileSegment(override);
+          if (!folder) return '';
+          return `${folder}${desiredName}`;
+        }
 
+        const raw = String(sourceUrlOrPath || '').trim();
+        if (!raw) return '';
+        if (isHttpLike(raw)) {
+          try {
+            const url = new URL(raw, location.href);
+            const folder = new URL('.', url.href).href;
+            return new URL(encodeURIComponent(desiredName), folder).href;
+          } catch {
+            return '';
+          }
+        }
+
+        const folder = stripTrailingFileSegment(raw);
+        if (!folder) return '';
+        return `${folder}${desiredName}`;
+      }
+
+      function setSummary() {
+        const sourceText = state.sourcePath || state.sourceUrl || 'none';
+        const uploadText = state.uploadTarget || 'none';
         setPills([
           { text: state.busy ? 'Working' : 'Ready', kind: state.busy ? 'warn' : 'good' },
-          { text: state.queue.length ? 'Batch local' : (state.sourceBlob || state.sourceFile || state.sourceUrl ? 'Source loaded' : 'No source'), kind: (state.sourceBlob || state.sourceFile || state.sourceUrl || state.queue.length) ? 'good' : 'warn' },
-          { text: state.uploadUrl ? 'Upload ready' : 'No upload URL', kind: state.uploadUrl ? 'good' : 'warn' }
+          { text: state.jobId ? `Job ${state.jobId.slice(-6)}` : 'No job', kind: state.jobId ? 'good' : 'warn' },
+          { text: state.uploadTarget ? 'Target ready' : 'No target', kind: state.uploadTarget ? 'good' : 'warn' }
         ]);
-
         setStatus(`Source: <strong>${sourceText}</strong><br>Upload target: <strong>${uploadText}</strong>`);
-        els.processBtn.disabled = state.busy || !(state.sourceBlob || state.sourceFile || state.queue.length || (els.fileInput.files && els.fileInput.files.length));
+        els.processBtn.disabled = state.busy || !(state.sourceUrl || els.fileInput.files?.length);
       }
 
-      function shouldAutoLaunch() {
-        return !!new URLSearchParams(location.search).get('auto');
-      }
-
-      async function autoLaunchRepairFlow() {
-        if (!shouldAutoLaunch() || state.autoLaunchDone || state.autoLaunchQueued || state.busy) return;
-        state.autoLaunchQueued = true;
-        try {
-          setBusy(true);
-          setStatus('Auto-loading source...');
-          if (!state.sourceBlob && !state.sourceFile && !state.queue.length) {
-            await loadFromUrl();
-          }
-          setStatus('Auto-starting repair...');
-          await processServerSource();
-          state.autoLaunchDone = true;
-        } catch (err) {
-          log(`Auto-launch error: ${err?.message || err}`);
-          setStatus(`<span style="color:var(--bad)">Auto-launch error:</span> ${String(err?.message || err)}`);
-        } finally {
-          setBusy(false);
-          updateSummaries();
-        }
-      }
-
-      function maybeStartAutoLaunch() {
-        if (shouldAutoLaunch() && (state.sourceUrl || els.sourceUrl.value || q('source'))) {
-          queueMicrotask(() => {
-            autoLaunchRepairFlow();
-          });
-        }
-      }
-
-      function downloadFallback(blob, filename) {
-        clearDownload();
-        state.objectUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.className = 'download';
-        a.href = state.objectUrl;
-        a.download = filename;
-        a.textContent = `Download ${filename}`;
-        els.downloadWrap.appendChild(a);
-        log(`Download ready: ${filename}`);
-      }
-
-      async function uploadBlobWithProgress(url, blob, onProgress) {
-        const target = normalizeHttpUrl(url);
-        if (!target) throw new Error('Upload target is missing or uses an unsafe protocol.');
-        const payload = await blob.arrayBuffer();
-        onProgress?.(0, blob.size);
-        const res = await fetch(target, {
-          method: 'PUT',
-          body: payload,
+      async function apiJson(url, options = {}) {
+        const res = await fetch(url, {
           cache: 'no-store',
+          credentials: 'same-origin',
+          ...options,
+          headers: {
+            ...(options.headers || {}),
+            'Content-Type': 'application/json'
+          }
+        });
+        const text = await res.text();
+        let data;
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { ok: false, error: text }; }
+        if (!res.ok || data.ok === false) {
+          throw new Error(data.error || `${res.status} ${res.statusText}`);
+        }
+        return data;
+      }
+
+      async function uploadLocalFile(file) {
+        const stageDir = `.repair-staging/${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+        const uploadUrl = `/api/file/upload?path=${encodeURIComponent(stageDir)}&name=${encodeURIComponent(file.name)}`;
+        log(`Uploading local file to server staging: ${file.name}`);
+        const res = await fetch(uploadUrl, {
+          method: 'POST',
+          body: file,
           credentials: 'same-origin'
         });
-        onProgress?.(blob.size, blob.size, true);
-        return {
-          ok: res.ok,
-          status: res.status,
-          text: await res.text().catch(() => '')
-        };
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          throw new Error(data.error || `Upload failed: HTTP ${res.status}`);
+        }
+        const stagedPath = `/${stageDir.replace(/^\/+/, '')}/${file.name}`.replace(/\\/g, '/');
+        log(`Staged upload path: ${stagedPath}`);
+        return stagedPath;
       }
 
-      async function downloadBlobWithProgress(url, onProgress) {
-        const safeUrl = normalizeHttpUrl(url);
-        if (!safeUrl) throw new Error('Source URL is missing or uses an unsafe protocol.');
-        const res = await fetch(safeUrl, { 
-            cache: 'no-store', 
-            credentials: 'same-origin' 
-        });
-        
-        if (!res.ok) throw new Error(`HTTP ${res.status} while downloading. Ensure the server on port ${new URL(safeUrl).port} allows CORS.`);
-        if (!res.body) return await res.blob();
+      async function loadFromInput() {
+        const sourceInput = String(els.sourceUrl.value || '').trim();
+        const localFile = els.fileInput.files && els.fileInput.files[0];
 
-        const total = Number(res.headers.get('content-length') || 0) || 0;
-        const contentType = String(res.headers.get('content-type') || 'application/octet-stream');
-        const reader = res.body.getReader();
-        const chunks = [];
-        let loaded = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value && value.byteLength) {
-            chunks.push(value);
-            loaded += value.byteLength;
-            onProgress?.(loaded, total, contentType);
+        if (localFile) {
+          state.sourcePath = await uploadLocalFile(localFile);
+          state.sourceUrl = '';
+          if (!els.outputName.value || els.outputName.value === 'repaired.mp4') {
+            els.outputName.value = localFile.name;
           }
-        }
-
-        onProgress?.(loaded, total, contentType, true);
-        return new Blob(chunks, { type: contentType });
-      }
-
-      function getFFmpegCtor() {
-        const candidates = [
-          window.FFmpeg,
-          window.FFmpeg?.FFmpeg,
-          window.FFmpegWASM,
-          window.FFmpegWASM?.FFmpeg,
-          window.FFmpegWASM?.default
-        ];
-        for (const candidate of candidates) {
-          if (typeof candidate === 'function') return candidate;
-        }
-        return null;
-      }
-
-      async function ensureLoaded() {
-        if (state.loaded && state.ffmpeg) return state.ffmpeg;
-
-        const Ctor = getFFmpegCtor();
-        if (!Ctor) {
-          throw new Error('ffmpeg UMD bundle did not expose a usable FFmpeg constructor.');
-        }
-
-        const ffmpeg = new Ctor();
-        if (typeof ffmpeg.on === 'function') {
-          ffmpeg.on('log', ({ message }) => {
-            if (message) log(String(message));
-          });
-          ffmpeg.on('progress', ({ progress }) => {
-            const pct = Math.max(0, Math.min(100, Math.round((Number(progress) || 0) * 100)));
-            setStatus(`ffmpeg: <strong>${pct}%</strong>`, pct);
-          });
-        }
-
-        setStatus('Loading ffmpeg core...');
-        log('Loading ffmpeg core...');
-        await ffmpeg.load({
-          coreURL: '/ffmpeg/vendor/core/dist/umd/ffmpeg-core.js',
-          wasmURL: '/ffmpeg/vendor/core/dist/umd/ffmpeg-core.wasm'
-        });
-
-        state.ffmpeg = ffmpeg;
-        state.loaded = true;
-        log('ffmpeg ready.');
-        return ffmpeg;
-      }
-
-      function buildInputName(file) {
-        const clean = String(file?.name || 'input.mp4').replace(/[^\w.\-() ]+/g, '_');
-        return clean.toLowerCase().endsWith('.mp4') ? clean : `${clean}.mp4`;
-      }
-
-      async function processOneBlob(ffmpeg, sourceBlob, inputName, outputName) {
-        const inName = inputName || 'input.mp4';
-        const outName = '__repaired_tmp__.mp4';
-
-        setStatus(`Writing <strong>${inName}</strong> to ffmpeg...`);
-        log(`Input: ${inName} (${humanBytes(sourceBlob.size)})`);
-
-        const inputBytes = new Uint8Array(await sourceBlob.arrayBuffer());
-        await ffmpeg.writeFile(inName, inputBytes);
-
-        setStatus(`Running ffmpeg on <strong>${inName}</strong>...`);
-        log(`Running: ffmpeg -i "${inName}" -c copy -movflags +faststart "${outName}"`);
-
-        try {
-          await ffmpeg.exec(['-i', inName, '-c', 'copy', '-movflags', '+faststart', outName]);
-        } catch (err) {
-          throw new Error(`ffmpeg failed on ${inName}: ${err?.message || err}`);
-        }
-
-        const outData = await ffmpeg.readFile(outName);
-        const outBlob = new Blob([outData], { type: 'video/mp4' });
-
-        try { await ffmpeg.deleteFile?.(inName); } catch {}
-        try { await ffmpeg.deleteFile?.(outName); } catch {}
-
-        if (!outBlob.size) {
-          throw new Error(`Empty output for ${inName}.`);
-        }
-
-        return outBlob;
-      }
-
-      async function processServerSource() {
-        const ffmpeg = await ensureLoaded();
-        const source = state.sourceBlob;
-        if (!source) throw new Error('No source loaded.');
-
-        const inputName = state.sourceFile?.name
-          ? buildInputName(state.sourceFile)
-          : getBaseNameFromUrl(state.sourceUrl) + '.mp4';
-
-        const outName = sanitizeOutputName(els.outputName.value);
-        const uploadTarget = state.uploadUrl || deriveUploadUrlFromSource(state.sourceUrl, outName);
-
-        state.uploadUrl = uploadTarget;
-        updateSummaries();
-
-        const outBlob = await processOneBlob(ffmpeg, source, inputName, outName);
-
-        if (uploadTarget) {
-          setStatus(`Uploading <strong>${outName}</strong>...`);
-          log(`Uploading to ${uploadTarget}`);
-          const result = await uploadBlobWithProgress(uploadTarget, outBlob, (loaded, total, done) => {
-            if (done) {
-              setStatus(`Uploading... <strong>100%</strong>`, 100);
-              return;
-            }
-            const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
-            setStatus(`Uploading... <strong>${pct}%</strong>`, pct);
-          });
-
-          if (!result.ok) {
-            throw new Error(`Upload failed with HTTP ${result.status}`);
+          state.uploadTarget = buildOutputTarget(state.sourcePath, els.outputName.value);
+        } else if (sourceInput) {
+          const normalized = normalizeHttpUrl(sourceInput);
+          state.sourceUrl = normalized || sourceInput;
+          state.sourcePath = derivePathFromSource(state.sourceUrl);
+          if (!els.outputName.value || els.outputName.value === 'repaired.mp4') {
+            const base = decodeURIComponent(state.sourcePath.split('/').pop() || 'video.mp4');
+            els.outputName.value = /\.mp4$/i.test(base) ? base : `${base}.mp4`;
           }
-
-          setStatus(`Done. <strong>${outName}</strong> uploaded back to the server.`, 100);
-          log(`Upload complete: ${uploadTarget}`);
+          state.uploadTarget = buildOutputTarget(state.sourceUrl, els.outputName.value);
         } else {
-          downloadFallback(outBlob, outName);
-          setStatus(`Done. <strong>${outName}</strong> ready for download.`, 100);
-        }
-      }
-
-      async function processLocalBatch() {
-        const ffmpeg = await ensureLoaded();
-        const files = [...(els.fileInput.files || [])].filter((f) => /\.mp4$/i.test(f.name || ''));
-        if (!files.length) throw new Error('Choose one or more .mp4 files first.');
-
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          const inputName = buildInputName(file);
-          const outName = inputName.replace(/\.mp4$/i, '.faststart.mp4');
-          const pctBase = Math.floor((i / files.length) * 100);
-
-          setStatus(`Processing <strong>${inputName}</strong> (${i + 1} / ${files.length})...`, pctBase);
-          log(`Processing ${inputName} (${i + 1}/${files.length})`);
-
-          const outBlob = await processOneBlob(ffmpeg, file, inputName, outName);
-          downloadFallback(outBlob, outName);
+          throw new Error('Source URL or local file is required.');
         }
 
-        setStatus(`All ${files.length} local MP4 file(s) processed.`, 100);
+        if (state.uploadTarget) {
+          const outUrl = new URL(state.uploadTarget, location.href).href;
+          clearDownload();
+          state.currentOutputUrl = outUrl;
+          const a = document.createElement('a');
+          a.className = 'download';
+          a.href = outUrl;
+          a.textContent = `Open target: ${outUrl}`;
+          a.target = '_blank';
+          els.downloadWrap.appendChild(a);
+        }
+
+        setSummary();
       }
 
-      async function loadFromUrl() {
-        const url = String(els.sourceUrl.value || '').trim();
-        if (!url) throw new Error('Source URL is missing.');
-        state.sourceUrl = url;
-        state.queue = [];
-        state.sourceFile = null;
+      async function startRepairJob() {
+        if (!state.sourcePath) {
+          await loadFromInput();
+        }
 
-        setStatus('Downloading source...');
-        log(`Downloading ${url}`);
+        const payload = {
+          sourcePath: state.sourcePath,
+          sourceUrl: state.sourceUrl || state.sourcePath,
+          targetPath: state.uploadTarget || state.sourcePath,
+          targetUrl: state.uploadTarget || state.sourcePath,
+          outputName: sanitizeOutputName(els.outputName.value)
+        };
 
-        const blob = await downloadBlobWithProgress(url, (loaded, total) => {
-          const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
-          setStatus(
-            total > 0
-              ? `Downloading... <strong>${pct}%</strong> (${humanBytes(loaded)} / ${humanBytes(total)})`
-              : `Downloading... <strong>${humanBytes(loaded)}</strong>`,
-            total > 0 ? pct : null
-          );
+        log(`Submitting server repair job for: ${payload.sourcePath}`);
+        const response = await apiJson('/api/ffmpeg/repair', {
+          method: 'POST',
+          body: JSON.stringify(payload)
         });
 
-        state.sourceBlob = blob;
-        const guessed = `${getBaseNameFromUrl(url)}.faststart.mp4`;
-        if (!els.outputName.value || els.outputName.value === 'repaired.mp4') {
-          els.outputName.value = guessed;
+        state.jobId = response.job.id;
+        state.logs = [];
+        state.lastRemoteLogCount = 0;
+        log(`Job queued: ${state.jobId}`);
+        setBusy(true);
+        await pollJob(response.job.id);
+      }
+
+      async function pollJob(jobId) {
+        while (true) {
+          const res = await fetch(`/api/ffmpeg/repair/${encodeURIComponent(jobId)}`, {
+            cache: 'no-store',
+            credentials: 'same-origin'
+          });
+          const data = await res.json();
+          if (!res.ok || data.ok === false) {
+            throw new Error(data.error || `Job poll failed: HTTP ${res.status}`);
+          }
+
+          const job = data.job;
+          const remoteLogs = Array.isArray(job.logs) ? job.logs : [];
+          if (remoteLogs.length > state.lastRemoteLogCount) {
+            const newLines = remoteLogs.slice(state.lastRemoteLogCount);
+            for (const line of newLines) log(line);
+            state.lastRemoteLogCount = remoteLogs.length;
+          }
+
+          if (job.status === 'running' || job.status === 'queued') {
+            setPills([
+              { text: 'Working', kind: 'warn' },
+              { text: `Job ${String(job.id).slice(-6)}`, kind: 'good' },
+              { text: 'Server ffmpeg', kind: 'good' }
+            ]);
+            setStatus(`Server ffmpeg is running... <strong>${job.status}</strong>`, 50);
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            continue;
+          }
+
+          if (job.status === 'done') {
+            const doneName = sanitizeOutputName(els.outputName.value);
+            setStatus(`Done. <strong>${doneName}</strong> replaced on the server.`, 100);
+            log(`Job complete: ${job.targetPath}`);
+            finishFlowIfEmbedded('repair-complete', {
+              jobId: getFlowJobId(),
+              serverJobId: jobId,
+              sourcePath: job.sourcePath || state.sourcePath,
+              targetPath: job.targetPath || state.uploadTarget || state.sourcePath,
+              outputName: doneName,
+              mode: 'server-repair'
+            });
+            setBusy(false);
+            setSummary();
+            return;
+          }
+
+          throw new Error(job.error || 'Server repair failed');
         }
-        state.uploadUrl = deriveUploadUrlFromSource(url, els.outputName.value);
-        updateSummaries();
-        log(`Downloaded source blob (${humanBytes(blob.size)})`);
       }
 
       function clearAll() {
-        state.sourceBlob = null;
-        state.sourceFile = null;
+        state.busy = false;
+        state.jobId = '';
+        state.flowJobId = '';
         state.sourceUrl = '';
-        state.uploadUrl = '';
-        state.queue = [];
+        state.sourcePath = '';
+        state.uploadTarget = '';
+        state.stagePath = '';
+        state.logs = [];
+        state.lastRemoteLogCount = 0;
         els.sourceUrl.value = '';
         els.outputName.value = 'repaired.mp4';
         els.uploadUrl.value = '';
@@ -678,36 +625,20 @@
         els.bar.style.width = '0%';
         els.log.textContent = '';
         clearDownload();
-        setStatus('Open from <code>manageffmpeg.html</code> or choose local MP4 files.');
-        updateSummaries();
+        setStatus('Open from <code>manage.html</code> or paste a source URL.');
+        setSummary();
       }
-
-      els.fileInput.addEventListener('change', () => {
-        const files = [...(els.fileInput.files || [])].filter((f) => /\.mp4$/i.test(f.name || ''));
-        state.queue = files;
-        state.sourceBlob = null;
-        state.sourceFile = files[0] || null;
-        state.sourceUrl = '';
-        state.uploadUrl = '';
-        if (files.length) {
-          const n = files.length;
-          els.outputName.value = n === 1 ? `${buildInputName(files[0]).replace(/\.mp4$/i, '.faststart.mp4')}` : 'repaired.faststart.mp4';
-          log(`${n} local MP4 file(s) selected.`);
-        }
-        updateSummaries();
-      });
 
       els.loadBtn.addEventListener('click', async () => {
         if (state.busy) return;
         try {
           setBusy(true);
-          await loadFromUrl();
+          await loadFromInput();
         } catch (err) {
-          log(`Error: ${err?.message || err}`);
-          setStatus(`<span style="color:var(--bad)">Error:</span> ${String(err?.message || err)}`);
+          reportFlowFailure(err, 'load');
         } finally {
           setBusy(false);
-          updateSummaries();
+          setSummary();
         }
       });
 
@@ -716,21 +647,12 @@
         try {
           setBusy(true);
           clearDownload();
-
-          if (els.fileInput.files && els.fileInput.files.length) {
-            await processLocalBatch();
-          } else {
-            if (!state.sourceBlob) {
-              await loadFromUrl();
-            }
-            await processServerSource();
-          }
+          await loadFromInput();
+          await startRepairJob();
         } catch (err) {
-          log(`Error: ${err?.message || err}`);
-          setStatus(`<span style="color:var(--bad)">Error:</span> ${String(err?.message || err)}`);
-        } finally {
+          reportFlowFailure(err, 'repair');
           setBusy(false);
-          updateSummaries();
+          setSummary();
         }
       });
 
@@ -740,29 +662,33 @@
       });
 
       const source = q('source');
-      const name = q('name');
+      const sourceUrl = q('sourceUrl');
+      const name = q('name') || q('outputName');
       const folder = q('folder');
-      const mode = q('mode');
+      const upload = q('upload');
+      const auto = q('auto');
 
-      if (source) {
-        const safeSource = normalizeHttpUrl(source);
-        if (safeSource) {
-          els.sourceUrl.value = safeSource;
-          state.sourceUrl = safeSource;
-        }
-      }
+      if (source || sourceUrl) els.sourceUrl.value = source || sourceUrl;
       if (name) els.outputName.value = sanitizeOutputName(name);
-      const safeFolder = normalizeHttpUrl(folder);
-      if (safeFolder && !els.uploadUrl.value) els.uploadUrl.value = buildUploadTarget(safeFolder, els.outputName.value);
-      if (state.sourceUrl && !els.uploadUrl.value) {
-        els.uploadUrl.value = deriveUploadUrlFromSource(state.sourceUrl, els.outputName.value);
-      }
-      if (mode === 'batch') {
-        setStatus('Batch mode is ready. Choose local MP4 files or paste a source URL.');
-      }
+      if (folder || upload) els.uploadUrl.value = folder || upload;
+      state.flowJobId = getJobId();
+      state.sourceUrl = String(source || sourceUrl || '').trim();
+      state.uploadTarget = buildOutputTarget(state.sourceUrl || derivePathFromSource(els.sourceUrl.value), els.outputName.value);
+      setSummary();
 
-      updateSummaries();
-      maybeStartAutoLaunch();
+      if (auto && ((source || sourceUrl) || els.fileInput.files?.length)) {
+        queueMicrotask(async () => {
+          try {
+            setBusy(true);
+            await loadFromInput();
+            await startRepairJob();
+          } catch (err) {
+            reportFlowFailure(err, 'repair');
+            setBusy(false);
+            setSummary();
+          }
+        });
+      }
     })();
   </script>
 </body>
