@@ -1,0 +1,3042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Games Library Manager</title>
+  <style>
+    :root {
+      --bg: #0c1018;
+      --panel: #121826;
+      --panel2: #0f1521;
+      --line: rgba(255,255,255,.08);
+      --text: #ecf2ff;
+      --muted: #95a2bd;
+      --good: #7ee0c4;
+      --warn: #ffb36b;
+      --danger: #ff7f8b;
+      --radius: 20px;
+      --shadow: 0 20px 50px rgba(0,0,0,.28);
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top, rgba(126,224,196,.09), transparent 32%), var(--bg);
+      color: var(--text);
+    }
+    .shell {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      padding: 18px 20px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .title-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 28px; line-height: 1.1; }
+    .subtitle { margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 1.45; max-width: 1060px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(340px, 420px) minmax(420px, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .head {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background: rgba(255,255,255,.02);
+    }
+    .head h2 { margin: 0; font-size: 17px; }
+    .head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .body { padding: 16px 18px 18px; }
+    .section-title {
+      margin: 18px 0 10px;
+      font-size: 12px;
+      letter-spacing: .34px;
+      text-transform: uppercase;
+      color: #c3cbe0;
+    }
+    .field { margin-bottom: 12px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input[type="text"], input[type="search"], select, textarea {
+      width: 100%;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      outline: none;
+    }
+    textarea {
+      min-height: 220px;
+      resize: vertical;
+      line-height: 1.45;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, rgba(126,224,196,1), rgba(82,192,160,1));
+      color: #07110e;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+    button.warn {
+      background: rgba(255,179,107,.15);
+      color: #ffd2a2;
+      border: 1px solid rgba(255,179,107,.2);
+    }
+    button.danger {
+      background: rgba(255,127,139,.12);
+      color: #ffc0c8;
+      border: 1px solid rgba(255,127,139,.18);
+    }
+    button:active { transform: translateY(1px); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .mini { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .helpbox {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .dropzone {
+      width: 100%;
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px dashed rgba(255,255,255,.22);
+      border-radius: 12px;
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: rgba(126,224,196,.8);
+      background: rgba(126,224,196,.08);
+      transform: translateY(-1px);
+    }
+    .dropzone input[type="file"] { display: none; }
+    .dz-name { font-size: 13px; color: var(--text); font-weight: 800; }
+    .dz-meta { font-size: 12px; line-height: 1.35; }
+    .preview {
+      display: grid;
+      grid-template-columns: 140px minmax(0,1fr);
+      gap: 12px;
+      align-items: start;
+    }
+    .art {
+      width: 140px;
+      aspect-ratio: 150 / 210;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.05);
+      flex: 0 0 auto;
+    }
+    .art img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .flow-image-preview {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.03);
+    }
+    .flow-image-preview.show { display: block; }
+    .flow-image-preview img {
+      width: 100%;
+      aspect-ratio: 150 / 210;
+      object-fit: cover;
+      display: block;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.05);
+    }
+    .flow-image-preview .meta {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .preview-title { margin: 0 0 6px; font-size: 16px; font-weight: 800; }
+    .preview-meta { color: var(--muted); font-size: 12px; line-height: 1.5; word-break: break-word; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .chip {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 11px;
+    }
+    .file-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+    .entry-list {
+      display: grid;
+      gap: 8px;
+      max-height: 320px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .entry-card {
+      display: grid;
+      grid-template-columns: 90px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: rgba(8,12,18,.48);
+      border-radius: 16px;
+      padding: 10px;
+      cursor: pointer;
+    }
+    .entry-card.selected {
+      border-color: rgba(126,224,196,.8);
+      background: linear-gradient(180deg, rgba(126,224,196,.15), rgba(82,192,160,.08));
+    }
+    .entry-art {
+      width: 90px;
+      aspect-ratio: 150 / 210;
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .entry-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .entry-name { font-weight: 800; font-size: 13px; margin-bottom: 3px; }
+    .entry-meta { color: var(--muted); font-size: 11px; line-height: 1.45; word-break: break-word; }
+    .entry-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .status { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+    .status.good { color: var(--good); }
+    .status.warn { color: var(--warn); }
+    .status.bad { color: var(--danger); }
+    .output-box textarea { min-height: 58vh; }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(4,8,16,.72);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      width: min(980px,100%);
+      max-height: min(90vh,980px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(17,23,35,.98), rgba(10,14,22,.98));
+      box-shadow: var(--shadow);
+    }
+    .modal-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+    .modal-title { font-size: 18px; font-weight: 800; }
+    .modal-sub { margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+
+.flow-shell { display: none; }
+.flow-shell .flow-wrap {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.flow-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.flow-head h1 { margin: 0; font-size: 24px; }
+.flow-steps { display: grid; gap: 14px; }
+.flow-card {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.03);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+}
+.flow-card h2 { margin: 0 0 6px; font-size: 18px; }
+.flow-card .mini { margin-bottom: 10px; }
+.flow-topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.flow-topbar .row { margin-top: 0 !important; }
+.flow-topbar .row button { white-space: nowrap; }
+.flow-image-preview {
+  display: none;
+  width: min(240px, 100%);
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,.03);
+}
+.flow-image-preview.show { display: block; }
+.flow-image-preview img {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  display: block;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.05);
+}
+.flow-image-preview .meta {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+body.flow-mode .shell { display: none; }
+body.flow-mode .flow-shell { display: block; }
+body.flow-mode #flowStatus { display: block !important; }
+
+
+    .flow-mode-select {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      margin: 10px 0 14px;
+    }
+    .flow-mode-select select {
+      width: min(320px, 100%);
+    }
+    .flow-multi-wrap {
+      display: none;
+      margin-top: 12px;
+      gap: 12px;
+    }
+    .flow-multi-wrap.show { display: grid; }
+    .disk-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .disk-row {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+    }
+    .disk-row-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .disk-row-title {
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .disk-row-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .disk-dropzone {
+      width: 100%;
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px dashed rgba(255,255,255,.22);
+      border-radius: 12px;
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+    }
+    .disk-dropzone input[type="file"] { display: none; }
+    .disk-paths {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .flow-root-preview {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.03);
+    }
+    @media (max-width: 980px) {
+      .grid, .grid2, .preview, .entry-card { grid-template-columns: 1fr; }
+      .entry-actions { justify-content: flex-start; }
+      .file-row { grid-template-columns: 1fr; }
+      .flow-topbar { align-items: stretch; }
+      .flow-topbar .row { width: 100%; justify-content: flex-end; }
+    }
+  </style>
+
+</head>
+<body>
+
+<div class="flow-shell" id="flowShell">
+  <div class="flow-wrap">
+    <div class="flow-head">
+      <div>
+        <h1>Games Flow</h1>
+        <div class="subtitle">One step: title, artwork, ROM, console, and server settings. PSP and GBA links default to HTTPS.</div>
+      </div>
+      <div class="pill" id="flowStatePill">Loading…</div>
+    </div>
+
+    <div class="flow-steps">
+      <section class="flow-card" id="flowStep1">
+        <div class="section-title">Flow</div>
+        <h2>Title, cover art, ROM, and server settings</h2>
+        <div class="mini">Drop the cover image and ROM side by side. Use the HTTPS server for PSP and GBA, or check it manually for other consoles.</div>
+
+        <div class="flow-mode-select">
+          <div class="field" style="margin-bottom:0;">
+            <label for="flowTemplate">Mode</label>
+            <select id="flowTemplate">
+              <option value="standard">Standard</option>
+              <option value="multidisk">Multi-Disk</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:12px;">
+          <div class="field">
+            <label for="flowName">Game title</label>
+            <input id="flowName" type="text" placeholder="Final Fantasy IX" />
+          </div>
+          <div class="field">
+            <label for="flowConsole">Console</label>
+            <select id="flowConsole">
+              <option value="">Choose console</option>
+              <option value="Unity">Unity</option>
+              <option value="GBA">Game Boy Advance</option>
+              <option value="GB">Game Boy</option>
+              <option value="GBC">Game Boy Color</option>
+              <option value="NDS">Nintendo DS</option>
+              <option value="N64">Nintendo 64</option>
+              <option value="PSX">PlayStation</option>
+              <option value="PSP">PlayStation Portable</option>
+              <option value="SNES">Super Nintendo</option>
+              <option value="SEGA">SEGA</option>
+              <option value="Arcade">Arcade</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:0;">
+          <label style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+            <input id="flowUseHttps" type="checkbox" />
+            <span>Use Https Server</span>
+          </label>
+          <div class="mini">PSP and GBA use HTTPS automatically. If the HTTPS server file is missing, you will be asked for it.</div>
+        </div>
+
+        <div id="flowStandardArea">
+          <div class="grid2">
+            <label class="dropzone" id="flowImageDropzone">
+              <input id="flowImageInput" type="file" accept="image/*" />
+              <div>
+                <div class="dz-name">Drop or choose the cover image</div>
+                <div class="dz-meta">This becomes the game art for the entry.</div>
+              </div>
+            </label>
+
+            <label class="dropzone" id="flowRomDropzone">
+              <input id="flowRomInput" type="file" accept=".chd,.bin,.iso,.gb,.gbc,.gba,.nds,.z64,.n64,.sfc,.smc,.smd,.md,.pbp,.cue,.zip,.nes,.7z,*/*" />
+              <div>
+                <div class="dz-name">Drop or choose the ROM</div>
+                <div class="dz-meta">This file becomes the game link.</div>
+              </div>
+            </label>
+          </div>
+
+          <div class="flow-image-preview" id="flowImagePreviewWrap">
+            <img id="flowImagePreview" alt="Cover preview" />
+            <div class="meta" id="flowImagePreviewMeta"></div>
+          </div>
+
+          <div class="grid2" style="margin-top:12px;">
+            <div class="field">
+              <label for="flowImgPath">Image path</label>
+              <input id="flowImgPath" type="text" readonly placeholder="./Images/game.jpg" />
+            </div>
+            <div class="field">
+              <label for="flowRomPath">ROM link</label>
+              <input id="flowRomPath" type="text" readonly placeholder="./emulator/indexpsx.html?rom=..." />
+            </div>
+          </div>
+        </div>
+
+        <div id="flowMultiArea" class="flow-multi-wrap">
+          <div class="field">
+            <label class="dropzone" id="flowRootImageDropzone">
+              <input id="flowRootImageInput" type="file" accept="image/*" />
+              <div>
+                <div class="dz-name">Drop or choose the root image</div>
+                <div class="dz-meta">This becomes the main box art for the multi-disk entry.</div>
+              </div>
+            </label>
+          </div>
+          <div class="grid2" style="margin-top:12px;">
+            <div class="field">
+              <label for="flowRootImgPath">Root image path</label>
+              <input id="flowRootImgPath" type="text" readonly placeholder="./Images/root.jpg" />
+            </div>
+            <div class="field">
+              <label>Disks</label>
+              <div class="mini">Add at least two disks. Each disk needs both an image and a ROM.</div>
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px; align-items:center;">
+            <button id="flowAddDiskBtn" class="secondary" type="button">Add disk</button>
+            <button id="flowResetDisksBtn" class="secondary" type="button">Reset disks</button>
+          </div>
+          <div id="flowDiskList" class="disk-list"></div>
+        </div>
+
+        <div class="flow-topbar">
+          <div class="row">
+            <button id="flowClearBtn" class="secondary" type="button">Clear</button>
+          </div>
+          <div class="row">
+            <button id="flowSaveBtn" class="warn" type="button">Save &amp; Update</button>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:12px;">
+          <div class="field">
+            <label for="flowServerBase">Http server IP</label>
+            <input id="flowServerBase" type="text" value="" placeholder="http://192.168.254.16:8080" />
+          </div>
+          <div class="field">
+            <label for="flowHttpsServerBase">Https server IP</label>
+            <input id="flowHttpsServerBase" type="text" value="" placeholder="https://192.168.254.16:8081" />
+          </div>
+        </div>
+
+        <div id="flowDiskNote" class="mini" style="display:none; margin-top:8px;">Multi-disk mode now expects a root image plus disk image/ROM pairs.</div>
+
+        <div class="status" id="flowStatus">Ready. Load the server file and continue.</div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+
+    <div class="header">
+      <div>
+        <div class="title-wrap">
+          <h1>Games Library Manager</h1>
+          <span class="pill">🎮 games.js</span>
+        </div>
+        <div class="subtitle">Load the current games catalog, edit one tile at a time, and write back only the existing `const games = [ ... ]` block so repeated saves do not duplicate the list.</div>
+      </div>
+      <div class="pill" id="sourceStatePill">Loading…</div>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <div class="head">
+          <h2>Source and entries</h2>
+          <p>Use the server copy first. Pasting or uploading a file is only a fallback when you want to work offline.</p>
+        </div>
+        <div class="body">
+          <div class="helpbox">
+            <div class="section-title">Source</div>
+            <div class="field">
+              <label for="fileInput">Backup source file</label>
+              <div class="file-row">
+                <input id="fileInput" type="file" accept=".js,.txt,.html,.json" />
+                <button class="secondary" id="sampleBtn" type="button">Sample</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="sourceText">Or paste source</label>
+              <textarea id="sourceText" placeholder="Paste games.js here if needed..."></textarea>
+            </div>
+            <div class="row">
+              <button class="secondary" id="parseBtn" type="button">Parse source</button>
+              <button class="secondary" id="clearSourceBtn" type="button">Clear source</button>
+            </div>
+            <div class="status" id="parseStatus">Loading /games.js…</div>
+          </div>
+
+          <div class="section-title">Quick add</div>
+          <div class="helpbox">
+            <div class="grid2">
+              <div class="field">
+                <label for="consoleSelect">Console</label>
+                <select id="consoleSelect">
+                  <option value="">Choose console</option>
+                  <option value="Unity">Unity</option>
+                  <option value="GBA">Game Boy Advance</option>
+                  <option value="GB">Game Boy</option>
+                  <option value="GBC">Game Boy Color</option>
+                  <option value="NDS">Nintendo DS</option>
+                  <option value="N64">Nintendo 64</option>
+                  <option value="PSX">PlayStation</option>
+                  <option value="SNES">Super Nintendo</option>
+                  <option value="SEGA">SEGA</option>
+                  <option value="Arcade">Arcade</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="nameInput">File name / title</label>
+                <input id="nameInput" type="text" placeholder="Pokemon Emerald" />
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label for="imgPath">Image path</label>
+                <input id="imgPath" type="text" placeholder="./Images/pokemon-emerald.jpg" />
+              </div>
+              <div class="field">
+                <label for="romPath">ROM link</label>
+                <input id="romPath" type="text" placeholder="./emulator/indexgba.html?rom=pokemon-emerald.gba" />
+              </div>
+            </div>
+            <div class="row">
+              <button class="secondary" id="fillBtn" type="button">Fill from file names</button>
+              <button class="secondary" id="clearFilesBtn" type="button">Clear files</button>
+            </div>
+            <div class="status" id="dropStatus">Pick a ROM first, then a cover image.</div>
+          </div>
+
+          <div class="section-title">Entry list</div>
+          <div class="field">
+            <label for="searchInput">Filter entries</label>
+            <input id="searchInput" type="search" placeholder="Search by title, link, or image..." />
+          </div>
+          <div class="entry-list" id="entryList"></div>
+          <div class="row" style="margin-top:10px;">
+            <button class="secondary" id="saveBtn" type="button">Add entry</button>
+            <button class="secondary" id="updateBtn" type="button">Update selected</button>
+            <button class="warn" id="duplicateBtn" type="button">Duplicate selected</button>
+            <button class="danger" id="deleteBtn" type="button">Delete selected</button>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button class="secondary" id="clearFormBtn" type="button">Clear form</button>
+          </div>
+          <div class="status" id="addStatus"></div>
+        </div>
+      </section>
+
+      <section class="panel output-box">
+        <div class="head">
+          <h2>Preview and export</h2>
+          <p>The output keeps the rest of the file intact and rewrites only the games array body.</p>
+        </div>
+        <div class="body">
+          <div class="section-title">Preview</div>
+          <div class="helpbox">
+            <div class="preview">
+              <div class="art"><img id="previewImg" alt="Preview image" /></div>
+              <div>
+                <h3 class="preview-title" id="previewTitle">Nothing selected</h3>
+                <div class="preview-meta" id="previewMeta">Choose the ROM, console, image, and title.</div>
+                <div class="chips" id="previewChips"></div>
+              </div>
+            </div>
+            <div class="status" id="previewStatus">No entry selected.</div>
+          </div>
+
+          <div class="section-title">Export</div>
+          <div class="row">
+            <button class="secondary" id="exportBtn" type="button">Build export</button>
+            <button class="secondary" id="copyBtn" type="button">Copy text</button>
+            <button class="secondary" id="downloadBtn" type="button">Download games.js</button>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button class="secondary" id="replaceSourceBtn" type="button">Replace source text</button>
+            <button class="warn" id="replaceServerBtn" type="button">Replace on server</button>
+            <button class="secondary" id="resetBtn" type="button">Reset to loaded source</button>
+          </div>
+          <div class="section-title">Generated output</div>
+          <textarea id="outputText" spellcheck="false" placeholder="Build the export to see the resulting file..."></textarea>
+          <div class="status" id="outputStatus">Ready.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="modalTitle">Updated games.js</div>
+          <div class="modal-sub">Copy or download the export below.</div>
+        </div>
+        <button class="secondary" id="closeModalBtn" type="button">Close</button>
+      </div>
+      <textarea id="modalText" spellcheck="false"></textarea>
+      <div class="row" style="justify-content:flex-end;">
+        <button class="secondary" id="copyModalBtn" type="button">Copy</button>
+        <button class="secondary" id="downloadModalBtn" type="button">Download</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+
+    (() => {
+      const state = {
+        sourceText: '',
+        prefix: '',
+        suffix: '',
+        parsed: false,
+        selectedId: null,
+        entries: [],
+        output: '',
+        romFile: null,
+        romExt: '',
+        imgFile: null,
+        imgObjectUrl: '',
+        assetsConfirmed: false,
+        serverBase: (window.location && window.location.origin ? `${window.location.origin}/` : '/'),
+        httpServerBase: '',
+        httpsServerBase: ''
+      };
+
+      const el = (id) => document.getElementById(id);
+      const flowParams = new URLSearchParams(location.search);
+      const flowMode = flowParams.has('flow') || flowParams.has('gflow');
+      if (flowMode) document.body.classList.add('flow-mode');
+
+      function esc(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function setStatus(id, text, tone = '') {
+        const node = el(id);
+        if (!node) return;
+        node.textContent = text;
+        node.className = 'status' + (tone ? ` ${tone}` : '');
+      }
+
+      function setSourcePill(text) {
+        el('sourceStatePill').textContent = text;
+      }
+
+
+
+function setFlowPill(text) {
+  const node = el('flowStatePill');
+  if (node) node.textContent = text;
+}
+
+function flowSafeBaseName(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[<>:"/\\|?*!#\x00-\x1F]+/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\.+$/g, '')
+    .trim();
+}
+
+function flowSanitizeServerFileName(value) {
+  return String(value || '')
+    .replace(/[!#?:]/g, '')
+    .replace(/[\\/<>"|*\x00-\x1F]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function flowConsoleLabel() {
+  return (el('flowConsole')?.value || el('consoleSelect')?.value || '').trim();
+}
+
+function flowBaseTitle() {
+  const raw = flowSafeBaseName(el('flowName')?.value || el('nameInput')?.value || '');
+  const consoleName = flowConsoleLabel();
+  if (!raw || !consoleName) return raw;
+  const suffix = `, ${consoleName}`.toLowerCase();
+  const lower = raw.toLowerCase();
+  return lower.endsWith(suffix) ? raw.slice(0, raw.length - suffix.length).trim() : raw;
+}
+
+function flowCurrentTitle() {
+  return flowBaseTitle();
+}
+
+function flowDisplayName() {
+  const title = flowBaseTitle();
+  const consoleName = flowConsoleLabel();
+  if (!title && !consoleName) return '';
+  if (!title) return consoleName;
+  if (!consoleName) return title;
+  return `${title}, ${consoleName}`;
+}
+
+function flowFileStem(diskIndex = 1) {
+  const title = flowBaseTitle() || 'game';
+  const consoleName = flowConsoleLabel();
+  const diskPart = el('flowTemplate')?.value === 'multidisk' ? ` - Disk ${diskIndex}` : '';
+  return consoleName ? `${title}${diskPart}, ${consoleName}` : `${title}${diskPart}`;
+}
+
+function flowRefreshImagePath() {
+  const path = `./Images/${flowRegisteredImageName(1)}`;
+  if (el('flowImgPath')) el('flowImgPath').value = path;
+  if (el('imgPath')) el('imgPath').value = path;
+  return path;
+}
+
+function flowCommitCurrentEntry() {
+  const title = flowCurrentTitle();
+  const consoleName = flowConsoleLabel();
+  const imgPath = flowRefreshImagePath();
+  const romLink = el('flowRomPath')?.value?.trim() || el('romPath')?.value?.trim() || (state.romFile ? defaultLinkFromRom(flowRegisteredRomName(1), consoleName || flowConsoleLabel() || consoleFromExt(state.romFile.name), el('flowUseHttps')?.checked ? (state.httpsServerBase || el('flowHttpsServerBase')?.value || './') : (state.httpServerBase || el('flowServerBase')?.value || './')) : '');
+  if (!title) throw new Error('Game title is required.');
+  if (!consoleName) throw new Error('Console is required.');
+  if (!imgPath) throw new Error('Image path is required.');
+  if (!romLink) throw new Error('ROM link is required.');
+  const entry = {
+    id: `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    name: flowDisplayName(),
+    img: imgPath,
+    link: romLink,
+    console: consoleName
+  };
+  upsertEntry(entry, 'append');
+  if (el('nameInput')) el('nameInput').value = entry.name;
+  if (el('imgPath')) el('imgPath').value = entry.img;
+  if (el('flowImgPath')) el('flowImgPath').value = entry.img;
+  if (el('romPath')) el('romPath').value = entry.link;
+  if (el('consoleSelect')) el('consoleSelect').value = entry.console;
+  updatePreview();
+  return entry;
+}
+
+function flowTryClose() {
+  try {
+    const msg = { type: 'lib-flow-complete', source: 'games' };
+    if (window.opener && window.opener !== window) window.opener.postMessage(msg, '*');
+    if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*');
+  } catch (err) {}
+
+  try { self.close(); } catch (err) {}
+  try { window.close(); } catch (err) {}
+
+  setTimeout(() => {
+    try { self.close(); } catch (err) {}
+    try { window.close(); } catch (err) {}
+  }, 200);
+}
+
+function flowDiskSuffix(diskIndex = 1) {
+  return el('flowTemplate')?.value === 'multidisk' ? ` - Disk ${diskIndex}` : '';
+}
+
+function flowImageFileName(diskIndex = 1) {
+  return flowSanitizeServerFileName(`${flowFileStem(diskIndex)}.jpg`);
+}
+
+function flowRomFileName(originalName, diskIndex = 1) {
+  const source = originalName || state.romFile?.name || `${flowFileStem(diskIndex)}.bin`;
+  return flowSanitizeServerFileName(source);
+}
+
+function flowImageLabel(diskIndex = 1) {
+  return flowImageFileName(diskIndex);
+}
+
+function flowRegisteredImageName(diskIndex = 1) {
+  return flowImageFileName(diskIndex);
+}
+
+function flowRegisteredRomName(diskIndex = 1) {
+  return flowRomFileName(state.romFile?.name, diskIndex);
+}
+
+function flowSyncFromInputs() {
+  if (el('nameInput') && el('flowName')) el('nameInput').value = el('flowName').value;
+  if (el('imgPath') && el('flowImgPath')) el('imgPath').value = el('flowImgPath').value;
+  if (el('consoleSelect') && el('flowConsole')) el('consoleSelect').value = el('flowConsole').value;
+  if (el('romPath') && el('flowRomPath')) el('romPath').value = el('flowRomPath').value;
+}
+
+function flowSyncToInputs() {
+  if (el('flowName') && el('nameInput')) el('flowName').value = el('nameInput').value;
+  if (el('flowImgPath') && el('imgPath')) el('flowImgPath').value = el('imgPath').value;
+  if (el('flowConsole') && el('consoleSelect')) el('flowConsole').value = el('consoleSelect').value;
+  if (el('flowRomPath') && el('romPath')) el('flowRomPath').value = el('romPath').value;
+  if (el('flowUseHttps') && !el('flowUseHttps').checked) el('flowUseHttps').checked = flowConsoleRequiresHttps(el('flowConsole')?.value);
+  if (el('flowServerBase') && !el('flowServerBase').value) el('flowServerBase').value = state.httpServerBase || getOriginBase() || '/';
+  if (el('flowHttpsServerBase') && !el('flowHttpsServerBase').value) el('flowHttpsServerBase').value = state.httpsServerBase || 'https://192.168.254.16:8081';
+}
+
+function flowSetStep(step) {
+  const s1 = el('flowStep1');
+  if (!s1) return;
+  s1.style.display = '';
+}
+
+function flowUpdateStatus(text, tone = '') {
+  setStatus('flowStatus', text, tone);
+  setFlowPill(text);
+}
+
+function flowGuessRomPath(filename, diskIndex = 1) {
+  const consoleName = el('flowConsole')?.value || '';
+  const romFileName = flowRomFileName(filename, diskIndex);
+  const useHttps = flowShouldUseHttps(consoleName);
+  const base = useHttps ? (state.httpsServerBase || el('flowHttpsServerBase')?.value || './') : (state.httpServerBase || el('flowServerBase')?.value || './');
+  return defaultLinkFromRom(romFileName, consoleName || consoleFromExt(filename), base);
+}
+
+async function flowRefreshRomPath() {
+  const consoleName = flowConsoleLabel();
+  const romSource = flowRegisteredRomName(1);
+  const useHttps = flowShouldUseHttps(consoleName);
+  let base = useHttps ? (state.httpsServerBase || el('flowHttpsServerBase')?.value || '') : (state.httpServerBase || el('flowServerBase')?.value || '');
+  if (useHttps) {
+    base = await ensureHttpsServerBase({ promptIfMissing: true });
+    if (!base) return '';
+  } else if (!base) {
+    base = await ensureHttpServerBase();
+  }
+  const link = defaultLinkFromRom(romSource, consoleName || consoleFromExt(romSource), base || './');
+  if (el('flowRomPath')) el('flowRomPath').value = link;
+  if (el('romPath')) el('romPath').value = link;
+  return link;
+}
+
+function flowUpdateImagePreview() {
+  const wrap = el('flowImagePreviewWrap');
+  const img = el('flowImagePreview');
+  const meta = el('flowImagePreviewMeta');
+  if (!wrap || !img || !meta) return;
+  const file = state.imgFile;
+  if (!file) {
+    wrap.classList.remove('show');
+    img.removeAttribute('src');
+    meta.textContent = '';
+    return;
+  }
+  if (state.imgObjectUrl) {
+    try { URL.revokeObjectURL(state.imgObjectUrl); } catch (_) {}
+    state.imgObjectUrl = '';
+  }
+  state.imgObjectUrl = URL.createObjectURL(file);
+  img.src = state.imgObjectUrl;
+  wrap.classList.add('show');
+  const target = flowRegisteredImageName(1);
+  meta.innerHTML = `<strong>Preview:</strong> ${esc(file.name || target)}<br><strong>Saved as:</strong> ${esc(target)}`;
+}
+
+function normalizeBaseUrl(value) {
+  const clean = String(value || '').trim();
+  if (!clean) return '/';
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(clean)) return clean.replace(/\/+$/, '') + '/';
+  if (clean === '/') return '/';
+  if (clean === './') return './';
+  if (clean.startsWith('/')) return clean.replace(/\/+$/, '') + '/';
+  return clean.replace(/\/+$/, '') + '/';
+}
+
+function getOriginBase() {
+  try {
+    return window.location.origin && window.location.origin !== 'null' ? `${window.location.origin}/` : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function resolveServerBase(base) {
+  const normalized = normalizeBaseUrl(base || '/');
+  if (normalized === './') return getOriginBase() || './';
+  if (normalized === '/') return getOriginBase() || '/';
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(normalized)) return normalized;
+  if (normalized.startsWith('/')) return `${getOriginBase() || ''}${normalized.replace(/^\/+/, '')}`;
+  return normalized;
+}
+
+function joinServerUrl(base, ...parts) {
+  const rel = parts.map(part => String(part || '').replace(/^\/+|\/+$/g, '')).filter(Boolean).join('/');
+  const resolvedBase = resolveServerBase(base);
+  if (!rel) return resolvedBase;
+  try {
+    return new URL(rel, resolvedBase).toString();
+  } catch (_) {
+    if (resolvedBase.endsWith('/')) return `${resolvedBase}${rel}`;
+    return `${resolvedBase}/${rel}`;
+  }
+}
+
+function getFlowServerBase() {
+  const input = el('flowServerBase')?.value;
+  const fromState = state.httpServerBase || state.serverBase || getOriginBase() || '/';
+  const next = normalizeBaseUrl(input || fromState || '/');
+  state.httpServerBase = next;
+  state.serverBase = next;
+  return next;
+}
+
+function getFlowHttpsServerBase() {
+  const input = el('flowHttpsServerBase')?.value;
+  const fromState = state.httpsServerBase || '';
+  const next = normalizeBaseUrl(input || fromState || '');
+  state.httpsServerBase = next;
+  return next;
+}
+
+function flowConsoleRequiresHttps(consoleName) {
+  return ['GBA', 'PSP'].includes(String(consoleName || '').trim().toUpperCase());
+}
+
+function flowShouldUseHttps(consoleName = flowConsoleLabel()) {
+  return flowConsoleRequiresHttps(consoleName) || !!el('flowUseHttps')?.checked;
+}
+
+function serverFileUrl(fileName) {
+  return joinServerUrl(getOriginBase() || '/', fileName);
+}
+
+async function readServerTextFile(fileName) {
+  const url = serverFileUrl(fileName);
+  const res = await fetch(url + `?ts=${Date.now()}`, { cache: 'no-store' });
+  if (!res.ok) {
+    if (res.status === 404) return '';
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return (await res.text()).trim();
+}
+
+async function saveServerTextFile(fileName, text) {
+  await uploadTextToUrl(String(text ?? ''), serverFileUrl(fileName));
+}
+
+async function ensureHttpsServerBase({ promptIfMissing = false } = {}) {
+  const existing = (await readServerTextFile('httpsserverip.txt')) ||
+    (await readServerTextFile('httpserverip.txt'));
+  if (existing) {
+    const normalized = normalizeBaseUrl(existing);
+    state.httpsServerBase = normalized;
+    if (el('flowHttpsServerBase')) el('flowHttpsServerBase').value = normalized;
+    return normalized;
+  }
+  if (!promptIfMissing) return '';
+  const example = 'https://192.168.254.16:8081';
+  const answer = window.prompt('Enter the HTTPS server base URL:', example);
+  const cleaned = normalizeBaseUrl(answer || '');
+  if (!cleaned || cleaned === '/') return '';
+  state.httpsServerBase = cleaned;
+  if (el('flowHttpsServerBase')) el('flowHttpsServerBase').value = cleaned;
+  await saveServerTextFile('httpsserverip.txt', cleaned);
+  await saveServerTextFile('httpserverip.txt', cleaned);
+  return cleaned;
+}
+
+async function ensureHttpServerBase() {
+  const existing = await readServerTextFile('serverip.txt');
+  if (existing) {
+    const normalized = normalizeBaseUrl(existing);
+    state.httpServerBase = normalized;
+    state.serverBase = normalized;
+    if (el('flowServerBase')) el('flowServerBase').value = normalized;
+    return normalized;
+  }
+  const fallback = normalizeBaseUrl(el('flowServerBase')?.value || state.serverBase || getOriginBase() || '/');
+  state.httpServerBase = fallback;
+  state.serverBase = fallback;
+  if (el('flowServerBase')) el('flowServerBase').value = fallback;
+  return fallback;
+}
+
+async function ensureFlowServerBases({ promptHttps = false } = {}) {
+  await ensureHttpServerBase();
+  const https = await ensureHttpsServerBase({ promptIfMissing: promptHttps || flowShouldUseHttps() });
+  if (https && el('flowHttpsServerBase')) el('flowHttpsServerBase').value = https;
+  return { http: state.httpServerBase, https: state.httpsServerBase };
+}
+
+function encodeUploadUrl(url) {
+  try {
+    return new URL(url, window.location.href).toString();
+  } catch (_) {
+    return String(url || '');
+  }
+}
+function norm(value) {
+        return String(value || '')
+          .toLowerCase()
+          .normalize('NFKD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '')
+          .trim();
+      }
+
+      function cleanTitleFromFilename(filename) {
+        return String(filename || '')
+          .replace(/\.[^.]+$/, '')
+          .replace(/[_.-]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      function consoleFromExt(filename) {
+        const ext = String(filename || '').split('.').pop().toLowerCase();
+        if (ext === 'gba') return 'GBA';
+        if (ext === 'gb') return 'GB';
+        if (ext === 'gbc') return 'GBC';
+        if (ext === 'nds') return 'NDS';
+        if (ext === 'z64' || ext === 'n64') return 'N64';
+        if (ext === 'sfc' || ext === 'smc') return 'SNES';
+        if (ext === 'md' || ext === 'smd') return 'SEGA';
+        if (['chd','bin','iso','pbp','cue'].includes(ext)) return 'PSX';
+        return '';
+      }
+
+      function defaultLinkFromRom(filename, consoleName, base = './') {
+        const raw = encodeURIComponent(filename || '');
+        const cleanBase = String(base || './').trim();
+        const prefix = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:\/\/|\.\/|\/)/.test(cleanBase)
+          ? cleanBase.replace(/\/+$/, '') + '/'
+          : `./${cleanBase.replace(/^\.+\/?/, '').replace(/\/+$/, '')}/`;
+
+        switch (consoleName) {
+          case 'GBA': return `${prefix}emulator/indexgba.html?rom=${raw}`;
+          case 'GB':
+          case 'GBC': return `${prefix}emulator/indexgb.html?rom=${raw}`;
+          case 'NDS': return `${prefix}emulator/indexnds.html?rom=${raw}`;
+          case 'N64': return `${prefix}emulator/indexn64.html?rom=${raw}`;
+          case 'SNES': return `${prefix}emulator/indexsnes.html?rom=${raw}`;
+          case 'SEGA': return `${prefix}emulator/indexsega.html?rom=${raw}`;
+          case 'Unity': return `${prefix}emulator/Unity/${raw}`;
+          case 'PSP': return `${prefix}emulator/indexpsp.html?rom=${raw}`;
+          default: return `${prefix}emulator/indexpsx.html?rom=${raw}`;
+        }
+      }
+
+      function safeImg(src) {
+        const value = String(src || '').trim();
+        if (value) return value;
+        return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 210"><rect width="150" height="210" fill="#1b2333"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#8da0c5" font-size="14">No image</text></svg>');
+      }
+
+      function selectedEntry() {
+        return state.entries.find(entry => entry.id === state.selectedId) || null;
+      }
+
+      function renderMiniChips() {
+        const chips = el('previewChips');
+        chips.innerHTML = '';
+        const entry = selectedEntry();
+        const items = [
+          entry?.console ? `Console: ${entry.console}` : 'Console: none',
+          `${state.entries.length} total`,
+          entry?.name ? `Selected: ${entry.name}` : 'No entry selected'
+        ];
+        items.forEach(text => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = text;
+          chips.appendChild(chip);
+        });
+      }
+
+      function updatePreview() {
+        const name = el('nameInput').value.trim();
+        const img = el('imgPath').value.trim();
+        const link = el('romPath').value.trim();
+        const consoleName = el('consoleSelect').value.trim();
+
+        el('previewImg').src = safeImg(img);
+        el('previewTitle').textContent = name || 'Nothing selected';
+        el('previewMeta').innerHTML = `
+          <div><strong>Name:</strong> ${esc(name || '(required)')}</div>
+          <div><strong>Console:</strong> ${esc(consoleName || '(required)')}</div>
+          <div><strong>ROM link:</strong> ${esc(link || '(required)')}</div>
+          <div><strong>Image:</strong> ${esc(img || '(required)')}</div>
+        `;
+        renderMiniChips();
+        el('previewStatus').textContent = state.selectedId ? `Editing ${selectedEntry()?.name || 'selected entry'}.` : 'This preview is for the next entry you will save.';
+        if (flowMode) flowSyncToInputs();
+      }
+
+      function populateForm(entry) {
+        el('nameInput').value = entry?.name || '';
+        el('imgPath').value = entry?.img || '';
+        el('consoleSelect').value = entry?.console || '';
+        el('romPath').value = entry?.link || '';
+        updatePreview();
+      }
+
+      function clearForm() {
+        state.selectedId = null;
+        el('nameInput').value = '';
+        el('imgPath').value = '';
+        el('romPath').value = '';
+        el('consoleSelect').value = '';
+        updatePreview();
+        if (flowMode) flowSyncToInputs();
+      }
+
+      function gatherFormEntry(existingId = null) {
+        const name = el('nameInput').value.trim();
+        const img = el('imgPath').value.trim();
+        const link = el('romPath').value.trim();
+        const consoleName = el('consoleSelect').value.trim();
+
+        if (!name) throw new Error('Name is required.');
+        if (!img) throw new Error('Image path is required.');
+        if (!link) throw new Error('ROM link is required.');
+        if (!consoleName) throw new Error('Console is required.');
+
+        return {
+          id: existingId || `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+          name,
+          img,
+          link,
+          console: consoleName
+        };
+      }
+
+      function entryKey(entry, mode = 'name') {
+        if (mode === 'name+link') return `${norm(entry.name)}::${norm(entry.link)}`;
+        if (mode === 'name+img') return `${norm(entry.name)}::${norm(entry.img)}`;
+        return norm(entry.name);
+      }
+
+      function upsertEntry(entry, mode = 'append') {
+        const exact = state.entries.findIndex(e => e.name === entry.name);
+        const mergeMode = el('mergeMode')?.value || 'name';
+        const key = state.entries.findIndex(e => entryKey(e, mergeMode) === entryKey(entry, mergeMode));
+
+        if (mode === 'replaceExact' && exact >= 0) {
+          state.entries.splice(exact, 1, entry);
+          state.selectedId = entry.id;
+          return 'Replaced exact name.';
+        }
+        if (mode === 'replaceKey' && key >= 0) {
+          state.entries.splice(key, 1, entry);
+          state.selectedId = entry.id;
+          return 'Replaced duplicate key.';
+        }
+        if (mode === 'skipDupes' && (exact >= 0 || key >= 0)) {
+          return 'Skipped duplicate.';
+        }
+
+        if (mode === 'append') {
+          const before = state.entries.length;
+          state.entries = state.entries.filter(e => entryKey(e, 'name') !== entryKey(entry, 'name'));
+          const removed = before - state.entries.length;
+          state.entries.push(entry);
+          state.selectedId = entry.id;
+          return removed
+            ? `Replaced ${removed} existing same-name entr${removed === 1 ? 'y' : 'ies'} and moved it to the bottom.`
+            : 'Added entry.';
+        }
+
+        state.entries.push(entry);
+        state.selectedId = entry.id;
+        return 'Added entry.';
+      }
+
+      function updateSelected() {
+        const idx = state.entries.findIndex(e => e.id === state.selectedId);
+        if (idx < 0) throw new Error('Select an entry first.');
+        const updated = gatherFormEntry(state.selectedId);
+        state.entries.splice(idx, 1, updated);
+        state.selectedId = updated.id;
+        populateForm(updated);
+        return 'Selected entry updated.';
+      }
+
+      function duplicateSelected() {
+        const entry = selectedEntry();
+        if (!entry) throw new Error('Select an entry first.');
+        const copy = { ...entry, id: `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`, name: `${entry.name} (copy)` };
+        state.entries.splice(state.entries.indexOf(entry) + 1, 0, copy);
+        state.selectedId = copy.id;
+        populateForm(copy);
+        return 'Duplicated selected entry.';
+      }
+
+      function deleteSelected() {
+        const idx = state.entries.findIndex(e => e.id === state.selectedId);
+        if (idx < 0) throw new Error('Select an entry first.');
+        const removed = state.entries.splice(idx, 1)[0];
+        state.selectedId = state.entries[idx]?.id || state.entries[idx - 1]?.id || null;
+        if (state.selectedId) populateForm(selectedEntry());
+        else clearForm();
+        return `Deleted ${removed.name}.`;
+      }
+
+      function findGamesBlock(source) {
+        const text = String(source || '').replace(/\r\n?/g, '\n');
+        const match = /const\s+games\s*=\s*\[/m.exec(text);
+        if (!match) return null;
+        const start = text.indexOf('[', match.index);
+        let depth = 0;
+        let inString = false;
+        let quote = '';
+        let escape = false;
+        let lineComment = false;
+        let blockComment = false;
+
+        for (let i = start; i < text.length; i++) {
+          const ch = text[i];
+          const next = text[i + 1];
+
+          if (lineComment) {
+            if (ch === '\n') lineComment = false;
+            continue;
+          }
+          if (blockComment) {
+            if (ch === '*' && next === '/') { blockComment = false; i++; }
+            continue;
+          }
+          if (inString) {
+            if (escape) escape = false;
+            else if (ch === '\\') escape = true;
+            else if (ch === quote) { inString = false; quote = ''; }
+            continue;
+          }
+          if (ch === '/' && next === '/') { lineComment = true; i++; continue; }
+          if (ch === '/' && next === '*') { blockComment = true; i++; continue; }
+          if (ch === '"' || ch === "'" || ch === '`') { inString = true; quote = ch; continue; }
+          if (ch === '[') depth++;
+          if (ch === ']') {
+            depth--;
+            if (depth === 0) {
+              return {
+                start,
+                end: i,
+                prefix: text.slice(0, start + 1),
+                suffix: text.slice(i)
+              };
+            }
+          }
+        }
+        return null;
+      }
+
+      function parseEntriesFromSource(source) {
+        const block = findGamesBlock(source);
+        if (!block) return { ok: false, error: 'Could not find a const games = [ ... ] block.' };
+        const body = source.slice(block.start + 1, block.end);
+        try {
+          const items = Function(`"use strict"; return [${body}];`)();
+          if (!Array.isArray(items)) throw new Error('Parsed result was not an array.');
+          return {
+            ok: true,
+            prefix: block.prefix,
+            suffix: block.suffix,
+            entries: items.map((item, i) => ({
+              id: `g_${Date.now().toString(36)}_${i.toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+              name: String(item?.name ?? `Entry ${i + 1}`),
+              img: String(item?.img ?? ''),
+              link: String(item?.link ?? ''),
+              console: String(item?.console ?? ''),
+              notes: String(item?.notes ?? ''),
+              specialSet: String(item?.specialSet ?? ''),
+              baseName: String(item?.baseName ?? ''),
+              disks: Array.isArray(item?.disks)
+                ? item.disks.map((disk, diskIndex) => ({
+                    disk: Number(disk?.disk ?? (diskIndex + 1)),
+                    img: String(disk?.img ?? ''),
+                    link: String(disk?.link ?? '')
+                  }))
+                : []
+            }))
+          };
+        } catch (err) {
+          return { ok: false, error: `Parse error: ${err.message}` };
+        }
+      }
+
+      function generateEntryCode(entry) {
+        return `{ name: ${JSON.stringify(entry.name)}, img: ${JSON.stringify(entry.img)}, link: ${JSON.stringify(entry.link)} }`;
+      }
+      function generateStandaloneSource() {
+        const lines = [
+          '/* Media Server Games Catalog */',
+          '',
+          '// Add "Games" to the list of folders',
+          'folders.push("Games");',
+          '',
+          'const games = [',
+          ...state.entries.map((entry, i) => `  ${generateEntryCode(entry)}${i < state.entries.length - 1 ? ',' : ''}`),
+          '];',
+          '',
+          'window.games = games;'
+        ];
+        return lines.join('\n');
+      }
+
+      function buildExport() {
+        const standalone = generateStandaloneSource();
+        const body = state.entries.map((entry, i) => `  ${generateEntryCode(entry)}${i < state.entries.length - 1 ? ',' : ''}`).join('\n');
+
+        if (state.parsed) {
+          const merged = `${state.prefix}\n${body}\n${state.suffix}`;
+          state.output = merged;
+          el('outputText').value = merged;
+          el('modalText').value = merged;
+          setStatus('outputStatus', `Built export with ${state.entries.length} entries while preserving the rest of the source file.`, 'good');
+          return merged;
+        }
+
+        const block = findGamesBlock(state.sourceText || '');
+        if (block) {
+          const merged = `${block.prefix}\n${body}\n${block.suffix}`;
+          state.output = merged;
+          el('outputText').value = merged;
+          el('modalText').value = merged;
+          setStatus('outputStatus', 'Source was rebuilt by replacing only the games array, while keeping the surrounding code.', 'good');
+          return merged;
+        }
+
+        state.output = standalone;
+        el('outputText').value = standalone;
+        el('modalText').value = standalone;
+        setStatus('outputStatus', 'Built standalone games.js content because no source block was available to preserve.', 'warn');
+        return standalone;
+      }
+
+
+      function openModal(text) {
+        el('modalText').value = text;
+        el('modalBackdrop').classList.add('show');
+        el('modalBackdrop').setAttribute('aria-hidden', 'false');
+      }
+
+      function closeModal() {
+        el('modalBackdrop').classList.remove('show');
+        el('modalBackdrop').setAttribute('aria-hidden', 'true');
+      }
+
+      async function copyText(text) {
+        const payload = String(text ?? '');
+        if (navigator.clipboard?.writeText && window.isSecureContext !== false) {
+          await navigator.clipboard.writeText(payload);
+          return true;
+        }
+        const ta = document.createElement('textarea');
+        ta.value = payload;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (!ok) throw new Error('Clipboard copy failed');
+        return true;
+      }
+
+      function downloadText(filename, text) {
+        const blob = new Blob([text], { type: 'text/javascript;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function renderEntryList() {
+        const host = el('entryList');
+        const query = el('searchInput').value.trim().toLowerCase();
+        const items = query
+          ? state.entries.filter(entry => [entry.name, entry.img, entry.link, entry.console].some(value => String(value || '').toLowerCase().includes(query)))
+          : state.entries.slice();
+
+        host.innerHTML = '';
+        if (!items.length) {
+          const empty = document.createElement('div');
+          empty.className = 'mini';
+          empty.style.padding = '6px 2px';
+          empty.textContent = 'No entries match the current search.';
+          host.appendChild(empty);
+          return;
+        }
+
+        for (const entry of items) {
+          const card = document.createElement('div');
+          card.className = 'entry-card' + (entry.id === state.selectedId ? ' selected' : '');
+          card.innerHTML = `
+            <div class="entry-art"><img src="${safeImg(entry.img)}" alt="${esc(entry.name)}"></div>
+            <div>
+              <div class="entry-name">${esc(entry.name)}</div>
+              <div class="entry-meta"><strong>ROM:</strong> ${esc(entry.link || '(none)')}<br><strong>Image:</strong> ${esc(entry.img || '(none)')}</div>
+              <div class="entry-meta" style="margin-top:4px;"><strong>Console:</strong> ${esc(entry.console || '(none)')}</div>
+            </div>
+            <div class="entry-actions">
+              <button class="secondary" type="button" data-act="select">Edit</button>
+              <button class="secondary" type="button" data-act="up">↑</button>
+              <button class="secondary" type="button" data-act="down">↓</button>
+            </div>
+          `;
+          card.querySelector('[data-act="select"]').onclick = (ev) => { ev.stopPropagation(); state.selectedId = entry.id; populateForm(entry); render(); };
+          card.querySelector('[data-act="up"]').onclick = (ev) => { ev.stopPropagation(); moveEntry(entry.id, -1); };
+          card.querySelector('[data-act="down"]').onclick = (ev) => { ev.stopPropagation(); moveEntry(entry.id, 1); };
+          card.onclick = (ev) => {
+            if (ev.target.closest('button')) return;
+            state.selectedId = entry.id;
+            populateForm(entry);
+            render();
+          };
+          host.appendChild(card);
+        }
+      }
+
+      function moveEntry(id, delta) {
+        const idx = state.entries.findIndex(entry => entry.id === id);
+        const target = idx + delta;
+        if (idx < 0 || target < 0 || target >= state.entries.length) return;
+        const [item] = state.entries.splice(idx, 1);
+        state.entries.splice(target, 0, item);
+        render();
+      }
+
+      function render() {
+        renderEntryList();
+        renderMiniChips();
+        updatePreview();
+      }
+
+      function loadSourceText(text) {
+        state.sourceText = String(text || '');
+        el('sourceText').value = state.sourceText;
+
+        const parsed = parseEntriesFromSource(state.sourceText);
+        if (!parsed.ok) {
+          state.parsed = false;
+          state.prefix = '';
+          state.suffix = '';
+          state.entries = [];
+          state.selectedId = null;
+          render();
+          setStatus('parseStatus', parsed.error, 'bad');
+          setStatus('outputStatus', 'Source loaded, but no games array was parsed yet.', 'warn');
+          setSourcePill('Source not parsed');
+          return;
+        }
+
+        state.parsed = true;
+        state.prefix = parsed.prefix;
+        state.suffix = parsed.suffix;
+        state.entries = parsed.entries;
+        state.selectedId = state.entries[0]?.id || null;
+        render();
+        setStatus('parseStatus', `Loaded ${state.entries.length} entries from the source file.`, 'good');
+        setSourcePill(`Parsed ${state.entries.length} entries`);
+      }
+
+      function guessFromFiles() {
+        if (!state.romFile && !state.imgFile) {
+          setStatus('dropStatus', 'Pick a ROM and cover image.', 'warn');
+          return;
+        }
+        const romTitle = cleanTitleFromFilename(state.romFile?.name || '');
+        const imgTitle = cleanTitleFromFilename(state.imgFile?.name || '');
+        const guess = romTitle || imgTitle;
+
+        if (guess && !el('nameInput').value) el('nameInput').value = guess;
+        if (!el('consoleSelect').value && state.romFile) el('consoleSelect').value = consoleFromExt(state.romFile.name);
+        if (!el('romPath').value && state.romFile) el('romPath').value = defaultLinkFromRom(flowRegisteredRomName(1), el('consoleSelect').value || consoleFromExt(state.romFile.name));
+        if (state.imgFile) flowRefreshImagePath();
+
+        updatePreview();
+        setStatus('dropStatus', 'Fields filled from the dropped files. Check the title, console, and paths, then save.', 'good');
+      }
+
+      function clearFiles() {
+        state.romFile = null;
+        state.imgFile = null;
+        el('romInput').value = '';
+        el('imageInput').value = '';
+        setStatus('dropStatus', 'Dropped files cleared.', 'warn');
+      }
+
+      function handleDroppedFile(file, kind) {
+        if (!file) return;
+        if (kind === 'rom') {
+          state.romFile = file;
+          if (!el('nameInput').value) el('nameInput').value = cleanTitleFromFilename(file.name);
+          if (!el('consoleSelect').value) el('consoleSelect').value = consoleFromExt(file.name);
+          if (!el('romPath').value) el('romPath').value = defaultLinkFromRom(flowSanitizeServerFileName(file.name), el('consoleSelect').value || consoleFromExt(file.name));
+          setStatus('dropStatus', `ROM selected: ${file.name}`, 'good');
+        } else {
+          state.imgFile = file;
+          el('imgPath').value = `./Images/${flowSanitizeServerFileName(file.name)}`;
+          setStatus('dropStatus', `Image selected and filled in: ${file.name}`, 'good');
+        }
+        updatePreview();
+      }
+
+      function setupDropzone(zoneId, inputId, kind) {
+        const zone = el(zoneId);
+        const input = el(inputId);
+        if (!zone || !input) return;
+
+        input.addEventListener('change', () => handleDroppedFile(input.files && input.files[0], kind));
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+          e.preventDefault();
+          zone.classList.remove('dragover');
+          const file = e.dataTransfer.files && e.dataTransfer.files[0];
+          if (file) handleDroppedFile(file, kind);
+        });
+      }
+
+      
+async function convertImageToJpegBlob(file, { maxSide = 512, quality = 0.9 } = {}) {
+        if (!file) throw new Error('No image selected.');
+
+        const toBlob = (canvas) => new Promise((resolve, reject) => {
+          canvas.toBlob((out) => {
+            if (out) resolve(out);
+            else reject(new Error('Could not convert image to JPG.'));
+          }, 'image/jpeg', quality);
+        });
+
+        const drawScaled = async (width, height, source) => {
+          const canvas = document.createElement('canvas');
+          const scale = Math.min(1, maxSide / Math.max(width || 1, height || 1));
+          const outWidth = Math.max(1, Math.round((width || 1) * scale));
+          const outHeight = Math.max(1, Math.round((height || 1) * scale));
+          canvas.width = outWidth;
+          canvas.height = outHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Canvas support is unavailable.');
+          ctx.drawImage(source, 0, 0, outWidth, outHeight);
+          return await toBlob(canvas);
+        };
+
+        if (typeof createImageBitmap === 'function') {
+          const bitmap = await createImageBitmap(file);
+          try {
+            return await drawScaled(bitmap.width, bitmap.height, bitmap);
+          } finally {
+            if (bitmap.close) bitmap.close();
+          }
+        }
+
+        return await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(reader.error || new Error('Could not read image file.'));
+          reader.onload = () => {
+            const img = new Image();
+            img.onload = async () => {
+              try {
+                resolve(await drawScaled(img.naturalWidth || img.width, img.naturalHeight || img.height, img));
+              } catch (err) {
+                reject(err);
+              }
+            };
+            img.onerror = () => reject(new Error('Could not decode image file.'));
+            img.src = reader.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function uploadBinaryToUrl(file, url) {
+        const requestUrl = encodeUploadUrl(url);
+        let response;
+        try {
+          response = await fetch(requestUrl, { method: 'PUT', body: file, credentials: 'omit' });
+        } catch (fetchErr) {
+          response = await new Promise((resolve, reject) => {
+            try {
+              const xhr = new XMLHttpRequest();
+              xhr.open('PUT', requestUrl, true);
+              xhr.withCredentials = false;
+              xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, statusText: xhr.statusText, text: async () => xhr.responseText || '' });
+              xhr.onerror = () => reject(fetchErr || new Error('Failed to fetch'));
+              xhr.send(file);
+            } catch (xhrErr) {
+              reject(xhrErr);
+            }
+          });
+        }
+        if (!response.ok) {
+          const body = await response.text().catch(() => '');
+          throw new Error(`${response.status} ${response.statusText}${body ? ` — ${body.slice(0, 160)}` : ''}`);
+        }
+      }
+
+      async function uploadTextToUrl(text, url) {
+        const payload = new Blob([String(text ?? '')], { type: 'text/plain;charset=utf-8' });
+        return uploadBinaryToUrl(payload, url);
+      }
+
+      function uploadTargetForImage() {
+        const base = getFlowServerBase();
+        return joinServerUrl(base, 'Images', flowRegisteredImageName(1));
+      }
+
+      function uploadTargetForRom() {
+        const base = getFlowServerBase();
+        return joinServerUrl(base, 'emulator', 'roms', flowRegisteredRomName(1));
+      }
+
+      async function confirmGameAssetsUpload() {
+        const image = state.imgFile;
+        const rom = state.romFile;
+        if (!image || !rom) {
+          throw new Error('Select both a cover image and a ROM file first.');
+        }
+        const imageBlob = await convertImageToJpegBlob(image, { maxSide: 512, quality: 0.9 });
+        const imageTarget = uploadTargetForImage();
+        const romTarget = uploadTargetForRom();
+        setStatus('outputStatus', 'Uploading artwork and ROM files…');
+        await Promise.all([
+          uploadBinaryToUrl(imageBlob, imageTarget),
+          uploadBinaryToUrl(rom, romTarget)
+        ]);
+        state.assetsConfirmed = true;
+        setStatus('outputStatus', 'Artwork and ROM uploaded to the server.', 'good');
+        return true;
+      }
+
+      function notifyFlowCompletion() {
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'lib-flow-complete', source: 'games' }, window.location.origin);
+          }
+        } catch (err) {
+          console.warn('Could not notify parent:', err);
+        }
+      }
+
+      function closeFlowPage() {
+        notifyFlowCompletion();
+        flowTryClose();
+      }
+
+      async function uploadSelectedAssets() {
+        return confirmGameAssetsUpload();
+      }
+
+      function buildGamesSourceFromEntries(entries) {
+        const body = entries.map((entry, index) => `  ${generateEntryCode(entry)}${index < entries.length - 1 ? ',' : ''}`).join('\n');
+        if (!state.parsed) {
+          return [
+            '/* Media Server Games Catalog */',
+            '',
+            '// Add "Games" to the list of folders',
+            'folders.push("Games");',
+            '',
+            'const games = [',
+            body,
+            '];',
+            '',
+            'window.games = games;'
+          ].join('\n');
+        }
+        return `${state.prefix}\n${body}\n${state.suffix}`;
+      }
+
+      async function replaceSourceOnServer({ closeAfter = false } = {}) {
+        let loadedFromServer = state.parsed;
+        if (!state.parsed) {
+          await autoLoadServerGames();
+          loadedFromServer = state.parsed;
+        }
+
+        const activeTemplate = el('flowTemplate')?.value || 'standard';
+        const merged = buildGamesSourceFromEntries(state.entries);
+        const targetUrl = joinServerUrl(getFlowServerBase(), 'games.js');
+
+        if (!state.assetsConfirmed && (state.imgFile || state.romFile)) {
+          await confirmGameAssetsUpload();
+        }
+
+        if (loadedFromServer) {
+          setStatus('outputStatus', `Replacing games.js on the server (${activeTemplate} mode)…`);
+        } else {
+          setStatus('outputStatus', 'games.js could not be loaded first, so uploading a fresh standalone games.js from the current entries…', 'warn');
+        }
+
+        await uploadTextToUrl(merged, targetUrl);
+        state.output = merged;
+        el('outputText').value = merged;
+        el('modalText').value = merged;
+        setStatus('outputStatus', 'games.js replaced on the server.', 'good');
+        if (closeAfter) {
+          notifyFlowCompletion();
+          flowTryClose();
+        }
+      }
+
+      async function autoLoadServerGames() {
+        const base = getFlowServerBase();
+        const candidates = Array.from(new Set([
+          joinServerUrl(base, 'games.js'),
+          joinServerUrl(getOriginBase() || '/', 'games.js'),
+          '/games.js',
+          './games.js'
+        ].filter(Boolean)));
+        let lastErr = null;
+        for (const url of candidates) {
+          try {
+            const res = await fetch(url + `?ts=${Date.now()}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            loadSourceText(await res.text());
+            setStatus('parseStatus', `Loaded games.js from the server (${url}).`, 'good');
+            setSourcePill('Loaded from server');
+            return;
+          } catch (err) {
+            lastErr = err;
+          }
+        }
+        setStatus('parseStatus', `Could not auto-load games.js: ${lastErr ? lastErr.message : 'unknown error'}`, 'warn');
+        setSourcePill('Server load failed');
+      }
+
+
+function applyFlowToMain() {
+  flowSyncFromInputs();
+  updatePreview();
+}
+
+async function applyFlowRomSelection() {
+  await flowRefreshRomPath();
+  applyFlowToMain();
+}
+
+function handleFlowImage(file) {
+  if (!file) return;
+  state.imgFile = file;
+  if (!el('flowName').value) {
+    const guessed = cleanTitleFromFilename(file.name);
+    el('flowName').value = guessed;
+    if (el('nameInput')) el('nameInput').value = guessed;
+  }
+  flowRefreshImagePath();
+  flowUpdateImagePreview();
+  applyFlowToMain();
+}
+
+async function handleFlowRom(file) {
+  if (!file) return;
+  state.romFile = file;
+  state.romExt = String(file.name || '').split('.').pop().toLowerCase();
+  const consoleGuess = consoleFromExt(file.name);
+  if (!el('flowConsole').value && consoleGuess) el('flowConsole').value = consoleGuess;
+  if (flowConsoleRequiresHttps(el('flowConsole')?.value) && el('flowUseHttps')) {
+    el('flowUseHttps').checked = true;
+  }
+  if (!el('flowName').value) {
+    const guessed = cleanTitleFromFilename(file.name);
+    el('flowName').value = guessed;
+    if (el('nameInput')) el('nameInput').value = guessed;
+  }
+  flowRefreshImagePath();
+  await flowRefreshRomPath();
+  applyFlowToMain();
+}
+
+
+function initFlow() {
+  if (!flowMode) return;
+  flowSetStep(1);
+  setFlowPill('Flow ready');
+  flowUpdateImagePreview();
+
+  const syncServerFields = () => {
+    state.assetsConfirmed = false;
+    flowSyncToInputs();
+    void flowRefreshRomPath();
+  };
+
+  if (el('flowUseHttps')) {
+    el('flowUseHttps').addEventListener('change', async () => {
+      state.assetsConfirmed = false;
+      if (el('flowConsole') && flowConsoleRequiresHttps(el('flowConsole').value)) {
+        el('flowUseHttps').checked = true;
+      }
+      if (flowIsMultiMode()) {
+        flowRefreshAllPaths();
+      } else {
+        await flowRefreshRomPath();
+      }
+      applyFlowToMain();
+    });
+  }
+
+  if (el('flowConsole')) el('flowConsole').addEventListener('change', async () => {
+    state.assetsConfirmed = false;
+    if (el('consoleSelect')) el('consoleSelect').value = el('flowConsole').value;
+    if (flowConsoleRequiresHttps(el('flowConsole').value) && el('flowUseHttps')) {
+      el('flowUseHttps').checked = true;
+    }
+    if (flowIsMultiMode()) {
+      flowRefreshAllPaths();
+      flowUpdateImagePreview();
+    } else {
+      flowRefreshImagePath();
+      if (state.imgFile) flowUpdateImagePreview();
+      await flowRefreshRomPath();
+    }
+    applyFlowToMain();
+  });
+
+  if (el('flowName')) el('flowName').addEventListener('input', () => {
+    state.assetsConfirmed = false;
+    if (el('nameInput')) el('nameInput').value = el('flowName').value;
+    if (flowIsMultiMode()) {
+      flowRefreshAllPaths();
+      flowUpdateImagePreview();
+    } else {
+      flowRefreshImagePath();
+      if (state.imgFile) flowUpdateImagePreview();
+      void flowRefreshRomPath();
+    }
+    applyFlowToMain();
+  });
+
+  if (el('flowImageInput')) {
+    el('flowImageInput').addEventListener('change', e => handleFlowImage(e.target.files && e.target.files[0]));
+  }
+  if (el('flowRomInput')) {
+    el('flowRomInput').addEventListener('change', e => handleFlowRom(e.target.files && e.target.files[0]));
+  }
+
+  if (el('flowServerBase')) {
+    el('flowServerBase').addEventListener('input', () => {
+      state.assetsConfirmed = false;
+      state.httpServerBase = normalizeBaseUrl(el('flowServerBase').value || getOriginBase() || '/');
+      state.serverBase = state.httpServerBase;
+      if (flowIsMultiMode()) flowRefreshAllPaths();
+      else void flowRefreshRomPath();
+    });
+  }
+
+  if (el('flowHttpsServerBase')) {
+    el('flowHttpsServerBase').addEventListener('input', () => {
+      state.assetsConfirmed = false;
+      state.httpsServerBase = normalizeBaseUrl(el('flowHttpsServerBase').value || '');
+      if (flowIsMultiMode()) flowRefreshAllPaths();
+      else void flowRefreshRomPath();
+    });
+  }
+
+  const imageDrop = el('flowImageDropzone');
+  const romDrop = el('flowRomDropzone');
+  if (imageDrop) {
+    imageDrop.addEventListener('dragover', e => { e.preventDefault(); imageDrop.classList.add('dragover'); });
+    imageDrop.addEventListener('dragleave', () => imageDrop.classList.remove('dragover'));
+    imageDrop.addEventListener('drop', e => {
+      e.preventDefault();
+      imageDrop.classList.remove('dragover');
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) handleFlowImage(file);
+    });
+  }
+  if (romDrop) {
+    romDrop.addEventListener('dragover', e => { e.preventDefault(); romDrop.classList.add('dragover'); });
+    romDrop.addEventListener('dragleave', () => romDrop.classList.remove('dragover'));
+    romDrop.addEventListener('drop', e => {
+      e.preventDefault();
+      romDrop.classList.remove('dragover');
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) handleFlowRom(file);
+    });
+  }
+
+  if (el('flowClearBtn')) {
+    el('flowClearBtn').onclick = () => {
+      if (el('flowName')) el('flowName').value = '';
+      if (el('flowImgPath')) el('flowImgPath').value = '';
+      if (el('flowRomPath')) el('flowRomPath').value = '';
+      if (el('flowConsole')) el('flowConsole').value = '';
+      if (el('flowUseHttps')) el('flowUseHttps').checked = false;
+      if (el('flowImageInput')) el('flowImageInput').value = '';
+      if (el('flowRomInput')) el('flowRomInput').value = '';
+      state.imgFile = null;
+      state.romFile = null;
+      state.assetsConfirmed = false;
+      if (state.imgObjectUrl) {
+        try { URL.revokeObjectURL(state.imgObjectUrl); } catch (_) {}
+        state.imgObjectUrl = '';
+      }
+      flowUpdateImagePreview();
+      flowUpdateStatus('Cleared flow fields.', 'warn');
+      clearForm();
+    };
+  }
+
+  if (el('flowSaveBtn')) {
+    el('flowSaveBtn').onclick = async () => {
+      try {
+        await flowRefreshRomPath();
+        flowCommitCurrentEntry();
+        await replaceSourceOnServer({ closeAfter: true });
+        flowUpdateStatus('Uploaded assets, updated games.js, and closed the flow.', 'good');
+      } catch (err) {
+        flowUpdateStatus(err.message, 'bad');
+      }
+    };
+  }
+
+  void ensureFlowServerBases({ promptHttps: false }).then(() => {
+    void flowRefreshRomPath();
+  });
+
+  setStatus('parseStatus', 'Flow mode is ready.', 'good');
+}
+function bindEvents() {
+        el('fileInput').addEventListener('change', async e => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          try {
+            const text = await file.text();
+            loadSourceText(text);
+          } catch (err) {
+            setStatus('parseStatus', err.message, 'bad');
+          }
+        });
+
+        el('parseBtn').onclick = () => loadSourceText(el('sourceText').value);
+        el('clearSourceBtn').onclick = () => {
+          el('sourceText').value = '';
+          state.sourceText = '';
+          state.prefix = '';
+          state.suffix = '';
+          state.entries = [];
+          state.selectedId = null;
+          state.parsed = false;
+          render();
+          setStatus('parseStatus', 'Source cleared.', 'warn');
+          setSourcePill('Source cleared');
+        };
+        el('sampleBtn').onclick = () => {
+          const sample = `/* Media Server Games Catalog */\n\n// Add "Games" to the list of folders\nfolders.push("Games");\n\nconst games = [\n  { name: "Hollow Knight, Unity", img: "./Images/Hollow Knight.jpg", link: "./emulator/Unity/hollow-knight-main/index.html" },\n  { name: "Minecraft", img: "./Images/Minecraft.jpg", link: "./emulator/Unity/play/minecraft/index.html" }\n];\n\nwindow.games = games;`;
+          loadSourceText(sample);
+          setStatus('parseStatus', 'Loaded sample source.', 'good');
+          setSourcePill('Sample loaded');
+        };
+
+        el('fillBtn').onclick = guessFromFiles;
+        el('clearFilesBtn').onclick = clearFiles;
+        setupDropzone('romDropzone', 'romInput', 'rom');
+        setupDropzone('imageDropzone', 'imageInput', 'image');
+
+        el('saveBtn').onclick = () => {
+          try {
+            setStatus('addStatus', upsertEntry(gatherFormEntry(), 'append'), 'good');
+            render();
+          } catch (err) {
+            setStatus('addStatus', err.message, 'bad');
+          }
+        };
+        el('updateBtn').onclick = () => {
+          try {
+            setStatus('addStatus', updateSelected(), 'good');
+            render();
+          } catch (err) {
+            setStatus('addStatus', err.message, 'bad');
+          }
+        };
+        el('duplicateBtn').onclick = () => {
+          try {
+            setStatus('addStatus', duplicateSelected(), 'good');
+            render();
+          } catch (err) {
+            setStatus('addStatus', err.message, 'bad');
+          }
+        };
+        el('deleteBtn').onclick = () => {
+          try {
+            setStatus('addStatus', deleteSelected(), 'good');
+            render();
+          } catch (err) {
+            setStatus('addStatus', err.message, 'bad');
+          }
+        };
+        el('clearFormBtn').onclick = () => {
+          clearForm();
+          setStatus('addStatus', 'Form cleared.', 'warn');
+        };
+
+        ['nameInput','imgPath','romPath','consoleSelect'].forEach(id => {
+          el(id).addEventListener('input', updatePreview);
+        });
+
+        el('searchInput').addEventListener('input', renderEntryList);
+
+        el('exportBtn').onclick = () => openModal(buildGamesSourceFromEntries(state.entries));
+        el('copyBtn').onclick = async () => {
+          try { await copyText(state.output || buildGamesSourceFromEntries(state.entries)); setStatus('outputStatus', 'Copied to clipboard.', 'good'); }
+          catch (err) { setStatus('outputStatus', err.message, 'bad'); }
+        };
+        el('downloadBtn').onclick = () => downloadText('games.js', state.output || buildGamesSourceFromEntries(state.entries));
+        el('replaceSourceBtn').onclick = () => {
+          const text = buildGamesSourceFromEntries(state.entries);
+          el('sourceText').value = text;
+          loadSourceText(text);
+          setStatus('outputStatus', 'Source text replaced with the generated export.', 'good');
+        };
+        el('replaceServerBtn').onclick = async () => {
+          try {
+            await replaceSourceOnServer();
+          } catch (err) {
+            setStatus('outputStatus', err.message, 'bad');
+          }
+        };
+        el('resetBtn').onclick = () => {
+          if (!state.sourceText) {
+            setStatus('outputStatus', 'Nothing has been loaded yet.', 'warn');
+            return;
+          }
+          loadSourceText(state.sourceText);
+          setStatus('outputStatus', 'Reset to the loaded source.', 'good');
+        };
+        el('copyModalBtn').onclick = async () => {
+          try { await copyText(el('modalText').value); setStatus('outputStatus', 'Copied to clipboard.', 'good'); }
+          catch (err) { setStatus('outputStatus', err.message, 'bad'); }
+        };
+        el('downloadModalBtn').onclick = () => downloadText('games.js', el('modalText').value);
+        el('closeModalBtn').onclick = closeModal;
+        el('modalBackdrop').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+      }
+
+
+      // --- Multi-disk flow / export overrides ---
+      function flowCurrentTemplate() {
+        return el('flowTemplate')?.value || 'standard';
+      }
+
+      function flowIsMultiMode() {
+        return flowCurrentTemplate() === 'multidisk';
+      }
+
+      function flowGetBaseName() {
+        const raw = flowSafeBaseName(el('flowName')?.value || el('nameInput')?.value || '');
+        const consoleName = flowConsoleLabel();
+        if (!raw || !consoleName) return raw;
+        const suffix = `, ${consoleName}`.toLowerCase();
+        const lower = raw.toLowerCase();
+        return lower.endsWith(suffix) ? raw.slice(0, raw.length - suffix.length).trim() : raw;
+      }
+
+      function flowGetDisplayName() {
+        const base = flowGetBaseName();
+        const consoleName = flowConsoleLabel();
+        if (!base && !consoleName) return '';
+        if (!base) return consoleName;
+        if (!consoleName) return base;
+        return `${base}, ${consoleName}`;
+      }
+
+      function flowEnsureState() {
+        if (!state.flowDiskRows) state.flowDiskRows = [];
+        if (!state.flowRootImageFile) state.flowRootImageFile = null;
+        if (!state.flowRootImageObjectUrl) state.flowRootImageObjectUrl = '';
+      }
+
+      function flowSetModeUI() {
+        const multi = flowIsMultiMode();
+        const standardArea = el('flowStandardArea');
+        const multiArea = el('flowMultiArea');
+        const note = el('flowDiskNote');
+        if (standardArea) standardArea.style.display = multi ? 'none' : 'block';
+        if (multiArea) multiArea.classList.toggle('show', multi);
+        if (note) note.style.display = multi ? 'block' : 'none';
+      }
+
+      function flowDiskCount() {
+        flowEnsureState();
+        return Array.isArray(state.flowDiskRows) ? state.flowDiskRows.length : 0;
+      }
+
+      function flowDiskPathName(index) {
+        const base = flowGetBaseName() || 'game';
+        return flowSanitizeServerFileName(`${base} - Disk ${index}`);
+      }
+
+      function flowRootImagePathName() {
+        const base = flowGetBaseName() || 'game';
+        return `${flowSanitizeServerFileName(base)} root.jpg`;
+      }
+
+      function flowDiskImagePathName(index) {
+        return `./Images/${flowDiskPathName(index)}.jpg`;
+      }
+
+      function flowRootImageUploadTarget() {
+        return joinServerUrl(getFlowServerBase(), 'Images', flowRootImagePathName());
+      }
+
+      function flowDiskImageUploadTarget(index) {
+        return joinServerUrl(getFlowServerBase(), 'Images', `${flowDiskPathName(index)}.jpg`);
+      }
+
+      function flowDiskRomUploadTarget(fileName) {
+        return joinServerUrl(getFlowServerBase(), 'emulator', 'roms', flowSanitizeServerFileName(fileName || 'disk.bin'));
+      }
+
+      function flowDiskRomLink(fileName) {
+        const consoleName = flowConsoleLabel() || consoleFromExt(fileName || '');
+        const base = flowShouldUseHttps(consoleName)
+          ? (state.httpsServerBase || el('flowHttpsServerBase')?.value || './')
+          : (state.httpServerBase || el('flowServerBase')?.value || './');
+        return defaultLinkFromRom(flowSanitizeServerFileName(fileName || ''), consoleName || consoleFromExt(fileName || ''), base);
+      }
+
+      function flowBuildMultiEntry() {
+        flowEnsureState();
+        const baseName = flowGetBaseName();
+        const consoleName = flowConsoleLabel();
+        if (!baseName) throw new Error('Game title is required.');
+        if (!consoleName) throw new Error('Console is required.');
+        if (!state.flowRootImageFile) throw new Error('Root image is required.');
+        const validRows = state.flowDiskRows.filter(row => row && row.imageFile && row.romFile);
+        if (validRows.length < 2) throw new Error('Multi-Disk mode needs at least two disks, and each disk must have both an image and a ROM.');
+        const disks = validRows.map(row => ({
+          disk: row.disk,
+          img: row.imagePath || flowDiskImagePathName(row.disk),
+          link: row.romPath || flowDiskRomLink(row.romFile?.name)
+        }));
+        return {
+          id: `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+          name: `${baseName}, ${consoleName}`,
+          img: el('flowRootImgPath')?.value?.trim() || `./Images/${flowRootImagePathName()}`,
+          link: disks[0].link,
+          console: consoleName,
+          specialSet: 'multidisk',
+          baseName,
+          disks
+        };
+      }
+
+      function flowBuildStandardEntry() {
+        const title = flowGetBaseName();
+        const consoleName = flowConsoleLabel();
+        const imgPath = el('flowImgPath')?.value?.trim() || (state.imgFile ? `./Images/${flowSanitizeServerFileName(state.imgFile.name)}` : '');
+        const romLink = el('flowRomPath')?.value?.trim() || '';
+        if (!title) throw new Error('Game title is required.');
+        if (!consoleName) throw new Error('Console is required.');
+        if (!imgPath) throw new Error('Image path is required.');
+        if (!romLink) throw new Error('ROM link is required.');
+        return {
+          id: `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+          name: flowGetDisplayName(),
+          img: imgPath,
+          link: romLink,
+          console: consoleName
+        };
+      }
+
+      function flowSetPreviewText(text) {
+        const status = el('flowStatus');
+        if (status) status.textContent = text;
+        setFlowPill(text);
+      }
+
+      function flowRenderDiskRows() {
+        flowEnsureState();
+        const host = el('flowDiskList');
+        if (!host) return;
+        if (!state.flowDiskRows.length) {
+          state.flowDiskRows = [1, 2].map(n => ({ id: `d_${n}`, disk: n, imageFile: null, romFile: null, imagePath: '', romPath: '' }));
+        }
+
+        host.innerHTML = '';
+        state.flowDiskRows.forEach((row, idx) => {
+          row.disk = idx + 1;
+          const wrap = document.createElement('div');
+          wrap.className = 'disk-row';
+          wrap.dataset.diskIndex = String(row.disk);
+          wrap.innerHTML = `
+            <div class="disk-row-head">
+              <div class="disk-row-title">Disk ${row.disk}</div>
+              <div class="row">
+                <button type="button" class="secondary" data-act="remove">Remove</button>
+              </div>
+            </div>
+            <div class="disk-row-fields">
+              <div class="dropzone disk-dropzone" data-kind="image" role="button" tabindex="0" aria-label="Choose disk image for disk ${row.disk}">
+                <input type="file" accept="image/*" hidden />
+                <div>
+                  <div class="dz-name">Drop or choose disk image</div>
+                  <div class="dz-meta">This becomes the per-disk artwork.</div>
+                </div>
+              </div>
+              <div class="dropzone disk-dropzone" data-kind="rom" role="button" tabindex="0" aria-label="Choose disk ROM for disk ${row.disk}">
+                <input type="file" accept=".chd,.bin,.iso,.gb,.gbc,.gba,.nds,.z64,.n64,.sfc,.smc,.smd,.md,.pbp,.cue,.zip,.nes,.7z,*/*" hidden />
+                <div>
+                  <div class="dz-name">Drop or choose disk ROM</div>
+                  <div class="dz-meta">This becomes the per-disk link.</div>
+                </div>
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label>Disk image path</label>
+                <input type="text" readonly data-path="image" />
+              </div>
+              <div class="field">
+                <label>Disk ROM link</label>
+                <input type="text" readonly data-path="rom" />
+              </div>
+            </div>
+          `;
+
+          const removeBtn = wrap.querySelector('[data-act="remove"]');
+          const imageZone = wrap.querySelector('.disk-dropzone[data-kind="image"]');
+          const romZone = wrap.querySelector('.disk-dropzone[data-kind="rom"]');
+          const imgInput = imageZone.querySelector('input[type="file"]');
+          const romInput = romZone.querySelector('input[type="file"]');
+          const imgPath = wrap.querySelector('input[data-path="image"]');
+          const romPath = wrap.querySelector('input[data-path="rom"]');
+
+          const openPicker = (input) => {
+            if (!input) return;
+            input.click();
+          };
+
+          const setRowImage = async (file) => {
+            row.imageFile = file || null;
+            if (file) {
+              row.imagePath = flowDiskImagePathName(row.disk);
+              const meta = imageZone.querySelector('.dz-meta');
+              meta.textContent = `Saved as: ${row.imagePath}`;
+            } else {
+              row.imagePath = '';
+              const meta = imageZone.querySelector('.dz-meta');
+              meta.textContent = 'This becomes the per-disk artwork.';
+            }
+            updateRowPaths();
+          };
+
+          const setRowRom = (file) => {
+            row.romFile = file || null;
+            if (file) {
+              row.romPath = flowDiskRomLink(file.name);
+              const meta = romZone.querySelector('.dz-meta');
+              meta.textContent = file.name;
+            } else {
+              row.romPath = '';
+              const meta = romZone.querySelector('.dz-meta');
+              meta.textContent = 'This becomes the per-disk link.';
+            }
+            updateRowPaths();
+          };
+
+          const updateRowPaths = () => {
+            imgPath.value = row.imagePath || flowDiskImagePathName(row.disk);
+            romPath.value = row.romPath || (row.romFile ? flowDiskRomLink(row.romFile.name) : '');
+            removeBtn.disabled = state.flowDiskRows.length <= 2;
+          };
+
+          imgInput.addEventListener('click', e => e.stopPropagation());
+          romInput.addEventListener('click', e => e.stopPropagation());
+
+          imgInput.addEventListener('change', e => setRowImage(e.target.files && e.target.files[0]));
+          romInput.addEventListener('change', e => setRowRom(e.target.files && e.target.files[0]));
+
+          imageZone.addEventListener('click', e => {
+            if (e.target.closest('button')) return;
+            openPicker(imgInput);
+          });
+          romZone.addEventListener('click', e => {
+            if (e.target.closest('button')) return;
+            openPicker(romInput);
+          });
+
+          for (const zone of [imageZone, romZone]) {
+            zone.addEventListener('keydown', e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (zone === imageZone) openPicker(imgInput);
+                if (zone === romZone) openPicker(romInput);
+              }
+            });
+            zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+            zone.addEventListener('drop', e => {
+              e.preventDefault();
+              zone.classList.remove('dragover');
+              const file = e.dataTransfer.files && e.dataTransfer.files[0];
+              if (!file) return;
+              if (zone === imageZone) setRowImage(file);
+              if (zone === romZone) setRowRom(file);
+            });
+          }
+
+          removeBtn.addEventListener('click', () => {
+            if (state.flowDiskRows.length <= 2) return;
+            state.flowDiskRows.splice(idx, 1);
+            flowRenderDiskRows();
+          });
+
+          updateRowPaths();
+          host.appendChild(wrap);
+        });
+      }
+
+      function flowAddDiskRow() {
+        flowEnsureState();
+        const nextDisk = state.flowDiskRows.length + 1;
+        state.flowDiskRows.push({ id: `d_${Date.now().toString(36)}_${nextDisk}`, disk: nextDisk, imageFile: null, romFile: null, imagePath: '', romPath: '' });
+        flowRenderDiskRows();
+      }
+
+      function flowResetDiskRows() {
+        state.flowDiskRows = [1, 2].map(n => ({ id: `d_${n}`, disk: n, imageFile: null, romFile: null, imagePath: '', romPath: '' }));
+        flowRenderDiskRows();
+      }
+
+      function flowUpdateMode() {
+        flowSetModeUI();
+        if (flowIsMultiMode()) {
+          flowResetDiskRows();
+          if (el('flowImagePreviewWrap')) el('flowImagePreviewWrap').style.display = 'block';
+        } else {
+          if (el('flowDiskList')) el('flowDiskList').innerHTML = '';
+          if (el('flowRootImgPath')) el('flowRootImgPath').value = '';
+        }
+      }
+
+      function flowRefreshAllPaths() {
+        if (flowIsMultiMode()) {
+          if (el('flowRootImgPath')) {
+            el('flowRootImgPath').value = state.flowRootImageFile ? `./Images/${flowRootImagePathName()}` : '';
+          }
+          flowRenderDiskRows();
+        } else {
+          flowRefreshImagePath();
+          void flowRefreshRomPath();
+        }
+      }
+
+      function flowUpdateImagePreview() {
+        const wrap = el('flowImagePreviewWrap');
+        const img = el('flowImagePreview');
+        const meta = el('flowImagePreviewMeta');
+        if (!wrap || !img || !meta) return;
+        const file = flowIsMultiMode() ? (state.flowRootImageFile || state.imgFile) : state.imgFile;
+        if (!file) {
+          wrap.classList.remove('show');
+          img.removeAttribute('src');
+          meta.textContent = '';
+          return;
+        }
+        if (state.imgObjectUrl) {
+          try { URL.revokeObjectURL(state.imgObjectUrl); } catch (_) {}
+          state.imgObjectUrl = '';
+        }
+        state.imgObjectUrl = URL.createObjectURL(file);
+        img.src = state.imgObjectUrl;
+        wrap.classList.add('show');
+        const target = flowIsMultiMode() ? (el('flowRootImgPath')?.value?.trim() || `./Images/${flowRootImagePathName()}`) : (el('flowImgPath')?.value?.trim() || `./Images/${flowSanitizeServerFileName(file.name)}`);
+        meta.innerHTML = `<strong>Preview:</strong> ${esc(file.name || target)}<br><strong>Saved as:</strong> ${esc(target)}`;
+      }
+
+      function flowRefreshImagePath() {
+        if (flowIsMultiMode()) {
+          if (el('flowRootImgPath')) el('flowRootImgPath').value = state.flowRootImageFile ? `./Images/${flowRootImagePathName()}` : '';
+          if (el('imgPath')) el('imgPath').value = el('flowRootImgPath')?.value || '';
+          return el('flowRootImgPath')?.value || '';
+        }
+        const path = `./Images/${flowRegisteredImageName(1)}`;
+        if (el('flowImgPath')) el('flowImgPath').value = path;
+        if (el('imgPath')) el('imgPath').value = path;
+        return path;
+      }
+
+      function flowRegisteredImageName(diskIndex = 1) {
+        if (flowIsMultiMode()) {
+          return diskIndex === 1 ? flowRootImagePathName() : `${flowDiskPathName(diskIndex)}.jpg`;
+        }
+        return flowImageFileName(diskIndex);
+      }
+
+      function flowRegisteredRomName(diskIndex = 1) {
+        if (flowIsMultiMode()) {
+          const row = state.flowDiskRows?.[diskIndex - 1];
+          return row?.romFile?.name ? flowSanitizeServerFileName(row.romFile.name) : `Disk ${diskIndex}.bin`;
+        }
+        return flowRomFileName(state.romFile?.name, diskIndex);
+      }
+
+      function flowCommitCurrentEntry() {
+        flowEnsureState();
+        const entry = flowIsMultiMode() ? flowBuildMultiEntry() : flowBuildStandardEntry();
+        upsertEntry(entry, 'append');
+        if (el('nameInput')) el('nameInput').value = entry.name;
+        if (el('imgPath')) el('imgPath').value = entry.img;
+        if (el('flowImgPath') && !flowIsMultiMode()) el('flowImgPath').value = entry.img;
+        if (el('flowRootImgPath') && flowIsMultiMode()) el('flowRootImgPath').value = entry.img;
+        if (el('romPath')) el('romPath').value = entry.link;
+        if (el('consoleSelect')) el('consoleSelect').value = entry.console;
+        updatePreview();
+        return entry;
+      }
+
+      async function confirmGameAssetsUpload() {
+        if (flowIsMultiMode()) {
+          if (!state.flowRootImageFile) throw new Error('Select the root image first.');
+          if (!Array.isArray(state.flowDiskRows) || state.flowDiskRows.length < 2) throw new Error('Add at least 2 disks.');
+          const validRows = state.flowDiskRows.filter(row => row.imageFile && row.romFile);
+          if (validRows.length < 2) throw new Error('Each disk needs both an image and a ROM.');
+          setStatus('outputStatus', 'Uploading root image and multi-disk assets…');
+          const uploads = [];
+          uploads.push(uploadBinaryToUrl(await convertImageToJpegBlob(state.flowRootImageFile, { maxSide: 512, quality: 0.9 }), flowRootImageUploadTarget()));
+          for (const row of validRows) {
+            uploads.push(uploadBinaryToUrl(await convertImageToJpegBlob(row.imageFile, { maxSide: 512, quality: 0.9 }), flowDiskImageUploadTarget(row.disk)));
+            uploads.push(uploadBinaryToUrl(row.romFile, flowDiskRomUploadTarget(row.romFile.name)));
+          }
+          await Promise.all(uploads);
+          state.assetsConfirmed = true;
+          setStatus('outputStatus', 'Root image and all disk assets uploaded to the server.', 'good');
+          return true;
+        }
+        const image = state.imgFile;
+        const rom = state.romFile;
+        if (!image || !rom) {
+          throw new Error('Select both a cover image and a ROM file first.');
+        }
+        const imageBlob = await convertImageToJpegBlob(image, { maxSide: 512, quality: 0.9 });
+        const imageTarget = uploadTargetForImage();
+        const romTarget = uploadTargetForRom();
+        setStatus('outputStatus', 'Uploading artwork and ROM files…');
+        await Promise.all([
+          uploadBinaryToUrl(imageBlob, imageTarget),
+          uploadBinaryToUrl(rom, romTarget)
+        ]);
+        state.assetsConfirmed = true;
+        setStatus('outputStatus', 'Artwork and ROM uploaded to the server.', 'good');
+        return true;
+      }
+
+      function generateEntryCode(entry) {
+        const encodeDisk = (disk) => `{ disk: ${Number(disk.disk || 0)}, img: ${JSON.stringify(String(disk.img || ''))}, link: ${JSON.stringify(String(disk.link || ''))} }`;
+        const base = [
+          `name: ${JSON.stringify(String(entry.name || ''))}`,
+          `img: ${JSON.stringify(String(entry.img || ''))}`,
+          `link: ${JSON.stringify(String(entry.link || ''))}`
+        ];
+        if (entry.console) base.push(`console: ${JSON.stringify(String(entry.console))}`);
+        if (entry.notes) base.push(`notes: ${JSON.stringify(String(entry.notes))}`);
+        if (String(entry.specialSet || '').trim() === 'multidisk') {
+          base.push(`specialSet: "multidisk"`);
+          base.push(`baseName: ${JSON.stringify(String(entry.baseName || '').trim())}`);
+          base.push(`disks: [${(Array.isArray(entry.disks) ? entry.disks : []).map(encodeDisk).join(', ')}]`);
+        }
+        return `{ ${base.join(', ')} }`;
+      }
+
+      function generateGamesRuntimeTail() {
+        return `
+function displayGames() {
+    const container = document.getElementById("folderContainer");
+    container.innerHTML = "";
+
+    const backButtonTop = document.createElement("button");
+    backButtonTop.className = "return-button";
+    backButtonTop.innerText = "Back to Title Selection";
+    backButtonTop.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    container.appendChild(backButtonTop);
+
+    games.forEach(game => {
+        if (game.specialSet === "multidisk" && Array.isArray(game.disks)) {
+            createGameTile(container, game.name || game.baseName, game.img, () => displayDisks(game));
+        } else {
+            const gameTile = document.createElement("div");
+            gameTile.classList.add("folder");
+            gameTile.innerHTML = \`
+                <img src="\${game.img}" alt="\${game.name}" onclick="window.location.href='\${game.link}'">
+                <p>\${game.name}</p>
+            \`;
+            container.appendChild(gameTile);
+        }
+    });
+
+    const backButtonBottom = document.createElement("button");
+    backButtonBottom.className = "return-button";
+    backButtonBottom.innerText = "Back to Title Selection";
+    backButtonBottom.onclick = () => {
+        folderContainer.innerHTML = "";
+        loadMainFolders();
+    };
+    container.appendChild(backButtonBottom);
+}
+
+function createGameTile(container, name, img, onclickFunction) {
+    const gameTile = document.createElement("div");
+    gameTile.classList.add("folder");
+    gameTile.innerHTML = \`
+        <img src="\${img}" alt="\${name}">
+        <p>\${name}</p>
+    \`;
+    gameTile.onclick = onclickFunction;
+    container.appendChild(gameTile);
+}
+
+function displayDisks(gameOrName, disksOverride) {
+    const game = typeof gameOrName === "object" && gameOrName ? gameOrName : {
+        baseName: String(gameOrName || ""),
+        disks: Array.isArray(disksOverride) ? disksOverride : []
+    };
+    const disks = Array.isArray(game.disks) ? game.disks : (Array.isArray(disksOverride) ? disksOverride : []);
+    const gameName = game.baseName || game.name || "";
+    const container = document.getElementById("folderContainer");
+    container.innerHTML = "";
+
+    disks.forEach(disk => {
+        const diskTile = document.createElement("div");
+        diskTile.classList.add("folder");
+        const image = disk.img || \`./Images/\${gameName.toLowerCase().replace(/ /g, "")}-\${disk.disk}.jpg\`;
+        diskTile.innerHTML = \`
+            <img src="\${image}" alt="\${gameName} - Disk \${disk.disk}" onclick="window.location.href='\${disk.link}'">
+            <p>\${gameName} - Disk \${disk.disk}</p>
+        \`;
+        container.appendChild(diskTile);
+    });
+
+    const backButton = document.createElement("button");
+    backButton.className = "return-button";
+    backButton.innerText = "Back to Games";
+    backButton.onclick = displayGames;
+    container.appendChild(backButton);
+}
+
+window.games = games;
+window.displayGames = displayGames;
+window.createGameTile = createGameTile;
+window.displayDisks = displayDisks;
+`;
+      }
+
+      function buildGamesSourceFromEntries(entries) {
+        const body = entries.map((entry, index) => `  ${generateEntryCode(entry)}${index < entries.length - 1 ? ',' : ''}`).join('\n');
+        const prefix = state.parsed && state.prefix
+          ? state.prefix.trimEnd()
+          : [
+              '/* Media Server Games Catalog */',
+              '',
+              '// Add "Games" to the list of folders',
+              'folders.push("Games");',
+              '',
+              '    // Define the list of games and their respective emulator links',
+              '    const games = ['
+            ].join('\n');
+
+        return `${prefix}\n${body}\n];\n\n${generateGamesRuntimeTail()}`.replace(/\n];\n\n/g, '\n];\n\n');
+      }
+
+      function buildExport() {
+        const merged = buildGamesSourceFromEntries(state.entries);
+        state.output = merged;
+        el('outputText').value = merged;
+        el('modalText').value = merged;
+        setStatus('outputStatus', `Built export with ${state.entries.length} entr${state.entries.length === 1 ? 'y' : 'ies'} including multi-disk support.`, 'good');
+        return merged;
+      }
+
+      async function replaceSourceOnServer({ closeAfter = false } = {}) {
+        let loadedFromServer = state.parsed;
+        if (!state.parsed) {
+          await autoLoadServerGames();
+          loadedFromServer = state.parsed;
+        }
+
+        const activeTemplate = el('flowTemplate')?.value || 'standard';
+        const merged = buildGamesSourceFromEntries(state.entries);
+        const targetUrl = joinServerUrl(getFlowServerBase(), 'games.js');
+
+        if (!state.assetsConfirmed && (state.imgFile || state.romFile || state.flowRootImageFile || flowDiskCount())) {
+          await confirmGameAssetsUpload();
+        }
+
+        if (loadedFromServer) {
+          setStatus('outputStatus', `Replacing games.js on the server (${activeTemplate} mode)…`);
+        } else {
+          setStatus('outputStatus', 'games.js could not be loaded first, so uploading a fresh standalone games.js from the current entries…', 'warn');
+        }
+
+        await uploadTextToUrl(merged, targetUrl);
+        state.output = merged;
+        el('outputText').value = merged;
+        el('modalText').value = merged;
+        setStatus('outputStatus', 'games.js replaced on the server.', 'good');
+        if (closeAfter) {
+          notifyFlowCompletion();
+          flowTryClose();
+        }
+      }
+
+      function flowSyncFromInputs() {
+        if (flowIsMultiMode()) {
+          if (el('nameInput') && el('flowName')) el('nameInput').value = el('flowName').value;
+          if (el('consoleSelect') && el('flowConsole')) el('consoleSelect').value = el('flowConsole').value;
+          if (el('imgPath') && el('flowRootImgPath')) el('imgPath').value = el('flowRootImgPath').value;
+          return;
+        }
+        if (el('nameInput') && el('flowName')) el('nameInput').value = el('flowName').value;
+        if (el('imgPath') && el('flowImgPath')) el('imgPath').value = el('flowImgPath').value;
+        if (el('consoleSelect') && el('flowConsole')) el('consoleSelect').value = el('flowConsole').value;
+        if (el('romPath') && el('flowRomPath')) el('romPath').value = el('flowRomPath').value;
+      }
+
+      function flowSyncToInputs() {
+        if (el('flowName') && el('nameInput')) el('flowName').value = el('nameInput').value;
+        if (flowIsMultiMode()) {
+          if (el('flowRootImgPath') && el('imgPath')) el('flowRootImgPath').value = el('imgPath').value;
+        } else {
+          if (el('flowImgPath') && el('imgPath')) el('flowImgPath').value = el('imgPath').value;
+          if (el('flowRomPath') && el('romPath')) el('flowRomPath').value = el('romPath').value;
+        }
+        if (el('flowConsole') && el('consoleSelect')) el('flowConsole').value = el('consoleSelect').value;
+        if (el('flowUseHttps') && !el('flowUseHttps').checked) el('flowUseHttps').checked = flowConsoleRequiresHttps(el('flowConsole')?.value);
+        if (el('flowServerBase') && !el('flowServerBase').value) el('flowServerBase').value = state.httpServerBase || getOriginBase() || '/';
+        if (el('flowHttpsServerBase') && !el('flowHttpsServerBase').value) el('flowHttpsServerBase').value = state.httpsServerBase || 'https://192.168.254.16:8081';
+      }
+
+      function applyFlowToMain() {
+        flowSyncFromInputs();
+        updatePreview();
+      }
+
+      function handleFlowImage(file) {
+        if (!file) return;
+        if (flowIsMultiMode()) {
+          state.flowRootImageFile = file;
+          if (!el('flowName').value) {
+            const guessed = cleanTitleFromFilename(file.name);
+            el('flowName').value = guessed;
+            if (el('nameInput')) el('nameInput').value = guessed;
+          }
+          flowRefreshImagePath();
+          flowUpdateImagePreview();
+          applyFlowToMain();
+          return;
+        }
+        state.imgFile = file;
+        if (!el('flowName').value) {
+          const guessed = cleanTitleFromFilename(file.name);
+          el('flowName').value = guessed;
+          if (el('nameInput')) el('nameInput').value = guessed;
+        }
+        flowRefreshImagePath();
+        flowUpdateImagePreview();
+        applyFlowToMain();
+      }
+
+      async function handleFlowRom(file) {
+        if (!file) return;
+        if (flowIsMultiMode()) {
+          // In multi-disk mode, the top-level ROM picker is not used.
+          return;
+        }
+        state.romFile = file;
+        state.romExt = String(file.name || '').split('.').pop().toLowerCase();
+        const consoleGuess = consoleFromExt(file.name);
+        if (!el('flowConsole').value && consoleGuess) el('flowConsole').value = consoleGuess;
+        if (flowConsoleRequiresHttps(el('flowConsole')?.value) && el('flowUseHttps')) {
+          el('flowUseHttps').checked = true;
+        }
+        if (!el('flowName').value) {
+          const guessed = cleanTitleFromFilename(file.name);
+          el('flowName').value = guessed;
+          if (el('nameInput')) el('nameInput').value = guessed;
+        }
+        flowRefreshImagePath();
+        await flowRefreshRomPath();
+        applyFlowToMain();
+      }
+
+      function updateSelected() {
+        const idx = state.entries.findIndex(e => e.id === state.selectedId);
+        if (idx < 0) throw new Error('Select an entry first.');
+        const entry = flowIsMultiMode() ? flowBuildMultiEntry() : flowBuildStandardEntry();
+        entry.id = state.selectedId;
+        state.entries.splice(idx, 1, entry);
+        state.selectedId = entry.id;
+        populateForm(entry);
+        return 'Selected entry updated.';
+      }
+
+      function gatherFormEntry(existingId = null) {
+        const entry = flowIsMultiMode() ? flowBuildMultiEntry() : flowBuildStandardEntry();
+        entry.id = existingId || entry.id;
+        return entry;
+      }
+
+      function flowUpdateAfterModeChange() {
+        flowSetModeUI();
+        flowRefreshAllPaths();
+        flowUpdateImagePreview();
+        applyFlowToMain();
+      }
+
+      function initFlow() {
+        if (!flowMode) return;
+        flowEnsureState();
+        flowSetStep(1);
+        setFlowPill('Flow ready');
+        flowSetModeUI();
+        flowRenderDiskRows();
+        flowUpdateImagePreview();
+
+        if (el('flowTemplate')) {
+          el('flowTemplate').addEventListener('change', () => {
+            state.assetsConfirmed = false;
+            flowUpdateAfterModeChange();
+            if (el('flowTemplate').value === 'multidisk') {
+              flowSetPreviewText('Multi-Disk mode ready.');
+            } else {
+              flowSetPreviewText('Standard mode ready.');
+            }
+          });
+        }
+
+        if (el('flowAddDiskBtn')) {
+          el('flowAddDiskBtn').onclick = () => {
+            if (!flowIsMultiMode()) return;
+            flowAddDiskRow();
+          };
+        }
+
+        if (el('flowResetDisksBtn')) {
+          el('flowResetDisksBtn').onclick = () => {
+            if (!flowIsMultiMode()) return;
+            flowResetDiskRows();
+          };
+        }
+
+        if (el('flowUseHttps')) {
+          el('flowUseHttps').addEventListener('change', async () => {
+            state.assetsConfirmed = false;
+            if (el('flowConsole') && flowConsoleRequiresHttps(el('flowConsole').value)) {
+              el('flowUseHttps').checked = true;
+            }
+            await flowRefreshRomPath();
+            applyFlowToMain();
+          });
+        }
+
+        if (el('flowConsole')) el('flowConsole').addEventListener('change', async () => {
+          state.assetsConfirmed = false;
+          if (el('consoleSelect')) el('consoleSelect').value = el('flowConsole').value;
+          if (flowConsoleRequiresHttps(el('flowConsole').value) && el('flowUseHttps')) {
+            el('flowUseHttps').checked = true;
+          }
+          flowRefreshImagePath();
+          if (state.imgFile || state.flowRootImageFile) flowUpdateImagePreview();
+          await flowRefreshRomPath();
+          applyFlowToMain();
+        });
+
+        if (el('flowName')) el('flowName').addEventListener('input', () => {
+          state.assetsConfirmed = false;
+          if (el('nameInput')) el('nameInput').value = el('flowName').value;
+          flowRefreshImagePath();
+          flowRefreshAllPaths();
+          if (state.imgFile || state.flowRootImageFile) flowUpdateImagePreview();
+          void flowRefreshRomPath();
+          applyFlowToMain();
+          if (flowIsMultiMode()) flowRenderDiskRows();
+        });
+
+        if (el('flowImageInput')) {
+          el('flowImageInput').addEventListener('change', e => handleFlowImage(e.target.files && e.target.files[0]));
+        }
+        if (el('flowRomInput')) {
+          el('flowRomInput').addEventListener('change', e => handleFlowRom(e.target.files && e.target.files[0]));
+        }
+
+        if (el('flowRootImageInput')) {
+          el('flowRootImageInput').addEventListener('change', e => {
+            state.assetsConfirmed = false;
+            state.flowRootImageFile = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+            state.imgFile = state.flowRootImageFile;
+            flowRefreshImagePath();
+            flowUpdateImagePreview();
+            applyFlowToMain();
+          });
+        }
+
+        if (el('flowServerBase')) {
+          el('flowServerBase').addEventListener('input', () => {
+            state.assetsConfirmed = false;
+            state.httpServerBase = normalizeBaseUrl(el('flowServerBase').value || getOriginBase() || '/');
+            state.serverBase = state.httpServerBase;
+            void flowRefreshRomPath();
+          });
+        }
+
+        if (el('flowHttpsServerBase')) {
+          el('flowHttpsServerBase').addEventListener('input', () => {
+            state.assetsConfirmed = false;
+            state.httpsServerBase = normalizeBaseUrl(el('flowHttpsServerBase').value || '');
+            void flowRefreshRomPath();
+          });
+        }
+
+        const imageDrop = el('flowImageDropzone');
+        const romDrop = el('flowRomDropzone');
+        if (imageDrop) {
+          imageDrop.addEventListener('dragover', e => { e.preventDefault(); imageDrop.classList.add('dragover'); });
+          imageDrop.addEventListener('dragleave', () => imageDrop.classList.remove('dragover'));
+          imageDrop.addEventListener('drop', e => {
+            e.preventDefault();
+            imageDrop.classList.remove('dragover');
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) handleFlowImage(file);
+          });
+        }
+        if (romDrop) {
+          romDrop.addEventListener('dragover', e => { e.preventDefault(); romDrop.classList.add('dragover'); });
+          romDrop.addEventListener('dragleave', () => romDrop.classList.remove('dragover'));
+          romDrop.addEventListener('drop', e => {
+            e.preventDefault();
+            romDrop.classList.remove('dragover');
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) handleFlowRom(file);
+          });
+        }
+
+        if (el('flowClearBtn')) {
+          el('flowClearBtn').onclick = () => {
+            if (el('flowName')) el('flowName').value = '';
+            if (el('flowImgPath')) el('flowImgPath').value = '';
+            if (el('flowRootImgPath')) el('flowRootImgPath').value = '';
+            if (el('flowRomPath')) el('flowRomPath').value = '';
+            if (el('flowConsole')) el('flowConsole').value = '';
+            if (el('flowUseHttps')) el('flowUseHttps').checked = false;
+            if (el('flowImageInput')) el('flowImageInput').value = '';
+            if (el('flowRomInput')) el('flowRomInput').value = '';
+            if (el('flowRootImageInput')) el('flowRootImageInput').value = '';
+            state.imgFile = null;
+            state.romFile = null;
+            state.flowRootImageFile = null;
+            state.assetsConfirmed = false;
+            if (state.imgObjectUrl) {
+              try { URL.revokeObjectURL(state.imgObjectUrl); } catch (_) {}
+              state.imgObjectUrl = '';
+            }
+            flowResetDiskRows();
+            flowUpdateImagePreview();
+            flowUpdateMode();
+            flowSetPreviewText('Cleared flow fields.');
+            clearForm();
+          };
+        }
+
+        if (el('flowSaveBtn')) {
+          el('flowSaveBtn').onclick = async () => {
+            try {
+              flowSyncToInputs();
+              await flowRefreshRomPath();
+              flowCommitCurrentEntry();
+              await replaceSourceOnServer({ closeAfter: true });
+              flowSetPreviewText('Uploaded assets, updated games.js, and closed the flow.');
+            } catch (err) {
+              flowSetPreviewText(err.message);
+            }
+          };
+        }
+
+        void ensureFlowServerBases({ promptHttps: false }).then(() => {
+          void flowRefreshRomPath();
+        });
+
+        setStatus('parseStatus', 'Flow mode is ready.', 'good');
+        flowUpdateAfterModeChange();
+      }
+
+      function init() {
+        bindEvents();
+        initFlow();
+        clearForm();
+        render();
+        autoLoadServerGames();
+      }
+
+      init();
+    })();
+  
+</script>
+</body>
+</html>

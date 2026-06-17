@@ -1,0 +1,20 @@
+{
+  "type": "answer",
+  "sdp": {
+    "type": "answer",
+    "sdp": "v=0\r\no=- 4611736113254697482 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\na=msid-semantic: WMS *\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=ice-ufrag:abcd\r\na=ice-pwd:1234567890abcdef12345678\r\na=ice-options:trickle\r\na=fingerprint:sha-256 12:34:56:...\r\na=setup:active\r\na=mid:0\r\na=sendonly\r\na=rtcp-mux\r\na=rtpmap:96 VP8/90000\r\na=ssrc:1001 cname:somecname\r\n"
+  },
+  "candidates": [
+    {
+      "candidate": "candidate:842163049 1 udp 1677729535 192.168.1.10 58592 typ srflx raddr 0.0.0.0 rport 0 generation 0 ufrag abcd network-cost 999",
+      "sdpMid": "0",
+      "sdpMLineIndex": 0
+    },
+    {
+      "candidate": "candidate:1234567890 1 udp 2122260223 172.20.0.5 51835 typ host generation 0 ufrag abcd network-cost 999",
+      "sdpMid": "0",
+      "sdpMLineIndex": 0
+    }
+  ],
+  "ts": 1732512345123
+}

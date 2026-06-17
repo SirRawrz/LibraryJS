@@ -1,0 +1,5 @@
+Make with 
+
+mkcert 192.168.254.16
+
+Copy key text only into the spots. Save the files with their names at the root of the folder you're hosting just in case? unsure

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stream Archiver Options</title>
+<style>
+  :root { --bg:#071019; --panel:#0b1720; --muted:#92a0ad; --accent:#66d0e8; --text:#f5fbff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; color:var(--text); background:linear-gradient(180deg,var(--bg),#03121a); }
+  .wrap { max-width:760px; margin:0 auto; padding:24px; }
+  .card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:16px; padding:18px; margin-bottom:14px; }
+  h1 { margin:0 0 10px; font-size:24px; }
+  .small { color:var(--muted); font-size:13px; }
+  label { display:block; font-weight:700; margin-bottom:6px; }
+  input[type="text"], input[type="number"] { width:100%; padding:11px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:#0d1a26; color:var(--text); }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .row2 { display:flex; gap:12px; flex-wrap:wrap; }
+  .toggle { display:flex; align-items:center; gap:8px; margin:8px 0; }
+  .btn { border:none; background:var(--accent); color:#03121a; font-weight:800; padding:10px 14px; border-radius:10px; cursor:pointer; }
+  .btn.secondary { background:transparent; color:var(--text); border:1px solid rgba(255,255,255,0.08); }
+  .out { margin-top:10px; font-size:13px; color:var(--muted); white-space:pre-wrap; word-break:break-word; }
+  code { color:#b8f1ff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Stream Archiver Options</h1>
+  <div class="small">Point this extension at the page or root URL that contains <code>platform.txt</code> and <code>serverip.txt</code>. The extension resolves the upload host from <code>serverip.txt</code> and writes into <code>/videodownloader/</code>.</div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="configBaseUrl">Config base URL</label>
+        <input type="text" id="configBaseUrl" placeholder="http://192.168.254.16:8080/" />
+      </div>
+      <div>
+        <label for="archiveFolder">Archive folder</label>
+        <input type="text" id="archiveFolder" placeholder="/videodownloader/" />
+      </div>
+      <div>
+        <label for="perItemDelayMs">Segment delay (ms)</label>
+        <input type="number" id="perItemDelayMs" min="0" step="1" placeholder="0" />
+      </div>
+      <div style="grid-column:1 / -1">
+        <label for="subtitleSearchTerms">Preferred subtitle search words</label>
+        <input type="text" id="subtitleSearchTerms" placeholder="the and to of a" title="Words used to rank subtitle candidates; change for other languages" />
+        <div class="small">Used to rank which subtitle preview looks most like English. You can swap these words for another language later.</div>
+      </div>
+    </div>
+    <div class="row2">
+      <label class="toggle"><input type="checkbox" id="autoArchive"> Auto archive when detected</label>
+      <label class="toggle"><input type="checkbox" id="saveSegments"> Save playlist segments</label>
+      <label class="toggle"><input type="checkbox" id="captureDirectMedia"> Archive direct media URLs</label>
+      <label class="toggle"><input type="checkbox" id="captureSubtitleFiles"> Include subtitles in uploads (VTT/SRT)</label>
+      <label class="toggle"><input type="checkbox" id="captureTextDownloads"> Capture HTML/TXT downloads</label>
+      <label class="toggle"><input type="checkbox" id="ignoreGifTxtDownloads"> Ignore GIF/TXT files</label>
+    </div>
+    <div class="card">
+      <label class="small" style="display:block; margin-bottom:10px;">Upload diagnostics</label>
+      <div class="row2">
+        <label class="toggle"><input type="checkbox" id="uploadIssuesTxt"> Upload issues.txt</label>
+      </div>
+      <div class="small">The archive pipeline always stages the canonical <code>index.m3u8</code> source manifest when needed.</div>
+    </div>
+    <div class="row2" style="margin-top:10px">
+      <button class="btn" id="saveBtn">Save</button>
+      <button class="btn secondary" id="testBtn">Test config</button>
+      <button class="btn secondary" id="useCurrentBtn">Use current tab origin</button>
+    </div>
+    <div id="result" class="out">Loading…</div>
+  </div>
+</div>
+<script src="options.js"></script>
+</body>
+</html>

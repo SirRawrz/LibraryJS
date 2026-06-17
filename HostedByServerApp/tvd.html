@@ -1,0 +1,3352 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>TV Auto Resume</title>
+<style>
+    /* ── Basic reset & container styling ── */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #000000;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding-top: 60px; /* space for top‐bar */
+      overflow: hidden;
+    }
+
+    /* ── Top bar (Home, Profile, Fullscreen) ── */
+.top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* home at left, fullscreen at right */
+  padding: 10px 20px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  transition: opacity 0.2s ease;
+}
+
+/* group that holds the middle buttons */
+.center-buttons {
+  display: flex;
+  gap: 12px;               /* spacing between middle buttons */
+  align-items: center;
+  justify-content: center; /* keep them clustered/centered */
+}
+
+/* buttons */
+.top-button {
+  background-color: #333;
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+
+    .top-button:hover {
+      background-color: #555;
+    }
+    #profileIcon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      object-fit: cover;
+      margin-left: 12px;
+      display: none;
+    }
+    .hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ── Video container & controls ── */
+#videoContainer {
+  display: block;
+  position: absolute;
+  top: 60px; /* height of the top bar */
+  left: 0;
+  width: 100%;
+  height: calc(100vh - 60px);
+  z-index: 1;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: black;
+  border-radius: 0;
+  box-shadow: none;
+}
+  
+.episode-btn {
+  display: inline-block;
+  margin: 0 5px;
+  padding: 6px 10px;
+  background-color: #333;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.episode-btn:hover {
+  background-color: #555;
+}
+
+/* highlight the currently-playing episode button in the dialog's grid */
+.episode-btn.current {
+  background-color: #F7F5F2; /* pearl white */
+  color: #222;               /* charcoal / near-black text */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+  transform: none;
+}
+
+/* keep hover behavior for non-current buttons */
+.episode-btn:not(.current):hover {
+  background-color: #555;
+  transform: scale(1.02);
+}
+
+
+    /* Profile selection styles */
+    .profile-select-icon {
+      width: 64px;
+      height: 64px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .profile-select-icon.selected {
+      border-color: gold;
+    }
+    </style>
+</style>
+
+<style>
+  video:focus {
+    outline: none;
+  }
+  /* Prevent horizontal scrolling (override any inline JS that enables overflow) */
+html, body {
+  overflow-x: hidden !important;
+}
+
+</style>
+
+
+<style>
+  /* Kids/adult QR gating for tvd.html is controlled by JS via the shared kidsMode key.
+     The Original QR starts visible unless kids mode ('l') is active. */
+  [data-qr-kind] { display: ''; }
+</style>
+
+<script>
+(function(){
+  const KID_KEY = 'kidsMode'; // values: 'l' = kids, 'I' = adult
+
+  function readQuery() {
+    try {
+      const p = new URLSearchParams(window.location.search || '');
+      if (p.has('l')) return 'l';
+      if (p.has('I')) return 'I';
+    } catch(e) {}
+    return null;
+  }
+
+  function setStore(val) {
+    try {
+      if (val === 'l' || val === 'I') localStorage.setItem(KID_KEY, val);
+      else localStorage.removeItem(KID_KEY);
+    } catch(e) {
+      console.warn('kidsMode setStore error', e);
+    }
+  }
+
+  window.setKidsModeFromQuery = function(){
+    const q = readQuery();
+
+    if (q) {
+      setStore(q);
+      return;
+    }
+
+    try {
+      const existing = localStorage.getItem(KID_KEY);
+      if (existing !== 'l' && existing !== 'I') {
+        localStorage.setItem(KID_KEY, 'l');
+      }
+    } catch(e) {
+      console.warn('kidsMode default init error', e);
+    }
+  };
+
+  window.isKidsModeActive = function(){
+    const q = readQuery();
+    if (q) return q === 'l';
+    try {
+      return localStorage.getItem(KID_KEY) === 'l';
+    } catch(e) {
+      return false;
+    }
+  };
+
+  window.updateQRButtonVisibility = function(){
+    const kidsMode = !!(window.isKidsModeActive && window.isKidsModeActive());
+    const originals = document.querySelectorAll('[data-qr-kind="original"]');
+    const kidsBtns = document.querySelectorAll('[data-qr-kind="kids"]');
+
+    originals.forEach(btn => {
+      btn.style.display = kidsMode ? 'none' : '';
+      btn.setAttribute('aria-hidden', kidsMode ? 'true' : 'false');
+    });
+    kidsBtns.forEach(btn => {
+      btn.style.display = '';
+      btn.setAttribute('aria-hidden', 'false');
+    });
+  };
+
+  try { window.setKidsModeFromQuery(); } catch(e) {}
+
+  const refreshKidsUI = function(){
+    try { window.updateQRButtonVisibility(); } catch(e){}
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', refreshKidsUI, { once: true });
+  } else {
+    refreshKidsUI();
+  }
+
+  window.addEventListener('load', refreshKidsUI, { once: true });
+  window.addEventListener('storage', function(e){
+    if (!e || e.key === KID_KEY) refreshKidsUI();
+  });
+})();
+</script>
+
+</head>
+
+<div id="initialChoiceOverlay" style="
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+">
+  <div style="
+      background: #222;
+      padding: 2rem;
+      border-radius: 8px;
+      text-align: center;
+      color: white;
+      max-width: 90%;
+      position: relative;
+  ">
+
+    <!-- Welcome line updates to the active profile name -->
+    <h2 id="welcomeText" style="margin-bottom:0.25rem; margin-top:8px; font-size:1.25rem; font-weight:600; color:#fff;">Welcome</h2>
+
+    <h2 style="margin-bottom: 1rem; margin-top:8px;">Choose Profile</h2>
+
+    <div id="profileSelection" style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 1rem;">
+      <!-- profile icons will be rendered here dynamically from profiles.js -->
+    </div>
+
+   <!-- Profile rendering will be handled by profiles.js + small renderer script below -->
+    <!-- small inline CSS to give a visible cue for the active profile -->
+    <style>
+      .profile-select-icon.active-profile {
+        outline: 3px solid rgba(255,255,255,0.9);
+        border-radius: 6px;
+      }
+      /* optional: make profile images a little more button-like */
+      .profile-select-icon { cursor: pointer; max-width:96px; height:auto; }
+    </style>
+
+    <!-- TV / Radio row (unchanged) -->
+    <div style="display: flex; gap: 1rem; justify-content: center;">
+      <button id="btnChooseTV" autofocus style="
+          padding: 0.75rem 1.5rem;
+          font-size: 1.1rem;
+          border: none;
+          border-radius: 4px;
+          background: #007BFF;
+          color: white;
+          cursor: pointer;
+      ">
+        TV
+      </button>
+      <button id="btnChooseRadio" style="
+          padding: 0.75rem 1.5rem;
+          font-size: 1.1rem;
+          border: none;
+          border-radius: 4px;
+          background: #28A745;
+          color: white;
+          cursor: pointer;
+      ">
+        Radio
+      </button>
+    </div>
+
+    <!-- NEW: buttons row placed BELOW the TV/Radio row (centered, not absolute) -->
+    <div style="display:flex; gap:8px; justify-content:center; margin-top:12px;">
+      <!-- Home button (navigates to index.html like the top Home control) -->
+      <button id="homeOverlayBtn" style="padding:8px 10px; font-size:14px; background:#333; color:#fff; border:none; border-radius:4px; cursor:pointer;"
+              onclick="window.location.href='./index.html'">
+        Home
+      </button>
+
+      <!-- Original QR (matches index.html styles) -->
+      <button class="qr-button" data-qr-kind="original" style="padding:6px 10px; border:none; border-radius:3px; color:white; font-size:16px; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.2); background:#00B4D8;"
+              onclick="openQR('lightblue')">
+        Original QR
+      </button>
+
+      <!-- Kid Safe QR -->
+      <button class="qr-button" data-qr-kind="kids" style="padding:6px 10px; border:none; border-radius:3px; color:white; font-size:16px; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.2); background:#FF8C00;"
+              onclick="openQR('orange')">
+        Kid Safe QR
+      </button>
+    </div>
+
+    </div>
+  </div>
+
+  <!-- QR popup (index.html-style modal with toggle + close buttons) -->
+  <div class="qr-popup" id="qrPopup" onclick="closeQR(event)" aria-hidden="true" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10003; justify-content:center; align-items:center;">
+    <div class="qr-modal" role="dialog" aria-modal="true" aria-label="QR code options" onclick="event.stopPropagation()" style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:18px; border-radius:15px; background:rgba(18,18,18,0.9); box-shadow:0 16px 40px rgba(0,0,0,0.35);">
+      <img class="qr-image" id="qrImage" src="" alt="QR Code" style="max-width:440px; max-height:440px; padding:20px; border-radius:15px; background-color:rgba(255,255,255,0.9);">
+      <div class="qr-popup-controls" style="display:flex; gap:10px; justify-content:center; width:100%;">
+        <button id="qrToggleBtn" class="qr-popup-btn" type="button" onclick="toggleQRSource(event)" style="padding:8px 14px; border:none; border-radius:6px; background:rgba(255,255,255,0.14); color:#fff; font-size:15px; font-weight:700; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.2);">Show Tailscale</button>
+        <button id="qrCloseBtn" class="qr-popup-btn" type="button" onclick="closeQR(event)" style="padding:8px 14px; border:none; border-radius:6px; background:rgba(255,255,255,0.14); color:#fff; font-size:15px; font-weight:700; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.2);">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Top bar: Home (left), Profile icon (left), Fullscreen (right) ── -->
+<div class="top-bar" id="topBar">
+  <div style="display: flex; align-items: center;">
+    <button class="top-button" id="homeBtn" onclick="window.location.href='./index.html'">Home</button>
+    <img
+  alt="Profile"
+  id="profileIcon"
+  src=""
+  style="margin-left:8px; cursor: pointer;"
+  onclick="window.location.href = './tvd.html';"
+  tabindex="0"
+/>
+<!-- episode info: focusable so remotes/arrow keys can land here -->
+<div id="episodeInfoBtn"
+     role="button"
+     tabindex="0"
+     aria-haspopup="dialog"
+     title="Episode settings"
+     style="display: flex; flex-direction: column; justify-content: center; margin-left:8px; cursor: pointer;">
+  <span id="seasonName" style="font-weight: bold; font-size:14px;"></span>
+  <span id="episodeTitle" style="font-size:12px; margin-top:2px;"></span>
+</div>
+
+    <button class="top-button" id="toggleEpisodesBtn" style="margin-left: 12px;">Episodes</button>
+  </div>
+  <div style="display: flex; gap: 7.5px;">
+    <button class="top-button" id="prevBtn">Previous</button>
+    <button class="top-button" id="rewind15Btn">Rewind</button>
+    <button class="top-button" id="playPauseBtn">Play</button>
+    <button class="top-button" id="forward15Btn">Forward</button>
+    <button class="top-button" id="nextBtn">Next</button>
+ <!--    <button class="top-button" id="radioBtn">Radio</button> -->
+  </div>
+
+  <button class="top-button" id="fullscreenBtn">Fullscreen</button>
+</div>
+<h1 id="loadingMsg">Loading last watched episode…</h1>
+<div id="videoContainer">
+  <video controls id="video" tabindex="-1">
+    <track default id="subtitleTrack" kind="subtitles" label="English" srclang="en"/>
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+
+
+<script src="./library.js"></script>
+<!-- load profiles (the central list used by profile.html) -->
+<script src="./profiles.js"></script>
+<script src="./screensaver.js"></script>
+<!-- renderer for the profile overlay (uses window.profiles from profiles.js) -->
+<script>
+(function(){
+  // read profiles exported from profiles.js (array of strings or objects)
+  const RAW_PROFILES = (typeof profiles !== 'undefined') ? profiles : (window.profiles || []);
+  const normalizedProfiles = RAW_PROFILES.map(item => {
+    if (!item) return null;
+    if (typeof item === 'string') return { name: item, image: `./Profiles/${item}.jpg` };
+    const name = item.name || item.id || item.label || "Guest";
+    const image = item.image || `./Profiles/${name}.jpg`;
+    return { name, image };
+  }).filter(Boolean);
+
+  const welcomeEl = document.getElementById('welcomeText');
+  const selectionContainer = document.getElementById('profileSelection');
+
+  // Choose default active:
+  // 1) try localStorage
+  // 2) else prefer a profile named "Guest" (case-insensitive)
+  // 3) else fall back to first profile
+  // 4) else string "Guest"
+  let stored = null;
+  try { stored = localStorage.getItem('activeProfile'); } catch(e) { stored = null; }
+  let active;
+  if (stored) {
+    active = stored;
+  } else {
+    const guest = normalizedProfiles.find(p => p.name && p.name.toLowerCase() === 'guest');
+    active = guest ? guest.name : (normalizedProfiles.length ? normalizedProfiles[0].name : 'Guest');
+    // Note: we do not persist until user clicks; this keeps prior behavior but gives the UI the correct default
+  }
+
+  function setWelcome(name){
+    if (!welcomeEl) return;
+    name = (name && name.trim()) ? name : '';
+    welcomeEl.textContent = name ? ('Welcome ' + name) : 'Welcome';
+  }
+
+  function resolveImageFor(name) {
+    const p = normalizedProfiles.find(pp => pp.name === name);
+    if (p && p.image) return p.image;
+    return `./Profiles/${name}.jpg`;
+  }
+
+  function renderTopIcon(name) {
+    const top = document.getElementById('profileIcon');
+    if (!top) return;
+    top.src = resolveImageFor(name);
+    top.alt = name;
+    top.style.display = 'block';
+    top.onerror = function(){
+      if (top.src && !top.src.endsWith('Guest.jpg')) top.src = './Profiles/Guest.jpg';
+    };
+  }
+
+  function updateSelectionUI() {
+    // ensure only one .selected exists
+    document.querySelectorAll('.profile-select-icon').forEach(el => {
+      const pname = el.getAttribute('data-profile');
+      el.classList.toggle('selected', pname === active);
+    });
+    setWelcome(active);
+    renderTopIcon(active);
+  }
+
+  function renderSelection() {
+    if (!selectionContainer) return;
+    selectionContainer.innerHTML = '';
+
+    normalizedProfiles.forEach(profile => {
+      const img = document.createElement('img');
+      img.className = 'profile-select-icon';
+      img.src = profile.image || `./Profiles/${profile.name}.jpg`;
+      img.alt = profile.name;
+      img.setAttribute('data-profile', profile.name);
+      img.setAttribute('tabindex', '0'); // keyboard accessible
+
+      // mark the active one
+      if (profile.name === active) img.classList.add('selected');
+
+      // graceful fallback
+      img.onerror = function(){ if (img.src && !img.src.endsWith('Guest.jpg')) img.src = './Profiles/Guest.jpg'; };
+
+      // click selects and persists
+      img.addEventListener('click', function(){
+        active = profile.name;
+        try { localStorage.setItem('activeProfile', active); } catch(e) { /* incognito/localStorage permission may fail */ }
+        updateSelectionUI();
+        // focus the selected element so only it shows the focus outline
+        try { img.focus(); } catch(e){}
+      });
+
+      // keyboard select (Enter/Space)
+      img.addEventListener('keydown', function(e){
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          img.click();
+        }
+      });
+
+      selectionContainer.appendChild(img);
+    });
+
+    // If no profiles are defined, show a friendly message
+    if (normalizedProfiles.length === 0) {
+      const noMsg = document.createElement('div');
+      noMsg.style.color = "rgba(255,255,255,0.8)";
+      noMsg.textContent = "No profiles found — edit profiles.js or set window.profiles before loading tvd.html.";
+      selectionContainer.appendChild(noMsg);
+    }
+
+    // initial visual state: update visuals (we DO NOT rely on a single short setTimeout focus)
+    updateSelectionUI();
+  }
+
+  renderSelection();
+
+  // --- Aggressive spam-focus strategy to beat UI focus-stealers ---
+  (function spamFocusInitial() {
+    // helpers
+    function isVisible(el) {
+      if (!el) return false;
+      try {
+        const s = window.getComputedStyle(el);
+        if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) return false;
+      } catch(e) {}
+      const r = el.getBoundingClientRect();
+      return (r.width > 1 && r.height > 1);
+    }
+
+    function makeFocusable(el) {
+      if (!el) return;
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    }
+
+    function tryFocus(el) {
+      if (!el) return false;
+      makeFocusable(el);
+      try { el.focus({ preventScroll: true }); } catch(e) { try { el.focus(); } catch(e){} }
+      return document.activeElement === el;
+    }
+
+    // choose initial target: TV button if stored profile existed at load, otherwise selected/Guest/first profile icon
+    const hadStoredProfile = !!stored;
+    const btnTV = document.getElementById('btnChooseTV');
+    function findGuestOrFirstProfileIcon() {
+      let guestEl = Array.from(document.querySelectorAll('.profile-select-icon'))
+        .find(el => (el.getAttribute('data-profile') || '').toLowerCase() === 'guest');
+      if (guestEl) return guestEl;
+      return document.querySelector('.profile-select-icon');
+    }
+
+    function pickTargetElement() {
+      if (hadStoredProfile && btnTV) return btnTV;
+      const sel = document.querySelector('.profile-select-icon.selected') || findGuestOrFirstProfileIcon();
+      return sel || btnTV || document.getElementById('btnChooseRadio') || null;
+    }
+
+    // spam-focus loop
+    let spamTimer = null;
+    let attempts = 0;
+    const INTERVAL_MS = 50;
+    const MAX_ATTEMPTS = 20; // 
+    const SUCCESS_HOLD_MS = 200;
+
+    function stopSpam() {
+      if (spamTimer) { clearInterval(spamTimer); spamTimer = null; }
+      attempts = 0;
+    }
+
+    function startSpam(target) {
+      if (!target) return;
+      stopSpam();
+      attempts = 0;
+      spamTimer = setInterval(() => {
+        attempts++;
+        try {
+          const ok = tryFocus(target);
+          if (ok) {
+            // keep trying a short while to hold focus; then stop
+            setTimeout(() => {
+              // if focus was lost, try once more
+              if (document.activeElement !== target) tryFocus(target);
+              stopSpam();
+            }, SUCCESS_HOLD_MS);
+          } else if (attempts >= MAX_ATTEMPTS) {
+            stopSpam();
+          }
+        } catch(e) {
+          if (attempts >= MAX_ATTEMPTS) stopSpam();
+        }
+      }, INTERVAL_MS);
+    }
+
+    // Trigger when overlay appears (or immediately if overlay visible or not present)
+    const overlay = document.getElementById('initialChoiceOverlay');
+
+    function triggerNowOrWhenVisible() {
+      const target = pickTargetElement();
+      if (!overlay) {
+        // no overlay to wait for — spam immediately
+        startSpam(target);
+        return;
+      }
+      if (isVisible(overlay)) {
+        startSpam(target);
+        return;
+      }
+
+      // watch for overlay becoming visible
+      let mo;
+      try {
+        mo = new MutationObserver((records) => {
+          if (isVisible(overlay)) {
+            try { mo.disconnect(); } catch(e){}
+            setTimeout(() => { startSpam(pickTargetElement()); }, 80);
+          }
+        });
+        mo.observe(overlay, { attributes: true, attributeFilter: ['style','class','hidden'], childList: true, subtree: false });
+      } catch(e) {
+        // fallback to polling
+        const poll = setInterval(() => {
+          if (isVisible(overlay)) {
+            clearInterval(poll);
+            setTimeout(() => { startSpam(pickTargetElement()); }, 80);
+          }
+        }, 80);
+        setTimeout(() => clearInterval(poll), 4000);
+      }
+
+      // transitionend fallback
+      const onT = function(ev) {
+        if (/(opacity|visibility|transform)/i.test(ev.propertyName || '')) {
+          if (isVisible(overlay)) {
+            try { if (mo) mo.disconnect(); } catch(e){}
+            setTimeout(() => { startSpam(pickTargetElement()); }, 80);
+            overlay.removeEventListener('transitionend', onT);
+          }
+        }
+      };
+      overlay.addEventListener('transitionend', onT, { passive: true });
+
+      // last-resort timeout to start spam after a short delay
+      setTimeout(() => {
+        if (!isVisible(overlay)) {
+          // overlay still not visible — try anyway
+          startSpam(pickTargetElement());
+        }
+      }, 600);
+    }
+
+    // start after a small delay so any other initial focus attempts finish first
+    setTimeout(() => { triggerNowOrWhenVisible(); }, 60);
+
+    // re-trigger on common UI toggles
+    try {
+      const vid = window.videoEl || document.querySelector('video');
+      if (vid) {
+        vid.addEventListener('pause', () => { setTimeout(() => { triggerNowOrWhenVisible(); }, 80); }, { passive:true });
+        vid.addEventListener('play',  () => { setTimeout(() => { triggerNowOrWhenVisible(); }, 140); }, { passive:true });
+      }
+    } catch(e){}
+
+    document.addEventListener('fullscreenchange', () => { setTimeout(() => { triggerNowOrWhenVisible(); }, 90); });
+
+    // expose manual controls for debugging
+    window._tvdFocusSpamNow = function(intervalMs = 100, maxAttempts = 30) {
+      // override settings briefly
+      // eslint-disable-next-line no-unused-vars
+      const prevInterval = INTERVAL_MS; // kept for clarity; not writable here
+      // find target and start spam with user-specified params
+      const target = pickTargetElement();
+      if (!target) return;
+      // stop existing then run a manual ad-hoc spam using the requested params
+      stopSpam();
+      let manualAttempts = 0;
+      const manualTimer = setInterval(() => {
+        manualAttempts++;
+        try {
+          const ok = tryFocus(target);
+          if (ok || manualAttempts >= maxAttempts) {
+            setTimeout(() => { if (document.activeElement !== target) tryFocus(target); clearInterval(manualTimer); }, SUCCESS_HOLD_MS);
+          }
+        } catch(e) {
+          if (manualAttempts >= maxAttempts) clearInterval(manualTimer);
+        }
+      }, intervalMs);
+    };
+    window._tvdStopSpamFocus = stopSpam;
+  })();
+
+  // expose if other scripts want to inspect
+  window.getNormalizedProfiles = () => normalizedProfiles;
+})();
+</script>
+
+<script>
+const playPauseBtn = document.getElementById("playPauseBtn"); // ✅ Get the button element
+
+setTimeout(() => {
+  playPauseBtn.focus();
+}, 0); // ✅ Then focus it separately
+
+playPauseBtn.onclick = () => {
+  if (videoEl.paused || videoEl.ended) {
+    videoEl.play();
+  } else {
+    videoEl.pause();
+  }
+};
+(function(){
+  // Utility: is element visually visible
+  function _isVisible(el) {
+    if (!el) return false;
+    const s = window.getComputedStyle(el);
+    if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) return false;
+    const r = el.getBoundingClientRect();
+    return (r.width > 0 && r.height > 0);
+  }
+
+  // Focus Play/Pause after small delay; retries once if not focused
+  let _focusTimer = null;
+  function _focusPlaySoon(delay = 100, retryDelay = 250) {
+    if (_focusTimer) { clearTimeout(_focusTimer); _focusTimer = null; }
+    _focusTimer = setTimeout(() => {
+      try {
+        const btn = document.getElementById('playPauseBtn') || document.getElementById('barPlay');
+        if (!btn) return;
+        if (!btn.hasAttribute('tabindex')) btn.setAttribute('tabindex', '0');
+        try { btn.focus({ preventScroll: true }); } catch(e) { try { btn.focus(); } catch(e){} }
+
+        // If focus didn't stick (platform stole it), retry once after a bit longer
+        setTimeout(() => {
+          const cur = document.activeElement;
+          if (cur !== btn) {
+            try { btn.focus({ preventScroll: true }); } catch(e) { try { btn.focus(); } catch(e){} }
+          }
+        }, retryDelay);
+      } catch(e) {
+        // ignore
+      } finally {
+        _focusTimer = null;
+      }
+    }, delay);
+  }
+
+  // Locate likely 'top bar' element: try common ids/classes, or let user fallback to #topBar
+  const topBar = document.getElementById('topBar')
+               || document.querySelector('.top-bar')
+               || document.querySelector('.topbar')
+               || document.querySelector('#topbar')
+               || null;
+
+  // If no topBar found, still attach basic fallbacks (fullscreen/play/pause handlers) below
+  if (topBar) {
+    // If already visible on load, focus shortly
+    try {
+      if (_isVisible(topBar)) _focusPlaySoon(100);
+    } catch(e){}
+
+    // Observe attribute changes (class/style/hidden) that might toggle visibility
+    const mo = new MutationObserver((records) => {
+      for (const r of records) {
+        if (r.type === 'attributes' || r.type === 'childList' || r.type === 'subtree') {
+          try {
+            if (_isVisible(topBar)) {
+              // focus 100ms after it becomes visible (your requested 0.1s)
+              _focusPlaySoon(100);
+              break;
+            }
+          } catch(e){}
+        }
+      }
+    });
+
+    try {
+      mo.observe(topBar, { attributes: true, attributeFilter: ['style','class','hidden'], childList: true, subtree: false });
+    } catch(e){ /* ignore */ }
+
+    // Also listen for transitionend in case visibility is animated (opacity/transform)
+    topBar.addEventListener('transitionend', (ev) => {
+      if (/(opacity|transform|visibility)/i.test(ev.propertyName || '')) {
+        if (_isVisible(topBar)) _focusPlaySoon(100);
+      }
+    }, { passive: true });
+  }
+
+  // Fallbacks: video play/pause + fullscreen changes (helpful if topBar toggles on pause)
+  try {
+    const vid = window.videoEl || document.querySelector('video');
+    if (vid) {
+      vid.addEventListener('pause', () => {
+        // top bar often shows on pause: check shortly after pause
+        setTimeout(() => {
+          if (!topBar || _isVisible(topBar)) _focusPlaySoon(100);
+        }, 60);
+      }, { passive: true });
+
+      vid.addEventListener('play', () => {
+        // when resuming, ensure play has focus after any fullscreen/layout changes
+        setTimeout(() => { _focusPlaySoon(120); }, 80);
+      }, { passive: true });
+    }
+  } catch(e){}
+
+  // fullscreenchange: browsers may move focus when entering/exiting fullscreen
+  document.addEventListener('fullscreenchange', () => {
+    // If topBar is visible when fullscreen changes, focus 100ms after it shows
+    if (!topBar) {
+      // no topBar known: still try to focus Play
+      _focusPlaySoon(100);
+      return;
+    }
+    // if topBar visible now -> focus shortly; else wait and rely on observer to catch show
+    if (_isVisible(topBar)) _focusPlaySoon(100);
+  });
+
+  // Defensive: also handle pointer/key interaction entry points that programmatically trigger fullscreen.
+  // If your code calls a specific function to enterFullscreen(), consider calling window._tvFocusPlayNow()
+  // after that. We expose a helper so you can call it if needed.
+  window._tvFocusPlayNow = function(ms = 100){ _focusPlaySoon(ms); };
+
+})();
+ // ---- helper: cached platform detection (uses window.detectedPlatform if present) ----
+async function getCachedPlatform() {
+  if (window._cachedPlatform) return window._cachedPlatform;
+  // prefer externally-detected value (set once by index.html on startup)
+  if (window.detectedPlatform) {
+    window._cachedPlatform = (window.detectedPlatform || '').toLowerCase();
+    return window._cachedPlatform;
+  }
+
+  // otherwise try reading platform.txt once, then cache it
+  let platform = 'windows';
+  try {
+    const r = await fetch('./platform.txt', { cache: 'no-store' });
+    if (r && r.ok) {
+      platform = (await r.text() || '').trim().toLowerCase() || 'windows';
+    }
+  } catch (e) {
+    console.warn('Could not load platform.txt (getCachedPlatform), defaulting to "windows"', e);
+  }
+  window._cachedPlatform = platform;
+  // also mirror into window.detectedPlatform so other code benefits
+  window.detectedPlatform = window._cachedPlatform;
+  return window._cachedPlatform;
+}
+
+// ---- backup: upload just the style appropriate for the platform ----
+// robust backup + restore — avoids .txt PUTs for iPhone (iphones)
+// backupShowToProfile — ensures both show and Resume use the pocketserver safe-replace flow on iPhone
+async function backupShowToProfile(profileName, showName) {
+  // 0) detect platform (cached)
+  const platform = (typeof getCachedPlatform === 'function') ? await getCachedPlatform() : (window.detectedPlatform || 'windows');
+  console.log('[backupShowToProfile] platform=', platform, 'profile=', profileName, 'show=', showName);
+
+  // 1) Gather keys & values
+  const dataToUpload = {};
+  const keyShow  = `progress-${profileName}-${showName}`;
+  const valShow  = localStorage.getItem(keyShow);
+  if (valShow != null) dataToUpload[keyShow] = valShow;
+
+  const keyResume = `progress-${profileName}-Resume`;
+  const valResume = localStorage.getItem(keyResume);
+  if (valResume != null) dataToUpload[keyResume] = valResume;
+
+  for (const [parent, seasons] of Object.entries(episodes || {})) {
+    if (Array.isArray(seasons) && seasons.includes(showName)) {
+      const keyParent = `progress-${profileName}-${parent}`;
+      const valParent = localStorage.getItem(keyParent);
+      if (valParent != null) dataToUpload[keyParent] = valParent;
+      break;
+    }
+  }
+
+  // 2) build payload
+  const payload = `[[[${JSON.stringify(dataToUpload)}]]]`;
+  console.log('[backupShowToProfile] payload length=', payload.length);
+
+  // helper: put .txt style copy (Windows) — kept for non-iPhone platforms
+  async function putTxtCopy(encodedNameWithoutExt) {
+    try {
+      const url = `/Profiles/${encodedNameWithoutExt}.txt`;
+      const r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload });
+      console.log('[backupShowToProfile] PUT .txt ->', url, r.status);
+      return r.ok;
+    } catch (e) {
+      console.warn('[backupShowToProfile] PUT .txt failed for', encodedNameWithoutExt, e);
+      return false;
+    }
+  }
+
+  // helper: pocketserver upload (simple upload by name)
+  async function pocketUpload(name, targetDir) {
+    try {
+      const blob = new Blob([payload], { type: 'application/json' });
+      const form = new FormData();
+      form.append('files[]', blob, name);
+      form.append('targetDir', targetDir);
+      const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form, credentials: 'include' });
+      const txt = await r.text().catch(()=> '');
+      console.log('[backupShowToProfile] pocketserver upload', name, '->', r.status, txt);
+      return r.ok;
+    } catch (e) {
+      console.warn('[backupShowToProfile] pocketserver upload failed', name, e);
+      return false;
+    }
+  }
+
+  // helper: list and delete for pocketserver
+  async function listProfiles(targetDir) {
+    try {
+      const q = encodeURIComponent(targetDir);
+      const r = await fetch(`/pocketserver-api/list?q=${q}`, { credentials: 'include' });
+      if (!r.ok) { console.warn('[backupShowToProfile] list failed', r.status); return null; }
+      const text = await r.text();
+      try { return JSON.parse(text); } catch { return text; }
+    } catch (e) {
+      console.error('[backupShowToProfile] listProfiles error', e);
+      return null;
+    }
+  }
+  async function deletePath(fullPath) {
+    try {
+      const body = { command: "delete", paths: [ fullPath ], name: "", targetDir: "" };
+      const r = await fetch('/pocketserver-api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'include'
+      });
+      const txt = await r.text().catch(()=>'');
+      console.log('[backupShowToProfile] deletePath', fullPath, '->', r.status, txt);
+      return r.ok;
+    } catch (e) {
+      console.error('[backupShowToProfile] deletePath error', fullPath, e);
+      return false;
+    }
+  }
+
+  // pocketReplace: upload temp, verify, delete old, upload final, cleanup temp
+  async function pocketReplace(baseName, targetDir) {
+    const tempName = baseName + '.__new__';
+    console.log('[backupShowToProfile] pocketReplace start for', baseName);
+
+    // 1) upload temp
+    const tempOk = await pocketUpload(tempName, targetDir);
+    if (!tempOk) {
+      console.warn('[backupShowToProfile] pocketReplace: temp upload failed for', tempName);
+      return false;
+    }
+
+    // 2) verify temp exists in listing
+    const midList = await listProfiles(targetDir);
+    const midText = midList ? (typeof midList === 'string' ? midList : JSON.stringify(midList)) : '';
+    if (!midText.includes(tempName)) {
+      console.warn('[backupShowToProfile] pocketReplace: temp not visible after upload for', tempName);
+      return false;
+    }
+
+    // 3) delete existing desired (if any)
+    const desiredFullPath = targetDir + baseName;
+    const delOk = await deletePath(desiredFullPath);
+    if (!delOk) {
+      // If delete failed, we do not overwrite — leave temp as safety (consistent with prior behavior)
+      console.warn('[backupShowToProfile] pocketReplace: could not delete existing', desiredFullPath);
+      return false;
+    }
+
+    // 4) upload final desired name
+    const finalOk = await pocketUpload(baseName, targetDir);
+    if (!finalOk) {
+      console.warn('[backupShowToProfile] pocketReplace: final upload failed for', baseName);
+      return false;
+    }
+
+    // 5) cleanup temp
+    const tempFullPath = targetDir + tempName;
+    const cleanupOk = await deletePath(tempFullPath);
+    console.log('[backupShowToProfile] pocketReplace cleanup temp ->', cleanupOk);
+    return finalOk;
+  }
+
+  // 3) platform-specific upload behaviour
+  if (platform.includes('android')) {
+    // Android: send two FormData blobs (no extension preferred)
+    try {
+      const blob = new Blob([payload], { type: 'application/json' });
+      const form1 = new FormData(); form1.append('files[]', blob, `${profileName}-${showName}`);
+      const form2 = new FormData(); form2.append('files[]', blob, `${profileName}-Resume`);
+
+      const results = await Promise.allSettled([
+        fetch(`/api/file/upload?path=${encodeURIComponent('/Profiles/')}`, { method: 'PUT', body: form1, credentials: 'include' }),
+        fetch(`/api/file/upload?path=${encodeURIComponent('/Profiles/')}`, { method: 'PUT', body: form2, credentials: 'include' })
+      ]);
+      console.log('[backupShowToProfile] android upload results:', results);
+    } catch (e) {
+      console.warn('[backupShowToProfile] android upload error', e);
+    }
+
+    // also best-effort write .txt copies for other clients
+    try { await putTxtCopy(`${encodeURIComponent(profileName)}-${encodeURIComponent(showName)}`); } catch(e){/*ignore*/} 
+    try { await putTxtCopy(`${encodeURIComponent(profileName)}-Resume`); } catch(e){/*ignore*/}
+
+    return;
+  }
+
+  // iPhone / "iphones": use safe replace for both the show file and the Resume pointer
+  if (platform.includes('iphone') || platform === 'iphones') {
+    const targetDir = 'file:///private/var/mobile/Library/LiveFiles/com.apple.filesystems.userfsd/2B3E705A-D115-3563-8EB1-F240305273C0/VideoServer/Profiles/';
+
+    // Replace the show file (use pocketReplace)
+    try {
+      const showBase = `${profileName}-${showName}`;
+      const okShow = await pocketReplace(showBase, targetDir);
+      if (!okShow) {
+        console.warn('[backupShowToProfile] show pocketReplace did not complete successfully for', showBase);
+      } else {
+        console.log('[backupShowToProfile] show pocketReplace success for', showBase);
+      }
+    } catch (e) {
+      console.warn('[backupShowToProfile] show pocketReplace error', e);
+    }
+
+    // Always attempt to replace the Resume pointer using the same safe method
+    try {
+      const resumeBase = `${profileName}-Resume`;
+      const okResume = await pocketReplace(resumeBase, targetDir);
+      if (!okResume) {
+        // If replace fails, try at least a direct upload (keeps previous behavior fallback)
+        console.warn('[backupShowToProfile] resume pocketReplace failed, attempting direct upload for', resumeBase);
+        await pocketUpload(resumeBase, targetDir).catch(()=>{});
+      } else {
+        console.log('[backupShowToProfile] resume pocketReplace success for', resumeBase);
+      }
+    } catch (e) {
+      console.warn('[backupShowToProfile] resume pocketReplace exception', e);
+      // attempt direct upload as a last resort
+      try { await pocketUpload(`${profileName}-Resume`, targetDir); } catch(_) { /* ignore */ }
+    }
+
+    // Do NOT attempt .txt PUTs for iPhone branch.
+    return;
+  }
+
+  // Windows: after ~5s, PUT two .txt files (existing behavior)
+  if (platform === 'windows') {
+    setTimeout(() => {
+      const fileShow  = `${encodeURIComponent(profileName)}-${encodeURIComponent(showName)}.txt`;
+      const fileResume = `${encodeURIComponent(profileName)}-Resume.txt`;
+      Promise.allSettled([
+        fetch(`/Profiles/${fileShow}`,  { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload }),
+        fetch(`/Profiles/${fileResume}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload })
+      ]).then(results => {
+        console.log('[backupShowToProfile] windows put results:', results);
+        results.forEach((res, i) => {
+          if (res.status === 'rejected') console.error('[backupShowToProfile] TXT upload failed:', i+1, res.reason);
+        });
+      });
+    }, 5000);
+    return;
+  }
+
+  // Fallback (unknown platform): conservative .txt write
+  setTimeout(() => {
+    const fileShow  = `${encodeURIComponent(profileName)}-${encodeURIComponent(showName)}.txt`;
+    const fileResume = `${encodeURIComponent(profileName)}-Resume.txt`;
+    Promise.allSettled([
+      fetch(`/Profiles/${fileShow}`,  { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload }),
+      fetch(`/Profiles/${fileResume}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload })
+    ]).then(results => {
+      console.log('[backupShowToProfile] fallback txt put results:', results);
+    });
+  }, 5000);
+}
+
+// ---- restore: prefer platform-specific filename and only try both when unknown ----
+async function restoreShowFromProfile(profileName /*, showNameIgnored */) {
+  // 0) detect platform (cached)
+  const platform = (typeof getCachedPlatform === 'function') ? await getCachedPlatform() : (window.detectedPlatform || 'windows');
+
+  // 1) candidate filenames for the Resume pointer
+  const safeId = `${encodeURIComponent(profileName)}-Resume`;
+  const candidates = [];
+
+  // Prefer no-extension on iPhone, but allow .txt fallback.
+  if (platform.includes('iphone') || platform === 'iphones') {
+    candidates.push(safeId);
+    candidates.push(safeId + '.txt');
+  } else if (platform.includes('android')) {
+    candidates.push(safeId);
+    candidates.push(safeId + '.txt');
+  } else {
+    candidates.push(safeId + '.txt');
+    candidates.push(safeId);
+  }
+
+  // 2) attempt fetching each candidate until one succeeds
+  let txt = null;
+  let lastError = null;
+  for (const fileId of candidates) {
+    const url = `/Profiles/${fileId}?_=${Date.now()}`;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) { lastError = new Error(`HTTP ${res.status} for ${fileId}`); continue; }
+      txt = await res.text();
+      if (txt) break;
+    } catch (e) {
+      lastError = e;
+      continue;
+    }
+  }
+
+  if (!txt) {
+    throw new Error('Could not find Profile-Resume file (tried candidates). ' +
+                    (lastError ? `Last error: ${lastError.message}` : 'No response.'));
+  }
+
+  // 3) parse JSON payload inside [[[ ... ]]]
+  const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
+  if (!m) throw new Error('No backup JSON found between markers in resume file');
+  let data;
+  try { data = JSON.parse(m[1]); }
+  catch (e) { throw new Error('Backup JSON malformed: ' + e.message); }
+
+  // 4) restore to localStorage
+  Object.entries(data).forEach(([key, val]) => {
+    if (val != null) localStorage.setItem(key, val);
+    else localStorage.removeItem(key);
+  });
+}
+
+
+  // ─────────────────────────────────────────────────────────────────
+
+  // ─── 3) “NEXT” & “PREVIOUS” HELPERS ───
+  let currentFolder = null;
+  let currentEpisodeIndex = 0;
+  let autoplayEnabled = true;
+  let fullscreenEnabled = true;
+
+  function getNextSeason(folderName) {
+   // find parent key whose value is array of season names
+   for (const [parent, value] of Object.entries(episodes)) {
+    if (Array.isArray(value) && value.includes(folderName)) {
+     const idx = value.indexOf(folderName);
+     if (idx < value.length - 1) return value[idx + 1];
+    }
+   }
+   return null;
+  }
+
+   function playNextEpisode() {
+  const eps = episodes[currentFolder];
+  if (currentEpisodeIndex < eps.length - 1) {
+   playEpisode(currentFolder, currentEpisodeIndex + 1, 0);
+  } else {
+   const nextSeason = getNextSeason(currentFolder);
+   if (nextSeason && episodes[nextSeason]) {
+    playEpisode(nextSeason, 0, 0);
+   } else {
+    console.log("No more episodes or seasons.");
+   }
+  }
+ }
+
+ function playPreviousEpisode() {
+  if (currentEpisodeIndex > 0) {
+   playEpisode(currentFolder, currentEpisodeIndex - 1, 0);
+  } else {
+   console.log("Already at first episode of " + currentFolder);
+  }
+ }
+
+ // ─────────────────────────────────────────────────────────────────
+
+ const topBar = document.getElementById("topBar");
+ const homeBtn = document.getElementById("homeBtn");
+ const fullscreenBtn = document.getElementById("fullscreenBtn");
+ const profileIcon = document.getElementById("profileIcon");
+ const loadingMsg = document.getElementById("loadingMsg");
+ const videoContainer = document.getElementById("videoContainer");
+ const videoEl = document.getElementById("video");
+
+// Fire TV remote play/pause and back button handling
+// (replaces the previous simple handler)
+function _isInteractiveTarget(el) {
+  if (!el) return false;
+  const tag = (el.tagName || '').toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return true;
+  if (el.isContentEditable) return true;
+  if (tag === 'A' && el.getAttribute('href')) return true;
+  return false;
+}
+
+function _isPlayKeyEvent(e) {
+  if (!e) return false;
+  const kc = e.keyCode || e.which || 0;
+
+  // Only allow Square + Triangle (replace with the real codes from Step 1)
+  if (kc === 219) return true; // example Square
+  if (kc === 221) return true; // example Triangle
+
+  // Do NOT let Enter/Space/X trigger play
+  return false;
+}
+
+
+
+
+ const episodeTitleEl = document.getElementById("episodeTitle");
+
+ document.getElementById("prevBtn").onclick = playPreviousEpisode;
+ document.getElementById("nextBtn").onclick = playNextEpisode;
+ document.getElementById("rewind15Btn").onclick = () => {
+  videoEl.currentTime = Math.max(0, videoEl.currentTime - 15);
+ };
+ document.getElementById("forward15Btn").onclick = () => {
+  videoEl.currentTime = Math.min(videoEl.duration, videoEl.currentTime + 15);
+ };
+
+// ensure the flag exists (declare once at top-level if not already present)
+let preferPageFullscreen = false;
+
+fullscreenBtn.onclick = async () => {
+  // behave like the Play action — always attempt to play (does nothing if already playing)
+  preferPageFullscreen = true;
+  try {
+    await videoEl.play();
+  } catch (e) {
+    // ignore play() failures (autoplay policies, etc.)
+  }
+
+  // then try to fullscreen the page/wrapper so topbar is included
+  if (!document.fullscreenElement) {
+    // change this to a specific wrapper element if you have one (e.g. document.getElementById('fullscreenWrapper'))
+    const target = document.documentElement;
+    if (target.requestFullscreen) {
+      target.requestFullscreen().catch(() => {});
+    } else if (target.webkitRequestFullscreen) {
+      target.webkitRequestFullscreen();
+    } else if (target.msRequestFullscreen) {
+      target.msRequestFullscreen();
+    }
+  }
+};
+
+
+ videoEl.addEventListener("play", () => {
+  document.body.style.paddingTop = "0";
+  topBar.style.display = "none";
+  videoContainer.style.top = "0";
+  videoContainer.style.height = "100vh";
+if (fullscreenEnabled && videoContainer.requestFullscreen) {
+    videoContainer.requestFullscreen().catch(() => {});
+}
+ });
+
+ 
+videoEl.addEventListener("pause", () => {
+ // Delay logic to confirm video is still paused
+ setTimeout(() => {
+  if (videoEl.paused) {
+   // 1) Simulate "Esc" keypress
+   const escEvent = new KeyboardEvent("keydown", {
+    key: "Escape",
+    code: "Escape",
+    keyCode: 27,
+    which: 27,
+    bubbles: true,
+    cancelable: true
+   });
+   document.dispatchEvent(escEvent);
+
+   // 2) Exit and re-enter fullscreen if currently in fullscreen
+   if (document.fullscreenElement) {
+    document.exitFullscreen()
+     .then(() => {
+      return document.documentElement.requestFullscreen();
+     })
+     .catch(() => {
+      // Swallow failures
+     });
+   }
+
+   // 3) Restore UI elements
+   document.body.style.paddingTop = "2px";
+   topBar.style.display = "flex";
+   topBar.style.opacity = "1";
+   topBar.style.visibility = "visible";
+   videoContainer.style.top = "2px";
+   videoContainer.style.height = "calc(100vh - 2px)";
+  }
+ }, 1000); // Only trigger if still paused after 1000ms
+});
+
+ videoEl.addEventListener("ended", () => {
+  if (autoplayEnabled) playNextEpisode();
+ });
+
+let lastBackupTimestamp = 0;
+
+// ---------- per-episode subtitle preference helpers ----------
+function getSubtitlePreference(profileName, folderName, episodeIndex) {
+  // key format: subtitles-<profile>-<folder>-<index>
+  try {
+    const key = `subtitles-${profileName}-${folderName}-${episodeIndex}`;
+    const stored = localStorage.getItem(key);
+    // default: subtitles ON
+    return stored === null ? true : stored === 'true';
+  } catch (e) {
+    return true;
+  }
+}
+
+function setSubtitlePreference(profileName, folderName, episodeIndex, value) {
+  try {
+    const key = `subtitles-${profileName}-${folderName}-${episodeIndex}`;
+    localStorage.setItem(key, value ? 'true' : 'false');
+  } catch (e) { /* ignore storage errors */ }
+}
+
+// ---------- subtitle loader that respects per-episode preference ----------
+async function setSubtitleWithFetch(episodeFile, folderName, episodeIndex) {
+  const vttUrl = episodeFile.replace(/\.\w+$/, '.vtt');
+  const videoEl = document.getElementById('video');
+
+  // remove old track if present
+  const old = document.getElementById('subtitleTrack');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+
+  // create fresh track
+  const t = document.createElement('track');
+  t.id = 'subtitleTrack';
+  t.kind = 'subtitles';
+  t.label = 'English';
+  t.srclang = 'en';
+  t.default = true;
+  videoEl.appendChild(t);
+
+  // helper to apply pref once track is ready
+  function applyPref() {
+    try {
+      const profile = localStorage.getItem('activeProfile') || 'Guest';
+      const subtitlesOn = getSubtitlePreference(profile, folderName, episodeIndex);
+      if (t.track) t.track.mode = subtitlesOn ? 'showing' : 'hidden';
+    } catch (e) { /* ignore */ }
+  }
+
+  try {
+    const res = await fetch(vttUrl, { cache: "no-store" });
+    if (!res.ok) throw new Error();
+
+    const text = await res.text();
+
+    // validate VTT
+    if (!/^\s*WEBVTT/m.test(text)) {
+      console.warn("Invalid VTT:", vttUrl);
+      // don't attach invalid content
+      return;
+    }
+
+    const blob = new Blob([text], { type: "text/vtt" });
+    const blobUrl = URL.createObjectURL(blob);
+    t.src = blobUrl;
+
+    // small delay to ensure track object is created, then apply pref
+    setTimeout(applyPref, 200);
+
+  } catch (err) {
+    console.warn("Subtitle fetch failed, fallback direct:", vttUrl);
+    t.src = vttUrl;
+    setTimeout(applyPref, 200);
+  }
+}
+// Helper: safely encode '#' in file paths
+function safeFileUrl(raw) {
+    // Only target '#' that appears in the path; does not affect query/hash (none in your URLs)
+    return String(raw || '').replace(/#/g, '%23');
+}async function playEpisode(folderName, epIndex = 0, startTime = 0, options = {}) {
+  currentFolder = folderName;
+  currentEpisodeIndex = epIndex;
+  // ensure the episode grid (dialog) shows the correct highlight
+  try { updateEpisodeGridHighlight(); } catch (e) {}
+  const epObj = episodes[folderName][epIndex];
+  if (!epObj) {
+   console.error(`No episode ${epIndex} in ${folderName}`);
+   return;
+  }
+
+  const seasonEl = document.getElementById('seasonName');
+  if (seasonEl) seasonEl.textContent = folderName;
+
+  if (episodes[folderName].length > 1) {
+   episodeTitleEl.textContent = `Episode ${epIndex + 1} "${epObj.name}"`;
+  } else {
+   episodeTitleEl.textContent = "";
+   document.getElementById('toggleEpisodesBtn').style.display = "none";
+  }
+
+  loadingMsg.style.display = "none";
+  videoContainer.style.display = "block";
+
+  // Encoded file path (replaces # with %23)
+  const sourceFile = (options && options.sourceFile) ? options.sourceFile : epObj.file;
+  const cacheBustedSource = (options && options.cacheBust)
+    ? ((typeof window.addCacheBust === 'function') ? window.addCacheBust(sourceFile) : sourceFile)
+    : sourceFile;
+  const safeSrc = safeFileUrl(cacheBustedSource);
+  videoEl.src = safeSrc;
+
+  // prefer the shared fetch-and-validate helper when present
+  if (typeof setSubtitleWithFetch === 'function') {
+    setSubtitleWithFetch((options && options.subtitleFile) ? options.subtitleFile : sourceFile, folderName, epIndex);
+  } else {
+    // fallback (old behavior) if helper not present
+    const st = document.getElementById('subtitleTrack');
+    if (st) st.src = safeSrc.replace(/\.\w+$/, '.vtt');
+  }
+
+  videoEl.onloadedmetadata = () => {
+   if (startTime && startTime < videoEl.duration) {
+    videoEl.currentTime = startTime;
+   }
+   videoEl
+    .play()
+    .then(() => {
+     if (fullscreenEnabled && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+     }
+    })
+    .catch((err) => console.error("Play error:", err));
+  };
+
+  videoEl.ontimeupdate = () => {
+   if (!videoEl.paused && !videoEl.ended) {
+    const nowMs = Date.now();
+    if (nowMs - lastBackupTimestamp >= 5000) {
+     lastBackupTimestamp = nowMs;
+     const currentTime = videoEl.currentTime;
+     const profile = localStorage.getItem("activeProfile") || "Guest";
+     const key = `progress-${profile}-${folderName}`;
+     const resumeData = {
+      episodeIndex: epIndex,
+      currentTime: currentTime,
+      timestamp: nowMs
+     };
+     localStorage.setItem(key, JSON.stringify(resumeData));
+     backupShowToProfile(profile, folderName);
+    }
+   }
+  };
+}
+ // Function to start resume logic
+ async function initVideo() {
+  const profile = localStorage.getItem("activeProfile") || "Guest";
+
+  if (profile) {
+   profileIcon.src = `./Profiles/${profile}.jpg`;
+   profileIcon.alt = profile;
+   profileIcon.style.display = "block";
+  }
+
+  const resumeKey = `progress-${profile}-Resume`;
+  const allFolders = Object.keys(episodes).filter((k) => {
+   const v = episodes[k];
+   return Array.isArray(v) && v.length > 0 && typeof v[0] === "object";
+  });
+
+  let chosenFolder, chosenEpIndex = 0, chosenTime = 0;
+
+  try {
+   await restoreShowFromProfile(profile);
+
+   const resumeData = JSON.parse(localStorage.getItem(resumeKey) || "{}");
+   const folder = resumeData.folderName;
+
+   if (folder && allFolders.includes(folder)) {
+    const episodeData = JSON.parse(localStorage.getItem(`progress-${profile}-${folder}`) || "{}");
+    chosenFolder = folder;
+    chosenEpIndex = episodeData.episodeIndex || 0;
+    chosenTime = episodeData.currentTime || 0;
+   }
+  } catch (err) {
+   console.warn("Resume data restore failed:", err);
+  }
+
+  if (!chosenFolder) {
+   if (allFolders.length === 0) {
+    document.body.innerHTML =
+     "<h2>No episodes defined in your `episodes` object.</h2>";
+    return;
+   }
+   chosenFolder = allFolders[0];
+  }
+
+  await playEpisode(chosenFolder, chosenEpIndex, chosenTime);
+ }
+
+ // ─── 6) Choice dialog logic ───
+ window.addEventListener('DOMContentLoaded', () => {
+  // Profile selection logic
+  const profileIcons = document.querySelectorAll('.profile-select-icon');
+  let activeProfile = localStorage.getItem('activeProfile') || 'Guest';
+  profileIcons.forEach(icon => {
+   const prof = icon.getAttribute('data-profile');
+   if (prof === activeProfile) {
+    icon.classList.add('selected');
+   }
+   icon.addEventListener('click', () => {
+    localStorage.setItem('activeProfile', prof);
+    profileIcons.forEach(i => i.classList.remove('selected'));
+    icon.classList.add('selected');
+    const topProfileIcon = document.getElementById('profileIcon');
+    if (topProfileIcon) {
+     topProfileIcon.src = `./Profiles/${prof}.jpg`;
+     topProfileIcon.alt = prof;
+     topProfileIcon.style.display = 'block';
+    }
+   });
+  });
+  
+  const overlay = document.getElementById('initialChoiceOverlay');
+  const btnTV = document.getElementById('btnChooseTV');
+  const btnRadio = document.getElementById('btnChooseRadio');
+  const video = document.querySelector('video');
+  video.pause();
+
+btnTV.addEventListener('click', () => {
+ overlay.style.display = 'none';
+ initVideo();
+});
+
+  btnRadio.addEventListener('click', () => {
+   window.location.href = './radio.html';
+  });
+ });
+
+// Prevent video from retaining focus
+const vid = document.querySelector('video');
+if (vid) {
+ vid.addEventListener('focus', e => e.target.blur());
+}
+
+</script>
+<script>
+(function(){
+  const videoEl = window.videoEl || document.getElementById('video');
+  const videoContainer = document.getElementById('videoContainer');
+  const topBar = document.getElementById('topBar');
+
+  // 15s skip helpers
+  function skipBackward15() {
+    try { if (videoEl) videoEl.currentTime = Math.max(0, videoEl.currentTime - 15); } catch(e) {}
+  }
+  function skipForward15() {
+    try { if (videoEl) videoEl.currentTime = Math.min(videoEl.duration || Infinity, videoEl.currentTime + 15); } catch(e) {}
+  }
+  function togglePlayPause() {
+    try {
+      if (!videoEl) return;
+      if (videoEl.paused || videoEl.ended) videoEl.play().catch(()=>{});
+      else videoEl.pause();
+    } catch(e) {}
+  }
+  // expose for other scripts
+  window.skipBackward15 = skipBackward15;
+  window.skipForward15 = skipForward15;
+  window.togglePlayPause = togglePlayPause;
+
+  // small helpers
+  function _isVisible(el) {
+    if (!el) return false;
+    try {
+      const s = window.getComputedStyle(el);
+      if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) return false;
+    } catch(e) {}
+    const r = el.getBoundingClientRect();
+    return (r.width > 0 && r.height > 0);
+  }
+
+  // treat topBar visible when it is rendered/visible to user
+  function _isTopBarVisible() {
+    try {
+      if (!topBar) return false;
+      return _isVisible(topBar);
+    } catch(e) { return false; }
+  }
+
+  // interactive typing controls outside player should block hijack
+  function _isTypingTarget(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (el.isContentEditable) return true;
+    return false;
+  }
+
+  // if focus/active element is inside topBar then we want to allow handling (navigation)
+  function _isInsideTopBar(el) {
+    if (!el || !topBar) return false;
+    try { return topBar.contains(el); } catch(e) { return false; }
+  }
+
+  // gather focusable controls inside topBar (visible & enabled)
+  function _topBarFocusableElements() {
+    if (!topBar) return [];
+    const nodes = Array.from(topBar.querySelectorAll('button, a[href], [role="button"], input, select, textarea, [tabindex]'));
+    return nodes.filter(el => {
+      if (!el) return false;
+      if (el.hasAttribute('disabled')) return false;
+      if (el.getAttribute('tabindex') === '-1') return false;
+      try {
+        const s = window.getComputedStyle(el);
+        if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) return false;
+      } catch(e) {}
+      const r = el.getBoundingClientRect();
+      return (r.width > 0 && r.height > 0);
+    });
+  }
+
+  // move focus left or right within topBar's focusables
+  function _navigateTopBar(direction) {
+    const list = _topBarFocusableElements();
+    if (!list.length) return;
+    const active = document.activeElement;
+    let idx = list.indexOf(active);
+    if (idx === -1) {
+      // no element in topBar focused — pick sensible default: playPauseBtn if available, else first element
+      const prefer = document.getElementById('playPauseBtn');
+      const prefIndex = prefer ? list.indexOf(prefer) : -1;
+      idx = (prefIndex !== -1) ? prefIndex : 0;
+      // if navigating left, start at last
+      if (direction === 'left') idx = (prefIndex !== -1) ? prefIndex : list.length - 1;
+    } else {
+      if (direction === 'left') idx = (idx === 0) ? list.length - 1 : idx - 1;
+      else idx = (idx === list.length - 1) ? 0 : idx + 1;
+    }
+    try { list[idx].focus(); } catch(e) {}
+  }
+
+  // small detection for some TV/play keys (keeps existing behavior)
+  function _isPlayKeyEvent(e) {
+    if (!e) return false;
+    const kc = e.keyCode || e.which || 0;
+    if (kc === 219 || kc === 221 || kc === 179) return true;
+    if ((e.code && e.code === 'MediaPlayPause') || (e.key && e.key === 'MediaPlayPause')) return true;
+    return false;
+  }
+
+  // treat player context active when videoContainer exists / fullscreen / or element focused inside it
+  function _playerActiveContext() {
+    try {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+      if (fsEl && (fsEl === videoContainer || (fsEl.contains && fsEl.contains(videoContainer)))) return true;
+      const active = document.activeElement;
+      if (active && (active.tagName === 'VIDEO' || (videoContainer && videoContainer.contains && videoContainer.contains(active)))) return true;
+      return !!videoContainer;
+    } catch(e) { return !!videoContainer; }
+  }
+
+  function _handler(e) {
+    // If the Episode Dialog is open, let the dialog handle keys — don't intercept globally.
+    try {
+      const ep = document.getElementById('episodeDialog');
+      if (ep && ep.style && ep.style.display === 'block') {
+        return; // dialog is open -> don't run global behavior
+      }
+    } catch(_) {}
+
+    if (!e) return;
+
+    // If user is actively typing in an input/textarea/select outside the top bar, ignore
+    const active = document.activeElement;
+    if (active && _isTypingTarget(active) && !_isInsideTopBar(active)) return;
+
+    // require loaded video for playback/skip actions (prevents spurious keys)
+    if (!videoEl || !videoEl.src || videoEl.src.trim() === '') {
+      // still allow back key to work even if no video loaded
+      if (e.key === 'Escape' || e.key === 'Backspace' || (e.keyCode || 0) === 10009) {
+        // nothing to pause; let it propagate as usual
+      }
+      return;
+    }
+
+    const code = e.code || '';
+    const key = e.key || '';
+    const kc = e.keyCode || e.which || 0;
+    const topVisible = _isTopBarVisible();
+
+    // Play-only keys (start playback only)
+    if (_isPlayKeyEvent(e)) {
+      try { e.preventDefault && e.preventDefault(); } catch(_) {}
+      if (videoEl.paused || videoEl.ended) videoEl.play().catch(()=>{});
+      try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch(_) {}
+      return;
+    }
+
+    // Back / Escape: if playing, pause and swallow; otherwise allow navigation/back
+    if (key === 'Escape' || key === 'Backspace' || kc === 10009) {
+      if (videoEl && !videoEl.paused && !videoEl.ended) {
+        try { e.preventDefault && e.preventDefault(); } catch(_) {}
+        try { videoEl.pause(); } catch(_) {}
+        try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch(_) {}
+        return;
+      }
+      // else let it propagate
+    }
+
+    // SELECT / Enter (remote center button): treat like Back *only* when top-bar is hidden.
+    // Common key codes covered: Enter (13), DPAD_CENTER (23), Android KEYCODE_ENTER (66)
+    if (key === 'Enter' || code === 'Enter' || kc === 13 || kc === 23 || kc === 66) {
+      // If the top bar is visible (UI mode) we want Enter/Select to activate controls as normal.
+      // When topBar hidden (player mode) and video is playing, pause and swallow the event.
+      if (!topVisible && videoEl && !videoEl.paused && !videoEl.ended) {
+        try { e.preventDefault && e.preventDefault(); } catch(_) {}
+        try { videoEl.pause(); } catch(_) {}
+        try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch(_) {}
+        return;
+      }
+      // otherwise (top visible OR not playing) let it propagate so focused element can be activated
+    }
+
+    // SPACE: always toggle play/pause (prevent activation of focused control)
+    if (code === 'Space' || key === ' ' || key === 'Spacebar') {
+      try { e.preventDefault && e.preventDefault(); } catch(_) {}
+      togglePlayPause();
+      try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch(_) {}
+      return;
+    }
+
+    // Arrow keys:
+    if (code === 'ArrowLeft' || key === 'ArrowLeft') {
+      // If top-bar visible: navigate UI, do NOT rewind
+      if (topVisible) {
+        try { e.preventDefault && e.preventDefault(); } catch(_) {}
+        _navigateTopBar('left');
+        try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch(_) {}
+        return;
+      }
+      // else (topbar hidden) -> rewind 15s when in player context
+      if (_playerActiveContext()) {
+        try { e.preventDefault && e.preventDefault(); } catch(_) {}
+        skipBackward15();
+        try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch(_) {}
+      }
+      return;
+    }
+
+    if (code === 'ArrowRight' || key === 'ArrowRight') {
+      // If top-bar visible: navigate UI, do NOT forward
+      if (topVisible) {
+        try { e.preventDefault && e.preventDefault(); } catch(_) {}
+        _navigateTopBar('right');
+        try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch(_) {}
+        return;
+      }
+      // else (topbar hidden) -> forward 15s when in player context
+      if (_playerActiveContext()) {
+        try { e.preventDefault && e.preventDefault(); } catch(_) {}
+        skipForward15();
+        try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch(_) {}
+      }
+      return;
+    }
+
+    // leave other keys to other handlers
+  }
+
+  // Attach on capture so this runs before many bubble handlers
+  document.addEventListener('keydown', _handler, true);
+
+  // Also attach to the video element (helps on some platforms)
+  if (videoEl) {
+    try { videoEl.setAttribute('tabindex', '-1'); } catch(e){}
+    videoEl.addEventListener('keydown', _handler, true);
+    // prevent native browser video element default for the handled keys (avoid double-handling)
+    videoEl.addEventListener('keydown', function(ev){
+      if (["Space","ArrowLeft","ArrowRight","Enter"].includes(ev.code) || [13,23,66].includes(ev.keyCode || ev.which || 0)) {
+        try { ev.preventDefault && ev.preventDefault(); } catch(e){}
+      }
+    }, true);
+  }
+
+})();
+</script>
+
+
+<script>
+/* Keep fullscreenchange behavior: pause when leaving fullscreen (robust ref) */
+window.isFullscreen = function() {
+  return !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement
+  );
+};
+
+document.addEventListener('fullscreenchange', () => {
+  const v = window.videoEl || document.getElementById('video');
+  if (!window.isFullscreen()) {
+    try { if (v && !v.paused) v.pause(); } catch(e) {}
+  }
+});
+</script>
+
+
+<style>
+  #repairOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: stretch;
+    justify-content: stretch;
+    background: rgba(0,0,0,0.72);
+    z-index: 200001;
+  }
+  #repairOverlay.show { display: flex; }
+  #repairOverlay .repair-shell {
+    position: relative;
+    width: min(1400px, calc(100vw - 24px));
+    height: min(960px, calc(100vh - 24px));
+    margin: auto;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 25px 70px rgba(0,0,0,.55);
+    background: #0c1018;
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  #repairOverlay .repair-topbar {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 0 18px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    background: rgba(12,16,24,.96);
+    gap: 12px;
+  }
+  #repairOverlay .repair-topbar h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 0;
+  }
+  #repairOverlay .repair-topbar .repair-close {
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 8px;
+  }
+  #repairOverlay iframe {
+    width: 100%;
+    height: calc(100% - 52px);
+    border: 0;
+    display: block;
+    background: #0c1018;
+  }
+
+  #repairResumeOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.55);
+    z-index: 200002;
+  }
+  #repairResumeOverlay.show { display: flex; }
+  #repairResumeModal {
+    background: #0f1720;
+    color: #e6eef8;
+    min-width: 320px;
+    max-width: 720px;
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    font-family: Inter, system-ui, Arial, sans-serif;
+  }
+  #repairResumeModal h3 { margin: 0 0 8px 0; font-size: 18px; color: #fff; }
+  #repairResumeModal p { margin: 0 0 16px 0; color: #cfe6ff; line-height: 1.35; }
+  .repair-resume-btns { display: flex; gap: 10px; }
+  .repair-resume-btn {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    height: 44px;
+    box-sizing: border-box;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .repair-resume-continue { background: #10b981; color: #fff; }
+  .repair-resume-startover { background: #1f2937; color: #fff; }
+  @media (max-width: 420px) {
+    #repairResumeModal { margin: 12px; width: auto; }
+    .repair-resume-btns { flex-direction: column; }
+    .repair-resume-btn { width: 100%; height: 46px; }
+  }
+</style>
+
+
+<div id="repairOverlay" aria-hidden="true">
+  <div class="repair-shell">
+    <div class="repair-topbar">
+      <h3 id="repairOverlayTitle">FFmpeg repair</h3>
+      <button class="repair-close" id="repairOverlayClose" aria-label="Close repair">&times;</button>
+    </div>
+    <iframe id="repairIframe" title="FFmpeg repair" src="about:blank"></iframe>
+  </div>
+</div>
+<div id="repairResumeOverlay" aria-hidden="true">
+  <div id="repairResumeModal" role="dialog" aria-modal="true" aria-labelledby="repairResumeTitle" aria-describedby="repairResumeDesc">
+    <h3 id="repairResumeTitle">Resume playback</h3>
+    <p id="repairResumeDesc">Resume the repaired video from where it was before repair?</p>
+    <div class="repair-resume-btns" role="toolbar" aria-label="Repair resume options">
+      <button class="repair-resume-btn repair-resume-continue" id="repairResumeContinue">Yes, Continue</button>
+      <button class="repair-resume-btn repair-resume-startover" id="repairResumeStartOver">Start Over</button>
+    </div>
+  </div>
+</div>
+
+<!-- Episode selection dialog -->
+<div id="episodeDialog" style="
+ position: fixed;
+ top: 50%;
+ left: 50%;
+ transform: translate(-50%, -50%);
+ width: 80vw;
+ max-height: 80vh;
+ background-color: rgba(0, 0, 0, 0.95);
+ padding: 20px;
+ border-radius: 12px;
+ border: 2px solid #888;
+ z-index: 5000;
+ display: none;
+ box-shadow: 0 0 20px rgba(0,0,0,0.6);
+ color: white;
+ overflow-y: auto;
+">
+
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <strong style="font-size:18px;">Episodes</strong>
+    <button id="episodeCloseBtn"
+      style="background:transparent; border:none; color:white; font-size:16px;"
+      aria-label="Close"
+      tabindex="0">Close</button>
+  </div>
+
+  <div id="episodeGrid" style="
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  "></div>
+  
+</div>
+
+<!-- Episode dialog overlay -->
+<div id="dialogOverlay" style="
+ position: fixed;
+ top: 0; left: 0;
+ width: 100vw; height: 100vh;
+ background: rgba(0, 0, 0, 0.5);
+ z-index: 4999;
+ display: none;
+"></div>
+
+<!-- Episode SETTINGS dialog (unchanged) -->
+<div id="settingsDialog" style="
+ position: fixed;
+ top: 50%;
+ left: 50%;
+ transform: translate(-50%, -50%);
+ width: 60vw;
+ max-width: 640px;
+ max-height: 70vh;
+ background-color: rgba(18,18,18,0.98);
+ padding: 20px;
+ border-radius: 10px;
+ border: 2px solid #666;
+ z-index: 6000;
+ display: none;
+ color: white;
+ box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+ overflow: hidden;
+">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px;">
+    <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+      <strong style="font-size:18px;">Episode Settings</strong>
+      <button id="episodeRepairBtn" type="button" title="Repair current episode" aria-label="Repair current episode"
+        style="border:none; background:transparent; color:white; font-size:18px; cursor:pointer; padding:0 4px; line-height:1;">🛠️</button>
+      <button id="episodeSubtitleBtn" type="button" title="Generate subtitles for current episode" aria-label="Generate subtitles for current episode"
+        style="border:none; background:transparent; color:white; font-size:18px; cursor:pointer; padding:0 4px; line-height:1;">📝</button>
+    </div>
+    <button id="settingsBackBtn" style="background:transparent; border:none; color:white; font-size:16px;" aria-label="Back" tabindex="0">Back</button>
+  </div>
+
+  <div id="settingsList" style="
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    overflow-y:auto;
+    max-height:50vh;
+    padding-right:6px;
+  "></div>
+</div>
+
+<div id="settingsOverlay" style="
+ position: fixed;
+ top: 0; left: 0;
+ width: 100vw; height: 100vh;
+ background: rgba(0,0,0,0.45);
+ z-index: 5500;
+ display: none;
+"></div>
+
+
+
+
+<!-- QR fixes injected  -->
+<script>
+(function(){
+  const QR_IMAGES = {
+    original: {
+      local: './Images/regular-qr.png',
+      tailscale: './Images/tailscale-regular-qr.png'
+    },
+    kids: {
+      local: './Images/kids-qr.png',
+      tailscale: './Images/tailscale-kids-qr.png'
+    }
+  };
+
+  let currentQRKind = 'original';
+  let currentQRSource = 'local';
+
+  function ensurePopupMovesToBody() {
+    try {
+      var popup = document.getElementById('qrPopup');
+      if (!popup) return;
+      if (popup.parentElement !== document.body) {
+        document.body.appendChild(popup);
+      }
+      popup.style.position = 'fixed';
+      popup.style.inset = '0';
+      popup.style.width = '100%';
+      popup.style.height = '100%';
+      popup.style.display = popup.style.display || 'none';
+      popup.style.zIndex = '2147483647';
+      popup.style.justifyContent = 'center';
+      popup.style.alignItems = 'center';
+    } catch (e) { console.warn('QR popup relocation failed', e); }
+  }
+
+  function getQRImageSrc(kind, source) {
+    const k = QR_IMAGES[kind] || QR_IMAGES.original;
+    return k[source] || k.local;
+  }
+
+  function getQRPopupTint(kind, source) {
+    if (source === 'tailscale') {
+      return kind === 'kids' ? 'rgba(255, 165, 0, 0.9)' : 'rgba(173, 216, 230, 0.9)';
+    }
+    return kind === 'kids' ? 'rgba(255, 165, 0, 0.9)' : 'rgba(173, 216, 230, 0.9)';
+  }
+
+  function updateQRPopupUI() {
+    const popup = document.getElementById('qrPopup');
+    const qrImage = document.getElementById('qrImage');
+    const toggleBtn = document.getElementById('qrToggleBtn');
+    const nextLabel = currentQRSource === 'local' ? 'Show Tailscale' : 'Show Local';
+
+    if (qrImage) qrImage.src = getQRImageSrc(currentQRKind, currentQRSource);
+    if (popup) popup.style.backgroundColor = getQRPopupTint(currentQRKind, currentQRSource);
+    if (toggleBtn) toggleBtn.textContent = nextLabel;
+  }
+
+  function openQR(type) {
+    ensurePopupMovesToBody();
+    const popup = document.getElementById('qrPopup');
+    const isKids = type === 'orange';
+    currentQRKind = isKids ? 'kids' : 'original';
+    currentQRSource = 'local';
+
+    if (!popup) return;
+    popup.style.display = 'flex';
+    popup.setAttribute('aria-hidden', 'false');
+    updateQRPopupUI();
+
+    setTimeout(() => {
+      try {
+        const isPointer = document.documentElement && document.documentElement.classList.contains('using-pointer');
+        if (!isPointer) {
+          const toggleBtn = document.getElementById('qrToggleBtn');
+          if (toggleBtn) toggleBtn.focus();
+        }
+      } catch (e) {}
+    }, 0);
+  }
+
+  function toggleQRSource(event) {
+    if (event) event.stopPropagation();
+    currentQRSource = currentQRSource === 'local' ? 'tailscale' : 'local';
+    updateQRPopupUI();
+    try {
+      const toggleBtn = document.getElementById('qrToggleBtn');
+      if (toggleBtn) toggleBtn.focus();
+    } catch (e) {}
+  }
+
+  function closeQR(event) {
+    if (event) event.stopPropagation();
+    const popup = document.getElementById('qrPopup');
+    if (popup) {
+      popup.style.display = 'none';
+      popup.setAttribute('aria-hidden', 'true');
+    }
+    try { document.documentElement.style.overflow = ''; } catch(e) {}
+  }
+
+  function attachPopupHandlers() {
+    const popup = document.getElementById('qrPopup');
+    const qrImage = document.getElementById('qrImage');
+    if (!popup) return;
+    try { popup.onclick = null; } catch(e) {}
+    popup.addEventListener('click', function(e){
+      if (e.target && (e.target === qrImage || (qrImage && qrImage.contains(e.target)))) return;
+      closeQR();
+    });
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape') closeQR();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){
+      ensurePopupMovesToBody();
+      attachPopupHandlers();
+      var p = document.getElementById('qrPopup'); if (p) p.style.display = 'none';
+      window.openQR = openQR;
+      window.closeQR = closeQR;
+      window.toggleQRSource = toggleQRSource;
+    });
+  } else {
+    ensurePopupMovesToBody();
+    attachPopupHandlers();
+    var p = document.getElementById('qrPopup'); if (p) p.style.display = 'none';
+    window.openQR = openQR;
+    window.closeQR = closeQR;
+    window.toggleQRSource = toggleQRSource;
+  }
+})();
+
+// global helper to highlight current episode button inside the episode dialog grid
+function updateEpisodeGridHighlight() {
+  const episodeGrid = document.getElementById("episodeGrid");
+  if (!episodeGrid) return;
+  Array.from(episodeGrid.children).forEach((btn) => {
+    const idx = (btn.dataset && btn.dataset.index) ? Number(btn.dataset.index) : null;
+    if (idx === currentEpisodeIndex) btn.classList.add("current");
+    else btn.classList.remove("current");
+  });
+}
+
+</script>
+<!-- End injected QR fixes -->
+<script>
+(function(){
+  const SENTINEL_HASH = 'tvdplay';
+  const vid = window.videoEl || document.querySelector('video#video') || document.querySelector('video');
+  if (!vid) return;
+
+  let allowNavigateNextBack = false; // when true, a hash/back removal will be allowed to navigate
+  const debug = false; // set true to see console logs
+
+  const log = (...a) => { if (debug) console.log('[back-fix]', ...a); };
+
+  function addSentinelIfMissing() {
+    try {
+      if (location.hash.replace(/^#/, '') !== SENTINEL_HASH) {
+        // setting the hash creates a history entry we can detect on Back
+        location.hash = SENTINEL_HASH;
+        log('sentinel added');
+      }
+    } catch(e) { log('addSentinel failed', e); }
+  }
+
+  function markAllowNextBack() {
+    allowNavigateNextBack = true;
+    log('allowNavigateNextBack = true');
+  }
+
+  // When video plays -> ensure sentinel exists
+  vid.addEventListener('play', () => {
+    addSentinelIfMissing();
+    // clear the "allow" because while playing we want to intercept the first back
+    allowNavigateNextBack = false;
+  });
+
+  // When video is paused or ends, allow the next back to navigate away (normal behavior)
+  vid.addEventListener('pause', markAllowNextBack);
+  vid.addEventListener('ended', markAllowNextBack);
+
+  // Hashchange: user pressed Back (or hash changed). Decide whether to intercept or allow.
+  window.addEventListener('hashchange', () => {
+    const currentHash = location.hash.replace(/^#/, '');
+    log('hashchange', currentHash, 'allowNavigateNextBack=', allowNavigateNextBack, 'playing=', !vid.paused && !vid.ended);
+
+    // If the sentinel was removed (hash != sentinel) this likely came from Back
+    if (currentHash !== SENTINEL_HASH) {
+      // If video is still playing and we haven't explicitly allowed the next back to navigate,
+      // treat this as the "first back while playing": pause and re-add sentinel so page stays.
+      if (!vid.paused && !vid.ended && !allowNavigateNextBack) {
+        try {
+          log('hashchange -> pause video and re-add sentinel');
+          vid.pause();
+        } catch(e){ log('pause error', e); }
+        // Re-add the sentinel after a short delay so the page remains on-screen.
+        setTimeout(() => {
+          try {
+            if (location.hash.replace(/^#/, '') !== SENTINEL_HASH) {
+              location.hash = SENTINEL_HASH;
+              log('sentinel re-added after hashchange');
+            }
+          } catch (e) { log('re-add sentinel failed', e); }
+        }, 80);
+        return;
+      }
+
+      // otherwise, allow this hash removal to navigate normally:
+      allowNavigateNextBack = false; // consume the allowance
+      log('hashchange allowed to navigate (no interception)');
+    } else {
+      // hash present: nothing to do
+      log('sentinel still present');
+    }
+  });
+
+  // Keydown capture: catch hardware back keys if JS receives them.
+  window.addEventListener('keydown', function(e) {
+    const code = e.keyCode || e.which || 0;
+    // common back key codes on Android/TV: 4, 10009; also handle Backspace and Escape
+    if (code === 4 || code === 10009 || e.key === 'Backspace' || e.key === 'Escape') {
+      log('keydown back detected', code, e.key, 'playing=', !vid.paused && !vid.ended);
+
+      // If playing -> intercept: prevent default, pause, allow next back to navigate
+      if (!vid.paused && !vid.ended) {
+        try { e.preventDefault && e.preventDefault(); } catch(_) {}
+        try { vid.pause(); } catch(e){ log('pause failed', e); }
+        // ensure the sentinel is present (it normally is because we added it on play),
+        // and allow the next back to navigate (so second back leaves)
+        addSentinelIfMissing();
+        markAllowNextBack();
+
+        // Also explicitly exit fullscreen if page is fullscreen (helps some devices)
+        try {
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(()=>{/*ignore*/});
+          }
+        } catch(er) { /* ignore */ }
+
+        return; // swallow the key so the browser doesn't immediately act on it
+      }
+
+      // else let default behaviour run (page will navigate)
+    }
+  }, { capture: true, passive: false });
+
+  // fullscreenchange: some devices/processes exit fullscreen first and only then JS sees anything.
+  // If fullscreen exited while the video is still playing, pause it immediately and re-add sentinel.
+  document.addEventListener('fullscreenchange', () => {
+    const fs = !!document.fullscreenElement;
+    log('fullscreenchange, fullscreen?', fs, 'playing=', !vid.paused && !vid.ended);
+    if (!fs) {
+      // just exited fullscreen
+      if (!vid.paused && !vid.ended) {
+        try { vid.pause(); } catch(e){ log('pause error on fullscreenchange', e); }
+        // make sure the sentinel exists so the page doesn't navigate away
+        setTimeout(() => { try { addSentinelIfMissing(); markAllowNextBack(); } catch(e){ log(e); } }, 60);
+      }
+    }
+  });
+
+  // Safety: if page is hidden (some devices hide before navigating), pause playback
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && !vid.paused && !vid.ended) {
+      try { vid.pause(); markAllowNextBack(); } catch(e){ log(e); }
+    }
+  });
+
+  log('back-button single-press pause handler initialized');
+})();
+</script>
+<script>
+/* TVD fullscreen spacer + fast scroll helper
+   Insert into tvd.html before </body>.
+
+   Behavior:
+   - Creates a temporary spacer (100% width, 444px tall by default)
+   - Immediately scrolls to the bottom (so the spacer is visible) as fast as possible
+   - Then proceeds with the requested fullscreen call
+   - Cleans up spacer after fullscreenchange or timeout
+*/
+
+(function () {
+  // ID used for the temporary spacer
+  const SPACER_ID = '__tvd_fs_spacer__';
+
+  // Defaults you can tweak
+  const DEFAULT_SPACER_HEIGHT = 585;     // px
+  const SETTLE_RAFS = 3;                 // number of rAF cycles to wait after jump
+  const SETTLE_MS = 25;                  // additional ms to wait after rAFs
+  const MAX_WAIT_MS = 3000;              // max wait for movement/cleanup
+  const COOLDOWN_MS = 2000;              // short cooldown flag for repeated calls
+
+  // create spacer and scroll to it (fast)
+  function createSpacerAndScroll(height = DEFAULT_SPACER_HEIGHT) {
+    // coalesce concurrent calls — reuse same promise if already running
+    if (window.__tvd_create_spacer_promise__) return window.__tvd_create_spacer_promise__;
+
+    window.__tvd_create_spacer_promise__ = new Promise(async (resolve) => {
+      const timeout = setTimeout(() => {
+        try { window.__tvd_create_spacer_promise__ = null; } catch(e){}
+        resolve();
+      }, MAX_WAIT_MS);
+
+      try {
+        // Ensure a single spacer exists
+        let spacer = document.getElementById(SPACER_ID);
+        if (!spacer) {
+          spacer = document.createElement('div');
+          spacer.id = SPACER_ID;
+          // make it appear in layout while being non-intrusive
+          spacer.style.width = '100%';
+          spacer.style.height = (Number(height) || DEFAULT_SPACER_HEIGHT) + 'px';
+          spacer.style.minHeight = spacer.style.height;
+          spacer.style.pointerEvents = 'none';
+          spacer.style.opacity = '0';
+          // place at the end of body so scrolling to bottom moves the viewport down
+          document.body.appendChild(spacer);
+        } else {
+          // update height if requested
+          spacer.style.height = (Number(height) || DEFAULT_SPACER_HEIGHT) + 'px';
+        }
+
+        // Ensure no smooth scroll (we want immediate)
+        const prevScrollBehavior = document.documentElement && document.documentElement.style ? document.documentElement.style.scrollBehavior : '';
+        try { if (document.documentElement && document.documentElement.style) document.documentElement.style.scrollBehavior = 'auto'; } catch(e){}
+
+        // Jump to absolute bottom (where spacer sits)
+        const bottom = Math.max(
+          document.body ? document.body.scrollHeight : 0,
+          document.documentElement ? document.documentElement.scrollHeight : 0
+        );
+        try { window.scrollTo(0, bottom); } catch(e) { try { window.scrollTo(0, bottom); } catch(e){} }
+        try { if (window.visualViewport && typeof window.visualViewport.scrollTo === 'function') window.visualViewport.scrollTo(0, bottom); } catch(e){}
+
+        // wait a couple of frames + a tiny timeout so viewport stabilizes
+        await new Promise(r => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setTimeout(r, SETTLE_MS);
+            });
+          });
+        });
+
+        // restore scroll behavior
+        try { if (document.documentElement && document.documentElement.style) document.documentElement.style.scrollBehavior = prevScrollBehavior; } catch(e){}
+
+      } catch (err) {
+        // swallow errors — we still resolve to allow fullscreen attempt
+      } finally {
+        clearTimeout(timeout);
+        try { window.__tvd_create_spacer_promise__ = null; } catch(e){}
+        resolve();
+      }
+    });
+
+    return window.__tvd_create_spacer_promise__;
+  }
+
+  // Remove the spacer element if present
+  function cleanupSpacer() {
+    try {
+      const spacer = document.getElementById(SPACER_ID);
+      if (spacer && spacer.parentNode) spacer.parentNode.removeChild(spacer);
+    } catch (e) { /* ignore */ }
+  }
+
+  // Listen for fullscreenchange to remove spacer after entering/exiting fullscreen
+  document.addEventListener('fullscreenchange', () => {
+    // small delay to avoid race with some devices that jump focus/viewport after the event
+    setTimeout(() => cleanupSpacer(), 80);
+  }, { passive: true });
+
+  // Also remove on page hide/unload just in case
+  window.addEventListener('pagehide', cleanupSpacer, { passive: true });
+  window.addEventListener('beforeunload', cleanupSpacer, { passive: true });
+
+  // Monkey-patch Element.prototype.requestFullscreen + webkit fallback
+  (function patchRequestFullscreen() {
+    try {
+      const orig = Element.prototype.requestFullscreen;
+      if (orig && typeof orig === 'function') {
+        Element.prototype.requestFullscreen = function patchedRequestFullscreen() {
+          const el = this;
+          // avoid re-entrance for same element rapidly
+          if (el.__tvd_fs_ok__) {
+            return orig.apply(el, arguments);
+          }
+          // Create spacer & scroll, then call original fullscreen
+          return createSpacerAndScroll(DEFAULT_SPACER_HEIGHT).then(() => {
+            try { el.__tvd_fs_ok__ = true; } catch(e){}
+            setTimeout(() => { try { el.__tvd_fs_ok__ = false; } catch(e){} }, COOLDOWN_MS);
+            // invoke the original
+            const result = orig.apply(el, arguments);
+            // Schedule cleanup in case fullscreenchange doesn't fire as expected
+            setTimeout(cleanupSpacer, 800);
+            return result;
+          }).catch((err) => {
+            // if something goes wrong: attempt original call anyway and cleanup
+            try { cleanupSpacer(); } catch(e){}
+            try { return orig.apply(el, arguments); } catch(e){ return Promise.reject(err); }
+          });
+        };
+      }
+
+      // vendor-prefixed fallback (WebKit)
+      if (Element.prototype.webkitRequestFullscreen && typeof Element.prototype.webkitRequestFullscreen === 'function') {
+        const origWebkit = Element.prototype.webkitRequestFullscreen;
+        Element.prototype.webkitRequestFullscreen = function patchedWebkit() {
+          const el = this;
+          if (el.__tvd_fs_ok__) {
+            return origWebkit.apply(el, arguments);
+          }
+          return createSpacerAndScroll(DEFAULT_SPACER_HEIGHT).then(() => {
+            try { el.__tvd_fs_ok__ = true; } catch(e){}
+            setTimeout(() => { try { el.__tvd_fs_ok__ = false; } catch(e){} }, COOLDOWN_MS);
+            const res = origWebkit.apply(el, arguments);
+            setTimeout(cleanupSpacer, 800);
+            return res;
+          }).catch((err) => {
+            try { cleanupSpacer(); } catch(e){}
+            try { return origWebkit.apply(el, arguments); } catch(e){ throw err; }
+          });
+        };
+      }
+    } catch (e) {
+      console.warn('tvd fullscreen patch failed', e);
+    }
+  })();
+
+  // Optional: expose manual helper for debugging / custom heights
+  window._tvd_createSpacerAndScroll = function(height) {
+    try { return createSpacerAndScroll(Number(height) || DEFAULT_SPACER_HEIGHT); } catch(e) { return Promise.resolve(); }
+  };
+
+  // Optional: helper to force immediate cleanup
+  window._tvd_cleanupSpacer = cleanupSpacer;
+
+})();
+</script>
+<script>
+// Episode settings UI wiring (open dialog, populate options, save pref) + gamepad/remote navigation
+// Default focus: Back button when dialog opens
+
+(function(){
+  let settingsKeyHandler = null;
+  let topRowButtons = [];
+
+  function getProfile() {
+    return localStorage.getItem('activeProfile') || 'Guest';
+  }
+
+  // Update the list of top row buttons (order: Repair, Subtitles, Back)
+  function updateTopRowButtons() {
+    const repairBtn = document.getElementById('episodeRepairBtn');
+    const subtitleBtn = document.getElementById('episodeSubtitleBtn');
+    const backBtn = document.getElementById('settingsBackBtn');
+    topRowButtons = [repairBtn, subtitleBtn, backBtn].filter(btn => btn);
+  }
+
+  // Focus the Back button by default
+  function focusDefaultTopButton() {
+    const backBtn = document.getElementById('settingsBackBtn');
+    if (backBtn && typeof backBtn.focus === 'function') {
+      try {
+        backBtn.focus();
+      } catch(e) {}
+    }
+  }
+
+  // Get all focusable items inside the dialog (top row + settings rows)
+  function getFocusableItems() {
+    const items = [];
+    // top row buttons
+    for (const btn of topRowButtons) {
+      if (btn && btn.offsetParent !== null) items.push(btn);
+    }
+    // settings list items (e.g. Subtitles toggle button)
+    const settingsList = document.getElementById('settingsList');
+    if (settingsList) {
+      const rowInteractive = settingsList.querySelectorAll('button, [role="button"], a, input, select, textarea');
+      rowInteractive.forEach(el => {
+        if (el && el.offsetParent !== null) items.push(el);
+      });
+    }
+    return items;
+  }
+
+  // Arrow key navigation handler
+  function onSettingsKeyDown(e) {
+    const dialog = document.getElementById('settingsDialog');
+    if (!dialog || dialog.style.display !== 'block') return;
+
+    const key = e.key;
+    const focusableItems = getFocusableItems();
+    if (focusableItems.length === 0) return;
+
+    const currentIndex = focusableItems.findIndex(item => item === document.activeElement);
+    if (currentIndex === -1) return;
+
+    let newIndex = currentIndex;
+
+    switch (key) {
+      case 'ArrowLeft':
+        newIndex = (currentIndex - 1 + focusableItems.length) % focusableItems.length;
+        e.preventDefault();
+        break;
+      case 'ArrowRight':
+        newIndex = (currentIndex + 1) % focusableItems.length;
+        e.preventDefault();
+        break;
+      case 'ArrowUp':
+        // If currently on a top row button, wrap to last item (settings)
+        if (topRowButtons.includes(document.activeElement)) {
+          newIndex = focusableItems.length - 1;
+        } else {
+          newIndex = Math.max(0, currentIndex - 1);
+        }
+        e.preventDefault();
+        break;
+      case 'ArrowDown':
+        // If currently on last item, wrap to first (top row)
+        if (currentIndex === focusableItems.length - 1) {
+          newIndex = 0;
+        } else {
+          newIndex = Math.min(focusableItems.length - 1, currentIndex + 1);
+        }
+        e.preventDefault();
+        break;
+      case 'Enter':
+      case ' ':
+        if (key === ' ') {
+          e.preventDefault();
+          const active = document.activeElement;
+          if (active && typeof active.click === 'function') active.click();
+        }
+        break;
+      default:
+        return;
+    }
+
+    if (newIndex !== currentIndex && focusableItems[newIndex]) {
+      focusableItems[newIndex].focus();
+    }
+  }
+
+  function attachSettingsNavigation() {
+    if (settingsKeyHandler) return;
+    settingsKeyHandler = onSettingsKeyDown;
+    document.addEventListener('keydown', settingsKeyHandler);
+  }
+
+  function detachSettingsNavigation() {
+    if (settingsKeyHandler) {
+      document.removeEventListener('keydown', settingsKeyHandler);
+      settingsKeyHandler = null;
+    }
+  }
+
+  function openEpisodeSettings() {
+    const settingsDialog = document.getElementById('settingsDialog');
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    const settingsList = document.getElementById('settingsList');
+    if (!settingsDialog || !settingsList || !settingsOverlay) return;
+
+    // Clear previous settings rows
+    settingsList.innerHTML = '';
+
+    const profile = getProfile();
+    const folder = window.currentFolder;
+    const idx = Number(window.currentEpisodeIndex || 0);
+
+    // Subtitles toggle row
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'center';
+    row.style.padding = '10px';
+    row.style.borderRadius = '6px';
+    row.style.background = 'rgba(255,255,255,0.02)';
+
+    const label = document.createElement('div');
+    label.textContent = 'Subtitles';
+    label.style.fontSize = '16px';
+    row.appendChild(label);
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.setAttribute('aria-pressed', 'false');
+    toggle.style.padding = '6px 10px';
+    toggle.style.border = 'none';
+    toggle.style.borderRadius = '6px';
+    toggle.style.cursor = 'pointer';
+
+    const key = `subtitles-${profile}-${folder}-${idx}`;
+    const enabled = localStorage.getItem(key) !== 'false'; // default true
+
+    function updateToggleVisual(val) {
+      toggle.textContent = val ? 'ON' : 'OFF';
+      toggle.setAttribute('aria-pressed', (!!val).toString());
+      toggle.style.background = val ? 'rgba(0,150,0,0.9)' : 'rgba(80,80,80,0.9)';
+      toggle.style.color = 'white';
+    }
+
+    updateToggleVisual(enabled);
+
+    toggle.addEventListener('click', function() {
+      const newVal = !(localStorage.getItem(key) !== 'false');
+      try { localStorage.setItem(key, newVal ? 'true' : 'false'); } catch(e){}
+      updateToggleVisual(newVal);
+
+      // Apply immediately to subtitle track
+      const t = document.getElementById('subtitleTrack');
+      if (t && t.track) {
+        t.track.mode = newVal ? 'showing' : 'hidden';
+      }
+    });
+
+    row.appendChild(toggle);
+    settingsList.appendChild(row);
+
+    // Additional settings rows can be added here later
+
+    // Refresh top row buttons and attach navigation
+    updateTopRowButtons();
+    attachSettingsNavigation();
+
+    // Show dialog
+    settingsDialog.style.display = 'block';
+    settingsOverlay.style.display = 'block';
+
+    // Focus the Back button by default
+    setTimeout(() => {
+      focusDefaultTopButton();
+    }, 60);
+  }
+
+  function closeEpisodeSettings() {
+    const settingsDialog = document.getElementById('settingsDialog');
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    if (settingsDialog) settingsDialog.style.display = 'none';
+    if (settingsOverlay) settingsOverlay.style.display = 'none';
+
+    detachSettingsNavigation();
+
+    // Return focus to episode info button
+    setTimeout(() => {
+      try { const info = document.getElementById('episodeInfoBtn'); if (info) info.focus(); } catch(e){}
+    }, 20);
+  }
+
+  window.openEpisodeSettings = openEpisodeSettings;
+  window.closeEpisodeSettings = closeEpisodeSettings;
+
+  // Hook UI controls once DOM ready
+  document.addEventListener('DOMContentLoaded', () => {
+    const episodeInfoBtn = document.getElementById('episodeInfoBtn');
+    if (episodeInfoBtn) {
+      episodeInfoBtn.addEventListener('click', (e) => { e.stopPropagation(); openEpisodeSettings(); });
+      episodeInfoBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEpisodeSettings(); }
+      });
+    }
+
+    const back = document.getElementById('settingsBackBtn');
+    if (back) back.addEventListener('click', closeEpisodeSettings);
+
+    const overlay = document.getElementById('settingsOverlay');
+    if (overlay) overlay.addEventListener('click', closeEpisodeSettings);
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const sd = document.getElementById('settingsDialog');
+        if (sd && sd.style.display === 'block') closeEpisodeSettings();
+      }
+    });
+
+    // Ensure top row buttons are focusable
+    const repairBtn = document.getElementById('episodeRepairBtn');
+    const subtitleBtn = document.getElementById('episodeSubtitleBtn');
+    if (repairBtn && !repairBtn.hasAttribute('tabindex')) repairBtn.setAttribute('tabindex', '0');
+    if (subtitleBtn && !subtitleBtn.hasAttribute('tabindex')) subtitleBtn.setAttribute('tabindex', '0');
+  });
+})();
+</script>
+<script>
+(function(){
+  function addCacheBust(rawUrl) {
+    const clean = String(rawUrl || '').trim();
+    if (!clean) return '';
+    try {
+      const url = new URL(clean, window.location.href);
+      url.searchParams.set('_repairReload', String(Date.now()));
+      return url.href;
+    } catch (e) {
+      const sep = clean.includes('?') ? '&' : '?';
+      return clean + sep + '_repairReload=' + Date.now();
+    }
+  }
+
+  function getRepairSourceUrl() {
+    const vid = document.getElementById('video');
+    if (!vid) return '';
+    const raw = String(vid.currentSrc || vid.src || vid.getAttribute('src') || '').trim();
+    if (!raw || raw.startsWith('blob:') || raw.startsWith('data:')) return '';
+    try {
+      const url = new URL(raw, window.location.href);
+      return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function getRepairSourceName(sourceUrl) {
+    if (!sourceUrl) return '';
+    try {
+      const url = new URL(sourceUrl, window.location.href);
+      return decodeURIComponent(url.pathname.split('/').pop() || '').trim();
+    } catch (e) {
+      return decodeURIComponent(String(sourceUrl).split('/').pop() || '').trim();
+    }
+  }
+
+  function formatRepairResumeTime(totalSeconds) {
+    const secs = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    const pad2 = (n) => String(n).padStart(2, '0');
+    return h > 0 ? `${h}:${pad2(m)}:${pad2(s)}` : `${m}:${pad2(s)}`;
+  }
+
+  function getRepairSnapshotLabel() {
+    const folderName = String(window.currentFolder || currentFolder || '').trim();
+    const rawEpisodeIndex = Number.isFinite(Number(window.currentEpisodeIndex))
+      ? Number(window.currentEpisodeIndex)
+      : Number(currentEpisodeIndex || 0);
+
+    const list = (typeof episodes !== 'undefined' && folderName && Array.isArray(episodes[folderName]))
+      ? episodes[folderName]
+      : null;
+
+    if (folderName && list && list.length) {
+      const clampedIndex = Math.max(0, Math.min(list.length - 1, rawEpisodeIndex));
+      const ep = list[clampedIndex] || {};
+      if (list.length === 1) return `${folderName}`;
+      return `${folderName} - Episode ${clampedIndex + 1}: "${String(ep.name || 'Episode').trim()}"`;
+    }
+
+    const sourceName = getRepairSourceName(getRepairSourceUrl());
+    return sourceName || 'current video';
+  }
+
+  function captureRepairResumeSnapshot() {
+    const vid = document.getElementById('video');
+    const resumeTime = vid && Number.isFinite(vid.currentTime) ? Number(vid.currentTime) : 0;
+    const sourceUrl = getRepairSourceUrl();
+    const label = getRepairSnapshotLabel();
+
+    window.__repairResumeSnapshot = {
+      time: resumeTime,
+      sourceUrl,
+      label,
+      capturedAt: Date.now()
+    };
+
+    return window.__repairResumeSnapshot;
+  }
+
+  function getRepairResumeSnapshot() {
+    return window.__repairResumeSnapshot || null;
+  }
+
+  function hideRepairResumeModal() {
+    const overlay = document.getElementById('repairResumeOverlay');
+    if (overlay) {
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    window.__resumeModalPriorityOpen = false;
+  }
+
+  function showRepairResumeModal(snapshot = getRepairResumeSnapshot()) {
+    const overlay = document.getElementById('repairResumeOverlay');
+    const titleEl = document.getElementById('repairResumeTitle');
+    const descEl = document.getElementById('repairResumeDesc');
+    const btnContinue = document.getElementById('repairResumeContinue');
+    const btnStartOver = document.getElementById('repairResumeStartOver');
+
+    if (!overlay || !titleEl || !descEl || !btnContinue || !btnStartOver) return false;
+
+    window.__resumeModalPriorityOpen = true;
+
+    const safeSnapshot = snapshot || {};
+    const label = String(safeSnapshot.label || getRepairSnapshotLabel() || 'current video').trim();
+    const resumeTime = Number.isFinite(Number(safeSnapshot.time)) ? Number(safeSnapshot.time) : 0;
+
+    titleEl.textContent = 'Resume playback';
+    descEl.textContent = `Resume ${label} at ${formatRepairResumeTime(resumeTime)}?`;
+
+    const cleanup = () => {
+      try { btnContinue.removeEventListener('click', onContinue); } catch (e) {}
+      try { btnStartOver.removeEventListener('click', onStartOver); } catch (e) {}
+      try { document.removeEventListener('keydown', onKey); } catch (e) {}
+      try { overlay.removeEventListener('click', onOverlayClick); } catch (e) {}
+    };
+
+    const finish = () => {
+      cleanup();
+      hideRepairResumeModal();
+    };
+
+    const onContinue = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      finish();
+      refreshCurrentVideoStream({ resumeTime, sourceUrl: safeSnapshot.sourceUrl });
+      try { console.info('Resume continue: reloading source and subtitles'); } catch (e) {}
+    };
+
+    const onStartOver = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      finish();
+      refreshCurrentVideoStream({ resumeTime: 0, sourceUrl: safeSnapshot.sourceUrl });
+      try { console.info('Resume start over: reloading source and subtitles'); } catch (e) {}
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') onStartOver(e);
+    };
+
+    const onOverlayClick = (e) => {
+      if (e.target === overlay) onStartOver(e);
+    };
+
+    btnContinue.addEventListener('click', onContinue);
+    btnStartOver.addEventListener('click', onStartOver);
+    document.addEventListener('keydown', onKey);
+    overlay.addEventListener('click', onOverlayClick);
+
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+
+    setTimeout(() => {
+      try { btnContinue.focus({ preventScroll: true }); }
+      catch (e) { try { btnContinue.focus(); } catch (e2) {} }
+    }, 0);
+
+    return true;
+  }
+
+  function normalizeRepairSourceUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw, window.location.href);
+      return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function buildRepairUrlForCurrentVideo() {
+    const sourceUrl = normalizeRepairSourceUrl(getRepairSourceUrl());
+    if (!sourceUrl) return '';
+    const name = getRepairSourceName(sourceUrl);
+    if (!name) return '';
+    const folder = new URL('.', sourceUrl).href;
+    const params = new URLSearchParams({
+      source: sourceUrl,
+      name,
+      folder,
+      upload: new URL(encodeURIComponent(name), folder).href,
+      mode: 'seek-repair',
+      flow: '1',
+      auto: '1',
+      close: '1',
+      proxy: '1',
+      jobId: 'single'
+    });
+    return `${window.location.origin}/ffmpeg/repair.html?${params.toString()}`;
+  }
+
+  function buildSubtitleUrlForCurrentVideo() {
+    const sourceUrl = normalizeRepairSourceUrl(getRepairSourceUrl());
+    if (!sourceUrl) return '';
+    const name = getRepairSourceName(sourceUrl);
+    if (!name) return '';
+    const baseName = String(name).replace(/\.[^.]+$/, '') || 'subtitle';
+    const folderName = String(window.currentFolder || currentFolder || '').trim();
+    const episodeList = (typeof episodes !== 'undefined' && folderName && Array.isArray(episodes[folderName])) ? episodes[folderName] : [];
+    const episodeIndex = Number.isFinite(Number(window.currentEpisodeIndex))
+      ? Number(window.currentEpisodeIndex)
+      : Number(currentEpisodeIndex || 0);
+    const episodeEntry = episodeList[Number.isFinite(episodeIndex) ? episodeIndex : 0] || {};
+    const episodeTitle = String(episodeEntry.name || episodeEntry.title || '').trim();
+
+    const parsedMatch = baseName.match(/\bS(\d{1,2})\s*E?(\d{1,3})\b/i) || baseName.match(/\b(\d{1,2})x(\d{1,3})\b/i);
+    const season = parsedMatch ? Number.parseInt(parsedMatch[1], 10) : '';
+    const episode = parsedMatch ? Number.parseInt(parsedMatch[2], 10) : '';
+
+    const search = [folderName, episodeTitle, baseName].filter(Boolean).join(' ').trim();
+    const params = new URLSearchParams({
+      source: sourceUrl,
+      name: `${baseName}.vtt`,
+      folder: new URL('.', sourceUrl).href,
+      upload: new URL(encodeURIComponent(`${baseName}.vtt`), new URL('.', sourceUrl).href).href,
+      language: 'en',
+      provider: '',
+      mode: 'fetch',
+      flow: '1',
+      auto: '1',
+      close: '1',
+      proxy: '1',
+      jobId: 'single',
+      series: folderName,
+      show: folderName,
+      librarySeries: folderName,
+      title: episodeTitle,
+      episodeTitle,
+      libraryTitle: episodeTitle || baseName,
+      search
+    });
+    if (Number.isFinite(season)) params.set('season', String(season));
+    if (Number.isFinite(episode)) params.set('episode', String(episode));
+    return `${window.location.origin}/opensubtitles-subtitles.html?${params.toString()}`;
+  }
+
+  function openEpisodeOverlay(kind = 'repair') {
+    const iframe = document.getElementById('repairIframe');
+    const overlay = document.getElementById('repairOverlay');
+    const title = document.getElementById('repairOverlayTitle');
+    const sourceUrl = getRepairSourceUrl();
+    const url = kind === 'subtitle' ? buildSubtitleUrlForCurrentVideo() : buildRepairUrlForCurrentVideo();
+    if (!iframe || !overlay || !title || !url) return false;
+
+    window.__episodeJobFlow = kind;
+
+    try { hideRepairResumeModal(); } catch (e) {}
+    try { closeEpisodeSettings(); } catch (e) {}
+
+    captureRepairResumeSnapshot();
+
+    const sourceName = getRepairSourceName(sourceUrl) || 'current video';
+    title.textContent = kind === 'subtitle'
+      ? `📝 Generate subtitles for ${sourceName}`
+      : `🛠️ Repair ${sourceName}`;
+    iframe.src = url;
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+    return true;
+  }
+
+  function openRepairOverlay() {
+    return openEpisodeOverlay('repair');
+  }
+
+  function openSubtitleOverlay() {
+    return openEpisodeOverlay('subtitle');
+  }
+
+  function closeRepairOverlay() {
+    const iframe = document.getElementById('repairIframe');
+    const overlay = document.getElementById('repairOverlay');
+    if (overlay) {
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    window.__episodeJobFlow = '';
+    try { hideRepairResumeModal(); } catch (e) {}
+    try { if (iframe) iframe.src = 'about:blank'; } catch (e) {}
+  }
+
+  window.openRepairOverlay = openRepairOverlay;
+  window.openSubtitleOverlay = openSubtitleOverlay;
+  window.closeRepairOverlay = closeRepairOverlay;
+  window.refreshCurrentVideoStream = refreshCurrentVideoStream;
+  window.captureRepairResumeSnapshot = captureRepairResumeSnapshot;
+  window.showRepairResumeModal = showRepairResumeModal;
+
+  async function refreshCurrentVideoStream(options = {}) {
+    const folderName = String(window.currentFolder || currentFolder || '').trim();
+    const epIndex = Number.isFinite(Number(window.currentEpisodeIndex))
+      ? Number(window.currentEpisodeIndex)
+      : Number(currentEpisodeIndex || 0);
+    const list = (typeof episodes !== 'undefined' && folderName && Array.isArray(episodes[folderName]))
+      ? episodes[folderName]
+      : null;
+    const epObj = list ? list[Math.max(0, Math.min(list.length - 1, epIndex))] : null;
+    if (!folderName || !epObj) return false;
+
+    const resumeTime = Number.isFinite(Number(options.resumeTime))
+      ? Number(options.resumeTime)
+      : (getRepairResumeSnapshot() && Number.isFinite(Number(getRepairResumeSnapshot().time)) ? Number(getRepairResumeSnapshot().time) : 0);
+
+    const sourceFile = options.sourceUrl
+      ? options.sourceUrl
+      : epObj.file;
+
+    try {
+      const result = playEpisode(folderName, epIndex, resumeTime, {
+        cacheBust: true,
+        sourceFile,
+        subtitleFile: sourceFile
+      });
+      return !!result || true;
+    } catch (e) {
+      console.warn('refreshCurrentVideoStream failed', e);
+      return false;
+    }
+  }
+
+  if (!window.__repairFlowMessageListenerAdded) {
+    window.__repairFlowMessageListenerAdded = true;
+    window.addEventListener('message', function(event) {
+      const data = event && event.data ? event.data : {};
+      if (!data || typeof data !== 'object') return;
+      if (event.origin && event.origin !== window.location.origin) return;
+
+      if (data.type === 'repair-complete' || data.type === 'subtitle-complete') {
+        try { closeRepairOverlay(); } catch (e) {}
+        try {
+          if (!showRepairResumeModal(getRepairResumeSnapshot())) {
+            refreshCurrentVideoStream();
+          }
+        } catch (e) {
+          console.warn('Failed to show repair resume modal', e);
+          refreshCurrentVideoStream();
+        }
+      }
+
+      if (data.type === 'repair-failed' || data.type === 'subtitle-failed') {
+        const flow = window.__episodeJobFlow === 'subtitle' ? 'Subtitle generation' : 'Repair';
+        try { closeRepairOverlay(); } catch (e) {}
+        console.warn(flow + ' failed.');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const gear = document.getElementById('settingsGearBtn');
+    if (gear) gear.addEventListener('click', function(e){ e.stopPropagation(); openEpisodeSettings(); });
+
+    const repairBtn = document.getElementById('episodeRepairBtn');
+    if (repairBtn) repairBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (!openRepairOverlay()) {
+        console.warn('No video source is loaded for repair.');
+      }
+    });
+
+    const subtitleBtn = document.getElementById('episodeSubtitleBtn');
+    if (subtitleBtn) subtitleBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (!openSubtitleOverlay()) {
+        console.warn('No video source is loaded for subtitle generation.');
+      }
+    });
+
+    const overlay = document.getElementById('settingsOverlay');
+    if (overlay) overlay.addEventListener('click', closeEpisodeSettings);
+
+    const repairOverlay = document.getElementById('repairOverlay');
+    const repairClose = document.getElementById('repairOverlayClose');
+    if (repairOverlay) repairOverlay.addEventListener('click', function(e){ if (e.target === repairOverlay) closeRepairOverlay(); });
+    if (repairClose) repairClose.addEventListener('click', closeRepairOverlay);
+
+    const resumeOverlay = document.getElementById('repairResumeOverlay');
+    if (resumeOverlay) resumeOverlay.addEventListener('click', function(e){
+      const modal = document.getElementById('repairResumeModal');
+      if (e.target === resumeOverlay || (modal && !modal.contains(e.target))) {
+        const btn = document.getElementById('repairResumeStartOver');
+        if (btn) btn.click();
+      }
+    });
+
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape') {
+        const sd = document.getElementById('settingsDialog');
+        if (sd && sd.style.display === 'block') closeEpisodeSettings();
+        const ro = document.getElementById('repairOverlay');
+        if (ro && ro.classList.contains('show')) closeRepairOverlay();
+      }
+    });
+  });
+
+  window.addCacheBust = addCacheBust;
+  window.__addRepairCacheBust = addCacheBust;
+  window.__openRepairOverlay = openRepairOverlay;
+  window.__openSubtitleOverlay = openSubtitleOverlay;
+  window.__captureRepairResumeSnapshot = captureRepairResumeSnapshot;
+  window.__showRepairResumeModal = showRepairResumeModal;
+})();
+</script>
+<script>
+const episodeDialog = document.getElementById("episodeDialog");
+
+const dialogOverlay = document.getElementById("dialogOverlay");
+const toggleBtn = document.getElementById("toggleEpisodesBtn");
+const episodeGrid = document.getElementById("episodeGrid");
+const episodeCloseBtn = document.getElementById("episodeCloseBtn");
+
+let _epDialogKeyListener = null;
+
+/* ---------------- GRID NAVIGATION ---------------- */
+
+function buildGridMatrix() {
+  const buttons = Array.from(episodeGrid.querySelectorAll('button'));
+  const rects = buttons.map(btn => ({ btn, rect: btn.getBoundingClientRect() }));
+  if (!rects.length) return { rows: [], map: new Map() };
+
+  rects.sort((a,b) => a.rect.top - b.rect.top);
+
+  const rows = [];
+  const tolerance = 8;
+
+  rects.forEach(({btn, rect}) => {
+    let row = rows.find(r => Math.abs(r.top - rect.top) <= tolerance);
+    if (!row) {
+      row = { top: rect.top, items: [] };
+      rows.push(row);
+    }
+    row.items.push({ btn, rect });
+  });
+
+  rows.forEach(r => r.items.sort((a,b) => a.rect.left - b.rect.left));
+
+  const map = new Map();
+  rows.forEach((r, rowIndex) => {
+    r.items.forEach((item, colIndex) => {
+      map.set(item.btn, { row: rowIndex, col: colIndex, rect: item.rect });
+    });
+  });
+
+  return { rows, map };
+}
+
+function findNearestByX(rowItems, xCenter) {
+  let best = 0;
+  let bestDist = Infinity;
+  rowItems.forEach((item, i) => {
+    const center = item.rect.left + item.rect.width / 2;
+    const d = Math.abs(center - xCenter);
+    if (d < bestDist) { bestDist = d; best = i; }
+  });
+  return best;
+}
+
+/* ---------------- SHOW / HIDE ---------------- */
+
+function showEpisodeDialog(folderName) {
+
+  try { if (window._tvdStopSpamFocus) window._tvdStopSpamFocus(); } catch(e){}
+
+  const eps = (episodes && episodes[folderName]) ? episodes[folderName] : [];
+  episodeGrid.innerHTML = "";
+
+  eps.forEach((ep, index) => {
+    const btn = document.createElement("button");
+    btn.textContent = `Ep ${index + 1}: ${ep.name}`;
+    btn.className = "episode-btn";
+    btn.style.padding = "10px 16px";
+    btn.style.minWidth = "180px";
+    btn.style.fontSize = "14px";
+    btn.style.textAlign = "left";
+    btn.setAttribute("tabindex", "0");
+    btn.dataset.index = index;
+
+    btn.onclick = () => {
+      hideEpisodeDialog();
+      playEpisode(folderName, index, 0);
+      try { updateEpisodeGridHighlight(); } catch(e){}
+    };
+
+    episodeGrid.appendChild(btn);
+  });
+
+  episodeDialog.style.display = "block";
+  dialogOverlay.style.display = "block";
+
+  setTimeout(() => {
+    const btn = episodeGrid.querySelector("button");
+    if (btn) btn.focus();
+  }, 50);
+
+  attachEpisodeNavigation();
+}
+
+function hideEpisodeDialog() {
+  episodeDialog.style.display = "none";
+  dialogOverlay.style.display = "none";
+  detachEpisodeNavigation();
+  if (toggleBtn) toggleBtn.focus();
+}
+
+/* ---------------- NAVIGATION ---------------- */
+function attachEpisodeNavigation() {
+  if (_epDialogKeyListener) return;
+
+  _epDialogKeyListener = function(e) {
+    if (episodeDialog.style.display !== "block") return;
+
+    const key = e.key;
+    const { rows, map } = buildGridMatrix();
+    if (!rows.length) return;
+
+    const active = document.activeElement;
+    const closeBtn = episodeCloseBtn;
+
+    // ------------------------
+    // If Close button focused
+    // ------------------------
+    if (active === closeBtn) {
+
+      if (key === "ArrowDown") {
+        e.preventDefault();
+        const first = rows[0]?.items[0]?.btn;
+        if (first) first.focus();
+        return;
+      }
+
+      if (key === "Enter" || key === " ") {
+        e.preventDefault();
+        hideEpisodeDialog();
+        return;
+      }
+
+      return; // ignore left/right/up on Close
+    }
+
+    // ------------------------
+    // Normal grid navigation
+    // ------------------------
+
+    const pos = map.get(active);
+    if (!pos) return;
+
+    if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(key)) {
+      e.preventDefault();
+    }
+
+    // LEFT
+    if (key === "ArrowLeft") {
+      const row = rows[pos.row];
+      const target = row.items[Math.max(0, pos.col - 1)];
+      if (target) target.btn.focus();
+    }
+
+    // RIGHT
+    if (key === "ArrowRight") {
+      const row = rows[pos.row];
+      const target = row.items[Math.min(row.items.length - 1, pos.col + 1)];
+      if (target) target.btn.focus();
+    }
+
+    // DOWN
+    if (key === "ArrowDown") {
+      const nextRow = rows[Math.min(rows.length - 1, pos.row + 1)];
+      if (nextRow) {
+        const centerX = pos.rect.left + pos.rect.width / 2;
+        const idx = findNearestByX(nextRow.items, centerX);
+        nextRow.items[idx].btn.focus();
+      }
+    }
+
+    // UP
+    if (key === "ArrowUp") {
+      if (pos.row === 0) {
+        // move to Close button if on first row
+        closeBtn.focus();
+        return;
+      }
+
+      const prevRow = rows[Math.max(0, pos.row - 1)];
+      if (prevRow) {
+        const centerX = pos.rect.left + pos.rect.width / 2;
+        const idx = findNearestByX(prevRow.items, centerX);
+        prevRow.items[idx].btn.focus();
+      }
+    }
+
+    if (key === "Enter" || key === " ") {
+      e.preventDefault();
+      active.click();
+    }
+
+    if (key === "Escape" || key === "Backspace") {
+      e.preventDefault();
+      hideEpisodeDialog();
+    }
+  };
+
+  episodeDialog.addEventListener("keydown", _epDialogKeyListener);
+}
+
+function detachEpisodeNavigation() {
+  if (!_epDialogKeyListener) return;
+  episodeDialog.removeEventListener("keydown", _epDialogKeyListener);
+  _epDialogKeyListener = null;
+}
+
+/* ---------------- EVENTS ---------------- */
+
+toggleBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (episodeDialog.style.display === "block") {
+    hideEpisodeDialog();
+  } else {
+    showEpisodeDialog(currentFolder);
+  }
+});
+
+dialogOverlay.addEventListener("click", hideEpisodeDialog);
+episodeCloseBtn.addEventListener("click", hideEpisodeDialog);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && episodeDialog.style.display === "block") {
+    hideEpisodeDialog();
+  }
+});
+</script>
+</body>
+</html>
+
+
+
+
+
