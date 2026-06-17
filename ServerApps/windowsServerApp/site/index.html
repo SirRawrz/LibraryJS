@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LibraryJS Server</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./proxy-client.js"></script>
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <h1>LibraryJS Server</h1>
+        <p class="sub">Serve the selected folder directly from the local server.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="btnStartupOptions" class="secondary" type="button">Startup options</button>
+        <button id="btnOpenLibraryJS" class="secondary" type="button">Open LibraryJS flow page</button>
+      </div>
+    </header>
+
+    <div id="autoProgressOverlay" class="auto-progress-overlay" aria-hidden="true" aria-live="polite">
+      <div class="auto-progress-card" role="status" aria-label="Automatic task progress">
+        <div class="auto-progress-title" id="autoProgressTitle">Preparing task…</div>
+        <div class="auto-progress-detail" id="autoProgressDetail">Locking the page and starting the download flow.</div>
+        <progress id="autoProgressBar" max="100" value="0"></progress>
+        <div class="auto-progress-meta">
+          <span id="autoProgressPercent">0%</span>
+          <span id="autoProgressStage">Idle</span>
+        </div>
+      </div>
+    </div>
+
+    <dialog id="startupOptionsDialog" class="startup-dialog">
+      <form method="dialog" class="startup-panel">
+        <div class="dialog-head">
+          <div>
+            <h2>Startup options</h2>
+            <p>Compact server blocks for the library location and proxy settings.</p>
+          </div>
+          <button value="cancel" class="ghost" type="submit">Close</button>
+        </div>
+
+        <div class="settings-grid">
+          <section class="mini-card">
+            <h3>Library location</h3>
+            <div class="mini-grid">
+              <div class="row">
+                <label for="libraryJsHost">LibraryJS host</label>
+                <input id="libraryJsHost" placeholder="http://192.168.254.16" />
+              </div>
+              <div class="row">
+                <label for="libraryJsPort">LibraryJS port</label>
+                <input id="libraryJsPort" inputmode="numeric" placeholder="8080" />
+              </div>
+              <div class="row">
+                <label for="libraryJsPath">LibraryJS path</label>
+                <input id="libraryJsPath" placeholder="/libraryjs.html" />
+              </div>
+            </div>
+          </section>
+
+          <section class="mini-card">
+            <h3>Music proxy</h3>
+            <div class="mini-grid">
+              <div class="row">
+                <label for="musicProxyUrl">Music Proxy URL</label>
+                <input id="musicProxyUrl" placeholder="http://192.168.254.16" />
+              </div>
+              <div class="row">
+                <label for="musicProxyPort">Music Proxy Port</label>
+                <input id="musicProxyPort" inputmode="numeric" placeholder="8086" />
+              </div>
+            </div>
+          </section>
+
+          <section class="mini-card">
+            <h3>Handoff summary</h3>
+            <div class="mini-grid">
+              <div class="row">
+                <label for="libraryJsStatus">Current target</label>
+                <textarea id="libraryJsStatus" readonly></textarea>
+              </div>
+              <p class="small">
+                These values save automatically as you edit them and feed the LibraryJS handoff path.
+              </p>
+            </div>
+          </section>
+        </div>
+
+        <div class="dialog-footer">
+          <button value="close" type="submit">Done</button>
+        </div>
+      </form>
+    </dialog>
+
+    <main class="dashboard">
+      <section class="panel panel-player">
+        <h2>Metadata requests</h2>
+        <p class="panel-note">Fetch player data, then inspect the raw response.</p>
+
+        <div class="row">
+          <label for="videoId">Video ID</label>
+          <input id="videoId" placeholder="6A01pOw6XG4 or https://www.youtube.com/watch?v=6A01pOw6XG4" />
+        </div>
+
+        <div class="actions">
+          <button id="btnNext" type="button">Fetch /youtubei/v1/next</button>
+          <button id="btnPlayer" class="secondary" type="button">Fetch /youtubei/v1/player</button>
+        </div>
+
+        <div class="row" style="margin-top: 21px;">
+          <label for="requestPreview">Request preview</label>
+          <textarea id="requestPreview" readonly></textarea>
+        </div>
+
+        <div class="row">
+          <label for="jsonOutput">Response JSON</label>
+          <textarea id="jsonOutput" readonly></textarea>
+        </div>
+      </section>
+
+      <section class="panel panel-streams">
+        <h2>Available streams</h2>
+        <p class="panel-note">Choose muxed, video-only, or audio-only output.</p>
+
+        <div class="row">
+          <label for="streamCategory">Stream type</label>
+          <select id="streamCategory">
+            <option value="muxed">Best muxed video + audio</option>
+            <option value="video">Best video-only</option>
+            <option value="audio">Best audio-only</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="streamSelect">Sources</label>
+          <select id="streamSelect" size="11"></select>
+        </div>
+
+        <div class="actions">
+          <button id="btnUseStream" class="secondary" type="button">Use selected stream</button>
+          <button id="btnDownloadSelected" type="button">Download selected stream</button>
+          <button id="btnSendSelected" class="secondary" type="button">Send to LibraryJS</button>
+        </div>
+
+        <div class="row" style="margin-top: 21px;">
+          <label for="selectedSummary">Selected stream details</label>
+          <textarea id="selectedSummary" readonly></textarea>
+        </div>
+      </section>
+
+      <section class="panel panel-relay">
+        <h2>Direct download relay</h2>
+        <p class="panel-note">Relay a file through the extension.</p>
+
+        <div class="row">
+          <label for="mediaUrl">Direct media URL</label>
+          <input id="mediaUrl" placeholder="https://...googlevideo.com/videoplayback?..." />
+        </div>
+
+        <div class="row">
+          <label for="fileName">Filename</label>
+          <input id="fileName" value="video.mp4" />
+        </div>
+
+        <div class="actions">
+          <button id="btnDownload" type="button">Download via extension</button>
+          <button id="btnClear" class="ghost" type="button">Clear output</button>
+        </div>
+
+        <div class="row" style="margin-top: 21px;">
+          <label for="logOutput">Log</label>
+          <textarea id="logOutput" readonly></textarea>
+        </div>
+
+        <div id="status" class="status">Waiting for the extension bridge…</div>
+
+        <p class="small">
+          This page expects the MV3 content script to be active on the configured proxy origin.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

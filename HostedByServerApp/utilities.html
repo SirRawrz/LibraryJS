@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LibraryJS Utilities</title>
+  <style>
+    :root {
+      --bg:#212222;
+      --panel:#0f1720;
+      --panel2:#131b26;
+      --line:rgba(255,255,255,.08);
+      --text:#ffffff;
+      --muted:#9fb3c8;
+      --accent:#2f8cff;
+      --radius:14px;
+      --shadow:0 20px 60px rgba(0,0,0,.6);
+    }
+    *{box-sizing:border-box}
+    html,body{min-height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+    .wrap{max-width:1280px;margin:0 auto;padding:16px}
+    .topbar{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;background:rgba(0,0,0,0.2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
+    h1{margin:0;font-size:24px}
+    .sub{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.45;max-width:980px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+    .btn, a.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:5px;padding:8px 12px;font:inherit;font-weight:700;cursor:pointer;background:rgba(128,128,128,0.7);color:#fff;text-decoration:none;transition:background-color .2s ease, transform .12s ease}
+    .btn:hover, a.btn:hover{transform:translateY(-1px);background:rgba(160,160,160,0.7)}
+    .primary{background:#2f8cff;color:#fff}
+    .primary:hover{background:#4b9dff}
+    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+    .panel{grid-column:span 12;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+    .panelHead{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02)}
+    .panelHead h2{margin:0;font-size:16px}
+    .panelBody{padding:16px}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+    .card{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;min-height:170px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+    .card h3{margin:0 0 6px 0;font-size:18px}
+    .card p{margin:0;color:var(--muted);line-height:1.45;font-size:13px}
+    .meta{font-size:12px;color:#cfe6ff;opacity:.9}
+    .foot{display:flex;gap:10px;flex-wrap:wrap}
+    @media (max-width: 720px){.actions{justify-content:flex-start} h1{font-size:22px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>LibraryJS Utilities</h1>
+        <div class="sub">Quick tools for notes, snippets, and small shared helpers that sit beside the media library instead of inside the main editor stack.</div>
+      </div>
+      <div class="actions">
+        <a class="btn" href="./profile.html">Back to Profiles</a>
+        <a class="btn primary" href="./manage.html">Open Manager</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <div class="panelHead"><h2>Everyday tools</h2></div>
+        <div class="panelBody">
+          <div class="cards">
+            <div class="card">
+              <div>
+                <h3>Paste</h3>
+                <p>Quick note drops, copied snippets, or temporary text you want to move around the server.</p>
+                <div class="meta">paste.html</div>
+              </div>
+              <div class="foot"><a class="btn primary" href="./paste.html">Open Paste</a></div>
+            </div>
+            <div class="card">
+              <div>
+                <h3>Notes</h3>
+                <p>Lightweight reminders and reference notes that belong with the library instead of outside it.</p>
+                <div class="meta">Notes.html</div>
+              </div>
+              <div class="foot"><a class="btn primary" href="./Notes.html">Open Notes</a></div>
+            </div>
+            <div class="card">
+              <div>
+                <h3>Calendar</h3>
+                <p>A shared planning surface for sessions, maintenance, and anything else that needs a spot in the archive.</p>
+                <div class="meta">Calendar.html</div>
+              </div>
+              <div class="foot"><a class="btn primary" href="./Calendar.html">Open Calendar</a></div>
+            </div>
+            <div class="card">
+              <div>
+                <h3>Cookbook</h3>
+                <p>Another quick-access space for practical household content that fits the same portable library idea.</p>
+                <div class="meta">cookbook.html</div>
+              </div>
+              <div class="foot"><a class="btn primary" href="./cookbook.html">Open Cookbook</a></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

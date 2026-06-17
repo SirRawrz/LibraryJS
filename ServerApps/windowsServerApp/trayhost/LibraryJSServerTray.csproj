@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>LibraryJSServer</AssemblyName>
+    <RootNamespace>LibraryJSServerTrayHost</RootNamespace>
+    <StartupObject>LibraryJSServerTrayHost.Program</StartupObject>
+    <ApplicationIcon>LibraryJSServer.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="LibraryJSServer.ico" LogicalName="LibraryJSServer.ico" />
+    <EmbeddedResource Include="payload\**\*.*">
+      <LogicalName>%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

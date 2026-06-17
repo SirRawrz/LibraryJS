@@ -1,0 +1,3391 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LibraryJS — Server Content Backup</title>
+  <style>
+    :root{
+      --bg:#0b1018;
+      --panel:#111827;
+      --panel2:#0d1420;
+      --line:rgba(255,255,255,.08);
+      --text:#edf4ff;
+      --muted:#93a2be;
+      --accent:#79e3c5;
+      --accent2:#86aafc;
+      --danger:#ff8591;
+      --warn:#ffbe6a;
+      --radius:22px;
+      --shadow:0 22px 60px rgba(0,0,0,.28);
+    }
+    *{box-sizing:border-box}
+    html,body{min-height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at top left, rgba(121,227,197,.09), transparent 26%),
+        radial-gradient(circle at right top, rgba(134,170,252,.08), transparent 24%),
+        linear-gradient(180deg, #09111b 0%, #0b1018 100%);
+      color:var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap{max-width:1680px;margin:0 auto;padding:16px}
+    .hero,.panel,.sectionCard{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+      box-shadow:var(--shadow);
+    }
+    .hero{
+      display:flex; flex-wrap:wrap; gap:14px;
+      align-items:flex-start; justify-content:space-between;
+      padding:16px;
+      margin-bottom:16px;
+    }
+    .hero h1{margin:0;font-size:26px;letter-spacing:-.04em}
+    .hero .sub{
+      margin-top:7px;
+      color:var(--muted);
+      max-width:980px;
+      line-height:1.45;
+      font-size:13px;
+    }
+    .hero .actions{
+      display:flex; flex-wrap:wrap; gap:10px;
+      justify-content:flex-end;
+      align-items:center;
+      flex:1 1 560px;
+    }
+    .hero input[type="text"]{
+      min-width:240px; flex:1 1 280px;
+      background:var(--panel2); color:var(--text);
+      border:1px solid var(--line); border-radius:12px;
+      padding:11px 12px; font:inherit; outline:none;
+    }
+    button{
+      border:0; border-radius:12px;
+      padding:11px 14px;
+      font:inherit; font-weight:750;
+      cursor:pointer;
+      background:rgba(255,255,255,.08);
+      color:var(--text);
+      border:1px solid var(--line);
+      transition:transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+    }
+    button:hover{border-color:rgba(134,170,252,.22)}
+    button:active{transform:translateY(1px)}
+    button.primary{
+      background:linear-gradient(180deg, rgba(121,227,197,1), rgba(92,202,168,1));
+      color:#07120f;
+      border-color:transparent;
+    }
+    button.danger{
+      background:rgba(255,133,145,.12);
+      color:#ffc5cb;
+      border-color:rgba(255,133,145,.18);
+    }
+    button.ghost{background:rgba(255,255,255,.04)}
+    button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+    .rail{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap:12px;
+      margin-bottom:16px;
+    }
+    .sectionCard{
+      position:relative;
+      min-height:106px;
+      overflow:hidden;
+      padding:14px 14px 12px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .sectionCard.active{
+      outline:2px solid rgba(121,227,197,.28);
+      border-color:rgba(121,227,197,.22);
+    }
+    .sectionCard.disabled{opacity:.68}
+    .sectionCard .topline{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    }
+    .sectionCard .name{
+      font-size:15px;
+      font-weight:800;
+      letter-spacing:-.02em;
+    }
+    .sectionCard .meta{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+    .sectionCard .count{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:30px;
+      padding:4px 8px;
+      border-radius:999px;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--text);
+      font-size:11px;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    .sectionCheck{
+      position:absolute;
+      top:10px;
+      right:10px;
+      width:26px;
+      height:26px;
+      border-radius:8px;
+      background:rgba(10,14,22,.7);
+      border:1px solid rgba(255,255,255,.12);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      backdrop-filter:blur(8px);
+      z-index:2;
+    }
+    .sectionCheck input{width:18px;height:18px;margin:0;cursor:pointer}
+
+    .main{
+      display:grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap:16px;
+      align-items:start;
+    }
+    .panel{overflow:hidden}
+    .panelHead{
+      padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.02);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .panelHead h2{margin:0;font-size:16px}
+    .panelHead .meta{color:var(--muted);font-size:12px}
+    .panelBody{padding:16px}
+    .crumbs{
+      display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+      margin-bottom:14px;
+      color:var(--muted); font-size:13px;
+    }
+    .crumbs .sep{opacity:.55}
+    .crumb{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border-radius:999px;
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--line);
+      color:var(--text);
+      cursor:pointer;
+      user-select:none;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap:14px;
+    }
+    .tile{
+      position:relative;
+      border:1px solid var(--line);
+      border-radius:18px;
+      overflow:hidden;
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      box-shadow:0 10px 25px rgba(0,0,0,.18);
+      cursor:pointer;
+      min-height:220px;
+      display:flex;
+      flex-direction:column;
+      transition:transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+    }
+    .tile:hover{transform:translateY(-2px); border-color:rgba(134,170,252,.25); box-shadow:0 16px 30px rgba(0,0,0,.28)}
+    .tile .art{
+      height:132px;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(121,227,197,.25), transparent 30%),
+        radial-gradient(circle at 70% 80%, rgba(134,170,252,.22), transparent 26%),
+        linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.01));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+    }
+    .tile img{width:100%;height:100%;object-fit:cover;display:block}
+    .tile .fallback{
+      position:absolute; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      padding:14px;
+      text-align:center;
+      font-size:22px;
+      line-height:1.05;
+      letter-spacing:-.03em;
+      font-weight:800;
+      color:#fff;
+      text-shadow:0 3px 15px rgba(0,0,0,.35);
+      background:linear-gradient(135deg, rgba(12,16,24,.15), rgba(12,16,24,.5));
+    }
+    .tile .body{
+      padding:12px 12px 13px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-height:88px;
+    }
+    .tile .name{
+      font-weight:750;
+      font-size:14px;
+      line-height:1.15;
+      overflow:hidden;
+      display:-webkit-box;
+      -webkit-line-clamp:3;
+      -webkit-box-orient:vertical;
+      min-height:48px;
+    }
+    .tile .foot{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      color:var(--muted); font-size:12px;
+    }
+    .badge{
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      font-size:11px;
+      white-space:nowrap;
+    }
+    .check{
+      position:absolute;
+      top:10px; right:10px;
+      width:26px; height:26px;
+      border-radius:8px;
+      background:rgba(10,14,22,.75);
+      border:1px solid rgba(255,255,255,.12);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:2;
+      backdrop-filter:blur(8px);
+      pointer-events:auto;
+    }
+    .check input{width:18px;height:18px;margin:0;cursor:pointer}
+    .tile.selected{outline:2px solid rgba(121,227,197,.55); border-color:rgba(121,227,197,.32)}
+    .tile.partial{outline:2px solid rgba(255,190,106,.45); border-color:rgba(255,190,106,.24)}
+    .tile .openHint{
+      position:absolute; bottom:10px; right:10px;
+      padding:5px 8px;
+      border-radius:999px;
+      font-size:11px;
+      background:rgba(0,0,0,.38);
+      border:1px solid rgba(255,255,255,.12);
+      color:#fff;
+      z-index:1;
+    }
+    .side{
+      position:sticky;
+      top:16px;
+    }
+    .stat{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-bottom:12px;
+    }
+    .card{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px;
+    }
+    .card .k{color:var(--muted);font-size:12px}
+    .card .v{margin-top:6px;font-size:18px;font-weight:800}
+    .selList{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      max-height:340px;
+      overflow:auto;
+      padding-right:4px;
+    }
+    .selItem{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:9px 10px;
+      border-radius:12px;
+      background:rgba(255,255,255,.035);
+      border:1px solid rgba(255,255,255,.06);
+      font-size:12px;
+    }
+    .selItem .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .selItem .x{
+      color:var(--muted);
+      flex:0 0 auto;
+      cursor:pointer;
+      font-size:13px;
+    }
+    .log{
+      margin-top:12px;
+      min-height:54px;
+      white-space:pre-wrap;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+    }
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+    .notice{
+      margin-top:10px;
+      color:var(--warn);
+      font-size:12px;
+      line-height:1.4;
+    }
+    @media (max-width: 1080px){
+      .main{grid-template-columns:1fr}
+      .side{position:static}
+      .rail{grid-template-columns: repeat(2, minmax(0, 1fr))}
+    }
+    @media (max-width: 640px){
+      .grid{grid-template-columns:repeat(auto-fill, minmax(135px, 1fr))}
+      .tile{min-height:200px}
+      .hero input[type="text"]{min-width:100%}
+      .hero .actions{justify-content:flex-start}
+      .rail{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="titleBlock">
+        <h1>Server Content Backup</h1>
+        <div class="sub">
+          Video, Music, Games, Books, and Manga each get their own backup logic. Video mirrors your main-folder library like <span class="mono">index.html</span>; Music exports a trimmed <span class="mono">musiclibrary.js</span>; Games exports <span class="mono">games.js</span> together with matching <span class="mono">guidebooks.js</span> entries; Books and Manga export trimmed library data with book audiobook flags preserved when present.
+        </div>
+        <div class="notice" id="notice"></div>
+      </div>
+      <div class="actions">
+        <input id="search" type="text" placeholder="Filter current view..." />
+        <button id="homeBtn">Roots</button>
+        <button id="upBtn">Up</button>
+        <button id="selectAllBtn">Select view</button>
+        <button id="clearViewBtn" class="danger">Clear view</button>
+        <button id="backupBtn" class="primary">Backup selected</button>
+      </div>
+    </div>
+
+    <div class="rail" id="rail">
+      <div class="sectionCard active" id="videoCard">
+        <label class="sectionCheck"><input id="videoCardCheck" type="checkbox" /></label>
+        <div class="topline">
+          <div>
+            <div class="name">Video</div>
+            <div class="meta">The full browsable main-folder library.</div>
+          </div>
+          <div class="count" id="videoCount">0</div>
+        </div>
+        <div class="meta" id="videoHint">Active section</div>
+      </div>
+
+      <div class="sectionCard active" id="musicCard">
+        <label class="sectionCheck"><input id="musicCardCheck" type="checkbox" /></label>
+        <div class="topline">
+          <div>
+            <div class="name">Music</div>
+            <div class="meta">Genres, artists, and songs from musiclibrary.js.</div>
+          </div>
+          <div class="count" id="musicCount">0</div>
+        </div>
+        <div class="meta" id="musicHint">Active section</div>
+      </div>
+
+      <div class="sectionCard active" id="gamesCard">
+        <label class="sectionCheck"><input id="gamesCardCheck" type="checkbox" /></label>
+        <div class="topline">
+          <div>
+            <div class="name">Games</div>
+            <div class="meta">Selected games.js entries and their matching guidebooks.js rows.</div>
+          </div>
+          <div class="count" id="gamesCount">0</div>
+        </div>
+        <div class="meta" id="gamesHint">Select games to back up the matching guidebooks.js entries too.</div>
+      </div>
+
+      <div class="sectionCard active" id="booksCard">
+        <label class="sectionCheck"><input id="booksCardCheck" type="checkbox" /></label>
+        <div class="topline">
+          <div>
+            <div class="name">Books</div>
+            <div class="meta">Book collections from books.js, with optional audiobook metadata.</div>
+          </div>
+          <div class="count" id="booksCount">0</div>
+        </div>
+        <div class="meta" id="booksHint">Active section</div>
+      </div>
+
+      <div class="sectionCard active" id="mangaCard">
+        <label class="sectionCheck"><input id="mangaCardCheck" type="checkbox" /></label>
+        <div class="topline">
+          <div>
+            <div class="name">Manga</div>
+            <div class="meta">Manga entries from manga.js.</div>
+          </div>
+          <div class="count" id="mangaCount">0</div>
+        </div>
+        <div class="meta" id="mangaHint">Active section</div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="panel">
+        <div class="panelHead">
+          <div>
+            <h2 id="viewTitle">Loading…</h2>
+            <div class="meta" id="viewMeta">Fetching source files.</div>
+          </div>
+          <div class="meta" id="viewCount"></div>
+        </div>
+        <div class="panelBody">
+          <div class="crumbs" id="crumbs"></div>
+          <div class="grid" id="grid"></div>
+        </div>
+      </div>
+
+      <div class="panel side">
+        <div class="panelHead">
+          <div>
+            <h2>Selection</h2>
+            <div class="meta">Checked tiles and generated output</div>
+          </div>
+        </div>
+        <div class="panelBody">
+          <div class="stat">
+            <div class="card">
+              <div class="k">Selected nodes</div>
+              <div class="v" id="selectedCount">0</div>
+            </div>
+            <div class="card">
+              <div class="k">Output files</div>
+              <div class="v" id="outputCount">0</div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:12px;">
+            <div class="k">Selected paths</div>
+            <div class="selList" id="selectedList" style="margin-top:10px;"></div>
+          </div>
+          <div class="card">
+            <div class="k">Status</div>
+            <div class="log" id="log">Waiting for source files…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const VIDEO_EXCLUDES = new Set([
+    "Continue Watching",
+    "Music",
+    "Games",
+    "Books",
+    "Manga",
+    "Favorites"
+  ]);
+
+  const SOURCE_FILES = {
+    folders: "mainfolders.js",
+    episodes: "library.js",
+    loaders: "loadseasonfunctions.js",
+    music: "musiclibrary.js",
+    games: "games.js",
+    guidebooks: "guidebooks.js",
+    books: "books.js",
+    manga: "manga.js",
+  };
+
+  const state = {
+    foldersRaw: [],
+    episodes: {},
+    loaderEntries: [],
+    loaderByTitle: new Map(),
+    loaderByKey: new Map(),
+
+    musicLibrary: [],
+    musicLibraryGenreMap: {},
+    musicGenres: [],
+    musicGenreByName: new Map(),
+    musicGenreByCode: new Map(),
+
+    games: [],
+    guidebooks: [],
+
+    books: { title: "Book Library", items: [] },
+    manga: { title: "Manga Library", items: [] },
+
+    bookAudiobookAvailable: new Map(),
+    bookAudiobookChoice: new Map(),
+    bookAudiobookProbePending: new Set(),
+
+    search: "",
+    currentPath: [],
+    selectedBySection: {
+      video: new Set(),
+      music: new Set(),
+      games: new Set(),
+      books: new Set(),
+      manga: new Set()
+    },
+    prunedBySection: {
+      video: new Set(),
+      music: new Set(),
+      games: new Set(),
+      books: new Set(),
+      manga: new Set()
+    },
+    currentSection: "video",
+    loaded: false,
+    childCache: new Map(),
+    subtreeCache: new Map(),
+    nodeStateCache: new Map(),
+    sourceBase: "",
+    selectionVersion: 0
+  };
+
+  Object.defineProperty(state, "selected", {
+    get() {
+      return (state.selectedBySection && state.selectedBySection[state.currentSection]) || state.selectedBySection.video;
+    }
+  });
+  Object.defineProperty(state, "pruned", {
+    get() {
+      return (state.prunedBySection && state.prunedBySection[state.currentSection]) || state.prunedBySection.video;
+    }
+  });
+
+  const el = {
+    search: document.getElementById("search"),
+    homeBtn: document.getElementById("homeBtn"),
+    upBtn: document.getElementById("upBtn"),
+    selectAllBtn: document.getElementById("selectAllBtn"),
+    clearViewBtn: document.getElementById("clearViewBtn"),
+    backupBtn: document.getElementById("backupBtn"),
+    videoCard: document.getElementById("videoCard"),
+    videoCardCheck: document.getElementById("videoCardCheck"),
+    videoCount: document.getElementById("videoCount"),
+    videoHint: document.getElementById("videoHint"),
+    musicCard: document.getElementById("musicCard"),
+    musicCardCheck: document.getElementById("musicCardCheck"),
+    musicCount: document.getElementById("musicCount"),
+    musicHint: document.getElementById("musicHint"),
+    gamesCard: document.getElementById("gamesCard"),
+    gamesCardCheck: document.getElementById("gamesCardCheck"),
+    gamesCount: document.getElementById("gamesCount"),
+    gamesHint: document.getElementById("gamesHint"),
+    booksCard: document.getElementById("booksCard"),
+    booksCardCheck: document.getElementById("booksCardCheck"),
+    booksCount: document.getElementById("booksCount"),
+    booksHint: document.getElementById("booksHint"),
+    mangaCard: document.getElementById("mangaCard"),
+    mangaCardCheck: document.getElementById("mangaCardCheck"),
+    mangaCount: document.getElementById("mangaCount"),
+    mangaHint: document.getElementById("mangaHint"),
+    musicCard: document.getElementById("musicCard"),
+    musicCardCheck: document.getElementById("musicCardCheck"),
+    musicCount: document.getElementById("musicCount"),
+    musicHint: document.getElementById("musicHint"),
+    viewTitle: document.getElementById("viewTitle"),
+    viewMeta: document.getElementById("viewMeta"),
+    viewCount: document.getElementById("viewCount"),
+    crumbs: document.getElementById("crumbs"),
+    grid: document.getElementById("grid"),
+    selectedCount: document.getElementById("selectedCount"),
+    outputCount: document.getElementById("outputCount"),
+    selectedList: document.getElementById("selectedList"),
+    log: document.getElementById("log"),
+    notice: document.getElementById("notice")
+  };
+
+  const enc = new TextEncoder();
+
+  function log(msg) { el.log.textContent = String(msg || ""); }
+  function cleanTitle(raw) { return String(raw || "").replace(/\*/g, "").trim(); }
+  function starFlag(raw) { return String(raw || "").includes("*"); }
+
+  function compareKey(s) {
+    return String(s || "")
+      .replace(/&amp;/gi, "and")
+      .replace(/&/g, "and")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, "");
+  }
+
+  function looseKey(s) {
+    return String(s || "")
+      .replace(/&amp;/gi, "and")
+      .replace(/&/g, "and")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  }
+
+  function normPath(parts) {
+    return JSON.stringify(parts || []);
+  }
+
+  function setCurrentSection(section) {
+    state.currentSection = section || "video";
+    state.currentPath = [];
+    state.search = "";
+    el.search.value = "";
+    render();
+  }
+
+  function slugify(str) {
+    return cleanTitle(str)
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/[\s_-]+/g, "%20");
+  }
+
+  function unique(arr) {
+    return [...new Set(arr.filter(Boolean))];
+  }
+
+  function resourceCandidates(file) {
+    const raw = String(file || "").replace(/^\.\//, "");
+    return [new URL(raw, new URL("./", window.location.href)).href];
+  }
+
+  async function fetchTextResource(file) {
+    const urls = resourceCandidates(file);
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return { text: await res.text(), source: url };
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError || new Error(`${file} not found`);
+  }
+
+  function evalVariableSource(txt, varName) {
+    try {
+      const fn = new Function(`${txt}\nreturn (typeof ${varName} !== 'undefined') ? ${varName} : null;`);
+      return fn();
+    } catch (e) {
+      console.warn(`Failed to evaluate ${varName}`, e);
+      return null;
+    }
+  }
+
+  function getBalancedBlock(text, openIndex) {
+    let depth = 0;
+    let i = openIndex;
+    let state = "code";
+    let escaped = false;
+    let regexClass = false;
+    let prevSig = "";
+
+    const regexStarters = new Set(["(", "[", "{", "=", ":", ";", ",", "!", "?", "+", "-", "*", "%", "&", "|", "^", "~", "<", ">", "\n"]);
+
+    for (; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (state === "lineComment") {
+        if (ch === "\n") state = "code";
+        continue;
+      }
+
+      if (state === "blockComment") {
+        if (ch === "*" && next === "/") {
+          state = "code";
+          i++;
+        }
+        continue;
+      }
+
+      if (state === "singleQuote") {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === "\\") {
+          escaped = true;
+        } else if (ch === "'") {
+          state = "code";
+        }
+        continue;
+      }
+
+      if (state === "doubleQuote") {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === "\\") {
+          escaped = true;
+        } else if (ch === '"') {
+          state = "code";
+        }
+        continue;
+      }
+
+      if (state === "template") {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === "\\") {
+          escaped = true;
+        } else if (ch === "`") {
+          state = "code";
+        }
+        continue;
+      }
+
+      if (state === "regex") {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === "\\") {
+          escaped = true;
+        } else if (ch === "[") {
+          regexClass = true;
+        } else if (ch === "]" && regexClass) {
+          regexClass = false;
+        } else if (ch === "/" && !regexClass) {
+          state = "code";
+        }
+        continue;
+      }
+
+      if (ch === "/" && next === "/") {
+        state = "lineComment";
+        i++;
+        continue;
+      }
+
+      if (ch === "/" && next === "*") {
+        state = "blockComment";
+        i++;
+        continue;
+      }
+
+      if (ch === "'") {
+        state = "singleQuote";
+        escaped = false;
+        continue;
+      }
+
+      if (ch === '"') {
+        state = "doubleQuote";
+        escaped = false;
+        continue;
+      }
+
+      if (ch === "`") {
+        state = "template";
+        escaped = false;
+        continue;
+      }
+
+      if (ch === "/" && regexStarters.has(prevSig)) {
+        state = "regex";
+        escaped = false;
+        regexClass = false;
+        continue;
+      }
+
+      if (ch === "{") {
+        depth++;
+      } else if (ch === "}") {
+        depth--;
+        if (depth === 0) return i;
+      }
+
+      if (!/\s/.test(ch)) prevSig = ch;
+    }
+
+    return -1;
+  }
+
+  function parseLoaders(txt) {
+    const entries = [];
+    const re = /function\s+(load[A-Za-z0-9_]+Seasons)\s*\(\)\s*\{/g;
+    let m;
+    while ((m = re.exec(txt)) !== null) {
+      const fnName = m[1];
+      const start = m.index;
+      const open = txt.indexOf("{", re.lastIndex - 1);
+      if (open < 0) continue;
+      const close = getBalancedBlock(txt, open);
+      if (close < 0) continue;
+      const block = txt.slice(start, close + 1);
+
+      const seasonsMatch = block.match(/const\s+seasons\s*=\s*\[([\s\S]*?)\]\s*;/m);
+      let seasons = [];
+      if (seasonsMatch) {
+        try {
+          seasons = new Function(`return [${seasonsMatch[1]}];`)() || [];
+        } catch (e) {
+          console.warn(`Could not parse seasons for ${fnName}`, e);
+        }
+      }
+
+      const title = decodeLoaderNameToDisplayName(fnName);
+      const entry = {
+        fnName,
+        title,
+        block,
+        seasons,
+        key: compareKey(title),
+        loose: looseKey(title)
+      };
+      entries.push(entry);
+      if (title) state.loaderByTitle.set(title, entry);
+      if (entry.key) state.loaderByKey.set(entry.key, entry);
+      if (entry.loose) state.loaderByKey.set(entry.loose, entry);
+    }
+    state.loaderEntries = entries;
+  }
+
+  function evalSourceWithPrelude(txt, varName, prelude = "") {
+    try {
+      const fn = new Function(`${prelude}\n${txt}\nreturn (typeof ${varName} !== 'undefined') ? ${varName} : null;`);
+      return fn();
+    } catch (e) {
+      console.warn(`Failed to evaluate ${varName}`, e);
+      return null;
+    }
+  }
+
+  function sortByLabel(a, b) {
+    return cleanTitle(a).localeCompare(cleanTitle(b), undefined, { sensitivity: "base", numeric: true });
+  }
+
+  function parseMusicEntry(raw, genreMap) {
+    const line = String(raw || "").trim();
+    if (!line) return null;
+    const dollar = line.lastIndexOf("$");
+    const genreCode = dollar >= 0 ? line.slice(dollar + 1).trim() : "";
+    const body = dollar >= 0 ? line.slice(0, dollar).trim() : line;
+
+    const dash = body.lastIndexOf(" - ");
+    const title = dash >= 0 ? body.slice(0, dash).trim() : body;
+    const artist = dash >= 0 ? body.slice(dash + 3).trim() : "";
+
+    const genreName = String(genreMap && genreMap[genreCode] ? genreMap[genreCode] : genreCode || "Unknown").trim() || "Unknown";
+    const cleanSong = cleanTitle(title);
+    const cleanArtist = cleanTitle(artist || "Unknown Artist");
+    return {
+      raw: line,
+      title: cleanSong,
+      song: cleanSong,
+      artist: cleanArtist,
+      genreCode,
+      genreName,
+      sortTitle: cleanSong,
+      sortArtist: cleanArtist
+    };
+  }
+
+  function parseMusicSource(txt) {
+    const genreMap = evalVariableSource(txt, "musicLibraryGenreMap") || {};
+    const library = evalVariableSource(txt, "musicLibrary") || [];
+
+    const genreBuckets = new Map();
+    for (const [code, name] of Object.entries(genreMap)) {
+      const cleanName = cleanTitle(name);
+      if (!cleanName) continue;
+      genreBuckets.set(cleanName, {
+        name: cleanName,
+        code: String(code || ""),
+        artists: new Map()
+      });
+    }
+
+    for (const raw of library) {
+      const entry = parseMusicEntry(raw, genreMap);
+      if (!entry) continue;
+      if (!genreBuckets.has(entry.genreName)) {
+        genreBuckets.set(entry.genreName, {
+          name: entry.genreName,
+          code: entry.genreCode,
+          artists: new Map()
+        });
+      }
+      const genre = genreBuckets.get(entry.genreName);
+      const artistName = entry.artist || "Unknown Artist";
+      if (!genre.artists.has(artistName)) {
+        genre.artists.set(artistName, { name: artistName, songs: [] });
+      }
+      genre.artists.get(artistName).songs.push(entry);
+    }
+
+    const genres = [...genreBuckets.values()]
+      .sort((a, b) => sortByLabel(a.name, b.name))
+      .map(genre => ({
+        title: genre.name,
+        name: genre.name,
+        code: genre.code,
+        artists: [...genre.artists.values()]
+          .sort((a, b) => sortByLabel(a.name, b.name))
+          .map(artist => ({
+            artist: artist.name,
+            name: artist.name,
+            songs: artist.songs.slice().sort((a, b) => sortByLabel(a.title, b.title))
+          }))
+      }));
+
+    const genreByName = new Map(genres.map(g => [g.name, g]));
+    const genreByCode = new Map(genres.map(g => [g.code, g]));
+
+    return { genreMap, library, genres, genreByName, genreByCode };
+  }
+
+  function parseGamesSource(txt) {
+    const games = evalSourceWithPrelude(txt, "games", "var folders = [];");
+    return Array.isArray(games) ? games : [];
+  }
+
+  function parseGuidebooksSource(txt) {
+    const data = evalVariableSource(txt, "libraryData") || {};
+    const items = Array.isArray(data.items) ? data.items : (Array.isArray(evalVariableSource(txt, "guidebooksLibrary")) ? evalVariableSource(txt, "guidebooksLibrary") : []);
+    return {
+      title: cleanTitle(data.title || "Guidebook Library"),
+      items: Array.isArray(items) ? items : []
+    };
+  }
+
+  function parseBooksSource(txt) {
+    const data = evalVariableSource(txt, "libraryData") || {};
+    const items = Array.isArray(data.items) ? data.items : [];
+    return {
+      title: cleanTitle(data.title || "Book Library"),
+      items: Array.isArray(items) ? items : []
+    };
+  }
+
+  function parseMangaSource(txt) {
+    const data = evalVariableSource(txt, "libraryData") || {};
+    const items = Array.isArray(data.items) ? data.items : [];
+    return {
+      title: cleanTitle(data.title || "Manga Library"),
+      items: Array.isArray(items) ? items : []
+    };
+  }
+
+  function getLibraryRoots(section) {
+    if (section === "books") return Array.isArray(state.books?.items) ? state.books.items : [];
+    if (section === "manga") return Array.isArray(state.manga?.items) ? state.manga.items : [];
+    return [];
+  }
+
+  function findLibraryItemByTitle(section, title, items = null) {
+    const target = compareKey(cleanTitle(title));
+    const list = Array.isArray(items) ? items : getLibraryRoots(section);
+    for (const item of list) {
+      if (!item || typeof item !== "object") continue;
+      const itemTitle = cleanTitle(item.title || item.name || "");
+      if (itemTitle && compareKey(itemTitle) === target) return item;
+      const childList = Array.isArray(item.books) ? item.books : [];
+      if (childList.length) {
+        const found = findLibraryItemByTitle(section, title, childList);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  function findLibraryItemByPath(section, pathParts) {
+    const parts = Array.isArray(pathParts) ? pathParts : [];
+    if (!parts.length) return null;
+    let currentList = getLibraryRoots(section);
+    let current = null;
+    for (const part of parts) {
+      const target = compareKey(cleanTitle(part));
+      current = null;
+      for (const item of currentList) {
+        if (!item || typeof item !== "object") continue;
+        const itemTitle = cleanTitle(item.title || item.name || "");
+        if (itemTitle && compareKey(itemTitle) === target) {
+          current = item;
+          break;
+        }
+      }
+      if (!current) return null;
+      currentList = Array.isArray(current.books) ? current.books : [];
+    }
+    return current;
+  }
+
+  function libraryNodeChildren(section, item) {
+    return item && item.group && Array.isArray(item.books) ? item.books : [];
+  }
+
+  function bookAudiobookKeyFromPath(pathParts) {
+    return pathKey(Array.isArray(pathParts) ? pathParts : []);
+  }
+
+  function buildAudiobookCandidates(bookFile) {
+    const cleaned = String(bookFile || "").split(/[?#]/)[0];
+    if (!cleaned) return [];
+    const parts = cleaned.split("/").filter(Boolean);
+    const file = parts.pop() || "";
+    const folder = parts.length ? "/" + parts.join("/") : "";
+    const baseName = file.replace(/\.[^.]+$/, "");
+    return [
+      `${folder}/audiobooks/${baseName}-audiobook.json`,
+      `${folder}/audiobooks/${baseName}.json`,
+      `${folder}/audiobooks/${baseName}.m4a`,
+      `${folder}/audiobooks/${baseName}.mp3`,
+      `${folder}/audiobooks/${baseName}.mp4`
+    ];
+  }
+
+  async function probeBookAudiobook(node) {
+    const path = Array.isArray(node?.path) ? node.path : [];
+    const key = bookAudiobookKeyFromPath(path);
+    if (!key || state.bookAudiobookAvailable.has(key) || state.bookAudiobookProbePending.has(key)) return;
+    const file = node && node.item && node.item.file ? String(node.item.file) : "";
+    if (!file) return;
+    state.bookAudiobookProbePending.add(key);
+    try {
+      let available = false;
+      for (const candidate of buildAudiobookCandidates(file)) {
+        try {
+          const res = await fetch(candidate, { method: "HEAD", cache: "no-store" });
+          if (res.ok) { available = true; break; }
+        } catch {}
+      }
+      state.bookAudiobookAvailable.set(key, available);
+      
+    } finally {
+      state.bookAudiobookProbePending.delete(key);
+      if (state.currentSection === "books") render();
+    }
+  }
+
+  async function primeBookAudiobookAvailability(selectedRoots = selectedRootsForOutput()) {
+    const roots = getLibraryRoots("books");
+    const wanted = new Set((selectedRoots || []).map(r => compareKey(cleanTitle(r))));
+    const jobs = [];
+
+    function walk(items, ancestry = []) {
+      for (const item of items || []) {
+        if (!item || typeof item !== "object") continue;
+        const title = cleanTitle(item.title || item.name || "");
+        if (!title) continue;
+        const nextPath = ancestry.concat([title]);
+        if (ancestry.length === 0 && wanted.size && !wanted.has(compareKey(title))) continue;
+        const node = { title, item, path: nextPath };
+        if (item.group && Array.isArray(item.books) && item.books.length) {
+          walk(item.books, nextPath);
+        } else {
+          jobs.push(probeBookAudiobook(node));
+        }
+      }
+    }
+
+    walk(roots, []);
+    await Promise.all(jobs);
+  }
+
+  function getBookAudiobookChoice(pathParts) {
+    const key = bookAudiobookKeyFromPath(pathParts);
+    if (!key) return false;
+    if (state.bookAudiobookChoice.has(key)) return !!state.bookAudiobookChoice.get(key);
+    return false;
+  }
+
+  function setBookAudiobookChoice(pathParts, on) {
+    const key = bookAudiobookKeyFromPath(pathParts);
+    if (!key) return;
+    state.bookAudiobookChoice.set(key, !!on);
+    touchSelection();
+    render();
+  }
+
+  function decodeLoaderNameToDisplayName(fnName) {
+    const raw = String(fnName || "").trim();
+    const cleaned = raw.replace(/^load/i, "").replace(/Seasons$/i, "");
+    return cleaned
+      .replace(/ApOsTrOpHe/g, "'")
+      .replace(/AmPeRsAnD/g, "&")
+      .replace(/PeRiOd/g, ".")
+      .replace(/CoMmA/g, ",")
+      .replace(/ExClAmAtIoN/g, "!")
+      .replace(/HyPhEn/g, "-")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function loaderUltraKey(value) {
+    return String(value || "")
+      .replace(/&amp;|&/gi, "and")
+      .replace(/\*/g, "")
+      .replace(/['’]/g, "")
+      .replace(/[^a-z0-9]/gi, "")
+      .toLowerCase();
+  }
+
+  function resolveLoaderEntry(title) {
+    const base = cleanTitle(title);
+    const targetKeys = new Set([
+      base,
+      compareKey(base),
+      looseKey(base),
+      loaderUltraKey(base)
+    ].filter(Boolean));
+
+    const direct = state.loaderByTitle.get(base) ||
+      state.loaderByKey.get(compareKey(base)) ||
+      state.loaderByKey.get(looseKey(base)) ||
+      null;
+    if (direct && Array.isArray(direct.seasons) && direct.seasons.length) return direct;
+
+    for (const entry of state.loaderEntries) {
+      if (!entry) continue;
+      const entryKeys = [
+        entry.title,
+        compareKey(entry.title),
+        looseKey(entry.title),
+        loaderUltraKey(entry.title)
+      ].filter(Boolean);
+      if (entryKeys.some(k => targetKeys.has(k))) return entry;
+    }
+
+    return direct;
+  }
+
+    function getSourceArrayForTitle(title) {
+    const base = cleanTitle(title);
+
+    if (state.currentSection === "music") {
+      const genre = state.musicGenreByName.get(base);
+      if (genre && Array.isArray(genre.artists)) return genre.artists.map(a => a.name);
+      return null;
+    }
+
+    if (state.currentSection === "books") {
+      const item = findLibraryItemByTitle("books", base);
+      const children = libraryNodeChildren("books", item);
+      return children.length ? children.map(child => cleanTitle(child.title || child.name || "")) : null;
+    }
+
+    if (state.currentSection === "manga") {
+      const item = findLibraryItemByTitle("manga", base);
+      const children = libraryNodeChildren("manga", item);
+      return children.length ? children.map(child => cleanTitle(child.title || child.name || "")) : null;
+    }
+
+    if (state.currentSection === "games") {
+      return null;
+    }
+
+    const eps = state.episodes || {};
+
+    if (Array.isArray(eps[title]) && eps[title].length) return eps[title];
+    if (Array.isArray(eps[base]) && eps[base].length) return eps[base];
+
+    const entry = resolveLoaderEntry(base);
+    if (entry && Array.isArray(entry.seasons) && entry.seasons.length) return entry.seasons;
+
+    return null;
+  }
+
+  function getLoaderEntryForTitle(title) {
+    return resolveLoaderEntry(title);
+  }
+
+  function musicGenreLabel(code) {
+    const key = String(code || "").trim();
+    return String(state.musicGenreMap?.[key] || key || "Unsorted").trim() || "Unsorted";
+  }
+
+  function parseMusicEntry(raw, index) {
+    const line = String(raw || "").trim();
+    const dollar = line.lastIndexOf("$");
+    const body = dollar >= 0 ? line.slice(0, dollar).trim() : line;
+    const code = dollar >= 0 ? line.slice(dollar + 1).trim() : "";
+    const dash = body.lastIndexOf(" - ");
+    const song = dash >= 0 ? body.slice(0, dash).trim() : body.trim();
+    const artist = dash >= 0 ? body.slice(dash + 3).trim() : "Unknown Artist";
+    return {
+      raw: line,
+      index,
+      song,
+      artist,
+      code,
+      genre: musicGenreLabel(code),
+      genreKey: compareKey(musicGenreLabel(code)),
+      artistKey: compareKey(artist),
+      songKey: compareKey(song),
+      display: `${song} - ${artist}`
+    };
+  }
+
+  function parseMusicLibrary(txt) {
+    state.musicLibraryRaw = [];
+    state.musicGenreMap = {};
+    state.musicGenres = [];
+    state.musicByTitle = new Map();
+
+    if (!txt) return;
+
+    const map = evalVariableSource(txt, "musicLibraryGenreMap") || {};
+    state.musicGenreMap = map && typeof map === "object" ? map : {};
+
+    const rawArr = evalVariableSource(txt, "musicLibrary");
+    const list = Array.isArray(rawArr) ? rawArr.slice() : [];
+    state.musicLibraryRaw = list;
+
+    const groups = new Map();
+    const dedupe = new Set();
+
+    for (let i = 0; i < list.length; i++) {
+      const entry = parseMusicEntry(list[i], i);
+      if (!entry.song || !entry.artist) continue;
+      const key = `${compareKey(entry.song)}|${compareKey(entry.artist)}|${String(entry.code || "").trim().toUpperCase()}`;
+      if (dedupe.has(key)) continue;
+      dedupe.add(key);
+
+      const groupKey = compareKey(entry.genre) || compareKey(entry.code) || "unsorted";
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, {
+          title: entry.genre,
+          code: String(entry.code || "").trim(),
+          entries: [],
+          artists: new Map(),
+        });
+      }
+      const group = groups.get(groupKey);
+      group.entries.push(entry);
+      if (!group.artists.has(entry.artist)) {
+        group.artists.set(entry.artist, []);
+      }
+      group.artists.get(entry.artist).push(entry);
+      state.musicByTitle.set(compareKey(entry.display), entry);
+    }
+
+    const genres = [...groups.values()].sort((a, b) => {
+      const ak = compareKey(a.title);
+      const bk = compareKey(b.title);
+      if (ak !== bk) return ak.localeCompare(bk);
+      return String(a.code || "").localeCompare(String(b.code || ""));
+    });
+
+    for (const genre of genres) {
+      genre.artists = [...genre.artists.entries()]
+        .map(([artist, songs]) => ({
+          artist,
+          songs: songs.slice().sort((x, y) => compareKey(x.song).localeCompare(compareKey(y.song)) || compareKey(x.display).localeCompare(compareKey(y.display)))
+        }))
+        .sort((a, b) => compareKey(a.artist).localeCompare(compareKey(b.artist)));
+      genre.count = genre.artists.reduce((n, a) => n + a.songs.length, 0);
+    }
+
+    state.musicGenres = genres;
+  }
+
+  function musicRootTitles() {
+    return (state.musicGenres || []).map(g => cleanTitle(g.title || g.name || "")).filter(Boolean);
+  }
+
+  function getMusicGroupForTitle(title) {
+    const key = compareKey(cleanTitle(title));
+    return (state.musicGenres || []).find(g => compareKey(g.title) === key) || null;
+  }
+
+  function getMusicNodeChildren(title, pathParts, ancestry) {
+    const key = pathKey(pathParts);
+    if (state.childCache.has(key)) return state.childCache.get(key);
+
+    const out = [];
+    const path = Array.isArray(pathParts) ? pathParts : [];
+    const group = getMusicGroupForTitle(title);
+
+    if (!group) {
+      state.childCache.set(key, out);
+      return out;
+    }
+
+    if (path.length <= 1) {
+      for (const artistGroup of group.artists) {
+        out.push({
+          kind: "branch",
+          title: artistGroup.artist,
+          path: [group.title, artistGroup.artist],
+          ancestry: [group.title, artistGroup.artist],
+          hasChildren: true,
+          count: artistGroup.songs.length,
+          depth: 2,
+          genre: group.title,
+          code: group.code
+        });
+      }
+    } else if (path.length === 2) {
+      const artistName = String(path[1]);
+      const artistGroup = group.artists.find(a => compareKey(a.artist) === compareKey(artistName)) || null;
+      if (artistGroup) {
+        for (const song of artistGroup.songs) {
+          out.push({
+            kind: "leaf",
+            title: song.song,
+            path: [group.title, artistGroup.artist, song.song],
+            ancestry: [group.title, artistGroup.artist, song.song],
+            hasChildren: false,
+            song,
+            depth: 3,
+            genre: group.title,
+            code: group.code,
+            artist: artistGroup.artist
+          });
+        }
+      }
+    }
+
+    state.childCache.set(key, out);
+    return out;
+  }
+
+  function buildMiniMusicLibrary(selectedRoots = selectedRootsForOutput()) {
+    const roots = Array.isArray(selectedRoots) ? selectedRoots : [];
+    const out = [];
+    const usedCodes = new Set();
+    const rootSet = new Set(roots.map(r => compareKey(cleanTitle(r))));
+
+    for (const genre of state.musicGenres || []) {
+      if (!rootSet.size || rootSet.has(compareKey(genre.title))) {
+        for (const artistGroup of genre.artists) {
+          for (const song of artistGroup.songs) {
+            const leafPath = [genre.title, artistGroup.artist, song.song];
+            const artistPath = [genre.title, artistGroup.artist];
+            const rootPath = [genre.title];
+            if (!pathIntersectsExportSelection(rootPath) && !pathIntersectsExportSelection(artistPath) && !pathIntersectsExportSelection(leafPath)) continue;
+            out.push(`${song.song} - ${song.artist}$${song.code || genre.code || ""}`);
+            if (song.code) usedCodes.add(String(song.code).trim());
+          }
+        }
+      }
+    }
+
+    const mapOut = {};
+    for (const code of usedCodes) {
+      if (Object.prototype.hasOwnProperty.call(state.musicGenreMap, code)) {
+        mapOut[code] = state.musicGenreMap[code];
+      }
+    }
+    if (!Object.keys(mapOut).length) {
+      for (const [k, v] of Object.entries(state.musicGenreMap || {})) mapOut[k] = v;
+    }
+
+    return `/* Generated by server-content-backup.html */
+
+window.musicLibraryGenreMap = ${JSON.stringify(mapOut, null, 2)};
+
+window.musicLibrary = ${JSON.stringify(out, null, 2)};
+`;
+  }
+
+  
+  
+  function normalizeGameTitle(game, index) {
+    return cleanTitle(game && (game.name || game.title || game.rom || `Game ${index + 1}`));
+  }
+
+  function extractGameRomBase(game) {
+    const candidates = [
+      game && game.rom,
+      game && game.file,
+      game && game.link,
+      game && game.path,
+      game && game.url
+    ].filter(Boolean);
+
+    for (const raw of candidates) {
+      const str = String(raw || "");
+      try {
+        const url = new URL(str, window.location.href);
+        const rom = url.searchParams.get("rom");
+        if (rom) {
+          return cleanTitle(decodeURIComponent(rom).split("/").pop().replace(/\.[^.?#]+$/, ""));
+        }
+        const last = url.pathname.split("/").pop() || "";
+        if (last) return cleanTitle(last.replace(/\.[^.?#]+$/, ""));
+      } catch (e) {
+        const q = str.match(/[?&]rom=([^&#]+)/i);
+        if (q) {
+          try {
+            return cleanTitle(decodeURIComponent(q[1]).split("/").pop().replace(/\.[^.?#]+$/, ""));
+          } catch (e2) {
+            return cleanTitle(q[1].split("/").pop().replace(/\.[^.?#]+$/, ""));
+          }
+        }
+        const last = str.split("/").pop() || "";
+        if (last) return cleanTitle(last.replace(/\.[^.?#]+$/, ""));
+      }
+    }
+
+    return "";
+  }
+
+  function gameKeySet(game, index = 0) {
+    const title = normalizeGameTitle(game, index);
+    const romBase = extractGameRomBase(game);
+    const consoleName = cleanTitle(game && game.console ? game.console : "");
+    return new Set([
+      title,
+      compareKey(title),
+      looseKey(title),
+      romBase,
+      compareKey(romBase),
+      looseKey(romBase),
+      consoleName,
+      compareKey(consoleName),
+      looseKey(consoleName)
+    ].filter(Boolean));
+  }
+
+  function matchGameByRoots(game, selectedRoots) {
+    const gameKeys = gameKeySet(game);
+    for (const root of selectedRoots || []) {
+      const key = cleanTitle(root);
+      if (!key) continue;
+      if (gameKeys.has(key) || gameKeys.has(compareKey(key)) || gameKeys.has(looseKey(key))) return true;
+    }
+    return false;
+  }
+
+  function selectedGameEntries(selectedRoots = selectedRootsForOutput()) {
+    const roots = Array.isArray(selectedRoots) ? selectedRoots : [];
+    return (state.games || [])
+      .map((game, index) => ({ game, index }))
+      .filter(({ game, index }) => matchGameByRoots(game, roots))
+      .map(({ game }) => game);
+  }
+
+  function guidebookKeySet(item) {
+    const rawTitle = cleanTitle(item && (item.title || item.name || ""));
+    const strippedTitle = cleanTitle(rawTitle.replace(/\bguidebooks?\b/ig, "").trim());
+    const fileBase = cleanTitle(String(item && item.file ? item.file : "").split("/").pop().replace(/\.[^.?#]+$/, ""));
+    const coverBase = cleanTitle(String(item && item.cover ? item.cover : "").split("/").pop().replace(/\.[^.?#]+$/, ""));
+    return new Set([
+      rawTitle,
+      compareKey(rawTitle),
+      looseKey(rawTitle),
+      strippedTitle,
+      compareKey(strippedTitle),
+      looseKey(strippedTitle),
+      fileBase,
+      compareKey(fileBase),
+      looseKey(fileBase),
+      coverBase,
+      compareKey(coverBase),
+      looseKey(coverBase)
+    ].filter(Boolean));
+  }
+
+  function guidebookMatchesGame(item, game, index = 0) {
+    const gameKeys = gameKeySet(game, index);
+    for (const key of guidebookKeySet(item)) {
+      if (gameKeys.has(key)) return true;
+    }
+    return false;
+  }
+
+  function buildMiniGamesLibrary(selectedRoots = selectedRootsForOutput()) {
+    const picked = selectedGameEntries(selectedRoots);
+    const out = picked.map(game => ({ ...game }));
+    return `window.games = ${JSON.stringify(out, null, 2)};
+`;
+  }
+
+  function buildMiniGuidebooksLibrary(selectedGames = selectedGameEntries()) {
+    const games = Array.isArray(selectedGames) ? selectedGames : [];
+
+    function itemMatchesGame(item) {
+      if (!item || typeof item !== "object") return false;
+      for (let i = 0; i < games.length; i++) {
+        if (guidebookMatchesGame(item, games[i], i)) return true;
+      }
+      return false;
+    }
+
+    function groupMatchesAnyGame(item) {
+      if (!item || typeof item !== "object") return false;
+      if (itemMatchesGame(item)) return true;
+      if (item.group && Array.isArray(item.books)) {
+        return item.books.some(child => groupMatchesAnyGame(child));
+      }
+      return false;
+    }
+
+    function cloneGuidebookItem(item) {
+      return item && typeof item === "object" ? JSON.parse(JSON.stringify(item)) : item;
+    }
+
+    const items = [];
+    for (const item of state.guidebooks || []) {
+      if (groupMatchesAnyGame(item)) {
+        items.push(cloneGuidebookItem(item));
+      }
+    }
+
+    return `/* Generated by server-content-backup.html */
+
+window.libraryData = ${JSON.stringify({ title: "Guidebook Library", items }, null, 2)};
+`;
+  }
+
+  function buildMiniBooksLibrary(selectedRoots = selectedRootsForOutput()) {
+    const selectedSet = new Set((selectedRoots || []).map(r => compareKey(cleanTitle(r))));
+    const roots = getLibraryRoots("books");
+    const items = [];
+
+    function filterItem(item, pathParts = []) {
+      if (!item || typeof item !== "object") return null;
+      const title = cleanTitle(item.title || item.name || "");
+      if (!title) return null;
+
+      const nextPath = pathParts.concat([title]);
+      const key = compareKey(title);
+      const isGroup = !!(item.group && Array.isArray(item.books) && item.books.length);
+      const rootMatch = pathParts.length === 0 && (selectedSet.size === 0 || selectedSet.has(key));
+      const pathMatch = pathIntersectsExportSelection(nextPath);
+
+      if (isGroup) {
+        const books = [];
+        for (const child of item.books) {
+          const kept = filterItem(child, nextPath);
+          if (kept) books.push(kept);
+        }
+        if (!books.length && !pathMatch && !rootMatch) return null;
+        const out = { ...item, books };
+        return out;
+      }
+
+      if (!pathMatch && !rootMatch) return null;
+      const out = { ...item };
+      const audioKey = bookAudiobookKeyFromPath(nextPath);
+      if (state.bookAudiobookAvailable.has(audioKey)) {
+        out.audiobook = getBookAudiobookChoice(nextPath);
+      }
+      return out;
+    }
+
+    for (const item of roots) {
+      const kept = filterItem(item, []);
+      if (kept) items.push(kept);
+    }
+
+    return `/* Generated by server-content-backup.html */
+
+window.libraryData = ${JSON.stringify({ title: "Book Library", items }, null, 2)};
+`;
+  }
+
+  function buildMiniMangaLibrary(selectedRoots = selectedRootsForOutput()) {
+    const roots = getLibraryRoots("manga");
+    const items = [];
+
+    function filterItem(item, pathParts = []) {
+      if (!item || typeof item !== "object") return null;
+      const title = cleanTitle(item.title || item.name || "");
+      if (!title) return null;
+      const nextPath = pathParts.concat([title]);
+      if (!pathIntersectsExportSelection(nextPath) && pathParts.length === 0 && !selectedRootsForOutput().includes(title)) return null;
+      const out = { ...item };
+      if (Array.isArray(item.books)) {
+        const books = [];
+        for (const child of item.books) {
+          const kept = filterItem(child, nextPath);
+          if (kept) books.push(kept);
+        }
+        if (!books.length) return null;
+        out.books = books;
+      }
+      return out;
+    }
+
+    for (const item of roots) {
+      const kept = filterItem(item, []);
+      if (kept) items.push(kept);
+    }
+
+    return `/* Generated by server-content-backup.html */
+
+window.libraryData = ${JSON.stringify({ title: "Manga Library", items }, null, 2)};
+`;
+  }
+
+  function sectionRootTitles(section = state.currentSection) {
+    if (section === "music") {
+      return (state.musicGenres || [])
+        .map(g => cleanTitle(g.title || g.name || ""))
+        .filter(t => t && t !== "undefined" && t !== "null");
+    }
+    if (section === "games") {
+      return (state.games || [])
+        .map((g, idx) => cleanTitle(g.name || g.title || g.rom || `Game ${idx + 1}`))
+        .filter(Boolean);
+    }
+    if (section === "books") {
+      return getLibraryRoots("books")
+        .map((item, idx) => cleanTitle(item && (item.title || item.name || `Book ${idx + 1}`)))
+        .filter(Boolean);
+    }
+    if (section === "manga") {
+      return getLibraryRoots("manga")
+        .map((item, idx) => cleanTitle(item && (item.title || item.name || `Manga ${idx + 1}`)))
+        .filter(Boolean);
+    }
+    return (state.foldersRaw || []).filter(t => !VIDEO_EXCLUDES.has(String(t)));
+  }
+
+  function pathKey(path) {
+    return normPath(Array.isArray(path) ? path : []);
+  }
+
+  function pathFromKey(key) {
+    try {
+      const parsed = JSON.parse(key);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function pathPrefix(path) {
+    const key = pathKey(path);
+    return key.endsWith("]") ? key.slice(0, -1) + "," : key + ",";
+  }
+
+  function hasAncestorInSet(set, path) {
+    const parts = Array.isArray(path) ? path : [];
+    for (let i = parts.length - 1; i >= 1; i--) {
+      if (set.has(pathKey(parts.slice(0, i)))) return true;
+    }
+    return false;
+  }
+
+  function purgeDescendants(set, path) {
+    const prefix = pathPrefix(path);
+    const key = pathKey(path);
+    for (const item of [...set]) {
+      if (item !== key && item.startsWith(prefix)) set.delete(item);
+    }
+  }
+
+  function anyDescendantInSet(set, path) {
+    const prefix = pathPrefix(path);
+    const key = pathKey(path);
+    for (const item of set) {
+      if (item !== key && item.startsWith(prefix)) return true;
+    }
+    return false;
+  }
+
+  function isPrunedPath(path) {
+    return state.pruned.has(pathKey(path)) || hasAncestorInSet(state.pruned, path);
+  }
+
+  function isSelectedPath(path) {
+    return state.selected.has(pathKey(path));
+  }
+
+  function isEffectivelySelected(path) {
+    return !isPrunedPath(path) && (isSelectedPath(path) || hasAncestorInSet(state.selected, path));
+  }
+
+  function pathEquals(a, b) {
+    const left = Array.isArray(a) ? a : [];
+    const right = Array.isArray(b) ? b : [];
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i++) {
+      if (String(left[i]) !== String(right[i])) return false;
+    }
+    return true;
+  }
+
+  function pathStartsWith(path, prefix) {
+    const full = Array.isArray(path) ? path : [];
+    const head = Array.isArray(prefix) ? prefix : [];
+    if (head.length > full.length) return false;
+    for (let i = 0; i < head.length; i++) {
+      if (String(full[i]) !== String(head[i])) return false;
+    }
+    return true;
+  }
+
+  function getExactSelectedPaths() {
+    const picked = [];
+    const seen = new Set();
+    for (const raw of state.selected) {
+      const path = pathFromKey(raw);
+      if (!Array.isArray(path) || !path.length) continue;
+      if (isPrunedPath(path)) continue;
+      const key = pathKey(path);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      picked.push(path);
+    }
+    return picked;
+  }
+
+  function getDeepSelectedPaths() {
+    const exact = getExactSelectedPaths();
+    const deepest = [];
+    for (let i = 0; i < exact.length; i++) {
+      const path = exact[i];
+      let isAncestorOfAnother = false;
+      for (let j = 0; j < exact.length; j++) {
+        if (i === j) continue;
+        if (pathStartsWith(exact[j], path) && exact[j].length > path.length) {
+          isAncestorOfAnother = true;
+          break;
+        }
+      }
+      if (!isAncestorOfAnother) deepest.push(path);
+    }
+    return deepest;
+  }
+
+  function pathIntersectsExportSelection(path) {
+    const probe = Array.isArray(path) ? path : [];
+    if (!probe.length) return false;
+    const selected = getDeepSelectedPaths();
+    for (const sel of selected) {
+      if (pathEquals(probe, sel) || pathStartsWith(sel, probe) || pathStartsWith(probe, sel)) return true;
+    }
+    return false;
+  }
+
+    function getNodeChildren(title, pathParts, ancestry) {
+    const key = pathKey(pathParts);
+    if (state.childCache.has(key)) return state.childCache.get(key);
+
+    const out = [];
+    const source = getSourceArrayForTitle(title);
+    const currentAncestry = Array.isArray(ancestry) ? ancestry : [cleanTitle(title)];
+    const section = state.currentSection;
+
+    if (section === "music") {
+      const genreName = cleanTitle(pathParts[0] || title);
+      const genre = state.musicGenreByName.get(genreName);
+      if (!genre) {
+        state.childCache.set(key, out);
+        return out;
+      }
+
+      if (pathParts.length <= 1) {
+        for (const artist of genre.artists || []) {
+          const artistName = cleanTitle(artist.name || "");
+          if (!artistName) continue;
+          out.push({
+            kind: "branch",
+            title: artistName,
+            path: pathParts.concat([artistName]),
+            ancestry: currentAncestry.concat([artistName]),
+            hasChildren: Array.isArray(artist.songs) && artist.songs.length > 0
+          });
+        }
+      } else if (pathParts.length === 2) {
+        const artistName = cleanTitle(pathParts[1]);
+        const artist = (genre.artists || []).find(a => cleanTitle(a.name) === artistName);
+        if (artist) {
+          for (const song of artist.songs || []) {
+            const songTitle = cleanTitle(song.title || "");
+            if (!songTitle) continue;
+            out.push({
+              kind: "leaf",
+              title: songTitle,
+              item: song,
+              path: pathParts.concat([songTitle]),
+              ancestry: currentAncestry.slice(),
+              hasChildren: false
+            });
+          }
+        }
+      }
+
+      state.childCache.set(key, out);
+      return out;
+    }
+
+    if (section === "books") {
+      const rootItem = findLibraryItemByPath("books", [pathParts[0]]);
+      if (!rootItem) {
+        state.childCache.set(key, out);
+        return out;
+      }
+      if (pathParts.length === 1 && rootItem.group && Array.isArray(rootItem.books)) {
+        for (const child of rootItem.books) {
+          const label = cleanTitle(child && (child.title || child.name || ""));
+          if (!label) continue;
+          out.push({
+            kind: "leaf",
+            title: label,
+            item: child,
+            path: pathParts.concat([label]),
+            ancestry: currentAncestry.concat([label]),
+            hasChildren: false
+          });
+        }
+      }
+      state.childCache.set(key, out);
+      return out;
+    }
+
+    if (section === "manga") {
+      state.childCache.set(key, out);
+      return out;
+    }
+
+    if (section === "games") {
+      state.childCache.set(key, out);
+      return out;
+    }
+
+    if (Array.isArray(source)) {
+      if (source.every(v => typeof v === "string")) {
+        for (const child of source) {
+          const childTitle = String(child);
+          if (currentAncestry.includes(childTitle)) continue;
+          out.push({
+            kind: "branch",
+            title: childTitle,
+            path: pathParts.concat([childTitle]),
+            ancestry: currentAncestry.concat([childTitle]),
+            hasChildren: !!getSourceArrayForTitle(childTitle)
+          });
+        }
+      } else {
+        for (let i = 0; i < source.length; i++) {
+          const item = source[i];
+          if (!item || typeof item !== "object") continue;
+          const label = cleanTitle(item.name || item.title || item.displayTitle || leafNameFromFile(item.file) || `Item ${i + 1}`);
+          out.push({
+            kind: "leaf",
+            title: label,
+            item,
+            index: i,
+            path: pathParts.concat([`#${i}`]),
+            ancestry: currentAncestry.slice(),
+            hasChildren: false
+          });
+        }
+      }
+    }
+
+    state.childCache.set(key, out);
+    return out;
+  }
+
+  function leafNameFromFile(file) {
+    const raw = String(file || "");
+    try {
+      const clean = decodeURIComponent(raw);
+      return (clean.split(/[\\/]/).pop() || "").replace(/\.[a-z0-9]+(\?.*)?$/i, "").trim();
+    } catch {
+      return (raw.split(/[\\/]/).pop() || "").replace(/\.[a-z0-9]+(\?.*)?$/i, "").trim();
+    }
+  }
+
+  function hasSelectedDescendant(node) {
+    const path = Array.isArray(node.path) ? node.path : [];
+    const prefix = pathPrefix(path);
+    const key = pathKey(path);
+    for (const sel of state.selected) {
+      if (sel !== key && sel.startsWith(prefix) && !isPrunedPath(pathFromKey(sel))) return true;
+    }
+    return false;
+  }
+
+  function hasPrunedDescendant(node) {
+    const path = Array.isArray(node.path) ? node.path : [];
+    const prefix = pathPrefix(path);
+    const key = pathKey(path);
+    for (const sel of state.pruned) {
+      if (sel !== key && sel.startsWith(prefix)) return true;
+    }
+    return false;
+  }
+
+  function subtreeHasSelection(node) {
+    const path = Array.isArray(node.path) ? node.path : [];
+    return isEffectivelySelected(path) || hasSelectedDescendant(node);
+  }
+
+  function nodeState(node) {
+    const path = Array.isArray(node.path) ? node.path : [];
+    const checked = isEffectivelySelected(path);
+    const partial = (checked && hasPrunedDescendant(node)) || (!checked && hasSelectedDescendant(node));
+    return { checked, partial };
+  }
+
+  function setSubtreeSelection(node, on) {
+    const path = Array.isArray(node.path) ? node.path.slice() : [String(node.title)];
+    const key = pathKey(path);
+
+    if (on) {
+      state.selected.add(key);
+      state.pruned.delete(key);
+      purgeDescendants(state.pruned, path);
+    } else if (hasAncestorInSet(state.selected, path)) {
+      state.selected.delete(key);
+      state.pruned.add(key);
+      purgeDescendants(state.selected, path);
+      purgeDescendants(state.pruned, path);
+    } else {
+      state.selected.delete(key);
+      state.pruned.delete(key);
+      purgeDescendants(state.selected, path);
+      purgeDescendants(state.pruned, path);
+    }
+  }
+
+  function setSelectionForPath(path, on) {
+    const node = lookupNodeByPath(path);
+    if (!node) return;
+    setSubtreeSelection(node, on);
+    touchSelection();
+    render();
+  }
+
+  function lookupNodeByPath(path) {
+    const parts = Array.isArray(path) ? path : [];
+    if (!parts.length) return null;
+
+    let node = {
+      kind: "branch",
+      title: String(parts[0]),
+      path: [String(parts[0])],
+      ancestry: [String(parts[0])],
+      hasChildren: !!getSourceArrayForTitle(parts[0])
+    };
+
+    for (let i = 1; i < parts.length; i++) {
+      const children = getNodeChildren(node.title, node.path, node.ancestry);
+      const part = String(parts[i]);
+      const next = children.find(ch =>
+        ch.title === part ||
+        String(ch.path[ch.path.length - 1]) === part ||
+        String(ch.path[ch.path.length - 1]).replace(/^#/, "") === part.replace(/^#/, "")
+      );
+      if (!next) return null;
+      node = next;
+    }
+    return node;
+  }
+
+    function currentNodes() {
+    if (state.currentSection === "music") {
+      if (!state.currentPath.length) {
+        return sectionRootTitles("music").map((raw, idx) => ({
+          kind: "branch",
+          title: String(raw),
+          path: [String(raw)],
+          ancestry: [String(raw)],
+          hasChildren: !!getSourceArrayForTitle(raw),
+          root: true,
+          order: idx
+        }));
+      }
+      const title = state.currentPath[state.currentPath.length - 1];
+      return getNodeChildren(title, state.currentPath.slice(), state.currentPath.slice());
+    }
+
+    if (state.currentSection === "books") {
+      if (!state.currentPath.length) {
+        return sectionRootTitles("books").map((raw, idx) => {
+          const item = findLibraryItemByTitle("books", raw);
+          return {
+            kind: item && item.group ? "branch" : "leaf",
+            title: String(raw),
+            item,
+            path: [String(raw)],
+            ancestry: [String(raw)],
+            hasChildren: !!getSourceArrayForTitle(raw),
+            root: true,
+            order: idx
+          };
+        });
+      }
+      const title = state.currentPath[state.currentPath.length - 1];
+      return getNodeChildren(title, state.currentPath.slice(), state.currentPath.slice());
+    }
+
+    if (state.currentSection === "manga") {
+      if (!state.currentPath.length) {
+        return sectionRootTitles("manga").map((raw, idx) => {
+          const item = findLibraryItemByTitle("manga", raw);
+          return {
+            kind: item && item.group ? "branch" : "leaf",
+            title: String(raw),
+            item,
+            path: [String(raw)],
+            ancestry: [String(raw)],
+            hasChildren: !!getSourceArrayForTitle(raw),
+            root: true,
+            order: idx
+          };
+        });
+      }
+      const title = state.currentPath[state.currentPath.length - 1];
+      return getNodeChildren(title, state.currentPath.slice(), state.currentPath.slice());
+    }
+
+    if (state.currentSection === "games") {
+      if (!state.currentPath.length) {
+        return (state.games || []).map((game, idx) => {
+          const title = normalizeGameTitle(game, idx);
+          return {
+            kind: "leaf",
+            title,
+            item: game,
+            path: [title],
+            ancestry: [title],
+            hasChildren: false,
+            root: true,
+            order: idx
+          };
+        });
+      }
+      return [];
+    }
+
+    if (!state.currentPath.length) {
+      return sectionRootTitles("video").map((raw, idx) => ({
+        kind: "branch",
+        title: String(raw),
+        path: [String(raw)],
+        ancestry: [String(raw)],
+        hasChildren: !!getSourceArrayForTitle(raw),
+        root: true,
+        order: idx
+      }));
+    }
+    const title = state.currentPath[state.currentPath.length - 1];
+    return getNodeChildren(title, state.currentPath.slice(), state.currentPath.slice());
+  }
+
+  function visibleNodes() {
+    const nodes = currentNodes();
+    const q = state.search.trim().toLowerCase();
+    if (!q) return nodes;
+    return nodes.filter(n => cleanTitle(n.title).toLowerCase().includes(q));
+  }
+
+  function buildBreadcrumbs() {
+    el.crumbs.innerHTML = "";
+    const parts = ["Roots"].concat(state.currentPath.map(cleanTitle));
+    parts.forEach((part, idx) => {
+      const span = document.createElement("span");
+      span.className = "crumb";
+      span.textContent = part;
+      span.onclick = () => {
+        if (idx === 0) state.currentPath = [];
+        else state.currentPath = state.currentPath.slice(0, idx);
+        state.search = "";
+        el.search.value = "";
+        render();
+      };
+      el.crumbs.appendChild(span);
+      if (idx < parts.length - 1) {
+        const sep = document.createElement("span");
+        sep.className = "sep";
+        sep.textContent = "›";
+        el.crumbs.appendChild(sep);
+      }
+    });
+  }
+
+    function getViewTitle() {
+    if (state.currentPath.length) return cleanTitle(state.currentPath[state.currentPath.length - 1]);
+    if (state.currentSection === "music") return "Music genres";
+    if (state.currentSection === "games") return "Games";
+    return "Video root";
+  }
+
+    function selectAllVideo(on) {
+    const roots = sectionRootTitles("video").map(title => ({
+      kind: "branch",
+      title: String(title),
+      path: [String(title)],
+      ancestry: [String(title)],
+      hasChildren: !!getSourceArrayForTitle(title)
+    }));
+    for (const node of roots) setSubtreeSelection(node, on);
+    touchSelection();
+    render();
+  }
+
+  function selectAllMusic(on) {
+    const roots = sectionRootTitles("music").map(title => ({
+      kind: "branch",
+      title: String(title),
+      path: [String(title)],
+      ancestry: [String(title)],
+      hasChildren: !!getSourceArrayForTitle(title)
+    }));
+    for (const node of roots) setSubtreeSelection(node, on);
+    touchSelection();
+    render();
+  }
+
+  function selectAllGames(on) {
+    const roots = sectionRootTitles("games").map(title => ({
+      kind: "leaf",
+      title: String(title),
+      path: [String(title)],
+      ancestry: [String(title)],
+      hasChildren: false
+    }));
+    for (const node of roots) setSubtreeSelection(node, on);
+    touchSelection();
+    render();
+  }
+
+  function selectAllBooks(on) {
+    const roots = sectionRootTitles("books").map(title => ({
+      kind: "branch",
+      title: String(title),
+      path: [String(title)],
+      ancestry: [String(title)],
+      hasChildren: !!getSourceArrayForTitle(title)
+    }));
+    for (const node of roots) setSubtreeSelection(node, on);
+    touchSelection();
+    render();
+  }
+
+  function selectAllManga(on) {
+    const roots = sectionRootTitles("manga").map(title => ({
+      kind: "leaf",
+      title: String(title),
+      path: [String(title)],
+      ancestry: [String(title)],
+      hasChildren: !!getSourceArrayForTitle(title)
+    }));
+    for (const node of roots) setSubtreeSelection(node, on);
+    touchSelection();
+    render();
+  }
+
+  function selectView(on) {
+    const nodes = getCurrentNodesForSelection();
+    for (const node of nodes) setSubtreeSelection(node, on);
+    touchSelection();
+    render();
+  }
+
+  function getCurrentNodesForSelection() {
+    if (!state.currentPath.length) {
+      return sectionRootTitles().map(title => ({
+        kind: "branch",
+        title: String(title),
+        path: [String(title)],
+        ancestry: [String(title)],
+        hasChildren: !!getSourceArrayForTitle(title)
+      }));
+    }
+    const title = state.currentPath[state.currentPath.length - 1];
+    return getNodeChildren(title, state.currentPath.slice(), state.currentPath.slice());
+  }
+
+    function getBackupScopeRoot() {
+    if (Array.isArray(state.currentPath) && state.currentPath.length) {
+      return String(state.currentPath[0] || "").trim();
+    }
+
+    const firstSelectedPath = [...state.selected]
+      .map(raw => pathFromKey(raw))
+      .find(path => Array.isArray(path) && path.length);
+
+    return firstSelectedPath ? String(firstSelectedPath[0] || "").trim() : "";
+  }
+
+  function selectedRootsForOutput() {
+    const deepSelected = getDeepSelectedPaths();
+    const roots = [];
+    const seen = new Set();
+
+    for (const path of deepSelected) {
+      const root = String(path[0] || "").trim();
+      if (!root || seen.has(root)) continue;
+      seen.add(root);
+      roots.push(root);
+    }
+
+    if (roots.length) return roots;
+
+    const scopeRoot = getBackupScopeRoot();
+    if (!scopeRoot) return [];
+    const root = { title: scopeRoot, path: [scopeRoot], ancestry: [scopeRoot] };
+    return subtreeHasSelection(root) ? [scopeRoot] : [];
+  }
+
+  function buildMiniMainfolders(selectedRoots) {
+    return `/* Generated by server-content-backup.html */\n\nconst folders = ${JSON.stringify(selectedRoots, null, 2)};\n`;
+  }
+
+
+  function buildMiniLibrary(selectedRoots) {
+    const out = new Map();
+    const visited = new Set();
+
+    function walk(title, pathParts, ancestry) {
+      const key = pathKey(pathParts);
+      if (visited.has(key)) return;
+      visited.add(key);
+
+      const source = getSourceArrayForTitle(title);
+      if (!Array.isArray(source)) return;
+
+      if (source.every(v => typeof v === "string")) {
+        const kept = [];
+        for (const childTitle of source) {
+          const cleanChild = String(childTitle);
+          if (ancestry.includes(cleanChild)) continue;
+
+          const childPath = pathParts.concat([cleanChild]);
+          const childAncestry = ancestry.concat([cleanChild]);
+          const childNode = { title: cleanChild, path: childPath, ancestry: childAncestry };
+
+          if (!pathIntersectsExportSelection(childPath)) continue;
+
+          kept.push(cleanChild);
+          walk(cleanChild, childPath, childAncestry);
+        }
+
+        if (kept.length) out.set(cleanTitle(title), kept);
+        return;
+      }
+
+      const keptObjects = [];
+      for (let i = 0; i < source.length; i++) {
+        const item = source[i];
+        if (!item || typeof item !== "object") continue;
+
+        const leafPath = pathParts.concat([`#${i}`]);
+        const leafNode = { title, path: leafPath, ancestry: ancestry.slice() };
+        if (pathIntersectsExportSelection(leafPath)) keptObjects.push(item);
+      }
+
+      if (keptObjects.length) out.set(cleanTitle(title), keptObjects);
+    }
+
+    for (const root of selectedRoots) {
+      const rootTitle = String(root);
+      walk(rootTitle, [rootTitle], [rootTitle]);
+    }
+
+    const obj = {};
+    for (const [k, v] of out.entries()) obj[k] = v;
+    return `/* Generated by server-content-backup.html */
+
+const episodes = ${JSON.stringify(obj, null, 2)};
+`;
+  }
+
+
+
+  function collectLoaderEntriesForSelection(selectedRoots = selectedRootsForOutput()) {
+    const picked = [];
+    const seen = new Set();
+    const selectedPaths = getDeepSelectedPaths();
+    const fallbackRoots = Array.isArray(selectedRoots) ? selectedRoots : [];
+
+    function addEntry(entry) {
+      if (!entry) return;
+      const key = compareKey(entry.title) || looseKey(entry.title);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      picked.push(entry);
+    }
+
+    function addLoaderChainFromPath(pathParts) {
+      const titles = [];
+      for (const part of Array.isArray(pathParts) ? pathParts : []) {
+        const raw = String(part || "");
+        if (!raw) continue;
+        if (raw.startsWith("#")) break;
+        titles.push(cleanTitle(raw));
+      }
+
+      for (const title of titles) {
+        const entry = getLoaderEntryForTitle(title);
+        if (entry) addEntry(entry);
+      }
+    }
+
+    function walkFullSubtree(title) {
+      const clean = cleanTitle(title);
+      if (!clean) return;
+
+      const entry = getLoaderEntryForTitle(clean);
+      if (!entry) return;
+
+      addEntry(entry);
+
+      const source = Array.isArray(entry.seasons) ? entry.seasons : [];
+      for (const childRaw of source) {
+        const childTitle = cleanTitle(childRaw);
+        if (!childTitle) continue;
+
+        const childEntry = getLoaderEntryForTitle(childTitle);
+        if (childEntry) {
+          addEntry(childEntry);
+          walkFullSubtree(childTitle);
+        }
+      }
+    }
+
+    if (selectedPaths.length) {
+      for (const path of selectedPaths) {
+        if (!Array.isArray(path) || !path.length) continue;
+
+        const titlePath = [];
+        for (const part of path) {
+          const raw = String(part || "");
+          if (!raw) continue;
+          if (raw.startsWith("#")) break;
+          titlePath.push(raw);
+        }
+
+        if (!titlePath.length) continue;
+
+        if (titlePath.length === 1) {
+          walkFullSubtree(titlePath[0]);
+        } else {
+          addLoaderChainFromPath(titlePath);
+        }
+      }
+    } else {
+      for (const root of fallbackRoots) {
+        walkFullSubtree(root);
+      }
+    }
+
+    return picked;
+  }
+
+  function collectSelectedDirectChildrenForLoader(loaderTitle) {
+    const target = cleanTitle(loaderTitle);
+    const targetKey = compareKey(target) || looseKey(target);
+    const picked = [];
+    const seen = new Set();
+
+    const add = value => {
+      const title = cleanTitle(value);
+      const key = compareKey(title) || looseKey(title);
+      if (!title || seen.has(key)) return;
+      seen.add(key);
+      picked.push(value);
+    };
+
+    for (const path of getDeepSelectedPaths()) {
+      if (!Array.isArray(path) || path.length < 2) continue;
+
+      for (let i = 0; i < path.length - 1; i++) {
+        if ((compareKey(cleanTitle(path[i])) || looseKey(cleanTitle(path[i]))) !== targetKey) continue;
+        add(String(path[i + 1]));
+        break;
+      }
+    }
+
+    return picked;
+  }
+
+  function buildPrunedLoaderBlock(entry) {
+    const original = String(entry.block || "").trim();
+    if (!original) return original;
+
+    const selectedChildren = collectSelectedDirectChildrenForLoader(entry.title);
+    const exactSelected = [...state.selected].some(raw => {
+      const path = pathFromKey(raw);
+      if (!Array.isArray(path) || !path.length) return false;
+      return compareKey(cleanTitle(path[path.length - 1])) === compareKey(entry.title);
+    });
+
+    let out = original;
+
+    if (selectedChildren.length && !exactSelected) {
+      const seasonsText = JSON.stringify(selectedChildren, null, 4);
+      out = out.replace(/const\s+seasons\s*=\s*\[[\s\S]*?\]\s*;/m, `const seasons = ${seasonsText};`);
+
+      const caseLines = selectedChildren
+        .filter(title => !!getLoaderEntryForTitle(title))
+        .map(title => {
+          const clean = cleanTitle(title);
+          const fnName = getLoaderEntryForTitle(title)?.fnName;
+          if (!clean || !fnName) return "";
+          return `                case ${JSON.stringify(clean)}:\n                    ${fnName}();\n                    break;`;
+        })
+        .filter(Boolean)
+        .join("\n");
+
+      if (caseLines) {
+        const onclickPattern = /seasonDiv\.onclick\s*=\s*\(\)\s*=>\s*\{\s*[\s\S]*?\s*\};/m;
+        out = out.replace(onclickPattern, `        seasonDiv.onclick = () => {\n            switch (season) {\n${caseLines}\n                default:\n                    loadEpisodes(season);\n            }\n        };`);
+      }
+    }
+
+    out = out.replace(/case\s+(["'])(.*?)\1\s*:/g, (match, quote, title) => {
+      const clean = String(title || "").replace(/\*/g, "");
+      return `case ${quote}${clean}${quote}:`;
+    });
+
+    return out;
+  }
+
+  function buildMiniLoaders(selectedRoots = selectedRootsForOutput()) {
+    const entries = collectLoaderEntriesForSelection(selectedRoots);
+    if (!entries.length) return `/* No season loader functions were selected. */\n`;
+    return `/* Generated by server-content-backup.html */\n\n${entries.map(e => buildPrunedLoaderBlock(e)).join("\n\n")}\n`;
+  }
+
+function crc32(bytes) {
+    let crc = ~0 >>> 0;
+    for (let i = 0; i < bytes.length; i++) {
+      crc ^= bytes[i];
+      for (let k = 0; k < 8; k++) {
+        crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+      }
+    }
+    return (~crc) >>> 0;
+  }
+
+  function concatBytes(parts) {
+    const total = parts.reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const p of parts) {
+      out.set(p, offset);
+      offset += p.length;
+    }
+    return out;
+  }
+
+  function makeZip(files) {
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+
+    for (const file of files) {
+      const nameBytes = enc.encode(file.name);
+      const dataBytes = enc.encode(file.content);
+      const crc = crc32(dataBytes);
+
+      const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
+      const ldv = new DataView(local.buffer);
+      ldv.setUint32(0, 0x04034b50, true);
+      ldv.setUint16(4, 20, true);
+      ldv.setUint16(6, 0x0800, true);
+      ldv.setUint16(8, 0, true);
+      ldv.setUint16(10, 0, true);
+      ldv.setUint16(12, 0, true);
+      ldv.setUint32(14, crc, true);
+      ldv.setUint32(18, dataBytes.length, true);
+      ldv.setUint32(22, dataBytes.length, true);
+      ldv.setUint16(26, nameBytes.length, true);
+      ldv.setUint16(28, 0, true);
+      local.set(nameBytes, 30);
+      local.set(dataBytes, 30 + nameBytes.length);
+      localParts.push(local);
+
+      const central = new Uint8Array(46 + nameBytes.length);
+      const cdv = new DataView(central.buffer);
+      cdv.setUint32(0, 0x02014b50, true);
+      cdv.setUint16(4, 20, true);
+      cdv.setUint16(6, 20, true);
+      cdv.setUint16(8, 0x0800, true);
+      cdv.setUint16(10, 0, true);
+      cdv.setUint16(12, 0, true);
+      cdv.setUint16(14, 0, true);
+      cdv.setUint32(16, crc, true);
+      cdv.setUint32(20, dataBytes.length, true);
+      cdv.setUint32(24, dataBytes.length, true);
+      cdv.setUint16(28, nameBytes.length, true);
+      cdv.setUint16(30, 0, true);
+      cdv.setUint16(32, 0, true);
+      cdv.setUint16(34, 0, true);
+      cdv.setUint16(36, 0, true);
+      cdv.setUint32(38, 0, true);
+      cdv.setUint32(42, offset, true);
+      central.set(nameBytes, 46);
+      centralParts.push(central);
+
+      offset += local.length;
+    }
+
+    const centralBytes = concatBytes(centralParts);
+    const end = new Uint8Array(22);
+    const edv = new DataView(end.buffer);
+    edv.setUint32(0, 0x06054b50, true);
+    edv.setUint16(4, 0, true);
+    edv.setUint16(6, 0, true);
+    edv.setUint16(8, files.length, true);
+    edv.setUint16(10, files.length, true);
+    edv.setUint32(12, centralBytes.length, true);
+    edv.setUint32(16, offset, true);
+    edv.setUint16(20, 0, true);
+    return concatBytes([...localParts, centralBytes, end]);
+  }
+
+  async function downloadZip(filename, files) {
+    const zipBytes = makeZip(files);
+    const blob = new Blob([zipBytes], { type: "application/zip" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 1500);
+  }
+
+  
+  function buildImageCandidates(nodeOrTitle) {
+    const sourceNode = nodeOrTitle && typeof nodeOrTitle === "object" ? nodeOrTitle : null;
+    const folderName = cleanTitle(sourceNode ? (sourceNode.title || sourceNode.name || "") : nodeOrTitle);
+    const pathParts = Array.isArray(sourceNode && sourceNode.path) ? sourceNode.path.map(cleanTitle).filter(Boolean) : [];
+    const candidates = [];
+    const pushIf = (u) => {
+      if (!u) return;
+      if (!candidates.includes(u)) candidates.push(u);
+    };
+
+    function variantsForName(name) {
+      const base = String(name || "").trim();
+      if (!base) return [];
+      const noApos = base.replace(/[’']/g, "");
+      const noSpace = base.replace(/\s+/g, "");
+      const noAposNoSpace = noApos.replace(/\s+/g, "");
+      return [...new Set([base, noApos, noSpace, noAposNoSpace].filter(Boolean))];
+    }
+
+    function basename(name) {
+      return String(name || "").split("/").filter(Boolean).pop() || "";
+    }
+
+    const variants = variantsForName(folderName);
+    const rootName = pathParts[0] || folderName;
+    const leafName = pathParts[pathParts.length - 1] || folderName;
+    const parentName = pathParts.slice(0, -1).join("/");
+    const section = state.currentSection || "video";
+
+    if (sourceNode && sourceNode.item) {
+      pushIf(sourceNode.item.img);
+      pushIf(sourceNode.item.image);
+      pushIf(sourceNode.item.cover);
+      if (section === "books" || section === "manga" || section === "games") {
+        pushIf(sourceNode.item.thumb);
+      }
+    }
+
+    for (const v of variants) {
+      const noSpace = v.replace(/\s+/g, "");
+      pushIf(`./Movies/${v}/${v}.jpg`);
+      pushIf(`./Movies/${v}/${noSpace}.jpg`);
+      pushIf(`./Movies/${v}.jpg`);
+      pushIf(`./${v}/${v}.jpg`);
+      pushIf(`./${v}/${noSpace}.jpg`);
+      pushIf(`./${v}.jpg`);
+    }
+
+    if (section === "music") {
+      for (const v of variants) {
+        const noSpace = v.replace(/\s+/g, "");
+        pushIf(`./Music/Images/${v}.jpg`);
+        pushIf(`./Music/Images/${v}.png`);
+        pushIf(`./Music/Images/${v}/${v}.jpg`);
+        pushIf(`./Music/Images/${v}/${noSpace}.jpg`);
+        pushIf(`./Music/Images/${v}/${basename(v)}.jpg`);
+        pushIf(`./Music/Images/${v}.webp`);
+      }
+    }
+
+    if (rootName && leafName && rootName !== leafName) {
+      const rootVariants = variantsForName(rootName);
+      const leafVariants = variantsForName(leafName);
+      for (const rv of rootVariants) {
+        const rvNoSpace = rv.replace(/\s+/g, "");
+        for (const lv of leafVariants) {
+          const lvNoSpace = lv.replace(/\s+/g, "");
+          pushIf(`./Movies/${rv}/${lv}.jpg`);
+          pushIf(`./Movies/${rv}/${lvNoSpace}.jpg`);
+          pushIf(`./Movies/${rv}/${lv}/${lv}.jpg`);
+          pushIf(`./Movies/${rv}/${lv}/${lvNoSpace}.jpg`);
+          pushIf(`./Movies/${rv}/${lv}/${basename(lv)}.jpg`);
+          pushIf(`./Movies/${rv}.jpg`);
+          pushIf(`./${rv}/${lv}.jpg`);
+          pushIf(`./${rv}/${lv}/${lv}.jpg`);
+          pushIf(`./${rv}/${lv}/${lvNoSpace}.jpg`);
+          pushIf(`./${rv}/${lv}.jpg`);
+        }
+      }
+    }
+
+    if (parentName && leafName) {
+      const leafVariants = variantsForName(leafName);
+      for (const lv of leafVariants) {
+        const lvNoSpace = lv.replace(/\s+/g, "");
+        pushIf(`./Movies/${parentName}/${lv}.jpg`);
+        pushIf(`./Movies/${parentName}/${lvNoSpace}.jpg`);
+        pushIf(`./Movies/${parentName}/${lv}/${lv}.jpg`);
+        pushIf(`./Movies/${parentName}/${lv}/${lvNoSpace}.jpg`);
+        pushIf(`./Movies/${parentName}/${lv}/${basename(lv)}.jpg`);
+        pushIf(`./${parentName}/${lv}.jpg`);
+        pushIf(`./${parentName}/${lv}/${lv}.jpg`);
+        pushIf(`./${parentName}/${lv}/${lvNoSpace}.jpg`);
+      }
+    }
+
+    if (typeof episodes !== "undefined" && episodes && episodes[folderName]) {
+      const list = episodes[folderName];
+      if (Array.isArray(list)) {
+        const hasObjects = list.some(it => it && typeof it === "object" && (it.img || it.image || it.file || it.name));
+        if (hasObjects) {
+          for (const ep of list) {
+            if (!ep) continue;
+            if (ep.img) pushIf(ep.img);
+            if (ep.image) pushIf(ep.image);
+            if (ep.file) {
+              try {
+                const rawPath = String(ep.file);
+                const parent = rawPath.split("/").slice(0, -1).join("/");
+                for (const v of variants) {
+                  const noSpace = v.replace(/\s+/g, "");
+                  pushIf(`${parent}/${v}.jpg`);
+                  pushIf(`${parent}/${v}/${v}.jpg`);
+                  pushIf(`${parent}/${v}/${noSpace}.jpg`);
+                  pushIf(`${parent}/${basename(v)}.jpg`);
+                }
+              } catch (e) {}
+            }
+          }
+        } else {
+          for (const seasonName of list) {
+            if (!seasonName) continue;
+            const seasonEpisodes = episodes[seasonName];
+            if (!Array.isArray(seasonEpisodes)) continue;
+
+            for (const sep of seasonEpisodes) {
+              if (!sep || typeof sep !== "object") continue;
+              if (sep.img) { pushIf(sep.img); break; }
+              if (sep.image) { pushIf(sep.image); break; }
+              if (sep.file) {
+                try {
+                  const rawPath = String(sep.file);
+                  const parent = rawPath.split("/").slice(0, -1).join("/");
+                  for (const v of variants) {
+                    const noSpace = v.replace(/\s+/g, "");
+                    pushIf(`${parent}/${v}.jpg`);
+                    pushIf(`${parent}/${v}/${v}.jpg`);
+                    pushIf(`${parent}/${v}/${noSpace}.jpg`);
+                    pushIf(`${parent}/${basename(v)}.jpg`);
+                  }
+                  break;
+                } catch (e) {}
+              }
+            }
+            if (candidates.length) break;
+          }
+        }
+      }
+    }
+
+    try {
+      if (typeof episodes !== "undefined" && episodes && episodes[folderName]) {
+        const list = episodes[folderName];
+        if (Array.isArray(list) && list.length > 0) {
+          const first = list[0];
+          if (first && typeof first === "object" && first.file) {
+            const rawPath = String(first.file);
+            const parent = rawPath.split("/").slice(0, -1).join("/");
+            for (const v of variants) {
+              const noSpace = v.replace(/\s+/g, "");
+              pushIf(`${parent}/${v}.jpg`);
+              pushIf(`${parent}/${v}/${v}.jpg`);
+              pushIf(`${parent}/${v}/${noSpace}.jpg`);
+              pushIf(`${parent}/${basename(v)}.jpg`);
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    for (const v of variants) {
+      pushIf(`./${v}.jpg`);
+      pushIf(`./${v.replace(/\s+/g, "")}.jpg`);
+    }
+
+    for (const v of variants) {
+      pushIf(`./Movies/${v}.jpg`);
+      pushIf(`./${v}.jpg`);
+    }
+
+    pushIf("./Images/default.jpg");
+    pushIf("./Images/placeholder.jpg");
+
+    return candidates;
+  }
+
+
+  const MUSIC_GENRE_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
+
+  function sanitizeMusicGenreImageName(name) {
+    return String(name == null ? "" : name).trim().replace(/[\\/]/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  function buildMusicGenreImageCandidates(genreName) {
+    const clean = sanitizeMusicGenreImageName(genreName);
+    if (!clean) return [];
+    const encoded = encodeURIComponent(clean);
+    const variants = [
+      `./Music/Images/${encoded}.jpg`,
+      `Music/Images/${encoded}.jpg`,
+    ];
+    for (const ext of MUSIC_GENRE_IMAGE_EXTENSIONS) {
+      variants.push(`./Music/Images/${encoded}.${ext}`);
+      variants.push(`Music/Images/${encoded}.${ext}`);
+    }
+    return [...new Set(variants)];
+  }
+
+  async function resolveMusicGenreImage(genreName) {
+    const clean = sanitizeMusicGenreImageName(genreName);
+    if (!clean) return "";
+    for (const url of buildMusicGenreImageCandidates(clean)) {
+      if (await urlExistsWithin(url, 120)) return url;
+    }
+    return "";
+  }
+
+  function applyMusicGenreImage(img, genreName) {
+    if (!img) return;
+    const clean = sanitizeMusicGenreImageName(genreName);
+    const fallback = clean ? `Music/Images/${encodeURIComponent(clean)}.jpg` : "";
+    if (fallback) img.src = fallback;
+    resolveMusicGenreImage(clean).then(src => {
+      if (src && img) img.src = src;
+    }).catch(() => {});
+  }
+
+  function touchSelection() {
+    state.selectionVersion += 1;
+    state.subtreeCache.clear();
+    state.nodeStateCache.clear();
+  }
+
+  function renderGrid() {
+    const nodes = visibleNodes();
+    el.grid.innerHTML = "";
+    el.viewTitle.textContent = getViewTitle();
+    if (state.currentSection === "music") {
+      el.viewMeta.textContent = state.currentPath.length
+        ? `Inside ${state.currentPath.map(cleanTitle).join(" › ")}`
+        : "Top-level music genres from musiclibrary.js, grouped by artist and song.";
+      el.viewCount.textContent = `${nodes.length} tile${nodes.length === 1 ? "" : "s"}`;
+      el.musicCount.textContent = String(sectionRootTitles("music").length);
+      el.musicHint.textContent = state.currentPath.length
+        ? "Selections here affect this branch and everything below it."
+        : "Genres open into artists, then into alphabetized songs.";
+    } else if (state.currentSection === "games") {
+      el.viewMeta.textContent = state.currentPath.length
+        ? `Inside ${state.currentPath.map(cleanTitle).join(" › ")}`
+        : "Top-level game entries from games.js, with guidebooks backed up beside them.";
+      el.viewCount.textContent = `${nodes.length} tile${nodes.length === 1 ? "" : "s"}`;
+      el.gamesCount.textContent = String(sectionRootTitles("games").length);
+      el.gamesHint.textContent = state.currentPath.length
+        ? "Selections here affect this branch and everything below it."
+        : "Select games to back up the matching guidebooks.js entries too.";
+    } else if (state.currentSection === "books") {
+      el.viewMeta.textContent = state.currentPath.length
+        ? `Inside ${state.currentPath.map(cleanTitle).join(" › ")}`
+        : "Top-level book collections from books.js. Audiobook-enabled books get their own toggle.";
+      el.viewCount.textContent = `${nodes.length} tile${nodes.length === 1 ? "" : "s"}`;
+      el.booksCount.textContent = String(sectionRootTitles("books").length);
+      el.booksHint.textContent = state.currentPath.length
+        ? "Selections here affect this branch and everything below it."
+        : "Open a collection to see books. Audio icons appear when the reader-style audiobook files exist.";
+    } else if (state.currentSection === "manga") {
+      el.viewMeta.textContent = state.currentPath.length
+        ? `Inside ${state.currentPath.map(cleanTitle).join(" › ")}`
+        : "Top-level manga entries from manga.js.";
+      el.viewCount.textContent = `${nodes.length} tile${nodes.length === 1 ? "" : "s"}`;
+      el.mangaCount.textContent = String(sectionRootTitles("manga").length);
+      el.mangaHint.textContent = state.currentPath.length
+        ? "Selections here affect this branch and everything below it."
+        : "Manga exports as a trimmed manga.js file.";
+    } else {
+      el.viewMeta.textContent = state.currentPath.length
+        ? `Inside ${state.currentPath.map(cleanTitle).join(" › ")}`
+        : "Top-level video folders from mainfolders.js, excluding the non-video tiles.";
+      el.viewCount.textContent = `${nodes.length} tile${nodes.length === 1 ? "" : "s"}`;
+      el.videoCount.textContent = String(sectionRootTitles("video").length);
+      el.videoHint.textContent = state.currentPath.length
+        ? "Selections here affect this branch and everything below it."
+        : "This is the video library shape you wanted to match from index.html.";
+    }
+
+    if (!nodes.length) {
+      const empty = document.createElement("div");
+      empty.style.color = "var(--muted)";
+      empty.style.padding = "16px 2px";
+      empty.textContent = "Nothing matches this view.";
+      el.grid.appendChild(empty);
+      return;
+    }
+
+    if (state.currentSection === "music") {
+      for (const node of nodes) {
+        const st = nodeState(node);
+        const tile = document.createElement("div");
+        tile.className = "tile" + (st.checked ? " selected" : "") + (st.partial ? " partial" : "");
+
+        const check = document.createElement("label");
+        check.className = "check";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = st.checked;
+        cb.indeterminate = st.partial;
+        cb.onclick = ev => ev.stopPropagation();
+        cb.onchange = () => {
+          setSubtreeSelection(node, cb.checked);
+          touchSelection();
+          render();
+        };
+        check.appendChild(cb);
+
+        const art = document.createElement("div");
+        art.className = "art";
+        const img = document.createElement("img");
+        const fallback = document.createElement("div");
+        fallback.className = "fallback";
+        fallback.textContent = cleanTitle(node.title);
+
+        const isGenreTile = Array.isArray(node.path) && node.path.length === 1;
+        const candidates = isGenreTile ? buildMusicGenreImageCandidates(node.title) : buildImageCandidates(node);
+        let imageIndex = 0;
+        img.alt = cleanTitle(node.title);
+        img.src = candidates[imageIndex] || "";
+        img.onerror = function() {
+          if (imageIndex < candidates.length - 1) {
+            imageIndex += 1;
+            this.src = candidates[imageIndex];
+          } else {
+            this.onerror = null;
+            this.style.display = "none";
+          }
+        };
+        if (isGenreTile) {
+          applyMusicGenreImage(img, node.title);
+        }
+        art.appendChild(img);
+        art.appendChild(fallback);
+
+        const body = document.createElement("div");
+        body.className = "body";
+        const nm = document.createElement("div");
+        nm.className = "name";
+        nm.innerHTML = `${cleanTitle(node.title)}${node.code ? ` <span class="badge">${cleanTitle(node.code)}</span>` : ""}`;
+        const foot = document.createElement("div");
+        foot.className = "foot";
+        const childCount = node.hasChildren ? (node.count || getNodeChildren(node.title, node.path, node.ancestry).length) : 0;
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = childCount ? `${childCount} child${childCount === 1 ? "" : "ren"}` : "song";
+        const mode = document.createElement("span");
+        mode.className = "badge";
+        mode.textContent = node.path.length === 1 ? "genre" : node.path.length === 2 ? "artist" : "song";
+        foot.appendChild(badge);
+        foot.appendChild(mode);
+        body.appendChild(nm);
+        body.appendChild(foot);
+
+        tile.appendChild(check);
+        tile.appendChild(art);
+        tile.appendChild(body);
+
+        if (node.hasChildren) {
+          const hint = document.createElement("div");
+          hint.className = "openHint";
+          hint.textContent = "Open";
+          tile.appendChild(hint);
+        }
+
+        tile.onclick = ev => {
+          if (ev.target && (ev.target.tagName === "INPUT" || ev.target.closest(".check"))) return;
+          if (node.hasChildren) {
+            state.currentPath = node.path.slice();
+            state.search = "";
+            el.search.value = "";
+            render();
+          } else {
+            setSubtreeSelection(node, !st.checked);
+            touchSelection();
+            render();
+          }
+        };
+
+        el.grid.appendChild(tile);
+      }
+      return;
+    }
+
+    for (const node of nodes) {
+      const st = nodeState(node);
+      const tile = document.createElement("div");
+      tile.className = "tile" + (st.checked ? " selected" : "") + (st.partial ? " partial" : "");
+
+      const check = document.createElement("label");
+      check.className = "check";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = st.checked;
+      cb.indeterminate = st.partial;
+      cb.onclick = ev => ev.stopPropagation();
+      cb.onchange = () => {
+        setSubtreeSelection(node, cb.checked);
+        touchSelection();
+        render();
+      };
+      check.appendChild(cb);
+
+      const art = document.createElement("div");
+      art.className = "art";
+      const img = document.createElement("img");
+      const fallback = document.createElement("div");
+      fallback.className = "fallback";
+      fallback.textContent = cleanTitle(node.title);
+
+      const candidates = buildImageCandidates(node);
+      let imageIndex = 0;
+      img.alt = cleanTitle(node.title);
+      img.src = candidates[imageIndex] || "";
+      img.onerror = function() {
+        if (imageIndex < candidates.length - 1) {
+          imageIndex += 1;
+          this.src = candidates[imageIndex];
+        } else {
+          this.onerror = null;
+          this.style.display = "none";
+        }
+      };
+      art.appendChild(img);
+      art.appendChild(fallback);
+
+      const body = document.createElement("div");
+      body.className = "body";
+      const nm = document.createElement("div");
+      nm.className = "name";
+      nm.innerHTML = `${cleanTitle(node.title)}${starFlag(node.title) ? ' <span class="badge">adult</span>' : ""}`;
+      const foot = document.createElement("div");
+      foot.className = "foot";
+      const count = getNodeChildren(node.title, node.path, node.ancestry).length;
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      if (state.currentSection === "games") {
+        badge.textContent = cleanTitle(node.item && (node.item.console || "game"));
+      } else if (state.currentSection === "books") {
+        badge.textContent = node.kind === "branch" ? "collection" : "book";
+      } else if (state.currentSection === "manga") {
+        badge.textContent = "manga";
+      } else {
+        badge.textContent = count ? `${count} child${count === 1 ? "" : "ren"}` : "leaf";
+      }
+      const mode = document.createElement("span");
+      mode.className = "badge";
+      if (state.currentSection === "games") {
+        mode.textContent = node.item && node.item.link ? "rom" : "game";
+      } else if (state.currentSection === "books") {
+        mode.textContent = node.kind === "branch" ? "open" : "book";
+      } else if (state.currentSection === "manga") {
+        mode.textContent = node.hasChildren ? "open" : "manga";
+      } else {
+        mode.textContent = node.hasChildren ? "open" : "item";
+      }
+      foot.appendChild(badge);
+      foot.appendChild(mode);
+      body.appendChild(nm);
+      body.appendChild(foot);
+
+      tile.appendChild(check);
+      tile.appendChild(art);
+      tile.appendChild(body);
+
+      if (state.currentSection === "books" && node.kind === "leaf") {
+        const key = bookAudiobookKeyFromPath(node.path);
+        void probeBookAudiobook(node);
+        const audioWrap = document.createElement("label");
+        audioWrap.className = "check";
+        audioWrap.style.left = "42px";
+        audioWrap.style.width = "30px";
+        audioWrap.style.height = "30px";
+        audioWrap.title = "Include audiobook";
+        const audioCb = document.createElement("input");
+        audioCb.type = "checkbox";
+        audioCb.checked = getBookAudiobookChoice(node.path);
+        audioCb.style.width = "18px";
+        audioCb.style.height = "18px";
+        audioCb.disabled = !state.bookAudiobookAvailable.get(key) && !state.bookAudiobookChoice.has(key);
+        audioCb.onclick = ev => ev.stopPropagation();
+        audioCb.onchange = () => setBookAudiobookChoice(node.path, audioCb.checked);
+        audioWrap.appendChild(audioCb);
+        const audioIcon = document.createElement("div");
+        audioIcon.textContent = "♫";
+        audioIcon.style.position = "absolute";
+        audioIcon.style.left = "8px";
+        audioIcon.style.top = "8px";
+        audioIcon.style.width = "32px";
+        audioIcon.style.height = "32px";
+        audioIcon.style.display = "flex";
+        audioIcon.style.alignItems = "center";
+        audioIcon.style.justifyContent = "center";
+        audioIcon.style.borderRadius = "10px";
+        audioIcon.style.background = "rgba(0,0,0,.42)";
+        audioIcon.style.fontSize = "17px";
+        audioIcon.style.color = "var(--accent)";
+        audioIcon.style.pointerEvents = "none";
+        audioIcon.style.zIndex = "1";
+        audioWrap.style.left = "8px";
+        audioWrap.style.top = "8px";
+        audioWrap.style.width = "32px";
+        audioWrap.style.height = "32px";
+        audioWrap.style.zIndex = "2";
+        audioWrap.style.background = "rgba(10,14,22,.38)";
+        tile.appendChild(audioIcon);
+        tile.appendChild(audioWrap);
+      }
+
+      if (node.hasChildren) {
+        const hint = document.createElement("div");
+        hint.className = "openHint";
+        hint.textContent = "Open";
+        tile.appendChild(hint);
+      }
+
+      tile.onclick = ev => {
+        if (ev.target && (ev.target.tagName === "INPUT" || ev.target.closest(".check"))) return;
+        if (node.hasChildren) {
+          state.currentPath = node.path.slice();
+          state.search = "";
+          el.search.value = "";
+          render();
+        }
+      };
+
+      el.grid.appendChild(tile);
+    }
+  }
+
+    function updateSidebar() {
+    const selected = [...state.selected].sort();
+    el.selectedCount.textContent = String(selected.length);
+
+    const selectedRoots = selectedRootsForOutput();
+    const outputFiles = [];
+    if (selectedRoots.length) {
+      if (state.currentSection === "music") {
+        outputFiles.push("musiclibrary.js");
+      } else if (state.currentSection === "games") {
+        outputFiles.push("games.js");
+        outputFiles.push("guidebooks.js");
+      } else if (state.currentSection === "books") {
+        outputFiles.push("books.js");
+      } else if (state.currentSection === "manga") {
+        outputFiles.push("manga.js");
+      } else {
+        outputFiles.push("mainfolders.js");
+        outputFiles.push("library.js");
+        if (collectLoaderEntriesForSelection(selectedRoots).length) outputFiles.push("loadseasonfunctions.js");
+      }
+    }
+    el.outputCount.textContent = String(outputFiles.length);
+
+    el.selectedList.innerHTML = "";
+    if (!selected.length) {
+      const empty = document.createElement("div");
+      empty.style.color = "var(--muted)";
+      empty.style.fontSize = "12px";
+      empty.textContent = "Nothing selected yet.";
+      el.selectedList.appendChild(empty);
+    } else {
+      const limit = 24;
+      const shown = selected.slice(0, limit);
+      for (const item of shown) {
+        const row = document.createElement("div");
+        row.className = "selItem";
+        const t = document.createElement("div");
+        t.className = "t";
+        t.textContent = item;
+        const x = document.createElement("div");
+        x.className = "x";
+        x.textContent = "×";
+        x.title = "Remove this exact node";
+        x.onclick = () => {
+          const path = JSON.parse(item);
+          setSelectionForPath(path, false);
+        };
+        row.appendChild(t);
+        row.appendChild(x);
+        el.selectedList.appendChild(row);
+      }
+      if (selected.length > limit) {
+        const more = document.createElement("div");
+        more.style.color = "var(--muted)";
+        more.style.fontSize = "12px";
+        more.style.padding = "4px 2px 0";
+        more.textContent = `…and ${selected.length - limit} more`;
+        el.selectedList.appendChild(more);
+      }
+    }
+  }
+
+  function render() {
+    state.subtreeCache.clear();
+    state.nodeStateCache.clear();
+
+    if (el.videoCard) el.videoCard.classList.toggle("active", state.currentSection === "video");
+    if (el.musicCard) el.musicCard.classList.toggle("active", state.currentSection === "music");
+    if (el.gamesCard) el.gamesCard.classList.toggle("active", state.currentSection === "games");
+    if (el.booksCard) el.booksCard.classList.toggle("active", state.currentSection === "books");
+    if (el.mangaCard) el.mangaCard.classList.toggle("active", state.currentSection === "manga");
+
+    if (el.videoCardCheck) {
+      el.videoCardCheck.checked = !!(state.selectedBySection.video && state.selectedBySection.video.size);
+      el.videoCardCheck.indeterminate = false;
+    }
+    if (el.musicCardCheck) {
+      el.musicCardCheck.checked = !!(state.selectedBySection.music && state.selectedBySection.music.size);
+      el.musicCardCheck.indeterminate = false;
+    }
+    if (el.gamesCardCheck) {
+      el.gamesCardCheck.checked = !!(state.selectedBySection.games && state.selectedBySection.games.size);
+      el.gamesCardCheck.indeterminate = false;
+    }
+    if (el.booksCardCheck) {
+      el.booksCardCheck.checked = !!(state.selectedBySection.books && state.selectedBySection.books.size);
+      el.booksCardCheck.indeterminate = false;
+    }
+    if (el.mangaCardCheck) {
+      el.mangaCardCheck.checked = !!(state.selectedBySection.manga && state.selectedBySection.manga.size);
+      el.mangaCardCheck.indeterminate = false;
+    }
+
+    buildBreadcrumbs();
+    renderGrid();
+    updateSidebar();
+    log(`${state.selected.size} selected nodes in ${state.currentSection}. Use the backup button to build the mini-clone zip.`);
+  }
+
+  function upOne() {
+    if (!state.currentPath.length) return;
+    state.currentPath = state.currentPath.slice(0, -1);
+    state.search = "";
+    el.search.value = "";
+    render();
+  }
+
+  async function doBackup() {
+    const selectedRoots = selectedRootsForOutput();
+    if (!selectedRoots.length) {
+      const scopeRoot = getBackupScopeRoot();
+      log(scopeRoot
+        ? `No selected content found inside the current branch root: ${scopeRoot}.`
+        : "No branch is open and nothing selected yet.");
+      return;
+    }
+
+    el.backupBtn.disabled = true;
+    el.backupBtn.textContent = "Building…";
+    try {
+      let files = [];
+      if (state.currentSection === "music") {
+        log("Building mini musiclibrary.js…");
+        const miniMusic = buildMiniMusicLibrary(selectedRoots);
+        files = [{ name: "musiclibrary.js", content: miniMusic }];
+      } else if (state.currentSection === "games") {
+        log("Building mini games.js…");
+        const miniGames = buildMiniGamesLibrary(selectedRoots);
+        log("Building matching guidebooks.js…");
+        const miniGuidebooks = buildMiniGuidebooksLibrary(selectedGameEntries());
+        files = [
+          { name: "games.js", content: miniGames },
+          { name: "guidebooks.js", content: miniGuidebooks }
+        ];
+      } else if (state.currentSection === "books") {
+        log("Checking audiobook availability…");
+        await primeBookAudiobookAvailability(selectedRoots);
+        log("Building mini books.js…");
+        const miniBooks = buildMiniBooksLibrary(selectedRoots);
+        files = [{ name: "books.js", content: miniBooks }];
+      } else if (state.currentSection === "manga") {
+        log("Building mini manga.js…");
+        const miniManga = buildMiniMangaLibrary(selectedRoots);
+        files = [{ name: "manga.js", content: miniManga }];
+      } else {
+        log("Building mini mainfolders.js…");
+        const miniFolders = buildMiniMainfolders(selectedRoots);
+        log("Building mini library.js…");
+        const miniLibrary = buildMiniLibrary(selectedRoots);
+        log("Building mini loadseasonfunctions.js…");
+        const miniLoaders = buildMiniLoaders(selectedRoots);
+        files = [
+          { name: "mainfolders.js", content: miniFolders },
+          { name: "library.js", content: miniLibrary },
+          { name: "loadseasonfunctions.js", content: miniLoaders }
+        ];
+      }
+
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const zipName = `server-content-backup_${stamp}.zip`;
+      log(`Zipping ${files.length} file(s)…`);
+      await downloadZip(zipName, files);
+      log(`Done. Downloaded ${zipName}`);
+    } catch (e) {
+      console.error(e);
+      log(`Backup failed: ${e && e.message ? e.message : e}`);
+    } finally {
+      el.backupBtn.disabled = false;
+      el.backupBtn.textContent = "Backup selected";
+    }
+  }
+
+  async function init() {
+    try {
+      el.notice.textContent = window.location.protocol === "file:"
+        ? "Open this page from the local server, not as a file, or the fetches will fail."
+        : "";
+
+      log("Fetching source files…");
+      const [foldersTxt, episodesTxt, loadersTxt, musicTxt, gamesTxt, guidebooksTxt, booksTxt, mangaTxt] = await Promise.all([
+        fetchTextResource(SOURCE_FILES.folders).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.episodes).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.loaders).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.music).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.games).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.guidebooks).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.books).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.manga).then(r => r.text)
+      ]);
+
+      const folders = evalVariableSource(foldersTxt, "folders");
+      const episodes = evalVariableSource(episodesTxt, "episodes");
+
+      state.foldersRaw = Array.isArray(folders) ? folders : [];
+      state.episodes = episodes && typeof episodes === "object" ? episodes : {};
+      parseLoaders(loadersTxt || "");
+      parseMusicLibrary(musicTxt || "");
+      state.games = Array.isArray(parseGamesSource(gamesTxt || "")) ? parseGamesSource(gamesTxt || "") : [];
+      const guidebooks = parseGuidebooksSource(guidebooksTxt || "");
+      state.guidebooks = Array.isArray(guidebooks.items) ? guidebooks.items : [];
+      state.books = parseBooksSource(booksTxt || "");
+      state.manga = parseMangaSource(mangaTxt || "");
+      state.loaded = true;
+
+      log(`Loaded ${sectionRootTitles("video").length} video roots, ${Object.keys(state.episodes || {}).length} library nodes, ${sectionRootTitles("music").length} music genres, ${sectionRootTitles("games").length} games, ${sectionRootTitles("books").length} books, ${sectionRootTitles("manga").length} manga items, and ${state.loaderEntries.length} season loader functions.`);
+      render();
+    } catch (e) {
+      console.error(e);
+      log(`Failed to load sources: ${e && e.message ? e.message : e}`);
+      el.viewTitle.textContent = "Load failed";
+      el.viewMeta.textContent = "Could not read the server files from this location.";
+    }
+  }
+
+  el.search.addEventListener("input", () => {
+    state.search = el.search.value || "";
+    render();
+  });
+  el.homeBtn.addEventListener("click", () => {
+    state.currentPath = [];
+    state.search = "";
+    el.search.value = "";
+    render();
+  });
+  el.upBtn.addEventListener("click", upOne);
+  el.selectAllBtn.addEventListener("click", () => selectView(true));
+  el.clearViewBtn.addEventListener("click", () => selectView(false));
+  el.backupBtn.addEventListener("click", doBackup);
+  el.videoCard.addEventListener("click", (ev) => {
+    if (ev.target && ev.target.tagName === "INPUT") return;
+    setCurrentSection("video");
+  });
+  el.videoCardCheck.addEventListener("change", () => {
+    if (state.currentSection !== "video") setCurrentSection("video");
+    selectAllVideo(!!el.videoCardCheck.checked);
+  });
+  if (el.musicCard) {
+    el.musicCard.addEventListener("click", (ev) => {
+      if (ev.target && ev.target.tagName === "INPUT") return;
+      setCurrentSection("music");
+    });
+  }
+  if (el.musicCardCheck) {
+    el.musicCardCheck.addEventListener("change", () => {
+      if (state.currentSection !== "music") setCurrentSection("music");
+      selectAllMusic(!!el.musicCardCheck.checked);
+    });
+  }
+  if (el.gamesCard) {
+    el.gamesCard.addEventListener("click", (ev) => {
+      if (ev.target && ev.target.tagName === "INPUT") return;
+      setCurrentSection("games");
+    });
+  }
+  if (el.gamesCardCheck) {
+    el.gamesCardCheck.addEventListener("change", () => {
+      if (state.currentSection !== "games") setCurrentSection("games");
+      selectAllGames(!!el.gamesCardCheck.checked);
+    });
+  }
+  if (el.booksCard) {
+    el.booksCard.addEventListener("click", (ev) => {
+      if (ev.target && ev.target.tagName === "INPUT") return;
+      setCurrentSection("books");
+    });
+  }
+  if (el.booksCardCheck) {
+    el.booksCardCheck.addEventListener("change", () => {
+      if (state.currentSection !== "books") setCurrentSection("books");
+      selectAllBooks(!!el.booksCardCheck.checked);
+    });
+  }
+  if (el.mangaCard) {
+    el.mangaCard.addEventListener("click", (ev) => {
+      if (ev.target && ev.target.tagName === "INPUT") return;
+      setCurrentSection("manga");
+    });
+  }
+  if (el.mangaCardCheck) {
+    el.mangaCardCheck.addEventListener("change", () => {
+      if (state.currentSection !== "manga") setCurrentSection("manga");
+      selectAllManga(!!el.mangaCardCheck.checked);
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

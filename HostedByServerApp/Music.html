@@ -2247,7 +2247,68 @@ function getSongsForArtist(artistName) {
       imgEl.src = src;
     }
 
+
+    // Shared artwork loader so the carousel center and player bar
+    // resolve from one source and update together.
+    const artworkUrlCache = new Map();
+
+    function loadArtworkUrl(src) {
+      const fallback = 'Music/Images/default.jpg';
+      const key = src || fallback;
+
+      const existing = artworkUrlCache.get(key);
+      if (existing) return existing;
+
+      const promise = fetch(key, { cache: 'force-cache' })
+        .then(async (res) => {
+          if (!res || !res.ok) throw new Error(`Artwork fetch failed: ${key}`);
+          const blob = await res.blob();
+          return URL.createObjectURL(blob);
+        })
+        .catch(async () => {
+          if (key !== fallback) return loadArtworkUrl(fallback);
+          return null;
+        });
+
+      artworkUrlCache.set(key, promise);
+      return promise;
+    }
+
+    async function setSharedArtwork(imagePath, token) {
+      const fallback = 'Music/Images/default.jpg';
+      const src = imagePath || fallback;
+      const activeToken = token || window._artworkRenderToken || 0;
+
+      const mainImg = document.getElementById('artistImage');
+      const barImg = document.getElementById('playerArtistImg');
+
+      const apply = (url) => {
+        if ((window._artworkRenderToken || 0) !== activeToken) return;
+        const finalUrl = url || src || fallback;
+        if (mainImg) mainImg.src = finalUrl;
+        if (barImg) barImg.src = finalUrl;
+      };
+
+      try {
+        const url = await loadArtworkUrl(src);
+        apply(url);
+      } catch (e) {
+        if ((window._artworkRenderToken || 0) !== activeToken) return;
+        apply(fallback);
+      }
+    }
+
+    function queueNeighborArtwork(imgEl, src, delayMs, token) {
+      if (!imgEl) return;
+      const activeToken = token || window._artworkRenderToken || 0;
+      setTimeout(() => {
+        if ((window._artworkRenderToken || 0) !== activeToken) return;
+        safeSetImg(imgEl, src);
+      }, Math.max(0, delayMs || 0));
+    }
+
 function playSong() {
+
   const player = document.getElementById("player");
 
   // If we've switched to a different song index than the last time, clear loop markers
@@ -2276,6 +2337,8 @@ function playSong() {
   }
 
   if (!currentPlaylist.length) return;
+
+  const artworkRenderToken = (window._artworkRenderToken = (window._artworkRenderToken || 0) + 1);
 
    const raw = currentPlaylist[currentSongIndex];
 
@@ -2314,16 +2377,15 @@ playResolvedTrack(audio, raw);
 
   // update media session / lock screen metadata (best-effort)
   try {
-var nowArtist = artist || (typeof getArtistFromFilename === 'function' ? getArtistFromFilename(raw) : '') || '';
-var nowTitle  = display || (String(raw).split('/').pop().replace(/\.\w+$/, '')) || '';
-var artPath = 'Music/Images/' + (nowArtist || 'default') + '.jpg';
-setNowPlayingMetadata(nowArtist, nowTitle, artPath);
+    var nowArtist = artist || (typeof getArtistFromFilename === 'function' ? getArtistFromFilename(raw) : '') || '';
+    var nowTitle  = display || (String(raw).split('/').pop().replace(/\.\w+$/, '')) || '';
+    var artPath = 'Music/Images/' + (nowArtist || 'default') + '.jpg';
 
-    try { var pimg = document.getElementById('playerArtistImg'); if(pimg) pimg.src = artPath; } catch(e){}
+    setNowPlayingMetadata(nowArtist, nowTitle, artPath);
+    setSharedArtwork(artPath, artworkRenderToken);
   } catch(e){ console.warn('setNowPlayingMetadata call failed', e); }
 
   // center image
-  safeSetImg(elems.center, `Music/Images/${artist}.jpg`);
   elems.center.style.display = '';
 
   // helper: clear any existing gesture handlers
@@ -2350,8 +2412,11 @@ setNowPlayingMetadata(nowArtist, nowTitle, artPath);
     const candArtist = getArtistFromFilename(candidate);
 
     el.style.display = '';
-    safeSetImg(el, `Music/Images/${candArtist}.jpg`);
     el.title = `${candidate.replace(/\.(mp3|flac)$/, "")}`;
+
+    const dist = Math.abs(offset);
+    const delayMap = { 1: 20, 2: 55, 3: 95, 4: 140 };
+    queueNeighborArtwork(el, `Music/Images/${candArtist}.jpg`, delayMap[dist] || (dist * 35), artworkRenderToken);
 
     // single click also navigates (keeps old behavior)
     el.onclick = () => { currentSongIndex = idx; playSong(); };
@@ -2426,26 +2491,6 @@ setNowPlayingMetadata(nowArtist, nowTitle, artPath);
   assign(2, elems.next2);
   assign(3, elems.next3);
   assign(4, elems.next4);
-
-  // small fallback logic for center image
-  const fallbackTimer = setTimeout(() => {
-    if (mainImg.complete === false || mainImg.naturalWidth === 0) {
-      mainImg.src = 'Music/Images/default.jpg';
-    }
-  }, 50);
-
-  mainImg.onload = function() {
-    clearTimeout(fallbackTimer);
-  };
-
-  // Retry artist image after 3 seconds if default used
-  setTimeout(() => {
-    const currentArtistNow = getArtistFromFilename(currentPlaylist[currentSongIndex]);
-    if (currentArtistNow === currentArtistWhenPlayed && mainImg.src && mainImg.src.endsWith && mainImg.src.endsWith('default.jpg') && player.style.display !== 'none') {
-      mainImg.src = `Music/Images/${currentArtistNow}.jpg`;
-      mainImg.onerror = function() { this.src = 'Music/Images/default.jpg'; this.onerror = null; };
-    }
-  }, 3000);
 
   // Start playback (keep existing semantics)
   audio.play().catch(()=>{ /* ignore autoplay rejection — UI will show play button */ });

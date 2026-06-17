@@ -143,22 +143,17 @@
       box-sizing: border-box;
     }
     .modal {
-      width: min(1080px, 96%);
+      width: min(560px, 96%);
       max-height: 92vh;
       overflow-y: auto;
-      background: linear-gradient(180deg,#0f1720,#0b1116);
+      background: #212222;
       padding: 16px;
       border-radius: 14px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-      color: var(--fg, #EAEFF3);
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,0.08);
     }
-    .modal h2 { margin: 0 0 8px 0; }
-    .modal-subtitle {
-      margin: 0 0 14px 0;
-      color: #9fb3c8;
-      font-size: 13px;
-      line-height: 1.45;
-    }
+    .modal h2 { margin: 0; color: #ffffff; font-size: 1.05rem; letter-spacing: 0.01em; }
 
     .editor-topbar {
       display: grid;
@@ -339,6 +334,13 @@
       font-size: 0.92rem;
     }
     .btn:hover { filter: brightness(1.08); }
+
+    #profileActionBack .btn {
+      background-color: rgba(128,128,128,0.7);
+    }
+    #profileActionBack .btn:hover {
+      background-color: rgba(160,160,160,0.7);
+    }
     .btn:disabled {
       opacity: 0.45;
       cursor: not-allowed;
@@ -520,10 +522,35 @@
 
     <div class="title" id="siteTitle">Choose Your Profile</div>
 
-    <div class="settings-btn" id="settingsBtn" role="button" aria-haspopup="dialog" aria-label="Edit profiles and server title" title="Profiles settings">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7zm8.94-2.06l-1.10-.20a7.02 7.02 0 0 0-.50-1.20l.60-1.00a1 1 0 0 0-.20-1.20l-1.60-1.60a1 1 0 0 0-1.20-.20l-1.00.60a7.02 7.02 0 0 0-1.20-.50l-.20-1.10A1 1 0 0 0 12.90 2h-1.80a1 1 0 0 0-.98.84l-.20 1.10a7.02 7.02 0 0 0-1.20.50l-1.00-.60a1 1 0 0 0-1.20.20L3.80 6.70a1 1 0 0 0-.20 1.20l.60 1.00a7.02 7.02 0 0 0-.50 1.20l-1.10.20A1 1 0 0 0 1 12v1.8a1 1 0 0 0 .84.98l1.10.20c.14.42.32.83.55 1.20l-.60 1A1 1 0 0 0 4 19.20l1.60 1.60a1 1 0 0 0 1.20.20l1.00-.60c.37.23.78.41 1.20.55l.20 1.10A1 1 0 0 0 11.10 23h1.80a1 1 0 0 0 .98-.84l.20-1.10c.42-.14.83-.32 1.20-.55l1.00.60a1 1 0 0 0 1.20-.20l1.60-1.60a1 1 0 0 0 .20-1.20l-.60-1c.23-.37.41-.78.55-1.20l1.10-.20A1 1 0 0 0 23 13.80V12a1 1 0 0 0-.06-.56z"></path></svg>
-    </div>
+    <div class="settings-btn" id="settingsBtn" role="button" aria-haspopup="dialog" aria-label="Open profile actions" title="Profile actions">
+  <svg width="18" height="18" viewBox="0 0 24 24" role="img" aria-labelledby="g1" fill="none" focusable="false" style="flex:0 0 auto;">
+    <title id="g1">Settings</title>
+    <circle cx="12" cy="12" r="7.2" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
+    <circle cx="12" cy="12" r="3.2" fill="currentColor"/>
+    <rect x="11" y="1.1" width="2" height="3" rx="0.35" fill="currentColor"/>
+    <rect x="11" y="1.1" width="2" height="3" rx="0.35" transform="rotate(45 12 12)" fill="currentColor"/>
+    <rect x="11" y="1.1" width="2" height="3" rx="0.35" transform="rotate(90 12 12)" fill="currentColor"/>
+    <rect x="11" y="1.1" width="2" height="3" rx="0.35" transform="rotate(135 12 12)" fill="currentColor"/>
+    <rect x="11" y="1.1" width="2" height="3" rx="0.35" transform="rotate(180 12 12)" fill="currentColor"/>
+    <rect x="11" y="1.1" width="2" height="3" rx="0.35" transform="rotate(225 12 12)" fill="currentColor"/>
+    <rect x="11" y="1.1" width="2" height="3" rx="0.35" transform="rotate(270 12 12)" fill="currentColor"/>
+    <rect x="11" y="1.1" width="2" height="3" rx="0.35" transform="rotate(315 12 12)" fill="currentColor"/>
+  </svg>
+</div>
   </header>
+
+
+<div id="profileActionBack" class="modal-back" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Profile Actions" style="width:min(560px, 96%);">
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+      <button id="editProfilesBtn" class="btn" style="padding:16px 14px;font-size:16px;">Edit Profiles</button>
+      <button id="manageUtilitiesBtn" class="btn" style="padding:16px 14px;font-size:16px;">Manage</button>
+      <button id="backupFlowBtn" class="btn" style="padding:16px 14px;font-size:16px;">Backup</button>
+      <button id="restoreFlowBtn" class="btn" style="padding:16px 14px;font-size:16px;">Restore</button>
+      <button id="cancelActionBtn" class="btn" style="grid-column:1/-1;padding:16px 14px;font-size:16px;margin-top:2px;">Close</button>
+    </div>
+  </div>
+</div>
 
   <div class="profiles-container" id="profilesContainer"></div>
 
@@ -534,7 +561,7 @@
     <button onclick="location.href='./Music.html'">Music</button>
 	<button onclick="location.href='./Books.html'">Books</button>
     <button onclick="location.href='./Manga.html'">Manga</button>
-    <button onclick="location.href='./manage.html'">Manage</button>
+    <button onclick="location.href='./utilities.html'">Utilities</button>
     <button onclick="window.location = document.referrer || './profile.html'">Back</button>
   </div>
 
@@ -722,6 +749,12 @@
     const siteTitleEl = document.getElementById("siteTitle");
     const settingsBtn = document.getElementById("settingsBtn");
     const settingsBack = document.getElementById("settingsBack");
+    const profileActionBack = document.getElementById("profileActionBack");
+    const editProfilesBtn = document.getElementById("editProfilesBtn");
+    const manageUtilitiesBtn = document.getElementById("manageUtilitiesBtn");
+    const backupFlowBtn = document.getElementById("backupFlowBtn");
+    const restoreFlowBtn = document.getElementById("restoreFlowBtn");
+    const cancelActionBtn = document.getElementById("cancelActionBtn");
     const profilesSelectGrid = document.getElementById("profilesSelectGrid");
     const selectedProfileEmpty = document.getElementById("selectedProfileEmpty");
     const selectedProfileWrap = document.getElementById("selectedProfileWrap");
@@ -1064,42 +1097,61 @@
       renderSelectedEditor();
     }
 
-    // SETTINGS modal UI
-    function openSettings() {
-      serverTitleInput.value = (typeof window._customServerTitle === 'string') ? window._customServerTitle : '';
-      if (!runtimeProfiles.length) {
-        selectedProfileIndex = -1;
-      } else if (selectedProfileIndex < 0 || selectedProfileIndex >= runtimeProfiles.length) {
-        const activeName = localStorage.getItem("activeProfile") || active || '';
-        const found = runtimeProfiles.findIndex(p => p.name.toLowerCase() === String(activeName).toLowerCase());
-        selectedProfileIndex = found >= 0 ? found : 0;
-      }
-      unlockedProfileIndex = -1;
-      isNewProfileAutoUnlock = false;
-      settingsBack.style.display = 'flex';
-      settingsBack.setAttribute('aria-hidden', 'false');
-      unlockInput.value = '';
-      unlockConfirmRow.style.display = 'none';
-      renderSelectorGrid();
-      renderSelectedEditor();
-      serverTitleInput.blur();
-    }
+// SETTINGS / ACTION launcher UI
+function openProfileEditor() {
+  serverTitleInput.value = (typeof window._customServerTitle === 'string') ? window._customServerTitle : '';
+  if (!runtimeProfiles.length) {
+    selectedProfileIndex = -1;
+  } else if (selectedProfileIndex < 0 || selectedProfileIndex >= runtimeProfiles.length) {
+    const activeName = localStorage.getItem("activeProfile") || active || '';
+    const found = runtimeProfiles.findIndex(p => p.name.toLowerCase() === String(activeName).toLowerCase());
+    selectedProfileIndex = found >= 0 ? found : 0;
+  }
+  unlockedProfileIndex = -1;
+  isNewProfileAutoUnlock = false;
+  settingsBack.style.display = 'flex';
+  settingsBack.setAttribute('aria-hidden', 'false');
+  unlockInput.value = '';
+  unlockConfirmRow.style.display = 'none';
+  renderSelectorGrid();
+  renderSelectedEditor();
+  serverTitleInput.blur();
+}
 
-    function closeSettings() {
-      settingsBack.style.display = 'none';
-      settingsBack.setAttribute('aria-hidden', 'true');
-      saveStatus.textContent = '';
-      unlockInput.value = '';
-      unlockConfirmRow.style.display = 'none';
-      unlockedProfileIndex = -1;
-      isNewProfileAutoUnlock = false;
-      renderSelectedEditor();
-      renderSelectorGrid();
-    }
+function closeProfileEditor() {
+  settingsBack.style.display = 'none';
+  settingsBack.setAttribute('aria-hidden', 'true');
+  saveStatus.textContent = '';
+  unlockInput.value = '';
+  unlockConfirmRow.style.display = 'none';
+  unlockedProfileIndex = -1;
+  isNewProfileAutoUnlock = false;
+  renderSelectedEditor();
+  renderSelectorGrid();
+}
 
-    settingsBtn.addEventListener('click', openSettings);
-    cancelSettingsBtn.addEventListener('click', closeSettings);
-    settingsBack.addEventListener('click', (e) => { if (e.target === settingsBack) closeSettings(); });
+function openActionDialog() {
+  profileActionBack.style.display = 'flex';
+  profileActionBack.setAttribute('aria-hidden', 'false');
+}
+
+function closeActionDialog() {
+  profileActionBack.style.display = 'none';
+  profileActionBack.setAttribute('aria-hidden', 'true');
+}
+
+settingsBtn.addEventListener('click', openActionDialog);
+cancelSettingsBtn.addEventListener('click', closeProfileEditor);
+settingsBack.addEventListener('click', (e) => { if (e.target === settingsBack) closeProfileEditor(); });
+cancelActionBtn.addEventListener('click', closeActionDialog);
+profileActionBack.addEventListener('click', (e) => { if (e.target === profileActionBack) closeActionDialog(); });
+editProfilesBtn.addEventListener('click', () => {
+  closeActionDialog();
+  openProfileEditor();
+});
+manageUtilitiesBtn.addEventListener('click', () => { window.location.href = './manage.html'; });
+backupFlowBtn.addEventListener('click', () => { window.location.href = './Backup-flow.html'; });
+restoreFlowBtn.addEventListener('click', () => { window.location.href = './Restore-flow.html'; });
 
     unlockEditBtn.addEventListener('click', () => {
       if (selectedProfileIndex < 0 || selectedProfileIndex >= runtimeProfiles.length) {
@@ -1241,15 +1293,14 @@
       if (!p) return;
       const f = ev.target.files && ev.target.files[0];
       if (!f) return;
-      const extIdx = f.name.lastIndexOf('.');
-      const ext = extIdx === -1 ? '.jpg' : f.name.slice(extIdx);
       const sanitizedBase = (profileNameInput.value || p.name || 'profile').replace(/\s+/g,'_');
-      const targetServerPath = '/Profiles/' + sanitizedBase + ext;
+      const targetServerPath = '/Profiles/' + sanitizedBase + '.jpg';
       uploadBtn.textContent = "Uploading...";
-      const ok = await uploadFileToServer(f, targetServerPath);
+      const jpegFile = await fileToJpegBlob(f);
+      const ok = await uploadFileToServer(jpegFile, targetServerPath);
       uploadBtn.textContent = ok ? "Uploaded" : "Upload failed";
       if (ok) {
-        profileImageInput.value = '/Profiles/' + sanitizedBase + ext;
+        profileImageInput.value = targetServerPath;
         p.image = profileImageInput.value;
         renderProfiles();
         renderSelectedEditor();
@@ -1354,26 +1405,70 @@
       }
     });
 
-    function uploadFileToServer(file, targetPath) {
-      return new Promise(async (resolve) => {
-        try {
-          const form = new FormData();
-          form.append('files[]', file, targetPath.split('/').pop());
-          const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form });
-          if (r && r.ok) return resolve(true);
-        } catch (e) { console.warn('pocketserver upload failed', e); }
-        try {
-          const r2 = await fetch(targetPath + `?_=${Date.now()}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/octet-stream' },
-            body: file,
-            credentials: 'include'
-          });
-          if (r2 && r2.ok) return resolve(true);
-          console.warn('PUT to', targetPath, 'failed', r2 && r2.status);
-        } catch (e) { console.warn('PUT fallback failed', e); }
-        resolve(false);
-      });
+    function apiUploadUrl(targetPath) {
+      const normalized = String(targetPath || '/').startsWith('/') ? String(targetPath) : '/' + String(targetPath || '');
+      const parts = normalized.split('/').filter(Boolean);
+      const filename = parts.pop() || '';
+      const uploadDir = parts.length ? '/' + parts.join('/') : '/';
+      const url = new URL('/api/file/upload', window.location.href);
+      url.searchParams.set('path', uploadDir);
+      url.searchParams.set('name', filename);
+      return url.toString();
+    }
+
+    async function uploadFileToServer(file, targetPath) {
+      const url = apiUploadUrl(targetPath);
+      const type = file?.type || 'application/octet-stream';
+      try {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': type },
+          body: file,
+          credentials: 'include'
+        });
+        if (r && r.ok) return true;
+      } catch (e) { console.warn('API upload failed', e); }
+      try {
+        const r2 = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': type },
+          body: file,
+          credentials: 'include'
+        });
+        if (r2 && r2.ok) return true;
+        console.warn('PUT to', targetPath, 'failed', r2 && r2.status);
+      } catch (e) { console.warn('PUT fallback failed', e); }
+      return false;
+    }
+
+    async function fileToJpegBlob(file, quality = 0.92) {
+      const input = file instanceof Blob ? file : new Blob([file], { type: 'image/jpeg' });
+      if (!input.type || /^image\/jpe?g$/i.test(input.type)) return input;
+      const url = URL.createObjectURL(input);
+      try {
+        const img = await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = url;
+        });
+        const width = Math.max(1, img.naturalWidth || img.width || 1);
+        const height = Math.max(1, img.naturalHeight || img.height || 1);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas unavailable');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((out) => out ? resolve(out) : reject(new Error('JPEG conversion failed')), 'image/jpeg', quality);
+        });
+        return blob;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
     }
 
     function buildProfilesJsContent(profilesArr, serverTitle) {

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Restore Flow</title>
+  <style>
+    :root {
+      --bg:#212222;
+      --panel:#0f1720;
+      --panel2:#131b26;
+      --line:rgba(255,255,255,.08);
+      --text:#ffffff;
+      --muted:#9fb3c8;
+      --accent:#2f8cff;
+      --radius:14px;
+      --shadow:0 20px 60px rgba(0,0,0,.6);
+    }
+    *{box-sizing:border-box}
+    html,body{min-height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+    .wrap{max-width:1280px;margin:0 auto;padding:16px}
+    .topbar{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;background:rgba(0,0,0,0.2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
+    h1{margin:0;font-size:24px}
+    .sub{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.45;max-width:980px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+    .btn, a.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:5px;padding:8px 12px;font:inherit;font-weight:700;cursor:pointer;background:rgba(128,128,128,0.7);color:#fff;text-decoration:none;transition:background-color .2s ease, transform .12s ease}
+    .btn:hover, a.btn:hover{transform:translateY(-1px);background:rgba(160,160,160,0.7)}
+    .primary{background:#2f8cff;color:#fff}
+    .primary:hover{background:#4b9dff}
+    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+    .panel{grid-column:span 12;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+    .panelHead{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02)}
+    .panelHead h2{margin:0;font-size:16px}
+    .panelBody{padding:16px}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+    .card{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;min-height:180px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+    .card h3{margin:0 0 6px 0;font-size:18px}
+    .card p{margin:0;color:var(--muted);line-height:1.45;font-size:13px}
+    .meta{font-size:12px;color:#cfe6ff;opacity:.9}
+    .stepbox{margin-top:16px;display:grid;gap:12px}
+    .step{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px}
+    .num{width:32px;height:32px;border-radius:999px;background:rgba(47,140,255,0.18);color:#79b7ff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
+    .mini{font-size:12px;color:#9fb3c8;line-height:1.45}
+    @media (max-width: 720px){.actions{justify-content:flex-start} h1{font-size:22px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>Restore Flow</h1>
+        <div class="sub">Choose the restore lane first, then open the detailed restore screens. The idea is to keep the decision tree visual instead of exposing everything at once.</div>
+      </div>
+      <div class="actions">
+        <a class="btn" href="./profile.html">Back to Profiles</a>
+        <a class="btn primary" href="./Backup-flow.html">Backup Flow</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <div class="panelHead"><h2>Pick a restore branch</h2></div>
+        <div class="panelBody">
+          <div class="cards">
+            <div class="card">
+              <div>
+                <h3>Restore server content</h3>
+                <p>Bring back the hosted library files and content-side pieces from a saved package.</p>
+                <div class="meta">server-content-backup.html</div>
+              </div>
+              <a class="btn primary" href="./server-content-backup.html">Open content restore</a>
+            </div>
+            <div class="card">
+              <div>
+                <h3>Restore profiles</h3>
+                <p>Bring back profile identities and the data that travels with those selections.</p>
+                <div class="meta">transfer-profile-backup.html</div>
+              </div>
+              <a class="btn primary" href="./transfer-profile-backup.html">Open profile restore</a>
+            </div>
+            <div class="card">
+              <div>
+                <h3>Restore from transfer</h3>
+                <p>Use a packaged transfer backup when the safest route is to restore the whole portable bundle.</p>
+                <div class="meta">transfer-backup.html</div>
+              </div>
+              <a class="btn primary" href="./transfer-backup.html">Open transfer restore</a>
+            </div>
+          </div>
+          <div class="stepbox">
+            <div class="step"><div class="num">1</div><div><strong>Choose the restore family.</strong><div class="mini">Profiles, content, or a portable bundle first.</div></div></div>
+            <div class="step"><div class="num">2</div><div><strong>Open the detailed restore screen.</strong><div class="mini">The detailed page can then handle the actual import or merge action.</div></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

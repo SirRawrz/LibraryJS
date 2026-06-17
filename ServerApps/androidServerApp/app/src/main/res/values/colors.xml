@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <color name="library_bg">#0B0F14</color>
+    <color name="library_surface">#141A22</color>
+    <color name="library_surface_alt">#1A2230</color>
+    <color name="library_text_primary">#E8EEF7</color>
+    <color name="library_text_secondary">#A8B3C7</color>
+    <color name="library_link">#79A8FF</color>
+    <color name="library_accent">#8BE1B4</color>
+</resources>

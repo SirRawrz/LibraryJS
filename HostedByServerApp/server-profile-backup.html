@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LibraryJS — Server Profiles Backup</title>
+  <style>
+    :root{
+      --bg:#0b1018;
+      --panel:#111827;
+      --panel2:#0d1420;
+      --line:rgba(255,255,255,.08);
+      --text:#edf4ff;
+      --muted:#93a2be;
+      --accent:#79e3c5;
+      --accent2:#86aafc;
+      --danger:#ff8591;
+      --warn:#ffbe6a;
+      --ok:#79e3c5;
+      --radius:22px;
+      --shadow:0 22px 60px rgba(0,0,0,.28);
+    }
+    *{box-sizing:border-box}
+    html,body{min-height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at top left, rgba(121,227,197,.09), transparent 26%),
+        radial-gradient(circle at right top, rgba(134,170,252,.08), transparent 24%),
+        linear-gradient(180deg, #09111b 0%, #0b1018 100%);
+      color:var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap{max-width:1700px;margin:0 auto;padding:16px}
+    .hero,.panel,.card{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+      box-shadow:var(--shadow);
+    }
+    .hero{
+      display:flex; flex-wrap:wrap; gap:14px;
+      align-items:flex-start; justify-content:space-between;
+      padding:16px;
+      margin-bottom:16px;
+    }
+    .hero h1{margin:0;font-size:26px;letter-spacing:-.04em}
+    .hero .sub{margin-top:7px;color:var(--muted);max-width:1020px;line-height:1.45;font-size:13px}
+    .hero .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;align-items:center;flex:1 1 560px}
+    input[type="text"], input[type="file"], select, textarea{
+      background:var(--panel2); color:var(--text);
+      border:1px solid var(--line); border-radius:12px;
+      padding:11px 12px; font:inherit; outline:none;
+    }
+    input[type="file"]{padding:9px 12px}
+    input[type="text"], select{min-width:220px}
+    textarea{width:100%; min-height:120px; resize:vertical}
+    button{
+      border:0; border-radius:12px; padding:11px 14px;
+      font:inherit; font-weight:750; cursor:pointer;
+      background:rgba(255,255,255,.08); color:var(--text);
+      border:1px solid var(--line);
+      transition:transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+    }
+    button:hover{border-color:rgba(134,170,252,.22)}
+    button:active{transform:translateY(1px)}
+    button.primary{background:linear-gradient(180deg, rgba(121,227,197,1), rgba(92,202,168,1));color:#07120f;border-color:transparent}
+    button.danger{background:rgba(255,133,145,.12);color:#ffc5cb;border-color:rgba(255,133,145,.18)}
+    button.ghost{background:rgba(255,255,255,.04)}
+    button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+    .main{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:16px;align-items:start}
+    .panel{overflow:hidden}
+    .panelHead{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .panelHead h2{margin:0;font-size:16px}
+    .panelHead .meta{color:var(--muted);font-size:12px}
+    .panelBody{padding:16px}
+
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+    .toolbar .spacer{flex:1 1 auto}
+    .small{font-size:12px;color:var(--muted);line-height:1.45}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+
+    .profilesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+    .profileCard{
+      position:relative;
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      background:rgba(255,255,255,.03);
+      box-shadow:0 10px 25px rgba(0,0,0,.18);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-height: 100%;
+    }
+    .profileCard.active{outline:2px solid rgba(121,227,197,.22);border-color:rgba(121,227,197,.24)}
+    .profileTop{display:flex;align-items:flex-start;gap:12px}
+    .avatar{width:58px;height:58px;border-radius:16px;object-fit:cover;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);flex:0 0 auto}
+    .profileMeta{flex:1 1 auto;min-width:0}
+    .profileName{font-size:16px;font-weight:800;letter-spacing:-.02em;margin:0}
+    .profileSub{margin-top:4px;color:var(--muted);font-size:12px;line-height:1.35}
+    .profileRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .profileRow label{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);cursor:pointer;font-size:12px;user-select:none}
+    .profileRow input{margin:0}
+    .contentGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .contentBox{padding:10px 11px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);display:flex;gap:8px;align-items:flex-start}
+    .contentBox input{margin-top:2px}
+    .contentBox .txt{font-size:12px;line-height:1.35}
+    .contentBox .txt strong{display:block;font-size:12px;color:var(--text)}
+    .contentBox .txt span{display:block;color:var(--muted);margin-top:3px}
+
+    .statGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+    .stat{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:16px;padding:12px}
+    .stat .k{color:var(--muted);font-size:12px}
+    .stat .v{margin-top:6px;font-size:18px;font-weight:800}
+    .list{display:flex;flex-direction:column;gap:8px;max-height:370px;overflow:auto;padding-right:4px}
+    .item{display:flex;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);font-size:12px}
+    .item .a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .item .b{color:var(--muted);flex:0 0 auto}
+    .log{white-space:pre-wrap;color:var(--muted);font-size:12px;line-height:1.45;min-height:180px}
+    .progressOuter{width:100%;height:12px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+    .progressInner{width:0%;height:100%;background:linear-gradient(90deg, rgba(121,227,197,1), rgba(134,170,252,1));transition:width .2s ease}
+
+    @media (max-width: 1080px){.main{grid-template-columns:1fr}}
+    @media (max-width: 680px){
+      .profilesGrid{grid-template-columns:1fr}
+      .contentGrid{grid-template-columns:1fr}
+      .statGrid{grid-template-columns:1fr 1fr}
+      .hero,.panel{padding-left:0;padding-right:0}
+      .hero{padding:14px}
+      .panelBody{padding:14px}
+      .hero .actions{justify-content:flex-start}
+      .hero input[type="text"], .hero select{min-width:100%}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div>
+      <h1>Server Profiles Backup</h1>
+      <div class="sub">
+        Pick one or more profiles, then choose which profile-scoped content should be captured into a single backup zip.
+        This page keeps the same “server-aware” style as the existing backup tools, but it is narrowed to the profile side of the project: album folders and album metadata, emulator memory-card saves, bookmarks, favorites, music lists, and the profile entry in <span class="mono">profiles.js</span>.
+      </div>
+    </div>
+    <div class="actions">
+      <input id="searchBox" type="text" placeholder="Filter profiles or contents" />
+      <button id="selectAllProfilesBtn">Select all profiles</button>
+      <button id="clearAllBtn">Clear</button>
+      <button id="buildBtn" class="primary">Build backup zip</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <div class="panelHead">
+        <div>
+          <h2>Profiles and content</h2>
+          <div class="meta">Each profile can back up its own set of items</div>
+        </div>
+        <div class="meta" id="profilesMeta">Loading profiles…</div>
+      </div>
+      <div class="panelBody">
+        <div class="toolbar">
+          <div class="small">Default selection is everything checked. Use the search box to trim the list.</div>
+          <div class="spacer"></div>
+          <button id="selectVisibleBtn" class="ghost">Select visible</button>
+          <button id="clearVisibleBtn" class="ghost">Clear visible</button>
+        </div>
+        <div class="profilesGrid" id="profilesGrid"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panelHead">
+        <div>
+          <h2>Backup summary</h2>
+          <div class="meta">What will be inside the zip</div>
+        </div>
+      </div>
+      <div class="panelBody">
+        <div class="statGrid">
+          <div class="stat"><div class="k">Selected profiles</div><div class="v" id="selectedProfilesCount">0</div></div>
+          <div class="stat"><div class="k">Selected items</div><div class="v" id="selectedItemsCount">0</div></div>
+          <div class="stat"><div class="k">Files found</div><div class="v" id="filesFoundCount">0</div></div>
+          <div class="stat"><div class="k">Zip bytes</div><div class="v" id="zipSizeText">0 B</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:12px; padding:12px;">
+          <div class="small" style="margin-bottom:10px;">Included files</div>
+          <div class="list" id="fileList"></div>
+        </div>
+
+        <div class="card" style="padding:12px;margin-bottom:12px;">
+          <div class="small" style="margin-bottom:10px;">Progress</div>
+          <div class="progressOuter"><div id="progressInner" class="progressInner"></div></div>
+          <div class="small" id="progressText" style="margin-top:8px;">Idle.</div>
+        </div>
+
+        <div class="card" style="padding:12px;">
+          <div class="small" style="margin-bottom:10px;">Log</div>
+          <div class="log" id="log">Waiting for profile selection…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="./profiles.js"></script>
+<script>
+(() => {
+  const el = {
+    searchBox: document.getElementById('searchBox'),
+    profilesGrid: document.getElementById('profilesGrid'),
+    profilesMeta: document.getElementById('profilesMeta'),
+    selectAllProfilesBtn: document.getElementById('selectAllProfilesBtn'),
+    clearAllBtn: document.getElementById('clearAllBtn'),
+    selectVisibleBtn: document.getElementById('selectVisibleBtn'),
+    clearVisibleBtn: document.getElementById('clearVisibleBtn'),
+    buildBtn: document.getElementById('buildBtn'),
+    selectedProfilesCount: document.getElementById('selectedProfilesCount'),
+    selectedItemsCount: document.getElementById('selectedItemsCount'),
+    filesFoundCount: document.getElementById('filesFoundCount'),
+    zipSizeText: document.getElementById('zipSizeText'),
+    fileList: document.getElementById('fileList'),
+    progressInner: document.getElementById('progressInner'),
+    progressText: document.getElementById('progressText'),
+    log: document.getElementById('log'),
+  };
+
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+
+  const PROFILE_ITEMS = [
+    { key: 'profile', label: 'Profile data', desc: 'profile avatar path + selected colors from profiles.js' },
+    { key: 'albums', label: 'Albums', desc: 'Profiles/<name>-albums.json, album lists, and Albums/<name>/ images' },
+    { key: 'memory', label: 'Memory cards 1 & 2', desc: 'emulator/Mem1 and Mem2 saves for the selected profile' },
+    { key: 'bookmarks', label: 'Bookmarks', desc: 'Books, manga, and guidebook bookmarks from Books/progress' },
+    { key: 'favorites', label: 'Favorites', desc: 'video favorites plus game favorites' },
+    { key: 'resumes', label: 'Series resumes', desc: 'TV episode progress files and the Resume pointer created by tvd.html' },
+    { key: 'music', label: 'Music lists', desc: 'master playlists, playlists, liked songs, exiled list, and playlist art' },
+  ];
+
+  const state = {
+    profiles: [],
+    filter: '',
+    generatedFiles: [],
+    logLines: [],
+    builtZipBytes: null,
+  };
+
+  function log(msg, reset = false) {
+    const text = String(msg || '').trim();
+    if (reset) state.logLines = [];
+    if (text) {
+      const stamp = new Date().toLocaleTimeString([], { hour12: false });
+      state.logLines.push(`[${stamp}] ${text}`);
+      if (state.logLines.length > 240) state.logLines.splice(0, state.logLines.length - 240);
+    }
+    el.log.textContent = state.logLines.join('\n') || 'Idle.';
+    el.log.scrollTop = el.log.scrollHeight;
+  }
+
+  function setProgress(done, total, label = '') {
+    const pct = total ? Math.max(0, Math.min(100, (done / total) * 100)) : 0;
+    el.progressInner.style.width = `${pct}%`;
+    el.progressText.textContent = label ? `${label} (${done}/${total})` : `${done}/${total}`;
+  }
+
+  function humanBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let v = bytes;
+    let idx = 0;
+    while (v >= 1024 && idx < units.length - 1) { v /= 1024; idx++; }
+    return `${v.toFixed(v >= 100 || idx === 0 ? 0 : 1)} ${units[idx]}`;
+  }
+
+  function normalizePath(value) {
+    let s = String(value || '').replace(/\\/g, '/').trim();
+    if (!s) return '';
+    s = s.replace(/^\.?\/?/, '');
+    return s.replace(/^\/+/, '');
+  }
+
+  function joinPath(...parts) {
+    return parts.map(normalizePath).filter(Boolean).join('/');
+  }
+
+  function basename(path) {
+    return normalizePath(path).split('/').filter(Boolean).pop() || '';
+  }
+
+  function cleanName(raw) {
+    return String(raw || '').trim();
+  }
+
+  function getProfileNames() {
+    const raw = Array.isArray(window.profiles) ? window.profiles : [];
+    return raw.map(p => cleanName(p && p.name)).filter(Boolean);
+  }
+
+  function getProfileEntry(name) {
+    const raw = Array.isArray(window.profiles) ? window.profiles : [];
+    const key = String(name || '').toLowerCase();
+    return raw.find(p => String(p && p.name || '').toLowerCase() === key) || null;
+  }
+
+  function normalizeProfileEntry(item) {
+    if (!item || typeof item !== 'object') return null;
+    const name = cleanName(item.name || item.id || item.label || 'Guest') || 'Guest';
+    const image = cleanName(item.image || `./Profiles/${name}.jpg`);
+    const bgColors = Array.isArray(item.bgColors) ? item.bgColors.slice(0, 10) : [];
+    return { name, image, bgColors };
+  }
+
+  function selectedProfileNodes() {
+    return Array.from(document.querySelectorAll('.profileCard')).filter(card => {
+      const input = card.querySelector('input.profileCheck');
+      return !!input && input.checked;
+    });
+  }
+
+  function syncProfileCardChildren(card, checked) {
+    if (!card) return;
+    card.querySelectorAll('.itemCheck').forEach(cb => { cb.checked = !!checked; });
+  }
+
+  function selectedProfiles() {
+    return selectedProfileNodes().map(card => card.getAttribute('data-profile')).filter(Boolean);
+  }
+
+  function profileItemChecked(profile, key) {
+    const input = document.querySelector(`.profileCard[data-profile="${cssEscape(profile)}"] input.itemCheck[data-item="${cssEscape(key)}"]`);
+    return !!(input && input.checked);
+  }
+
+  function cssEscape(value) {
+    return String(value || '').replace(/"/g, '\\"');
+  }
+
+  function setAllProfiles(on) {
+    document.querySelectorAll('.profileCard').forEach(card => {
+      const cb = card.querySelector('.profileCheck');
+      if (cb) cb.checked = !!on;
+      syncProfileCardChildren(card, on);
+    });
+    updateCounts();
+  }
+
+  function setAllVisible(on) {
+    const cards = Array.from(document.querySelectorAll('.profileCard')).filter(card => card.style.display !== 'none');
+    cards.forEach(card => {
+      const main = card.querySelector('.profileCheck');
+      if (main) main.checked = !!on;
+    });
+    updateCounts();
+  }
+
+  function setVisibleItemChecks(on) {
+    const cards = Array.from(document.querySelectorAll('.profileCard')).filter(card => card.style.display !== 'none');
+    cards.forEach(card => card.querySelectorAll('.itemCheck').forEach(cb => cb.checked = !!on));
+    updateCounts();
+  }
+
+  function applyFilter() {
+    const q = String(el.searchBox.value || '').trim().toLowerCase();
+    state.filter = q;
+    for (const card of document.querySelectorAll('.profileCard')) {
+      const txt = card.getAttribute('data-search') || '';
+      card.style.display = !q || txt.includes(q) ? '' : 'none';
+    }
+  }
+
+  function itemLabel(item) {
+    return `${item.label}`;
+  }
+
+  function renderProfiles() {
+    const profiles = getProfileNames().map(name => normalizeProfileEntry(getProfileEntry(name) || { name, image: `./Profiles/${name}.jpg`, bgColors: [] })).filter(Boolean);
+    state.profiles = profiles;
+    el.profilesMeta.textContent = `${profiles.length} profile${profiles.length === 1 ? '' : 's'} loaded`;
+    el.profilesGrid.innerHTML = '';
+
+    if (!profiles.length) {
+      const empty = document.createElement('div');
+      empty.className = 'small';
+      empty.textContent = 'No profiles were found in profiles.js.';
+      el.profilesGrid.appendChild(empty);
+      return;
+    }
+
+    for (const profile of profiles) {
+      const card = document.createElement('div');
+      card.className = 'profileCard';
+      card.setAttribute('data-profile', profile.name);
+      const searchText = [profile.name, profile.image, ...PROFILE_ITEMS.map(i => i.label + ' ' + i.desc)].join(' ').toLowerCase();
+      card.setAttribute('data-search', searchText);
+
+      const top = document.createElement('div');
+      top.className = 'profileTop';
+
+      const img = document.createElement('img');
+      img.className = 'avatar';
+      img.src = profile.image || `./Profiles/${profile.name}.jpg`;
+      img.alt = profile.name;
+      img.onerror = () => { img.src = './Profiles/Guest.jpg'; };
+
+      const meta = document.createElement('div');
+      meta.className = 'profileMeta';
+      const name = document.createElement('div');
+      name.className = 'profileName';
+      name.textContent = profile.name;
+      const sub = document.createElement('div');
+      sub.className = 'profileSub';
+      const colorCount = Array.isArray(profile.bgColors) ? profile.bgColors.length : 0;
+      sub.textContent = `${colorCount} background color${colorCount === 1 ? '' : 's'}; image: ${basename(profile.image) || 'none'}`;
+      meta.append(name, sub);
+      top.append(img, meta);
+
+      const row = document.createElement('div');
+      row.className = 'profileRow';
+      const profileCheck = document.createElement('label');
+      profileCheck.innerHTML = `<input class="profileCheck" type="checkbox" checked /> Select profile`;
+      row.append(profileCheck);
+
+      const contentGrid = document.createElement('div');
+      contentGrid.className = 'contentGrid';
+      for (const item of PROFILE_ITEMS) {
+        const box = document.createElement('label');
+        box.className = 'contentBox';
+        box.innerHTML = `
+          <input class="itemCheck" type="checkbox" data-item="${item.key}" checked />
+          <div class="txt"><strong>${item.label}</strong><span>${item.desc}</span></div>
+        `;
+        contentGrid.appendChild(box);
+      }
+
+      card.append(top, row, contentGrid);
+      const profileToggle = profileCheck.querySelector('input.profileCheck');
+      if (profileToggle) {
+        profileToggle.addEventListener('change', () => {
+          syncProfileCardChildren(card, profileToggle.checked);
+          updateCounts();
+        });
+      }
+      card.addEventListener('change', updateCounts);
+      el.profilesGrid.appendChild(card);
+    }
+
+    applyFilter();
+    updateCounts();
+  }
+
+  function updateCounts() {
+    const cards = Array.from(document.querySelectorAll('.profileCard')).filter(card => card.style.display !== 'none');
+    const selected = cards.filter(card => card.querySelector('.profileCheck')?.checked);
+    let itemCount = 0;
+    for (const card of selected) {
+      itemCount += Array.from(card.querySelectorAll('.itemCheck')).filter(cb => cb.checked).length;
+    }
+    el.selectedProfilesCount.textContent = String(selected.length);
+    el.selectedItemsCount.textContent = String(itemCount);
+  }
+
+  function encodeUtf8(text) { return enc.encode(String(text || '')); }
+
+  function crc32(bytes) {
+    let crc = ~0 >>> 0;
+    for (let i = 0; i < bytes.length; i++) {
+      crc ^= bytes[i];
+      for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+    }
+    return (~crc) >>> 0;
+  }
+
+  function concatBytes(parts) {
+    const total = parts.reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const p of parts) { out.set(p, offset); offset += p.length; }
+    return out;
+  }
+
+  function makeZip(files) {
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+
+    for (const file of files) {
+      const nameBytes = encodeUtf8(file.name);
+      const dataBytes = file.bytes instanceof Uint8Array ? file.bytes : encodeUtf8(String(file.content || ''));
+      const crc = crc32(dataBytes);
+
+      const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
+      const ldv = new DataView(local.buffer);
+      ldv.setUint32(0, 0x04034b50, true);
+      ldv.setUint16(4, 20, true);
+      ldv.setUint16(6, 0x0800, true);
+      ldv.setUint16(8, 0, true);
+      ldv.setUint16(10, 0, true);
+      ldv.setUint16(12, 0, true);
+      ldv.setUint32(14, crc, true);
+      ldv.setUint32(18, dataBytes.length, true);
+      ldv.setUint32(22, dataBytes.length, true);
+      ldv.setUint16(26, nameBytes.length, true);
+      ldv.setUint16(28, 0, true);
+      local.set(nameBytes, 30);
+      local.set(dataBytes, 30 + nameBytes.length);
+      localParts.push(local);
+
+      const central = new Uint8Array(46 + nameBytes.length);
+      const cdv = new DataView(central.buffer);
+      cdv.setUint32(0, 0x02014b50, true);
+      cdv.setUint16(4, 20, true);
+      cdv.setUint16(6, 20, true);
+      cdv.setUint16(8, 0x0800, true);
+      cdv.setUint16(10, 0, true);
+      cdv.setUint16(12, 0, true);
+      cdv.setUint16(14, 0, true);
+      cdv.setUint32(16, crc, true);
+      cdv.setUint32(20, dataBytes.length, true);
+      cdv.setUint32(24, dataBytes.length, true);
+      cdv.setUint16(28, nameBytes.length, true);
+      cdv.setUint16(30, 0, true);
+      cdv.setUint16(32, 0, true);
+      cdv.setUint16(34, 0, true);
+      cdv.setUint16(36, 0, true);
+      cdv.setUint32(38, 0, true);
+      cdv.setUint32(42, offset, true);
+      central.set(nameBytes, 46);
+      centralParts.push(central);
+
+      offset += local.length;
+    }
+
+    const centralBytes = concatBytes(centralParts);
+    const end = new Uint8Array(22);
+    const edv = new DataView(end.buffer);
+    edv.setUint32(0, 0x06054b50, true);
+    edv.setUint16(4, 0, true);
+    edv.setUint16(6, 0, true);
+    edv.setUint16(8, files.length, true);
+    edv.setUint16(10, files.length, true);
+    edv.setUint32(12, centralBytes.length, true);
+    edv.setUint32(16, offset, true);
+    edv.setUint16(20, 0, true);
+    return concatBytes([...localParts, centralBytes, end]);
+  }
+
+  function textFile(path, text) {
+    return { name: normalizePath(path), bytes: encodeUtf8(text) };
+  }
+
+  async function fetchBytes(path) {
+    const url = path.startsWith('http://') || path.startsWith('https://') ? path : `./${normalizePath(path)}`;
+    const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+    if (!res.ok) return null;
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
+  async function fetchText(path) {
+    const bytes = await fetchBytes(path);
+    if (!bytes) return null;
+    try { return dec.decode(bytes); } catch { return null; }
+  }
+
+  async function tryFetchAny(paths) {
+    for (const path of paths) {
+      const bytes = await fetchBytes(path).catch(() => null);
+      if (bytes) return { path: normalizePath(path), bytes };
+    }
+    return null;
+  }
+
+  async function listDir(targetDir) {
+    if (typeof window.pocketList === 'function') {
+      try { const list = await window.pocketList(targetDir); if (Array.isArray(list) && list.length) return list.map(String); } catch (e) {}
+    }
+
+    try {
+      const r = await fetch(`/pocketserver-api/list?q=${encodeURIComponent(targetDir)}`, { credentials: 'include' });
+      if (r && r.ok) {
+        const txt = await r.text();
+        try {
+          const parsed = JSON.parse(txt);
+          if (Array.isArray(parsed)) return parsed.map(item => typeof item === 'string' ? item : String(item && (item.name || item.path || item.href || ''))).filter(Boolean);
+        } catch (e) {}
+        return txt.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      }
+    } catch (e) {}
+
+    try {
+      const r2 = await fetch(targetDir, { cache: 'no-store', credentials: 'include' });
+      if (r2 && r2.ok) {
+        const html = await r2.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const anchors = Array.from(doc.querySelectorAll('a[href]')).map(a => a.getAttribute('href')).filter(Boolean);
+        if (anchors.length) return anchors;
+      }
+    } catch (e) {}
+
+    return [];
+  }
+
+  function imageExt(path) {
+    return /\.(jpe?g|png|gif|webp|avif|heic)$/i.test(String(path || ''));
+  }
+
+  function isPlaylistArtPath(path) {
+    return /\/Music\/Images\//i.test(path) || /\/Profiles\//i.test(path);
+  }
+
+  function profileNamesFromSelectedCards() {
+    return selectedProfiles();
+  }
+
+  function buildProfilesJs(selectedEntries, serverTitle = '') {
+    const safeProfiles = selectedEntries.map(p => ({
+      name: String(p.name || 'Guest'),
+      image: String(p.image || (`./Profiles/${String(p.name || 'Guest')}.jpg`)),
+      bgColors: Array.isArray(p.bgColors) ? p.bgColors.slice(0, 10) : []
+    }));
+    const titleString = serverTitle ? String(serverTitle) : '';
+    return `/* Generated by server-profiles-backup.html */\n\nwindow.profiles = ${JSON.stringify(safeProfiles, null, 2)};\n// Example: window._customServerTitle = \"Family Media Library\";\nwindow._customServerTitle = ${JSON.stringify(titleString)};\n`;
+  }
+
+  async function collectProfileFiles(profileName, flags) {
+    const out = [];
+    const wanted = Object.assign({ profile: true, albums: true, memory: true, bookmarks: true, favorites: true, resumes: true, music: true }, flags || {});
+    const profile = cleanName(profileName);
+    const prefix = `${profile}-`;
+
+    const add = async (path, opts = {}) => {
+      const bytes = opts.bytes || await fetchBytes(path).catch(() => null);
+      if (!bytes || !bytes.length) return false;
+      const entry = { name: normalizePath(path), bytes };
+      if (!out.some(x => x.name === entry.name)) out.push(entry);
+      return true;
+    };
+
+    if (wanted.profile) {
+      const entry = getProfileEntry(profile);
+      if (entry) {
+        const imagePath = normalizePath(entry.image || `./Profiles/${profile}.jpg`);
+        if (imagePath) await add(imagePath);
+      } else {
+        await add(`Profiles/${profile}.jpg`);
+      }
+    }
+
+    if (wanted.albums) {
+      const meta = await tryFetchAny([
+        `Profiles/${profile}-albums.json`,
+        `./Profiles/${profile}-albums.json`
+      ]);
+      if (meta) {
+        out.push({ name: meta.path, bytes: meta.bytes });
+      }
+      const profileDirEntries = await listDir('/Profiles/');
+      for (const entry of profileDirEntries) {
+        const name = basename(entry);
+        if (!name.toLowerCase().startsWith(prefix.toLowerCase())) continue;
+        if (!/\.json$/i.test(name)) continue;
+        if (!/^.*-album-.+\.json$/i.test(name) && !/^.*-albums\.json$/i.test(name)) continue;
+        await add(`/Profiles/${name}`);
+      }
+      const albumImages = await listDir(`/Albums/${profile}/`).catch(() => []);
+      for (const entry of albumImages) {
+        const name = basename(entry);
+        if (!imageExt(name)) continue;
+        const path = entry.startsWith('/') ? entry : `/Albums/${profile}/${name}`;
+        await add(path);
+      }
+      const sharedImages = await listDir('/Albums/shared/').catch(() => []);
+      for (const entry of sharedImages) {
+        const name = basename(entry);
+        if (!imageExt(name)) continue;
+        if (!name.startsWith(prefix)) continue;
+        const path = entry.startsWith('/') ? entry : `/Albums/shared/${name}`;
+        await add(path);
+      }
+    }
+
+    if (wanted.memory) {
+      for (const dir of ['/emulator/Mem1/', '/emulator/Mem2/']) {
+        const entries = await listDir(dir).catch(() => []);
+        for (const entry of entries) {
+          const name = basename(entry);
+          if (!name.toLowerCase().startsWith(prefix.toLowerCase())) continue;
+          await add(entry.startsWith('/') ? entry : `${dir}${name}`);
+        }
+      }
+    }
+
+    if (wanted.bookmarks) {
+      const entries = await listDir('/Books/progress/').catch(() => []);
+      for (const entry of entries) {
+        const name = basename(entry);
+        if (!name.toLowerCase().startsWith(prefix.toLowerCase())) continue;
+        if (!/bookmarks?$/i.test(name)) continue;
+        await add(entry.startsWith('/') ? entry : `/Books/progress/${name}`);
+      }
+    }
+
+    if (wanted.favorites) {
+      const fixedNames = [
+        `${profile}-favorites.txt`, `${profile}-favorites`,
+        `${profile}-gamesFavorites.txt`, `${profile}-gamesFavorites`,
+      ];
+      for (const candidate of fixedNames) {
+        await add(`Profiles/${candidate}`);
+      }
+    }
+
+    const isSeriesResumeText = (bytes) => {
+      if (!bytes || !bytes.length) return false;
+      try {
+        const text = dec.decode(bytes).trim();
+        return text.startsWith('[[[') && text.includes(`progress-${profile}-Resume`);
+      } catch {
+        return false;
+      }
+    };
+
+    const seriesResumeNames = new Set();
+    const profileDirEntries = await listDir('/Profiles/').catch(() => []);
+    const skipMusicName = (name) => /favorites|gamesfavorites|likedsongs|exiledsongs|playlists/i.test(name);
+    const skipOtherTxt = (name) => /albums?\.json$/i.test(name) || /-album-.+\.json$/i.test(name);
+    const isResumeBase = (name) => new RegExp(`^${profile.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-Resume(?:\.txt)?$`, 'i').test(name);
+
+    if (wanted.resumes || wanted.music) {
+      for (const entry of profileDirEntries) {
+        const name = basename(entry);
+        if (!name.toLowerCase().startsWith(prefix.toLowerCase())) continue;
+        if (!/\.txt$/i.test(name)) continue;
+        if (skipMusicName(name) || skipOtherTxt(name)) continue;
+
+        const path = entry.startsWith('/') ? entry : `/Profiles/${name}`;
+        const bytes = await fetchBytes(path).catch(() => null);
+        if (isResumeBase(name) || isSeriesResumeText(bytes)) {
+          seriesResumeNames.add(name.toLowerCase());
+          if (wanted.resumes) await add(path, { bytes });
+          continue;
+        }
+        if (wanted.music) await add(path, { bytes });
+      }
+    }
+
+    if (wanted.music) {
+      const fixedNames = [
+        `${profile}-playlists.txt`, `${profile}-playlists`,
+        `${profile}-likedsongs.txt`, `${profile}-likedsongs`,
+        `${profile}-ExiledSongs.txt`, `${profile}-ExiledSongs`,
+      ];
+      for (const candidate of fixedNames) await add(`Profiles/${candidate}`);
+
+      const fixedMusicNames = new Set([
+        `${prefix}playlists.txt`.toLowerCase(),
+        `${prefix}playlists`.toLowerCase(),
+        `${prefix}likedsongs.txt`.toLowerCase(),
+        `${prefix}likedsongs`.toLowerCase(),
+        `${prefix}exiledsongs.txt`.toLowerCase(),
+        `${prefix}exiledsongs`.toLowerCase(),
+        ...seriesResumeNames
+      ]);
+      const musicListEntries = out.filter(x => /\/Profiles\//i.test(x.name) && /\.txt$/i.test(x.name) && !fixedMusicNames.has(basename(x.name).toLowerCase()));
+      for (const item of musicListEntries) {
+        const base = basename(item.name).replace(/\.txt$/i, '');
+        const slug = base.slice(prefix.length);
+        const slugCandidates = [];
+        if (slug) slugCandidates.push(slug);
+        const cleanSlug = slug.replace(/[^a-z0-9\-_]/gi, '').toLowerCase();
+        if (cleanSlug && cleanSlug !== slug) slugCandidates.push(cleanSlug);
+        const imageExts = ['.jpg', '.png', '.webp', '.gif'];
+        for (const s of slugCandidates) {
+          for (const ext of imageExts) {
+            const candidates = [
+              `Music/Images/${s}${ext}`,
+              `Profiles/${s}${ext}`,
+            ];
+            for (const candidate of candidates) {
+              await add(candidate);
+            }
+          }
+        }
+      }
+    }
+
+    return out;
+  }
+
+  async function gatherBackup() {
+    const selected = selectedProfiles();
+    if (!selected.length) throw new Error('Select at least one profile first.');
+
+    const entries = [];
+    const seen = new Set();
+    const selectedEntries = [];
+
+    const itemFlagsByProfile = new Map();
+    for (const card of document.querySelectorAll('.profileCard')) {
+      const profile = card.getAttribute('data-profile');
+      if (!profile) continue;
+      const main = card.querySelector('.profileCheck');
+      if (!main || !main.checked) continue;
+      const flags = { profile: false, albums: false, memory: false, bookmarks: false, favorites: false, resumes: false, music: false };
+      for (const item of PROFILE_ITEMS) {
+        const cb = card.querySelector(`.itemCheck[data-item="${item.key}"]`);
+        if (cb && cb.checked) flags[item.key] = true;
+      }
+      itemFlagsByProfile.set(profile, flags);
+      const entry = getProfileEntry(profile);
+      if (entry) selectedEntries.push(normalizeProfileEntry(entry));
+      else selectedEntries.push({ name: profile, image: `./Profiles/${profile}.jpg`, bgColors: [] });
+    }
+
+    const manifest = {
+      tool: 'server-profiles-backup.html',
+      createdAt: new Date().toISOString(),
+      profiles: selected,
+      items: Object.fromEntries([...itemFlagsByProfile.entries()].map(([profile, flags]) => [profile, flags])),
+    };
+
+    function pushFile(path, bytes) {
+      const name = normalizePath(path);
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      entries.push({ name, bytes });
+    }
+
+    setProgress(0, selected.length, 'Collecting selected profiles…');
+    let progressIndex = 0;
+    for (const profile of selected) {
+      const flags = itemFlagsByProfile.get(profile) || {};
+      log(`Scanning ${profile}…`);
+      const profileFiles = await collectProfileFiles(profile, flags);
+      for (const file of profileFiles) pushFile(file.name, file.bytes);
+      progressIndex++;
+      setProgress(progressIndex, selected.length, `Collected ${profile}`);
+    }
+
+    const serverTitle = (typeof window._customServerTitle === 'string') ? window._customServerTitle : '';
+    const profilesJsText = buildProfilesJs(selectedEntries, serverTitle);
+    pushFile('profiles.js', encodeUtf8(profilesJsText));
+    pushFile('manifest.json', encodeUtf8(JSON.stringify(manifest, null, 2)));
+
+    state.generatedFiles = entries;
+    return entries;
+  }
+
+  async function downloadBackup() {
+    el.buildBtn.disabled = true;
+    el.buildBtn.textContent = 'Building…';
+    el.fileList.innerHTML = '';
+    el.zipSizeText.textContent = '0 B';
+    try {
+      const files = await gatherBackup();
+      const zipBytes = makeZip(files);
+      state.builtZipBytes = zipBytes;
+      el.zipSizeText.textContent = humanBytes(zipBytes.length);
+      el.filesFoundCount.textContent = String(files.length);
+
+      const title = `server-profiles-backup_${new Date().toISOString().replace(/[:.]/g, '-').slice(0,19)}.zip`;
+      const blob = new Blob([zipBytes], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = title;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+      log(`Backup built: ${title}`);
+      renderFileList(files);
+    } catch (err) {
+      console.error(err);
+      log(`Backup failed: ${err && err.message ? err.message : String(err)}`);
+    } finally {
+      el.buildBtn.disabled = false;
+      el.buildBtn.textContent = 'Build backup zip';
+      updateCounts();
+    }
+  }
+
+  function renderFileList(files) {
+    el.fileList.innerHTML = '';
+    const sorted = [...files].sort((a, b) => a.name.localeCompare(b.name));
+    for (const file of sorted.slice(0, 220)) {
+      const row = document.createElement('div');
+      row.className = 'item';
+      const left = document.createElement('div');
+      left.className = 'a';
+      left.textContent = file.name;
+      const right = document.createElement('div');
+      right.className = 'b';
+      right.textContent = humanBytes(file.bytes.length || 0);
+      row.append(left, right);
+      el.fileList.appendChild(row);
+    }
+    if (sorted.length > 220) {
+      const row = document.createElement('div');
+      row.className = 'small';
+      row.textContent = `Showing first 220 of ${sorted.length} files.`;
+      el.fileList.appendChild(row);
+    }
+  }
+
+  function updateCounts() {
+    const cards = Array.from(document.querySelectorAll('.profileCard')).filter(card => card.style.display !== 'none');
+    const selected = cards.filter(card => card.querySelector('.profileCheck')?.checked);
+    let itemCount = 0;
+    for (const card of selected) {
+      itemCount += Array.from(card.querySelectorAll('.itemCheck')).filter(cb => cb.checked).length;
+    }
+    el.selectedProfilesCount.textContent = String(selected.length);
+    el.selectedItemsCount.textContent = String(itemCount);
+  }
+
+  el.searchBox.addEventListener('input', applyFilter);
+  el.selectAllProfilesBtn.addEventListener('click', () => { setAllProfiles(true); });
+  el.clearAllBtn.addEventListener('click', () => { setAllProfiles(false); setVisibleItemChecks(false); });
+  el.selectVisibleBtn.addEventListener('click', () => { setAllVisible(true); setVisibleItemChecks(true); });
+  el.clearVisibleBtn.addEventListener('click', () => { setAllVisible(false); setVisibleItemChecks(false); });
+  el.buildBtn.addEventListener('click', downloadBackup);
+
+  renderProfiles();
+  updateCounts();
+  log('Profiles loaded. Select the content you want to preserve, then build the backup zip.', true);
+})();
+</script>
+</body>
+</html>

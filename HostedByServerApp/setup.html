@@ -1416,6 +1416,38 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     return new Blob([bytes], { type: mime });
   }
 
+  async function fileToJpegBlob(file, quality = 0.92) {
+    const input = file instanceof Blob ? file : new Blob([file], { type: 'image/jpeg' });
+    if (!input.type || /^image\/jpe?g$/i.test(input.type)) {
+      return input;
+    }
+    const url = URL.createObjectURL(input);
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = url;
+      });
+      const width = Math.max(1, img.naturalWidth || img.width || 1);
+      const height = Math.max(1, img.naturalHeight || img.height || 1);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas unavailable');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((out) => out ? resolve(out) : reject(new Error('JPEG conversion failed')), 'image/jpeg', quality);
+      });
+      return blob;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
   function setQrStatus(mode, message, kind = '') {
     const data = getQrModeData(mode);
     if (!data) return;
@@ -1734,42 +1766,62 @@ window._customServerTitle = ${JSON.stringify(titleString)};
   }
 
 async function uploadTextToServer(targetPath, text) {
-    const blob = new Blob([text], { type: targetPath.endsWith('.js') ? 'application/javascript' : 'text/plain' });
+    const url = new URL('/api/file/upload', window.location.href);
+    const normalized = String(targetPath || '/').startsWith('/') ? String(targetPath) : '/' + String(targetPath || '');
+    const parts = normalized.split('/').filter(Boolean);
+    const filename = parts.pop() || '';
+    const uploadDir = parts.length ? '/' + parts.join('/') : '/';
+    url.searchParams.set('path', uploadDir);
+    url.searchParams.set('name', filename);
+    const body = String(text ?? '');
+    const contentType = filename.endsWith('.js')
+      ? 'application/javascript; charset=utf-8'
+      : 'text/plain; charset=utf-8';
 
-    // Prefer a direct PUT for overwrite semantics.
     try {
-      const r2 = await fetch(encodeURI(targetPath + `?_=${Date.now()}`), {
+      const r = await fetch(url.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': contentType },
+        body,
+        credentials: 'include'
+      });
+      if (r && r.ok) return true;
+    } catch (e) {}
+    try {
+      const r2 = await fetch(url.toString(), {
         method: 'PUT',
-        headers: { 'Content-Type': blob.type },
-        body: text,
+        headers: { 'Content-Type': contentType },
+        body,
         credentials: 'include'
       });
       if (r2 && r2.ok) return true;
     } catch (e) {}
-
-    // Fallback for environments that only accept the upload endpoint.
-    try {
-      const form = new FormData();
-      form.append('files[]', blob, targetPath.split('/').pop());
-      const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form });
-      if (r && r.ok) return true;
-    } catch (e) {}
-
     return false;
   }
 
 
   async function uploadFileToServer(file, targetPath) {
+    const url = new URL('/api/file/upload', window.location.href);
+    const normalized = String(targetPath || '/').startsWith('/') ? String(targetPath) : '/' + String(targetPath || '');
+    const parts = normalized.split('/').filter(Boolean);
+    const filename = parts.pop() || '';
+    const uploadDir = parts.length ? '/' + parts.join('/') : '/';
+    url.searchParams.set('path', uploadDir);
+    url.searchParams.set('name', filename);
+
     try {
-      const form = new FormData();
-      form.append('files[]', file, targetPath.split('/').pop());
-      const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form });
+      const r = await fetch(url.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': file?.type || 'application/octet-stream' },
+        body: file,
+        credentials: 'include'
+      });
       if (r && r.ok) return true;
     } catch (e) {}
     try {
-      const r2 = await fetch(targetPath + `?_=${Date.now()}`, {
+      const r2 = await fetch(url.toString(), {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/octet-stream' },
+        headers: { 'Content-Type': file?.type || 'application/octet-stream' },
         body: file,
         credentials: 'include'
       });
@@ -1814,7 +1866,8 @@ async function uploadTextToServer(targetPath, text) {
       if (profile.imageFile) {
         const targetPath = `/Profiles/${String(profile.name || 'Guest').trim() || 'Guest'}.jpg`;
         setStatus(`Uploading ${targetPath}...`);
-        const ok = await uploadFileToServer(profile.imageFile, targetPath);
+        const jpegBlob = await fileToJpegBlob(profile.imageFile);
+        const ok = await uploadFileToServer(jpegBlob, targetPath);
         if (!ok) {
           setStatus(`Image upload failed for ${profile.name}.`, 'bad');
           return false;

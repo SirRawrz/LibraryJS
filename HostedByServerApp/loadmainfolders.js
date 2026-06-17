@@ -53,9 +53,9 @@ function loadMainFolders() {
   // make special handlers available globally so search-results can reuse them
   window._specialFolderHandlers = specialHandlers;
 
-  // Master tiles are the non-episode navigation tiles that should not show the favorite star.
-  // You can extend this set at runtime with addToMasterTileSet().
-  window._masterTileSet = window._masterTileSet || new Set([
+  // Root-level navigation tiles that should not show the favorite star.
+  // Keep this scoped to the main grid only so nested season tiles remain favoriteable.
+  window._rootNonFavoriteTileSet = window._rootNonFavoriteTileSet || new Set([
     "Continue Watching",
     "Games",
     "Music",
@@ -67,7 +67,22 @@ function loadMainFolders() {
     "Favorites"
   ]);
 
-  Object.keys(specialHandlers).forEach(name => window._masterTileSet.add(name));
+  // Master tiles are the root navigation tiles that special handlers own.
+  // This set stays separate so nested loaders do not inherit the root-only suppression.
+  window._masterTileSet = window._masterTileSet || new Set([
+    "Continue Watching",
+    "Games",
+    "Music",
+    "Books",
+    "Manga",
+    "Calendar",
+    "Favorites"
+  ]);
+
+  Object.keys(specialHandlers).forEach(name => {
+    window._masterTileSet.add(name);
+    window._rootNonFavoriteTileSet.add(name);
+  });
 
   window.addToMasterTileSet = function(name) {
     if (!name) return;
@@ -83,6 +98,11 @@ function loadMainFolders() {
   window.isMasterTile = function(name) {
     if (!name) return false;
     return !!(window._masterTileSet && window._masterTileSet.has(name));
+  };
+
+  window.isRootFavoriteSuppressedTile = function(name) {
+    if (!name) return false;
+    return !!(window._rootNonFavoriteTileSet && window._rootNonFavoriteTileSet.has(name));
   };
 
   // Helper tolerantKey: reuse global one if present, otherwise use best-effort fallback
@@ -252,8 +272,8 @@ function toAssetName(str) {
     if (!folderName) return false;
 
     try {
-      // Master tiles should not show the favorite star.
-      if (typeof window.isMasterTile === 'function' && window.isMasterTile(folderName)) {
+      // Root-only navigation tiles should not show the favorite star.
+      if (typeof window.isRootFavoriteSuppressedTile === 'function' && window.isRootFavoriteSuppressedTile(folderName)) {
         return false;
       }
 
@@ -337,6 +357,9 @@ function toAssetName(str) {
     folderDiv.className = "folder";
     // ensure we can absolutely position the star inside
     folderDiv.style.position = folderDiv.style.position || 'relative';
+    const suppressFavoriteStar = (typeof window.isRootFavoriteSuppressedTile === 'function')
+      ? window.isRootFavoriteSuppressedTile(folder)
+      : false;
 const assetFolder = toAssetName(folder);
 
 const imageCandidates = [
@@ -412,7 +435,7 @@ folderDiv.appendChild(titleP);
     folderDiv.addEventListener('pointerenter', function (ev) {
       try {
         const pType = (ev && ev.pointerType) ? String(ev.pointerType).toLowerCase() : 'mouse';
-        if (!isFavoriteableFolder(folder)) return;
+        if (suppressFavoriteStar || !isFavoriteableFolder(folder)) return;
         // allow 'mouse' and 'pen' only — ignore 'touch' (we'll handle touch with pointerdown)
         if (pType === 'mouse' || pType === 'pen') {
           updateStarGlyph(glyph, folder);
@@ -431,7 +454,7 @@ folderDiv.appendChild(titleP);
     folderDiv.addEventListener('pointerdown', function (ev) {
       try {
         if (ev && String(ev.pointerType).toLowerCase() === 'touch') {
-          if (!isFavoriteableFolder(folder)) return;
+          if (suppressFavoriteStar || !isFavoriteableFolder(folder)) return;
           updateStarGlyph(glyph, folder);
           starBtn.style.display = 'flex';
           // hide after 2.5s if user doesn't interact

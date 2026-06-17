@@ -92,14 +92,52 @@
 <title>Book Library</title>
 <script>
 (function () {
-  const lib = new URLSearchParams(window.location.search).get('lib') || 'books';
-  const map = {
+  const params = new URLSearchParams(window.location.search);
+  const requestedLib = String(params.get('lib') || '').trim().toLowerCase();
+  const libraryMap = {
     books: '/books.js',
     manga: '/manga.js',
     guidebooks: '/guidebooks.js'
   };
-  const src = map[lib] || map.books;
-  document.write('<script src="' + src + '"><\/script>');
+
+  window.readerRequestedLib = requestedLib;
+  window.readerCombinedView = !libraryMap[requestedLib];
+  window.readerActiveLibraryKey = libraryMap[requestedLib] ? requestedLib : 'books';
+  window.readerLibraryDataMap = {};
+  window.readerLibrariesReady = Promise.resolve();
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = false;
+      script.onload = () => resolve();
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  window.readerLibrariesReady = (async () => {
+    if (libraryMap[requestedLib]) {
+      await loadScript(libraryMap[requestedLib]);
+      window.readerLibraryDataMap[requestedLib] = Array.isArray(window.libraryData?.items)
+        ? window.libraryData.items.slice()
+        : [];
+      window.readerCombinedView = false;
+      window.readerActiveLibraryKey = requestedLib;
+      return;
+    }
+
+    for (const key of ['books', 'manga', 'guidebooks']) {
+      await loadScript(libraryMap[key]);
+      window.readerLibraryDataMap[key] = Array.isArray(window.libraryData?.items)
+        ? window.libraryData.items.slice()
+        : [];
+    }
+
+    window.readerCombinedView = true;
+    window.readerActiveLibraryKey = 'books';
+  })();
 })();
 </script>
 <style>
@@ -397,6 +435,80 @@
       margin-top: 10px;
       padding-left: 20px;
       border-left: 2px solid #ccc;
+    }
+    .reader-combined-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
+      width: 100%;
+      align-items: stretch;
+    }
+    .library-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      align-items: stretch;
+    }
+    .library-section-header {
+      display: contents;
+    }
+    .library-section-title {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0 10px;
+      width: auto;
+      flex: 0 0 auto;
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+      transform: rotate(90deg);
+      transform-origin: center center;
+      align-self: center;
+    }
+    .library-section-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+      width: 100%;
+    }
+    .return-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 184px;
+      min-height: 232px;
+      padding: 16px 18px;
+      margin: 0;
+      border: none;
+      background-color: rgba(128, 128, 128, 0.72) !important;
+      color: #fff !important;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 4px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      box-sizing: border-box;
+      text-align: center;
+      white-space: normal;
+      line-height: 1.2;
+      flex: 0 0 184px;
+    }
+    .return-button:hover {
+      background-color: rgba(128, 128, 128, 0.9) !important;
+    }
+    .return-button:active {
+      background-color: rgba(128, 128, 128, 1) !important;
+    }
+    .return-button-tile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: top;
     }
     #reader-container {
       display: none;
@@ -716,8 +828,31 @@
   justify-content: flex-start;
 }
 </style>
-<script src="/js/pdf.min.js">
-  document.getElementById('btnSearch').onclick = function searchPDF() {
+<script src="/js/pdf.min.js"></script>
+<script>
+try {
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "/js/pdf.worker.min.js";
+  }
+} catch (err) {
+  console.warn("Could not set PDF worker source:", err);
+}
+
+function bindClick(id, handler) {
+  const el = document.getElementById(id);
+  if (el) el.onclick = handler;
+}
+
+window.getReaderCombinedMode = window.getReaderCombinedMode || function () {
+  return !!window.readerCombinedView;
+};
+
+window.syncAudiobookToCurrentView = window.syncAudiobookToCurrentView || function () {
+  return null;
+};
+
+
+  bindClick('btnSearch', function searchPDF() {
     const term = document.getElementById('searchTerm').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsList');
@@ -740,10 +875,10 @@
         });
       });
     }
-  };
+  })
 // 00000000000000000
   // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
+  bindClick('btnSearchDialog', function() {
     const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsListDialog');
@@ -767,7 +902,7 @@
         });
       });
     }
-  };
+  })
 
 </script>
 </head>
@@ -873,7 +1008,10 @@
 
 
 
-const items = (window.libraryData && window.libraryData.items) || [];
+let items = [];
+const libraryItemsByKey = window.readerLibraryDataMap || {};
+let activeLibraryKey = window.readerActiveLibraryKey || 'books';
+let combinedLibraryView = !!window.readerCombinedView;
 
 const GUIDEBOOK_RENDER_DPR = Math.max(2, window.devicePixelRatio || 1);
 
@@ -906,6 +1044,156 @@ function resolveGuidebookDisplayTitle(item) {
   return String(item.title || '').trim();
 }
 
+function getLibraryDisplayTitle(key) {
+  const normalized = String(key || '').trim().toLowerCase();
+  if (normalized === 'books') return 'Books';
+  if (normalized === 'manga') return 'Manga';
+  if (normalized === 'guidebooks') return 'Guidebooks';
+  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Library';
+}
+
+function getReaderCombinedMode() {
+  return !!window.readerCombinedView;
+}
+
+function getReaderLibraryKeys() {
+  return getReaderCombinedMode()
+    ? ['books', 'manga', 'guidebooks']
+    : [String(window.readerActiveLibraryKey || activeLibraryKey || 'books').toLowerCase()];
+}
+
+function getReaderItemsForKey(key) {
+  const normalized = String(key || '').toLowerCase();
+  const data = window.readerLibraryDataMap || libraryItemsByKey || {};
+  return Array.isArray(data[normalized]) ? data[normalized] : [];
+}
+
+function getReaderVisibleItems() {
+  return getReaderItemsForKey(window.readerActiveLibraryKey || activeLibraryKey || 'books');
+}
+
+function compareLibraryEntries(a, b) {
+  const aTitle = resolveGuidebookDisplayTitle(a) || String(a?.title || '').trim();
+  const bTitle = resolveGuidebookDisplayTitle(b) || String(b?.title || '').trim();
+  return aTitle.localeCompare(bTitle, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function createLibraryTile(item) {
+  const bookDiv = document.createElement('div');
+  bookDiv.classList.add('book');
+  const displayTitle = resolveGuidebookDisplayTitle(item) || String(item.title || '').trim();
+  bookDiv.innerHTML = `
+    <img src="${rootAssetUrl(item.cover)}" alt="${displayTitle}">
+    <p>${displayTitle}</p>
+  `;
+  bookDiv.onclick = () => { openPDF(rootAssetUrl(item.file), displayTitle); };
+  return bookDiv;
+}
+
+function renderLibraryEntries(target, sourceItems) {
+  const orderedItems = [...(Array.isArray(sourceItems) ? sourceItems : [])].sort(compareLibraryEntries);
+
+  orderedItems.forEach(item => {
+    if (item && item.group) {
+      const groupHeader = document.createElement('div');
+      groupHeader.classList.add('group-header');
+      const groupTitle = resolveGuidebookDisplayTitle(item) || String(item.title || '').trim();
+      groupHeader.innerHTML = `
+        <img src="${rootAssetUrl(item.cover)}" alt="${groupTitle}">
+        <p>${groupTitle}</p>
+      `;
+      groupHeader.onclick = () => {
+        const groupContainer = groupHeader.nextElementSibling;
+        groupContainer.style.display =
+          groupContainer.style.display === 'flex' ? 'none' : 'flex';
+      };
+      target.appendChild(groupHeader);
+
+      const groupContainer = document.createElement('div');
+      groupContainer.classList.add('group-container');
+      groupContainer.style.display = 'none';
+
+      const books = [...(Array.isArray(item.books) ? item.books : [])].sort(compareLibraryEntries);
+      books.forEach(book => {
+        groupContainer.appendChild(createLibraryTile(book));
+      });
+
+      target.appendChild(groupContainer);
+    } else if (item) {
+      target.appendChild(createLibraryTile(item));
+    }
+  });
+}
+
+function positionLibrarySectionTitle(itemsWrap, title) {
+  if (!itemsWrap || !title || !itemsWrap.isConnected) return;
+
+  const tiles = Array.from(itemsWrap.children).filter((child) => child !== title);
+  if (!tiles.length) {
+    itemsWrap.appendChild(title);
+    return;
+  }
+
+  const firstRowTop = tiles[0].offsetTop;
+  let insertBefore = null;
+
+  for (const child of tiles) {
+    if (child.offsetTop > firstRowTop) {
+      insertBefore = child;
+      break;
+    }
+  }
+
+  if (insertBefore) {
+    itemsWrap.insertBefore(title, insertBefore);
+  } else {
+    itemsWrap.appendChild(title);
+  }
+}
+
+function scheduleLibrarySectionTitlePlacement() {
+  window.requestAnimationFrame(() => {
+    document.querySelectorAll('.library-section-items').forEach((itemsWrap) => {
+      const title = itemsWrap.querySelector(':scope > .library-section-title');
+      if (title) positionLibrarySectionTitle(itemsWrap, title);
+    });
+  });
+}
+
+function buildLibrarySection(key, sourceItems, leadingTile = null, showTitle = true) {
+  const section = document.createElement('section');
+  section.className = 'library-section';
+
+  const itemsWrap = document.createElement('div');
+  itemsWrap.className = 'library-section-items';
+  itemsWrap.style.width = '100%';
+
+  if (leadingTile) {
+    leadingTile.classList.add('return-button-tile');
+    itemsWrap.appendChild(leadingTile);
+  }
+
+  renderLibraryEntries(itemsWrap, sourceItems);
+
+  if (showTitle) {
+    const title = document.createElement('h2');
+    title.className = 'library-section-title';
+    title.textContent = getLibraryDisplayTitle(key);
+    itemsWrap.appendChild(title);
+  }
+
+  section.appendChild(itemsWrap);
+
+  if (showTitle) {
+    window.requestAnimationFrame(() => {
+      const attachedTitle = itemsWrap.querySelector(':scope > .library-section-title');
+      if (attachedTitle) positionLibrarySectionTitle(itemsWrap, attachedTitle);
+    });
+  }
+
+  return section;
+}
+
 
 function getBookPathParts(bookUrl) {
   const cleaned = String(bookUrl || '').split(/[?#]/)[0];
@@ -916,15 +1204,36 @@ function getBookPathParts(bookUrl) {
   return { folder, baseName };
 }
 
-function buildAudiobookManifestUrl(bookUrl) {
+function buildAudiobookManifestCandidates(bookUrl) {
   const { folder, baseName } = getBookPathParts(bookUrl);
-  return `${folder}/${baseName}-audiobook.json`;
+  const stems = [
+    `${baseName}-audiobook`,
+    `${baseName}.audiobook`,
+    `${baseName}_audiobook`,
+    `${baseName}-audio`,
+    baseName
+  ];
+  return stems.map(stem => `${folder}/${stem}.json`);
 }
 
 function buildAudiobookAudioCandidates(bookUrl) {
   const { folder, baseName } = getBookPathParts(bookUrl);
   const audioFolder = `${folder}/audiobooks`;
-  return ['.m4a', '.mp3', '.mp4'].map(ext => `${audioFolder}/${baseName}${ext}`);
+  const stems = [
+    baseName,
+    `${baseName}-audiobook`,
+    `${baseName}.audiobook`,
+    `${baseName}_audiobook`,
+    `${baseName}-audio`
+  ];
+  const exts = ['.m4a', '.mp4', '.mp3', '.aac', '.m4b'];
+  const candidates = [];
+  for (const stem of stems) {
+    for (const ext of exts) {
+      candidates.push(`${audioFolder}/${stem}${ext}`);
+    }
+  }
+  return candidates;
 }
 
 function parseAudiobookTime(value) {
@@ -1377,8 +1686,50 @@ function resetAudiobookState() {
   if (bar) bar.classList.remove('visible');
 }
 
+
+async function fetchWithRetry(url, options, attempts = 3, delayMs = 250) {
+  let lastError = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      lastError = err;
+      if (i + 1 < attempts) {
+        await new Promise(resolve => setTimeout(resolve, delayMs * (i + 1)));
+      }
+    }
+  }
+  throw lastError || new Error(`Failed to fetch ${url}`);
+}
+
+async function probeAudiobookAudio(url, sessionId) {
+  const methods = [
+    { method: 'HEAD', cache: 'no-store', redirect: 'follow' },
+    { method: 'GET', cache: 'no-store', redirect: 'follow', headers: { Range: 'bytes=0-0' } }
+  ];
+
+  for (const options of methods) {
+    try {
+      const response = await fetchWithRetry(url, options, 2, 200);
+      if (sessionId !== readerSessionId) return false;
+      if (response && response.ok) return true;
+    } catch (err) {
+      console.log('[Audiobook] audio probe failed:', url, err);
+    }
+  }
+
+  return false;
+}
+
 async function loadAudiobookForBook(bookUrl, sessionId = readerSessionId) {
-  const manifestUrl = buildAudiobookManifestUrl(bookUrl);
+  const requestedLib = String(new URLSearchParams(window.location.search).get('lib') || '').trim().toLowerCase();
+  if (requestedLib !== 'books') {
+    resetAudiobookState();
+    return;
+  }
+
+  const manifestCandidates = buildAudiobookManifestCandidates(bookUrl);
+  const manifestUrl = manifestCandidates[0];
   audiobookManifestUrl = manifestUrl;
   audiobookAvailable = false;
   audiobookLoaded = false;
@@ -1386,41 +1737,49 @@ async function loadAudiobookForBook(bookUrl, sessionId = readerSessionId) {
   audiobookCues = [];
   audiobookAudioUrl = '';
 
-  console.log('[Audiobook] checking manifest:', manifestUrl);
+  let response = null;
+  let parsedManifest = null;
+  let lastManifestError = null;
 
-  let response;
-  try {
-    response = await fetch(manifestUrl, { cache: 'no-store' });
-  } catch (err) {
-    console.log('[Audiobook] manifest fetch failed:', manifestUrl, err);
-    if (sessionId === readerSessionId) {
-      resetAudiobookState();
-      if (typeof updatePageIndicator === 'function') updatePageIndicator();
+  for (const candidateUrl of manifestCandidates) {
+    console.log('[Audiobook] checking manifest:', candidateUrl);
+    try {
+      response = await fetchWithRetry(candidateUrl, { cache: 'no-store', redirect: 'follow' }, 3, 250);
+      if (sessionId !== readerSessionId) return;
+      if (!response.ok) {
+        lastManifestError = new Error(`HTTP ${response.status} ${response.statusText}`);
+        continue;
+      }
+      parsedManifest = await response.json();
+      audiobookManifestUrl = candidateUrl;
+      break;
+    } catch (err) {
+      lastManifestError = err;
+      console.log('[Audiobook] manifest probe failed:', candidateUrl, err);
     }
-    return;
   }
 
   if (sessionId !== readerSessionId) return;
 
-  if (!response.ok) {
-    console.log('[Audiobook] no audiobook JSON found for book:', bookUrl);
+  if (!parsedManifest) {
+    console.log('[Audiobook] no audiobook JSON found for book:', bookUrl, lastManifestError || '');
     resetAudiobookState();
     if (typeof updatePageIndicator === 'function') updatePageIndicator();
     return;
   }
 
   try {
-    audiobookManifest = await response.json();
+    audiobookManifest = parsedManifest;
     audiobookCues = normalizeAudiobookManifest(audiobookManifest);
     audiobookAvailable = true;
-    console.log('[Audiobook] manifest found:', manifestUrl, 'cue count:', audiobookCues.length);
+    console.log('[Audiobook] manifest found:', audiobookManifestUrl, 'cue count:', audiobookCues.length);
     console.log('[Audiobook] audiobook JSON exists for book:', bookUrl);
     const pageSyncEl = document.getElementById('audioPageSync');
     if (pageSyncEl) {
       pageSyncEl.textContent = `Page sync: Loaded (${audiobookCues.length} cues)`;
     }
   } catch (err) {
-    console.log('[Audiobook] manifest parsed but could not be read:', manifestUrl, err);
+    console.log('[Audiobook] manifest parsed but could not be read:', audiobookManifestUrl, err);
     resetAudiobookState();
     if (typeof updatePageIndicator === 'function') updatePageIndicator();
     return;
@@ -1432,21 +1791,16 @@ async function loadAudiobookForBook(bookUrl, sessionId = readerSessionId) {
 
   for (const audioPath of audioCandidates) {
     console.log('[Audiobook] checking audio file:', audioPath);
-    try {
-      const audioResponse = await fetch(audioPath, { method: 'HEAD', cache: 'no-store' });
-      if (sessionId !== readerSessionId) return;
-      if (audioResponse.ok) {
-        audiobookAudioUrl = audioPath;
-        audioFound = true;
-        if (audioEl) {
-          audioEl.src = audioPath;
-          audioEl.load();
-        }
-        console.log('[Audiobook] audio file found:', audioPath);
-        break;
+    if (sessionId !== readerSessionId) return;
+    if (await probeAudiobookAudio(audioPath, sessionId)) {
+      audiobookAudioUrl = audioPath;
+      audioFound = true;
+      if (audioEl) {
+        audioEl.src = audioPath;
+        audioEl.load();
       }
-    } catch (err) {
-      console.log('[Audiobook] audio probe failed:', audioPath, err);
+      console.log('[Audiobook] audio file found:', audioPath);
+      break;
     }
   }
 
@@ -1668,66 +2022,58 @@ function renderPdfPageToCanvas(page, canvas, scale) {
   return page.render(renderOptions).promise;
 }
 
-   document.addEventListener("DOMContentLoaded", function() {
-  const container = document.getElementById('bookContainer');
+   
+document.addEventListener("DOMContentLoaded", async function() {
+  await Promise.resolve(window.readerLibrariesReady);
 
-  // Create the "Back to Title Selection" button
+  const container = document.getElementById('bookContainer');
+  if (!container) return;
+
+  const combinedMode = getReaderCombinedMode();
+  activeLibraryKey = window.readerActiveLibraryKey || activeLibraryKey || 'books';
+  combinedLibraryView = combinedMode;
+  items = combinedMode
+    ? getReaderItemsForKey('books')
+    : getReaderVisibleItems();
+
+  container.innerHTML = '';
+  container.classList.add('reader-combined-stack');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'stretch';
+  container.style.gap = '24px';
+  container.style.width = '100%';
+  container.style.flexWrap = 'nowrap';
+
   const backButton = document.createElement('button');
   backButton.className = 'return-button';
   backButton.innerText = 'Back to Title Selection';
   backButton.onclick = () => {
     window.location.href = './index.html';
   };
-  container.appendChild(backButton);
 
-  // Loop through each item (book or group)
-  items.forEach(item => {
-    if (item.group) {
-      // Create group header
-      const groupHeader = document.createElement('div');
-      groupHeader.classList.add('group-header');
-      const groupTitle = resolveGuidebookDisplayTitle(item) || String(item.title || '').trim();
-      groupHeader.innerHTML = `
-        <img src="${rootAssetUrl(item.cover)}" alt="${groupTitle}">
-        <p>${groupTitle}</p>
-      `;
-      groupHeader.onclick = () => {
-        const groupContainer = groupHeader.nextElementSibling;
-        groupContainer.style.display =
-          groupContainer.style.display === 'flex' ? 'none' : 'flex';
-      };
-      container.appendChild(groupHeader);
+  if (combinedMode) {
+    ['books', 'manga', 'guidebooks'].forEach((key, index) => {
+      const sectionItems = getReaderItemsForKey(key);
+      const section = buildLibrarySection(key, sectionItems, index === 0 ? backButton : null, true);
+      container.appendChild(section);
+    });
+    scheduleLibrarySectionTitlePlacement();
+  } else {
+    const sectionItems = getReaderVisibleItems();
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'library-section-items';
+    itemsWrap.style.width = '100%';
+    itemsWrap.appendChild(backButton);
+    renderLibraryEntries(itemsWrap, sectionItems);
 
-      // Create a container for the group's books
-      const groupContainer = document.createElement('div');
-      groupContainer.classList.add('group-container');
-      groupContainer.style.display = 'none';
+    const section = document.createElement('section');
+    section.className = 'library-section';
+    section.appendChild(itemsWrap);
+    container.appendChild(section);
+  }
 
-      item.books.forEach(book => {
-        const bookDiv = document.createElement('div');
-        bookDiv.classList.add('book');
-        const displayTitle = resolveGuidebookDisplayTitle(book) || String(book.title || '').trim();
-        bookDiv.innerHTML = `
-          <img src="${rootAssetUrl(book.cover)}" alt="${displayTitle}">
-          <p>${displayTitle}</p>
-        `;
-        bookDiv.onclick = () => { openPDF(rootAssetUrl(book.file), displayTitle); };
-        groupContainer.appendChild(bookDiv);
-      });
-      container.appendChild(groupContainer);
-
-    } else {
-      const bookDiv = document.createElement('div');
-      bookDiv.classList.add('book');
-      const displayTitle = resolveGuidebookDisplayTitle(item) || String(item.title || '').trim();
-      bookDiv.innerHTML = `
-        <img src="${rootAssetUrl(item.cover)}" alt="${displayTitle}">
-        <p>${displayTitle}</p>
-      `;
-      bookDiv.onclick = () => { openPDF(rootAssetUrl(item.file), displayTitle); };
-      container.appendChild(bookDiv);
-    }
-  });
+  window.addEventListener('resize', scheduleLibrarySectionTitlePlacement);
 
   // -------- Deep‑link handling starts here --------
   const params = new URLSearchParams(window.location.search);
@@ -1748,22 +2094,27 @@ function renderPdfPageToCanvas(page, canvas, scale) {
       return candidates.some(value => normalizeGuidebookKey(value) === norm);
     };
 
-    for (const item of items) {
-      if (!item.group) {
-        if (matchesItem(item)) {
-          openPDF(rootAssetUrl(item.file), resolveGuidebookDisplayTitle(item) || String(item.title || '').trim());
-          found = true;
-          break;
+    const searchScopes = combinedMode
+      ? ['books', 'manga', 'guidebooks']
+      : [activeLibraryKey];
+
+    for (const scope of searchScopes) {
+      const scopeItems = getReaderItemsForKey(scope);
+      for (const item of scopeItems) {
+        if (!item.group) {
+          if (matchesItem(item)) {
+            openPDF(rootAssetUrl(item.file), resolveGuidebookDisplayTitle(item) || String(item.title || '').trim());
+            found = true;
+            break;
+          }
         }
       }
-    }
+      if (found) break;
 
-    if (!found) {
-      for (const item of items) {
+      for (const item of scopeItems) {
         if (item.group) {
-          for (const Guidebook of item.books) {
+          for (const Guidebook of item.books || []) {
             if (matchesItem(Guidebook)) {
-              // expand and open
               document.querySelectorAll('.group-header').forEach(hdr => {
                 if (normalizeGuidebookKey(hdr.textContent.trim()) === normalizeGuidebookKey(item.title) || normalizeGuidebookKey(hdr.textContent.trim()) === normalizeGuidebookKey(resolveGuidebookDisplayTitle(item))) {
                   hdr.nextElementSibling.style.display = 'flex';
@@ -1777,6 +2128,7 @@ function renderPdfPageToCanvas(page, canvas, scale) {
         }
         if (found) break;
       }
+      if (found) break;
     }
 
     if (!found) {
@@ -1802,8 +2154,8 @@ function renderPdfPageToCanvas(page, canvas, scale) {
       return;
     }
   }
-
 });
+
     function toggleMode() {
       const body = document.body;
       const readerContainer = document.getElementById('reader-container');
@@ -1860,7 +2212,12 @@ function renderPdfPageToCanvas(page, canvas, scale) {
         null;
       pageNum = explicitStartPage || (savedPage ? parseInt(savedPage, 10) : 1);
 
-      loadAudiobookForBook(normalizedUrl, sessionId);
+      void loadAudiobookForBook(normalizedUrl, sessionId);
+      window.setTimeout(() => {
+        if (sessionId === readerSessionId && currentBook === normalizedUrl && !audiobookLoaded && !audiobookAvailable) {
+          void loadAudiobookForBook(normalizedUrl, sessionId);
+        }
+      }, 1200);
 
       pdfjsLib.getDocument(normalizedUrl).promise.then(pdf => {
         if (sessionId !== readerSessionId) {
@@ -1871,6 +2228,11 @@ function renderPdfPageToCanvas(page, canvas, scale) {
         if (typeof window.renderDoublePage === 'function') {
           window.renderDoublePage(pageNum);
         }
+        window.setTimeout(() => {
+          if (sessionId === readerSessionId && currentBook === normalizedUrl && !audiobookLoaded && !audiobookAvailable) {
+            void loadAudiobookForBook(normalizedUrl, sessionId);
+          }
+        }, 800);
       }).catch(err => {
         if (sessionId !== readerSessionId) return;
         console.error('Failed to open PDF:', err);
@@ -2373,7 +2735,7 @@ document.addEventListener('keydown', (e) => {
 
 
   // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
+  bindClick('btnSearchDialog', function() {
     const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsListDialog');
@@ -2397,7 +2759,7 @@ document.addEventListener('keydown', (e) => {
         });
       });
     }
-  };
+  })
 
 </script>
 <script>
@@ -2431,7 +2793,7 @@ document.addEventListener('keydown', (e) => {
     document.addEventListener('DOMContentLoaded', updateActiveProfileIcon);
     
   // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
+  bindClick('btnSearchDialog', function() {
     const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsListDialog');
@@ -2455,7 +2817,7 @@ document.addEventListener('keydown', (e) => {
         });
       });
     }
-  };
+  })
 
 </script>
 <script>
@@ -2526,7 +2888,7 @@ function toggleFullscreen() {
     })();
   
   // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
+  bindClick('btnSearchDialog', function() {
     const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsListDialog');
@@ -2550,7 +2912,7 @@ function toggleFullscreen() {
         });
       });
     }
-  };
+  })
 
 </script>
 
@@ -2793,9 +3155,9 @@ renderDoublePage = function(num) {
 // Initialize bookmark functionality
 document.addEventListener('DOMContentLoaded', () => {
   initAudiobookPlayer();
-  document.getElementById('btnAddBookmark').onclick = addBookmark;
-  document.getElementById('btnGoPage').onclick = goToPage;
-  document.getElementById('btnCloseDialog').onclick = closeBookmarkDialog;
+  bindClick('btnAddBookmark', addBookmark);
+  bindClick('btnGoPage', goToPage);
+  bindClick('btnCloseDialog', closeBookmarkDialog);
   document.getElementById('inputPageNumber').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
       goToPage();
@@ -2804,7 +3166,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
   // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
+  bindClick('btnSearchDialog', function() {
     const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsListDialog');
@@ -2828,7 +3190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
     }
-  };
+  })
 
 </script>
 <script>
@@ -2913,7 +3275,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
+  bindClick('btnSearchDialog', function() {
     const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsListDialog');
@@ -2937,7 +3299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
     }
-  };
+  })
 
 </script>
 <script>
@@ -3241,7 +3603,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
   // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
+  bindClick('btnSearchDialog', function() {
     const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsListDialog');
@@ -3265,7 +3627,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
     }
-  };
+  })
 
 </script>
 <script>
@@ -3280,7 +3642,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
+  bindClick('btnSearchDialog', function() {
     const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsListDialog');
@@ -3304,7 +3666,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
     }
-  };
+  })
 
 </script>
 <script>
@@ -3318,29 +3680,35 @@ function findChapterSourceForCurrentBook() {
   const currentTitleKey = normalizeChapterLookup(currentBookTitle);
   const currentFileKey = normalizeChapterLookup(currentBook);
 
-  const allItems = Array.isArray(items) ? items : [];
-  for (const entry of allItems) {
-    const books = entry && entry.group && Array.isArray(entry.books) ? entry.books : [entry];
-    for (const book of books) {
-      if (!book || !book.chapters) continue;
+  const searchKeys = getReaderCombinedMode()
+    ? ['books', 'manga', 'guidebooks']
+    : [String(window.readerActiveLibraryKey || activeLibraryKey || 'books').toLowerCase()];
 
-      const titleKey = normalizeChapterLookup(book.title);
-      const fileKey = normalizeChapterLookup(book.file);
+  for (const key of searchKeys) {
+    const allItems = getReaderItemsForKey(key);
+    for (const entry of allItems) {
+      const books = entry && entry.group && Array.isArray(entry.books) ? entry.books : [entry];
+      for (const book of books) {
+        if (!book || !book.chapters) continue;
 
-      const titleMatch =
-        currentTitleKey &&
-        titleKey &&
-        (titleKey === currentTitleKey ||
-          titleKey.includes(currentTitleKey) ||
-          currentTitleKey.includes(titleKey));
+        const titleKey = normalizeChapterLookup(book.title);
+        const fileKey = normalizeChapterLookup(book.file);
 
-      const fileMatch =
-        currentFileKey &&
-        fileKey &&
-        fileKey === currentFileKey;
+        const titleMatch =
+          currentTitleKey &&
+          titleKey &&
+          (titleKey === currentTitleKey ||
+            titleKey.includes(currentTitleKey) ||
+            currentTitleKey.includes(titleKey));
 
-      if (titleMatch || fileMatch) {
-        return book;
+        const fileMatch =
+          currentFileKey &&
+          fileKey &&
+          fileKey === currentFileKey;
+
+        if (titleMatch || fileMatch) {
+          return book;
+        }
       }
     }
   }
@@ -3396,7 +3764,7 @@ async function openBookmarkDialog() {
 }
 
   // Bookmark Dialog Search Functionality
-  document.getElementById('btnSearchDialog').onclick = function() {
+  bindClick('btnSearchDialog', function() {
     const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
     if (!pdfDoc || !term) return;
     const resultsList = document.getElementById('resultsListDialog');
@@ -3420,7 +3788,7 @@ async function openBookmarkDialog() {
         });
       });
     }
-  };
+  })
 
 </script>
 <script>
@@ -3442,14 +3810,21 @@ function readStartPageFromQuery(params) {
 
 function findLibraryItemByTitle(queryTitle) {
   const normalized = normalizeTitleKey(decodeURIComponent(queryTitle));
-  for (const item of items) {
-    if (item && !item.group && normalizeTitleKey(item.title) === normalized) {
-      return item;
-    }
-    if (item && item.group && Array.isArray(item.books)) {
-      for (const book of item.books) {
-        if (normalizeTitleKey(book.title) === normalized) {
-          return book;
+  const searchKeys = getReaderCombinedMode()
+    ? ['books', 'manga', 'guidebooks']
+    : [String(window.readerActiveLibraryKey || activeLibraryKey || 'books').toLowerCase()];
+
+  for (const key of searchKeys) {
+    const scopedItems = getReaderItemsForKey(key);
+    for (const item of scopedItems) {
+      if (item && !item.group && normalizeTitleKey(item.title) === normalized) {
+        return item;
+      }
+      if (item && item.group && Array.isArray(item.books)) {
+        for (const book of item.books) {
+          if (normalizeTitleKey(book.title) === normalized) {
+            return book;
+          }
         }
       }
     }
@@ -3457,8 +3832,12 @@ function findLibraryItemByTitle(queryTitle) {
   return null;
 }
 
-window.addEventListener('DOMContentLoaded', function() {
-  const libraryTitle = (window.libraryData && window.libraryData.title) || 'Book Library';
+window.addEventListener('DOMContentLoaded', async function() {
+  await Promise.resolve(window.readerLibrariesReady);
+
+  const libraryTitle = getReaderCombinedMode()
+    ? 'Library'
+    : (window.libraryData && window.libraryData.title) || getLibraryDisplayTitle(activeLibraryKey || window.readerActiveLibraryKey || 'books');
   document.title = libraryTitle;
   const heading = document.querySelector('h1.centered-title');
   if (heading) heading.textContent = libraryTitle;

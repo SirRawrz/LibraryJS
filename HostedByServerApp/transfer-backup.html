@@ -1,0 +1,3939 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LibraryJS — Transfer Backup</title>
+  <style>
+    :root{
+      --bg:#0c1018;
+      --panel:#121826;
+      --panel2:#0f1521;
+      --line:rgba(255,255,255,.08);
+      --text:#ecf2ff;
+      --muted:#95a2bd;
+      --accent:#7ee0c4;
+      --accent2:#82aaff;
+      --danger:#ff7f8b;
+      --warn:#ffb36b;
+      --ok:#7ee0c4;
+      --radius:18px;
+      --shadow:0 20px 50px rgba(0,0,0,.28);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:
+        radial-gradient(circle at top, rgba(126,224,196,.08), transparent 28%),
+        radial-gradient(circle at right, rgba(130,170,255,.07), transparent 26%),
+        var(--bg);
+      color:var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap{max-width:1540px;margin:0 auto;padding:16px}
+    .topbar{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
+      background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px 18px;
+      margin-bottom:16px;
+      flex-wrap:wrap;
+    }
+    .titleBlock{min-width:260px; flex:1 1 500px;}
+    h1{margin:0;font-size:24px;letter-spacing:-.03em}
+    .sub{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.45;max-width:1060px}
+    .controls{
+      display:flex; flex-wrap:wrap; gap:10px;
+      justify-content:flex-end;
+      align-items:center;
+      flex:1 1 520px;
+    }
+    input[type="text"], input[type="file"], select, textarea{
+      background:var(--panel2); color:var(--text);
+      border:1px solid var(--line); border-radius:12px;
+      padding:11px 12px; font:inherit; outline:none;
+    }
+    input[type="file"]{padding:9px 12px}
+    input[type="text"], select{min-width:220px}
+    textarea{width:100%; min-height:120px; resize:vertical}
+    button{
+      border:0; border-radius:12px; padding:11px 14px;
+      font:inherit; font-weight:700; cursor:pointer;
+      background:rgba(255,255,255,.08); color:var(--text);
+      border:1px solid var(--line);
+    }
+    button.primary{
+      background:linear-gradient(180deg, rgba(126,224,196,1), rgba(90,198,164,1));
+      color:#07110e; border-color:transparent;
+    }
+    button.warn{
+      background:rgba(255,179,107,.12); color:#ffd8ae; border-color:rgba(255,179,107,.18);
+    }
+    button.danger{
+      background:rgba(255,127,139,.1); color:#ffb7bf; border-color:rgba(255,127,139,.18);
+    }
+    button:active{transform:translateY(1px)}
+    .main{
+      display:grid;
+      grid-template-columns:minmax(0, 1.05fr) 390px;
+      gap:16px;
+      align-items:start;
+    }
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .panelHead{
+      padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.02);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .panelHead h2{margin:0;font-size:16px}
+    .panelHead .meta{color:var(--muted);font-size:12px}
+    .panelBody{padding:16px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .stack{display:flex;flex-direction:column;gap:12px}
+    .radioGroup{
+      display:flex; flex-wrap:wrap; gap:10px;
+      padding:10px 0 0;
+    }
+    .pill{
+      display:flex; align-items:center; gap:8px;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:rgba(255,255,255,.04);
+      cursor:pointer;
+      user-select:none;
+    }
+    .pill input{margin:0}
+    .label{
+      color:var(--muted);
+      font-size:12px;
+      margin:0 0 6px;
+    }
+    .stat{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap:10px;
+      margin-bottom:12px;
+    }
+    .card{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px;
+    }
+    .card .k{color:var(--muted);font-size:12px}
+    .card .v{margin-top:6px;font-size:18px;font-weight:800}
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      max-height:370px;
+      overflow:auto;
+      padding-right:4px;
+    }
+    .item{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      padding:9px 10px;
+      border-radius:12px;
+      background:rgba(255,255,255,.035);
+      border:1px solid rgba(255,255,255,.06);
+      font-size:12px;
+    }
+    .item .a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .item .b{color:var(--muted);flex:0 0 auto}
+    .log{
+      white-space:pre-wrap;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+      min-height:160px;
+    }
+    .progressOuter{
+      width:100%;
+      height:12px;
+      border-radius:999px;
+      background:rgba(255,255,255,.06);
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .progressInner{
+      width:0%;
+      height:100%;
+      background:linear-gradient(90deg, rgba(126,224,196,1), rgba(130,170,255,1));
+      transition:width .2s ease;
+    }
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+    .small{font-size:12px;color:var(--muted)}
+    .preview{
+      width:100%;
+      min-height:240px;
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px;
+      overflow:auto;
+      font-size:12px;
+      line-height:1.45;
+      white-space:pre;
+    }
+    @media (max-width: 1080px){
+      .main{grid-template-columns:1fr}
+    }
+    @media (max-width: 680px){
+      .row{grid-template-columns:1fr}
+      .stat{grid-template-columns:1fr 1fr}
+      .controls input[type="text"], .controls select{min-width:100%}
+      .controls{justify-content:flex-start}
+      .topbar{padding:14px}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="titleBlock">
+      <h1>Transfer Backup</h1>
+      <div class="sub">
+        Load a <span class="mono">server-content-backup.zip</span>, rewrite hardcoded media URLs into mirrored relative paths, and send the files either to another server or directly onto USB.
+        The destination server is checked through <span class="mono">platform.txt</span> so the upload transport can be chosen before the copy starts.
+      </div>
+    </div>
+    <div class="controls">
+      <input id="zipFile" type="file" accept=".zip,application/zip" />
+      <button id="scanBtn" class="primary">Scan backup</button>
+      <button id="startBtn">Start transfer</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <div class="panelHead">
+        <div>
+          <h2>Transfer setup</h2>
+          <div class="meta">Source archive, destination, and rewrite rules</div>
+        </div>
+        <div class="meta" id="archiveMeta">No archive loaded.</div>
+      </div>
+      <div class="panelBody stack">
+        <div class="row">
+          <div>
+            <div class="label">Destination type</div>
+            <div class="radioGroup">
+              <label class="pill"><input type="radio" name="destType" value="server" checked> Another server</label>
+              <label class="pill"><input type="radio" name="destType" value="usb"> USB / local folder</label>
+            </div>
+          </div>
+          <div>
+            <div class="label">Source server base</div>
+            <input id="sourceBase" type="text" placeholder="Auto: current page origin" />
+            <div class="small" style="margin-top:6px;">Used for relative paths inside the archive when fetching the actual media bytes.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <div class="label">Destination server base</div>
+            <input id="destBase" type="text" placeholder="https://192.168.254.16:8083" />
+          </div>
+          <div>
+            <div class="label">Optional upload endpoint override</div>
+            <input id="endpoint" type="text" placeholder="Auto from platform.txt or blank for direct PUT" />
+            <div class="small" style="margin-top:6px;">Only needed if the server declares a special endpoint in its platform file.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <div class="label">Music preference</div>
+            <div class="radioGroup">
+              <label class="pill"><input type="radio" name="musicPref" value="flac" checked> Prefer FLAC</label>
+              <label class="pill"><input type="radio" name="musicPref" value="mp3"> Prefer MP3</label>
+            </div>
+          </div>
+          <div>
+            <div class="label">Music concurrency</div>
+            <input id="musicBatchSize" type="number" min="1" max="32" value="6" />
+            <div class="small" style="margin-top:6px;">Music tracks are sent through a rolling worker pool so the pipe stays full. Other backup items still go one by one.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <div class="label">Setup merge behavior</div>
+            <label class="pill" style="display:flex; gap:10px; align-items:flex-start; padding:12px 14px; line-height:1.35;">
+              <input id="preserveSetupFiles" type="checkbox" checked style="margin-top:2px;" />
+              <span>
+                Preserve Old Library JS setup Files, merging into existing when available
+                <div class="small" style="margin-top:4px;">When enabled, the destination's existing <span class="mono">mainfolders.js</span>, <span class="mono">library.js</span>, and <span class="mono">loadseasonfunctions.js</span> are fetched first and merged with the backup instead of being overwritten. Section backups such as <span class="mono">musiclibrary.js</span>, <span class="mono">games.js</span>, <span class="mono">books.js</span>, <span class="mono">guidebooks.js</span>, and <span class="mono">manga.js</span> are restored whenever they are present in the zip.</div>
+              </span>
+            </label>
+          </div>
+          <div>
+            <div class="label">Destination platform.txt</div>
+            <button id="probeBtn">Check platform.txt</button>
+            <div class="small" id="platformInfo" style="margin-top:8px;">Waiting for a destination URL.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <div class="label">Transfer mode</div>
+            <div class="preview" id="rewritePreview">Load a zip to preview rewritten paths.</div>
+          </div>
+          <div>
+            <div class="label">Progress</div>
+            <div class="progressOuter"><div id="progressInner" class="progressInner"></div></div>
+            <div class="small" id="progressText" style="margin-top:8px;">Idle.</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="label">Log</div>
+          <div class="panel" style="border-radius:16px; overflow:hidden;">
+            <div class="panelBody">
+              <div class="log" id="log">Waiting for a zip archive.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panelHead">
+        <div>
+          <h2>Manifest summary</h2>
+          <div class="meta">What the archive contains and what will be moved</div>
+        </div>
+      </div>
+      <div class="panelBody">
+        <div class="stat">
+          <div class="card">
+            <div class="k">JS files</div>
+            <div class="v" id="jsCount">0</div>
+          </div>
+          <div class="card">
+            <div class="k">Media items</div>
+            <div class="v" id="mediaCount">0</div>
+          </div>
+          <div class="card">
+            <div class="k">Rewritten URLs</div>
+            <div class="v" id="rewriteCount">0</div>
+          </div>
+          <div class="card">
+            <div class="k">Upload mode</div>
+            <div class="v" id="modeText">auto</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:12px;">
+          <div class="k">Files in archive</div>
+          <div class="list" id="archiveList" style="margin-top:10px;"></div>
+        </div>
+
+        <div class="card">
+          <div class="k">Selected destination strategy</div>
+          <div class="small" id="strategyText" style="margin-top:10px; line-height:1.5;">
+            Another server is selected by default. The page will read <span class="mono">platform.txt</span> from the destination, look for an explicit upload method, and default to direct PUT if none is declared.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const el = {
+    zipFile: document.getElementById('zipFile'),
+    scanBtn: document.getElementById('scanBtn'),
+    startBtn: document.getElementById('startBtn'),
+    probeBtn: document.getElementById('probeBtn'),
+    sourceBase: document.getElementById('sourceBase'),
+    destBase: document.getElementById('destBase'),
+    endpoint: document.getElementById('endpoint'),
+    platformInfo: document.getElementById('platformInfo'),
+    rewritePreview: document.getElementById('rewritePreview'),
+    archiveMeta: document.getElementById('archiveMeta'),
+    jsCount: document.getElementById('jsCount'),
+    mediaCount: document.getElementById('mediaCount'),
+    rewriteCount: document.getElementById('rewriteCount'),
+    modeText: document.getElementById('modeText'),
+    archiveList: document.getElementById('archiveList'),
+    log: document.getElementById('log'),
+    progressInner: document.getElementById('progressInner'),
+    progressText: document.getElementById('progressText'),
+    strategyText: document.getElementById('strategyText'),
+    preserveSetupFiles: document.getElementById('preserveSetupFiles'),
+    musicBatchSize: document.getElementById('musicBatchSize')
+  };
+
+  const state = {
+    archiveFile: null,
+    archiveEntries: [],
+    archiveTexts: new Map(),
+    archiveTextLookup: new Map(),
+    archiveFiles: new Map(),
+    archiveFileLookup: new Map(),
+    manifest: null,
+    sourceBase: location.origin.endsWith('/') ? location.origin.slice(0, -1) : location.origin,
+    destination: { type: 'server', base: '', resolvedBase: '', platform: null, method: 'put', endpoint: '' },
+    transferList: [],
+    transferQueue: [],
+    rewrittenLibraryText: '',
+    rewrittenMainfoldersText: '',
+    loadSeasonText: '',
+    mandatedMainFolderTitles: [],
+    musicPreference: 'flac',
+    musicBatchSize: 6,
+    busy: false,
+    logLines: [],
+    pendingArtworkTasks: [],
+    transferRun: null
+  };
+
+  if (!el.sourceBase.value) el.sourceBase.value = state.sourceBase;
+  state.sourceBase = el.sourceBase.value.trim();
+  state.destination.base = el.destBase.value.trim();
+
+  function log(msg, opts = {}) {
+    const text = String(msg || '').trim();
+    if (!text) return;
+    if (opts && opts.reset) {
+      state.logLines = [];
+      el.log.textContent = '';
+    }
+    const stamp = new Date().toLocaleTimeString([], { hour12: false });
+    state.logLines.push(`[${stamp}] ${text}`);
+    if (state.logLines.length > 180) state.logLines.splice(0, state.logLines.length - 180);
+    el.log.textContent = state.logLines.join('\n');
+    el.log.scrollTop = el.log.scrollHeight;
+  }
+
+  function setProgress(done, total, label='') {
+    const pct = total ? Math.max(0, Math.min(100, (done / total) * 100)) : 0;
+    el.progressInner.style.width = `${pct}%`;
+    el.progressText.textContent = label ? `${label} (${done}/${total})` : `${done}/${total}`;
+  }
+
+  function getMusicPreference() {
+    return (document.querySelector('input[name="musicPref"]:checked') || {}).value || 'flac';
+  }
+
+  function getMusicBatchSize() {
+    const raw = Number.parseInt(el.musicBatchSize?.value || '6', 10);
+    if (!Number.isFinite(raw) || raw < 1) return 6;
+    return Math.max(1, Math.min(32, raw));
+  }
+
+  function isMusicTrackPath(pathValue) {
+    return normalizeTransferPath(pathValue).toLowerCase().startsWith('music/');
+  }
+
+  function uniqueCandidateList(candidates) {
+    const out = [];
+    const seen = new Set();
+    for (const candidate of ensureArray(candidates)) {
+      const path = String(candidate?.path || candidate?.destPath || candidate || '').trim();
+      const sourceUrl = String(candidate?.sourceUrl || '').trim();
+      if (!path) continue;
+      const key = `${path.toLowerCase()}|${sourceUrl}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(typeof candidate === 'object' ? { ...candidate, path, sourceUrl } : { path, sourceUrl });
+    }
+    return out;
+  }
+
+  function buildMusicCandidates(stem, currentSourceBase) {
+    const cleanStem = String(stem || '').trim();
+    if (!cleanStem) return [];
+    const pref = getMusicPreference();
+    const orderedExts = pref === 'mp3' ? ['mp3', 'flac'] : ['flac', 'mp3'];
+    const candidates = orderedExts.map(ext => {
+      const relPath = normalizeRelativePath(`./Music/${cleanStem}.${ext}`);
+      return {
+        path: relPath,
+        sourceUrl: resolveSourceUrl(currentSourceBase, relPath)
+      };
+    });
+    return uniqueCandidateList(candidates);
+  }
+
+  function normalizeMusicImageStem(value) {
+    const raw = safeText(value).replace(/\*+$/g, '').trim();
+    if (!raw) return '';
+
+    let stem = raw;
+    try { stem = decodeURIComponent(stem); } catch (_) {}
+    stem = stem.split(/[\\/]/).pop();
+    stem = stem.replace(/\.(mp3|flac|wav|m4a|ogg|aac|opus|wma|alac|mp4|m4v|mov|webm|mkv)(\?.*)?$/i, '');
+
+    const hyphenIndex = stem.lastIndexOf(' - ');
+    if (hyphenIndex >= 0) {
+      stem = stem.slice(hyphenIndex + 3).trim();
+    }
+
+    return stem.replace(/\s+/g, ' ').trim();
+  }
+
+  function normalizeMusicImageStemVariants(value) {
+    const raw = normalizeMusicImageStem(value);
+    if (!raw) return [];
+
+    const variants = [];
+    const add = (candidate) => {
+      let text = safeText(candidate).replace(/\*+$/g, '').trim();
+      if (!text) return;
+      text = text.replace(/[\\/]/g, ' ');
+      text = text.replace(/\s+/g, ' ');
+      const key = text.toLowerCase();
+      if (!variants.some(item => item.toLowerCase() === key)) variants.push(text);
+    };
+
+    add(raw);
+    add(raw.replace(/[’']/g, ''));
+    add(raw.replace(/[’']/g, '').replace(/\s*&\s*/g, ' and '));
+    add(raw.replace(/[’']/g, '').replace(/[!?,.;:]+/g, ' '));
+    add(raw.replace(/[’']/g, '').replace(/[^0-9A-Za-z\s.-]+/g, ' '));
+
+    try {
+      const stripped = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      add(stripped);
+      add(stripped.replace(/[’']/g, ''));
+      add(stripped.replace(/[’']/g, '').replace(/\s*&\s*/g, ' and '));
+      add(stripped.replace(/[’']/g, '').replace(/[!?,.;:]+/g, ' '));
+      add(stripped.replace(/[’']/g, '').replace(/[^0-9A-Za-z\s.-]+/g, ' '));
+    } catch (_) {}
+
+    return variants;
+  }
+
+  function buildMusicArtworkCandidates(stem, currentSourceBase) {
+    const variants = normalizeMusicImageStemVariants(stem);
+    if (!variants.length) return [];
+
+    const folders = ['Music/Images', 'Music/Images/Artists'];
+    const exts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    const candidates = [];
+
+    for (const variant of variants) {
+      const pathStem = safeText(variant).replace(/[\\/]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!pathStem) continue;
+      for (const folder of folders) {
+        for (const ext of exts) {
+          const relA = normalizeRelativePath(`./${folder}/${pathStem}.${ext}`);
+          candidates.push({ path: relA, sourceUrl: resolveSourceUrl(currentSourceBase, relA) });
+
+          const relB = normalizeRelativePath(`./${folder}/${pathStem}/${pathStem}.${ext}`);
+          candidates.push({ path: relB, sourceUrl: resolveSourceUrl(currentSourceBase, relB) });
+        }
+      }
+    }
+
+    return uniqueCandidateList(candidates);
+  }
+
+  function parseMusicTrackTitleParts(entryText) {
+    const textValue = safeText(entryText);
+    if (!textValue) return { title: '', artist: '' };
+    const idx = textValue.lastIndexOf(' - ');
+    if (idx < 0) return { title: textValue, artist: '' };
+    return {
+      title: textValue.slice(0, idx).trim(),
+      artist: textValue.slice(idx + 3).trim()
+    };
+  }
+
+  function resolveSourceUrl(sourceBase, maybeUrl, fallbackPath = '') {
+    const raw = String(maybeUrl || '').trim();
+    if (raw) {
+      let decoded = raw;
+      if (/%(3A|2F|5C)/i.test(raw)) {
+        try { decoded = decodeURIComponent(raw); } catch (_) {}
+      }
+      if (/^https?:\/\//i.test(decoded)) {
+        return normalizeRequestUrl(decoded);
+      }
+      const relative = normalizeRelativePath(decoded);
+      if (relative) {
+        return normalizeRequestUrl(joinBase(sourceBase, stripLeadingDotSlash(relative)));
+      }
+    }
+
+    const fallback = normalizeRelativePath(fallbackPath);
+    if (!fallback) return '';
+    return normalizeRequestUrl(joinBase(sourceBase, stripLeadingDotSlash(fallback)));
+  }
+  function cleanTitle(raw) {
+    return String(raw || '').replace(/\*/g, '').trim();
+  }
+  function isAbsoluteUrl(v) {
+    return /^https?:\/\//i.test(String(v || ''));
+  }
+  function decodePathname(pathname) {
+    return pathname.split('/').map(part => {
+      try { return decodeURIComponent(part); } catch { return part; }
+    }).join('/');
+  }
+  function normalizeRelativePath(input) {
+    const raw = String(input || '').trim().replace(/\\/g, '/');
+    if (!raw) return '';
+    if (/^\.\/+/g.test(raw)) return raw.replace(/^\.\/+/, './');
+    if (raw.startsWith('./')) return './' + raw.slice(2).replace(/^\/+/, '');
+    if (raw.startsWith('/')) return './' + raw.replace(/^\/+/, '');
+    return raw.startsWith('http://') || raw.startsWith('https://') ? './' + decodePathname(new URL(raw).pathname).replace(/^\/+/, '') : './' + raw.replace(/^\/+/, '');
+  }
+  function encodePathSegment(segment) {
+    const raw = String(segment || '');
+    if (!raw) return '';
+    try {
+      return encodeURIComponent(decodeURIComponent(raw));
+    } catch {
+      return encodeURIComponent(raw);
+    }
+  }
+  function joinBase(base, path) {
+    const b = String(base || '').trim().replace(/\/+$/, '');
+    const p = String(path || '').trim().replace(/^\/+/, '');
+    const encodedPath = p.split('/').map(part => part ? encodePathSegment(part) : part).join('/');
+    return `${b}/${encodedPath}`;
+  }
+
+  function normalizeRequestUrl(url) {
+    const raw = String(url || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = raw.startsWith('http://') || raw.startsWith('https://')
+        ? new URL(raw)
+        : new URL(raw, location.href);
+      parsed.pathname = parsed.pathname.split('/').map(part => part ? encodePathSegment(part) : part).join('/');
+      return parsed.toString();
+    } catch {
+      return raw;
+    }
+  }
+
+  function stripLeadingDotSlash(p) {
+    return String(p || '').replace(/^\.\//, '').replace(/^\/+/, '');
+  }
+
+  function baseCandidates(base) {
+    const clean = String(base || '').trim().replace(/\/+$/, '');
+    if (!clean) return [];
+    const out = [clean];
+    if (/^https?:\/\//i.test(clean)) {
+      const swapped = clean.replace(/^https:/i, 'http:').replace(/^http:/i, 'https:');
+      if (swapped && swapped !== clean) out.push(swapped);
+    } else {
+      out.push(`http://${clean}`);
+      out.push(`https://${clean}`);
+    }
+    return [...new Set(out)];
+  }
+
+  function fetchWithTimeout(url, init = {}, timeoutMs = 90000) {
+    const requestInit = { ...init };
+    if (typeof AbortController === 'undefined' || !timeoutMs || timeoutMs <= 0) {
+      return fetch(url, requestInit);
+    }
+    const controller = new AbortController();
+    requestInit.signal = controller.signal;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, requestInit).finally(() => clearTimeout(timer));
+  }
+
+  async function fetchTextFromCandidates(base, paths) {
+    for (const candidateBase of baseCandidates(base)) {
+      for (const path of paths) {
+        const url = normalizeRequestUrl(path.startsWith('http') ? path : joinBase(candidateBase, path));
+        try {
+          const res = await fetchWithTimeout(url, { cache: 'no-store' }, 20000);
+          if (!res.ok) continue;
+          return { url, text: await res.text() };
+        } catch (_) {
+          // Try the next candidate.
+        }
+      }
+    }
+    return null;
+  }
+
+  function isReadableStream(value) {
+    return !!value && typeof value === 'object' && typeof value.getReader === 'function' && typeof value.pipeTo === 'function';
+  }
+
+  async function sourcePayloadFromUrl(url, timeoutMs = 120000) {
+    const requestUrl = normalizeRequestUrl(url);
+    const res = await fetchWithTimeout(requestUrl, { cache: 'no-store' }, timeoutMs);
+    if (!res.ok) throw new Error(`Failed to fetch ${requestUrl}: HTTP ${res.status}`);
+    return await res.blob();
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function withRetry(taskName, fn, { retries = 3, delay = 450 } = {}) {
+    let lastError = null;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        if (attempt > 1) {
+          log(`Retry ${attempt - 1}/${Math.max(1, retries - 1)}: ${taskName}`);
+          await sleep(delay * attempt);
+        }
+        return await fn(attempt);
+      } catch (err) {
+        lastError = err;
+        const msg = err?.message || String(err);
+        log(`Attempt ${attempt}/${retries} failed for ${taskName}: ${msg}`);
+        if (attempt === retries) break;
+      }
+    }
+    throw lastError || new Error(`Failed: ${taskName}`);
+  }
+
+  async function payloadToText(payload) {
+    if (payload instanceof Blob) return await payload.text();
+    if (isReadableStream(payload)) return await new Response(payload).text();
+    if (payload == null) return '';
+    return String(payload);
+  }
+
+  function itemKindLabel(item) {
+    if (!item) return 'file';
+    if (item.kind === 'mainfolders') return 'mainfolders.js';
+    if (item.kind === 'library') return 'library.js';
+    if (item.kind === 'loadseason') return 'loadseasonfunctions.js';
+    if (item.kind === 'musiclibrary') return 'musiclibrary.js';
+    if (item.kind === 'games') return 'games.js';
+    if (item.kind === 'guidebooks') return 'guidebooks.js';
+    if (item.kind === 'books') return 'books.js';
+    if (item.kind === 'manga') return 'manga.js';
+    if (item.kind === 'audiobook') return `audiobook → ${item.path || 'file'}`;
+    if (item.kind === 'artwork') return `artwork → ${item.path || 'file'}`;
+    if (item.kind === 'subtitle') return `subtitle → ${item.path || 'file'}`;
+    if (item.kind === 'media') return `media → ${item.path || 'file'}`;
+    return item.path || 'file';
+  }
+
+  async function processTransferItem({ item, preserveSetup, dest, strategy, total, index, batchMode = false }) {
+    const label = itemKindLabel(item);
+    const sourceUrl = item.sourceUrl || '';
+    const canRemoteCopy = (item.kind === 'media' || item.kind === 'artwork') && !!sourceUrl && (String(strategy.method || '').toLowerCase() === 'copy' || String(strategy.platform || '').toLowerCase() === 'android');
+
+    if (!batchMode) {
+      setProgress(index, total, `Preparing ${label} (${index}/${total})`);
+    }
+    log(`Queue ${index}/${total}: ${label}`);
+
+    let payload = item.blob || null;
+
+    if (item.kind === 'mainfolders' || item.kind === 'library' || item.kind === 'loadseason') {
+      log(`Preparing setup file ${label}.`);
+    }
+
+    if (item.kind === 'artwork' && Array.isArray(item.artworkCandidates) && item.artworkCandidates.length) {
+      const candidates = item.artworkCandidates;
+      let lastError = null;
+
+      for (const candidate of candidates) {
+        const candidatePath = normalizeRelativePath(candidate.path || item.path);
+        const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
+        try {
+          if (canRemoteCopy) {
+            log(`Trying ${candidatePath} for ${label} via remote-copy.`);
+            await uploadToServer(dest, candidatePath, null, strategy, candidateSourceUrl);
+          } else {
+            const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
+            log(`Fetched ${candidatePath} for ${label}.`);
+            await uploadToServer(dest, candidatePath, candidatePayload, strategy, candidateSourceUrl);
+          }
+          if (candidatePath !== item.path) {
+            log(`Selected ${candidatePath} for ${label}.`);
+          }
+          return { selectedPath: candidatePath };
+        } catch (err) {
+          lastError = err;
+          const message = err?.message || String(err);
+          log(`Artwork candidate failed for ${candidatePath}: ${message}`);
+        }
+      }
+
+      throw lastError || new Error(`All artwork candidates failed for ${label}.`);
+    }
+
+
+if (item.kind === 'audiobook') {
+  const manifestCandidates = Array.isArray(item.audiobookManifestCandidates) && item.audiobookManifestCandidates.length
+    ? item.audiobookManifestCandidates
+    : [{ path: item.path, sourceUrl }];
+  const manifestPayload = item.blob || null;
+  let payloadToUse = manifestPayload;
+  let manifestSourceUrl = sourceUrl;
+  let manifestSourcePath = item.path;
+
+  if (!payloadToUse) {
+    let lastManifestError = null;
+
+    for (const candidate of manifestCandidates) {
+      const candidatePath = normalizeRelativePath(candidate.path || item.path);
+      const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
+      try {
+        payloadToUse = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(candidateSourceUrl), { retries: 2, delay: 250 });
+        manifestSourceUrl = candidateSourceUrl;
+        manifestSourcePath = candidatePath;
+        if (candidatePath !== item.path) {
+          log(`Using audiobook manifest source ${candidatePath} for ${item.path}.`);
+        }
+        break;
+      } catch (err) {
+        lastManifestError = err;
+        const message = err?.message || String(err);
+        log(`Audiobook manifest candidate failed for ${candidatePath}: ${message}`);
+      }
+    }
+
+    if (!payloadToUse) {
+      const message = lastManifestError?.message || `Unable to find audiobook manifest for ${item.path}.`;
+      if (item.optional && /HTTP\s+404/i.test(message)) {
+        log(`Skipped ${label}: not found on source.`);
+        return { skipped: true };
+      }
+      throw lastManifestError || new Error(message);
+    }
+
+    if (manifestSourcePath && manifestSourcePath !== item.path) {
+      log(`Resolved audiobook manifest to ${manifestSourcePath}.`);
+    } else {
+      log(`Downloaded source bytes for ${label}.`);
+    }
+  }
+
+  const uploadMode = canRemoteCopy ? 'copy' : strategy.method;
+  log(`Uploading ${label} via ${uploadMode.toUpperCase()}.`);
+  await withRetry(
+    `upload ${label}`,
+    () => uploadToServer(dest, item.path, payloadToUse, strategy, manifestSourceUrl),
+    { retries: 3, delay: 600 }
+  );
+  log(`Uploaded ${label}.`);
+
+  const candidates = Array.isArray(item.audiobookCandidates) ? item.audiobookCandidates : [];
+  if (!candidates.length) return { manifestUploaded: true, missingAudio: true };
+
+  let lastAudioError = null;
+  for (const candidate of candidates) {
+    const candidatePath = normalizeRelativePath(candidate.path || item.path);
+    const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
+    try {
+      if (canRemoteCopy) {
+        log(`Trying ${candidatePath} for audiobook audio via remote-copy.`);
+        await uploadToServer(dest, candidatePath, null, strategy, candidateSourceUrl);
+      } else {
+        const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
+        log(`Fetched ${candidatePath} for audiobook audio.`);
+        await uploadToServer(dest, candidatePath, candidatePayload, strategy, candidateSourceUrl);
+      }
+      if (candidatePath !== item.path) {
+        log(`Selected ${candidatePath} for audiobook audio.`);
+      }
+      return { selectedPath: candidatePath, manifestUploaded: true };
+    } catch (err) {
+      lastAudioError = err;
+      const message = err?.message || String(err);
+      log(`Audiobook audio candidate failed for ${candidatePath}: ${message}`);
+    }
+  }
+
+  if (lastAudioError) {
+    const message = lastAudioError?.message || String(lastAudioError);
+    if (/HTTP\s+404/i.test(message)) {
+      log(`Skipped audiobook audio for ${item.path}: not found on source.`);
+      return { manifestUploaded: true, missingAudio: true };
+    }
+  }
+
+  return { manifestUploaded: true, missingAudio: true };
+}
+
+    if (item.kind === 'media' && Array.isArray(item.musicCandidates) && item.musicCandidates.length) {
+      const candidates = item.musicCandidates;
+      let lastError = null;
+
+      for (const candidate of candidates) {
+        const candidatePath = normalizeRelativePath(candidate.path || item.path);
+        const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
+        try {
+          if (canRemoteCopy) {
+            log(`Trying ${candidatePath} for ${label} via remote-copy.`);
+            await uploadToServer(dest, candidatePath, null, strategy, candidateSourceUrl);
+          } else {
+            const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
+            log(`Fetched ${candidatePath} for ${label}.`);
+            await uploadToServer(dest, candidatePath, candidatePayload, strategy, candidateSourceUrl);
+          }
+          if (candidatePath !== item.path) {
+            log(`Selected ${candidatePath} for ${label}.`);
+          }
+          return { selectedPath: candidatePath };
+        } catch (err) {
+          lastError = err;
+          const message = err?.message || String(err);
+          log(`Music candidate failed for ${candidatePath}: ${message}`);
+        }
+      }
+
+      throw lastError || new Error(`All music candidates failed for ${label}.`);
+    }
+
+    if (item.kind === 'media') {
+      if (canRemoteCopy) {
+        log(`Using remote-copy for ${label}.`);
+      } else if (!payload) {
+        payload = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(sourceUrl), { retries: 3, delay: 500 });
+        log(`Downloaded source bytes for ${label}.`);
+      }
+    } else if (item.kind === 'subtitle' || item.kind === 'artwork') {
+      if (!payload) {
+        try {
+          payload = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(sourceUrl), { retries: 3, delay: 350 });
+          log(`Downloaded source bytes for ${label}.`);
+        } catch (err) {
+          const message = err?.message || String(err);
+          if (item.optional && /HTTP\s+404/i.test(message)) {
+            log(`Skipped ${label}: not found on source.`);
+            return { skipped: true };
+          }
+          throw err;
+        }
+      }
+    }
+
+    if (preserveSetup && item.kind && item.kind !== 'media' && item.kind !== 'artwork' && item.kind !== 'subtitle') {
+      const existingText = await withRetry(
+        `read destination ${label}`,
+        () => fetchCurrentText(state.destination.resolvedBase || dest, item.path),
+        { retries: 2, delay: 300 }
+      );
+      const generatedText = await payloadToText(payload);
+
+      let mergedText = generatedText;
+      if (item.kind === 'mainfolders') mergedText = mergeMainfoldersText(existingText, generatedText, state.mandatedMainFolderTitles || []);
+      else if (item.kind === 'library') mergedText = mergeLibraryFile(existingText, generatedText);
+      else if (item.kind === 'loadseason') mergedText = mergeLoadSeasonFunctionsText(existingText, generatedText);
+
+      payload = new Blob([mergedText], { type: 'text/javascript' });
+      log(`Merged destination setup into ${label}.`);
+    }
+
+    const uploadMode = canRemoteCopy ? 'copy' : strategy.method;
+    log(`Uploading ${label} via ${uploadMode.toUpperCase()}.`);
+    await withRetry(
+      `upload ${label}`,
+      () => uploadToServer(dest, item.path, payload, strategy, sourceUrl),
+      { retries: 3, delay: 600 }
+    );
+    log(`Uploaded ${label}.`);
+
+    if (item.kind === 'media' && Array.isArray(item.artistArtworkCandidates) && item.artistArtworkCandidates.length) {
+      const artworkTask = processTransferItem({
+        item: {
+          kind: 'artwork',
+          path: item.artistArtworkCandidates[0].path || deriveRootArtworkPathFromTitle(parseMusicTrackTitleParts(String(item.path || '')).artist || ''),
+          sourceUrl: item.artistArtworkCandidates[0].sourceUrl || '',
+          optional: true,
+          artworkCandidates: item.artistArtworkCandidates
+        },
+        preserveSetup: false,
+        dest,
+        strategy,
+        total,
+        index,
+        batchMode: true
+      }).then(result => {
+        if (result && result.selectedPath) {
+          log(`Artist artwork ready for ${label}: ${result.selectedPath}`);
+        }
+        return result;
+      }).catch(err => {
+        const message = err?.message || String(err);
+        log(`Artist artwork failed for ${label}: ${message}`);
+        return null;
+      });
+
+      state.pendingArtworkTasks = state.pendingArtworkTasks || [];
+      state.pendingArtworkTasks.push(artworkTask);
+    }
+  }
+
+  function updateArchiveList() {
+    el.archiveList.innerHTML = '';
+    for (const entry of state.archiveEntries) {
+      const row = document.createElement('div');
+      row.className = 'item';
+      const a = document.createElement('div');
+      a.className = 'a';
+      a.textContent = entry.name;
+      const b = document.createElement('div');
+      b.className = 'b';
+      b.textContent = `${entry.size} bytes`;
+      row.appendChild(a);
+      row.appendChild(b);
+      el.archiveList.appendChild(row);
+    }
+  }
+
+  function updateSummary() {
+    const js = ['mainfolders.js', 'library.js', 'loadseasonfunctions.js'].filter(n => state.archiveTexts.has(n));
+    el.jsCount.textContent = String(js.length);
+    el.mediaCount.textContent = String(state.transferList.length);
+    el.rewriteCount.textContent = String(state.transferList.filter(x => x.needsRewrite).length);
+    el.modeText.textContent = state.destination.type;
+    el.archiveMeta.textContent = state.archiveFile ? state.archiveFile.name : 'No archive loaded.';
+  }
+
+  async function readArrayBuffer(file) {
+    return await file.arrayBuffer();
+  }
+
+  function readUInt16(view, offset) { return view.getUint16(offset, true); }
+  function readUInt32(view, offset) { return view.getUint32(offset, true); }
+
+  async function inflateRaw(bytes) {
+    if (typeof DecompressionStream !== 'undefined') {
+      const ds = new DecompressionStream('deflate-raw');
+      const stream = new Blob([bytes]).stream().pipeThrough(ds);
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    throw new Error('Deflate compression is not supported in this browser.');
+  }
+
+  async function parseZip(file) {
+    const buf = await readArrayBuffer(file);
+    const bytes = new Uint8Array(buf);
+    const view = new DataView(buf);
+
+    // EOCD search from end.
+    let eocd = -1;
+    for (let i = bytes.length - 22; i >= 0; i--) {
+      if (readUInt32(view, i) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('Could not find ZIP end-of-central-directory record.');
+
+    const entryCount = readUInt16(view, eocd + 10);
+    const centralSize = readUInt32(view, eocd + 12);
+    const centralOffset = readUInt32(view, eocd + 16);
+    const entries = [];
+
+    let ptr = centralOffset;
+    for (let n = 0; n < entryCount; n++) {
+      if (readUInt32(view, ptr) !== 0x02014b50) throw new Error('Invalid ZIP central directory signature.');
+      const method = readUInt16(view, ptr + 10);
+      const compressedSize = readUInt32(view, ptr + 20);
+      const uncompressedSize = readUInt32(view, ptr + 24);
+      const nameLen = readUInt16(view, ptr + 28);
+      const extraLen = readUInt16(view, ptr + 30);
+      const commentLen = readUInt16(view, ptr + 32);
+      const localHeaderOffset = readUInt32(view, ptr + 42);
+      const nameBytes = bytes.slice(ptr + 46, ptr + 46 + nameLen);
+      const name = new TextDecoder().decode(nameBytes);
+      entries.push({ name, method, compressedSize, uncompressedSize, localHeaderOffset });
+      ptr += 46 + nameLen + extraLen + commentLen;
+    }
+
+    const result = new Map();
+    for (const entry of entries) {
+      const lh = entry.localHeaderOffset;
+      if (readUInt32(view, lh) !== 0x04034b50) throw new Error(`Invalid local header for ${entry.name}`);
+      const nameLen = readUInt16(view, lh + 26);
+      const extraLen = readUInt16(view, lh + 28);
+      const dataStart = lh + 30 + nameLen + extraLen;
+      const raw = bytes.slice(dataStart, dataStart + entry.compressedSize);
+      let fileBytes;
+      if (entry.method === 0) fileBytes = raw;
+      else if (entry.method === 8) fileBytes = await inflateRaw(raw);
+      else throw new Error(`Unsupported ZIP compression method ${entry.method} in ${entry.name}`);
+      result.set(entry.name, fileBytes);
+    }
+    return result;
+  }
+
+  function evalVariableSource(txt, varName) {
+    try {
+      const fn = new Function(`${txt}\nreturn (typeof ${varName} !== 'undefined') ? ${varName} : null;`);
+      return fn();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function parseLoaders(txt) {
+    const m = String(txt || '').match(/const\s+seasons\s*=\s*\[([\s\S]*?)\]\s*;/m);
+    return m ? m[1] : '';
+  }
+
+  function rewriteFilePath(value, currentSourceBase) {
+    const raw = String(value || '').trim();
+    if (!raw) return { original: raw, rewritten: raw, sourceUrl: '', needsRewrite: false };
+
+    if (isAbsoluteUrl(raw)) {
+      const u = new URL(raw);
+      const pathname = decodePathname(u.pathname).replace(/^\/+/, '');
+      const rewritten = './' + pathname;
+      u.pathname = '/' + pathname.split('/').map(part => part ? encodePathSegment(part) : part).join('/');
+      const sourceUrl = u.toString();
+      return { original: raw, rewritten, sourceUrl, needsRewrite: true };
+    }
+
+    if (raw.startsWith('./')) {
+      const rewritten = './' + raw.slice(2).replace(/^\/+/, '');
+      const sourceUrl = joinBase(currentSourceBase, stripLeadingDotSlash(rewritten));
+      return { original: raw, rewritten, sourceUrl, needsRewrite: false };
+    }
+
+    if (raw.startsWith('/')) {
+      const rewritten = './' + raw.replace(/^\/+/, '');
+      const sourceUrl = joinBase(currentSourceBase, stripLeadingDotSlash(rewritten));
+      return { original: raw, rewritten, sourceUrl, needsRewrite: true };
+    }
+
+    const rewritten = './' + raw.replace(/^\/+/, '');
+    const sourceUrl = joinBase(currentSourceBase, stripLeadingDotSlash(rewritten));
+    return { original: raw, rewritten, sourceUrl, needsRewrite: true };
+  }
+
+  function walkEpisodesTree(node, title, currentSourceBase, out, seenTitles) {
+    const arr = node && node[title];
+    if (!Array.isArray(arr)) return;
+    if (seenTitles.has(title)) return;
+    seenTitles.add(title);
+
+    for (const item of arr) {
+      if (typeof item === 'string') {
+        walkEpisodesTree(node, item, currentSourceBase, out, seenTitles);
+        continue;
+      }
+      if (!item || typeof item !== 'object') continue;
+      const fileInfo = rewriteFilePath(item.file, currentSourceBase);
+      const destPath = normalizeRelativePath(fileInfo.rewritten);
+      if (!destPath) continue;
+      if (!out.has(destPath)) {
+        out.set(destPath, {
+          destPath,
+          sourceUrl: fileInfo.sourceUrl,
+          title: cleanTitle(item.name || item.title || destPath),
+          name: item.name || item.title || destPath,
+          originalFile: item.file,
+          rewrittenFile: fileInfo.rewritten,
+          needsRewrite: fileInfo.needsRewrite
+        });
+      }
+    }
+  }
+
+  function collectTransferList(episodes, sourceBase) {
+    const out = new Map();
+    const roots = Object.keys(episodes || {});
+    for (const root of roots) {
+      walkEpisodesTree(episodes, root, sourceBase, out, new Set());
+    }
+    return [...out.values()];
+  }
+
+  function rewriteLibraryText(original, sourceBase) {
+    const text = String(original || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+    if (!text.trim()) throw new Error('library.js is empty');
+
+    let rewriteCount = 0;
+    const rewritten = text.replace(/(["'])file\1\s*:\s*(["'])(.*?)\2/g, (full, keyQuote, valueQuote, rawValue) => {
+      const info = rewriteFilePath(rawValue, sourceBase);
+      if (info.needsRewrite || info.rewritten !== rawValue) rewriteCount++;
+      return `${keyQuote}file${keyQuote}: ${valueQuote}${info.rewritten}${valueQuote}`;
+    });
+
+    const txt = rewritten.endsWith('\n') ? rewritten : `${rewritten}\n`;
+    return { text: txt, rewriteCount };
+  }
+
+  function mergeLibraryFile(currentText, generatedText, removeKeys = []) {
+    const current = String(currentText ?? '').replace(/\r\n?/g, '\n');
+    const generated = String(generatedText ?? '').replace(/\r\n?/g, '\n').trim();
+    if (!generated) return current;
+
+    const removeSet = new Set(ensureArray(removeKeys).map(key => normalizeLookupKey(key)));
+    const currentSplit = splitLibraryFooter(current);
+    const generatedBlocks = parseLibraryBlocks(generated).filter(block => !removeSet.has(normalizeLookupKey(block.key)));
+    if (!generatedBlocks.length) {
+      const trimmedBody = currentSplit.body.replace(/[\t ]+$/g, '').replace(/\n+$/g, '');
+      const footer = currentSplit.footer || '};';
+      return `${trimmedBody}\n${footer}`;
+    }
+
+    const existingBlocks = parseLibraryBlocks(currentSplit.body).filter(block => !removeSet.has(normalizeLookupKey(block.key)));
+    const generatedByKey = new Map(generatedBlocks.map(block => [normalizeLookupKey(block.key), block]));
+
+    let mergedBody = '';
+    let cursor = 0;
+
+    for (const block of existingBlocks) {
+      if (block.start > cursor) {
+        mergedBody += currentSplit.body.slice(cursor, block.start);
+      }
+
+      if (!generatedByKey.has(normalizeLookupKey(block.key))) {
+        mergedBody += currentSplit.body.slice(block.start, block.end);
+      }
+
+      cursor = block.end;
+    }
+
+    mergedBody += currentSplit.body.slice(cursor).replace(/[\t ]+$/g, '');
+
+    const appended = generatedBlocks.map(block => block.text.trimEnd()).filter(Boolean).join('\n\n');
+    const bodyClean = mergedBody.replace(/[\t ]+$/g, '').replace(/\n+$/g, '');
+    const footer = currentSplit.footer || '};';
+
+    if (!appended) {
+      return `${bodyClean}\n${footer}`;
+    }
+
+    const needsComma = bodyClean && !/,\s*$/.test(bodyClean);
+    const separator = bodyClean ? (needsComma ? ',\n\n' : '\n\n') : '';
+    return `${bodyClean}${separator}${appended}\n${footer}`;
+  }
+
+  function mergeLibrarySetupText(currentText, generatedText) {
+    return mergeLibraryFile(currentText, generatedText);
+  }
+
+  function rewriteMainfoldersText(original) {
+    return renderMainfoldersText(evalVariableSource(original, 'folders'));
+  }
+
+  function normalizeLoadseasonText(original) {
+    return String(original || '').replace('/* Generated by server-content-backup.html */', '/* Generated by transfer-backup.html */');
+  }
+
+  function sanitizeTransferSegment(value) {
+    return String(value || '')
+      .replace(/[’']/g, '')
+      .replace(/[*]/g, '')
+      .replace(/[!]/g, '')
+      .replace(/[\/:*?"<>|]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function normalizeTransferPath(pathValue) {
+    const raw = String(pathValue || '').replace(/\\/g, '/').trim();
+    if (!raw) return '';
+    const cleaned = raw.replace(/^\.\/+/, '').replace(/^\/+/, '');
+    return cleaned
+      .split('/')
+      .map(part => sanitizeTransferSegment(part))
+      .filter(Boolean)
+      .join('/');
+  }
+
+  function deriveArtworkPathFromMediaPath(mediaPath) {
+    const clean = normalizeTransferPath(mediaPath);
+    if (!clean) return '';
+    const parts = clean.split('/').filter(Boolean);
+    if (parts.length < 2) return '';
+    const file = parts.pop();
+    const folderName = parts[parts.length - 1] || '';
+    const artworkStem = sanitizeTransferSegment(folderName || file.replace(/\.[^.]+$/, ''));
+    if (!artworkStem) return '';
+    return `./${[...parts, `${artworkStem}.jpg`].join('/')}`;
+  }
+
+  function deriveRootArtworkPathFromTitle(title) {
+    const rootTitle = sanitizeTransferSegment(collapseTrailingAdultMarks(title));
+    if (!rootTitle) return '';
+    return `./${rootTitle}/${rootTitle}.jpg`;
+  }
+
+  function deriveSubtitlePathFromMediaPath(mediaPath) {
+    const clean = normalizeTransferPath(mediaPath);
+    if (!clean) return '';
+    return `./${clean.replace(/\.[^.]+$/, '')}.vtt`;
+  }
+
+  function normalizeArchivePath(input) {
+    const raw = String(input || '').trim().replace(/\\/g, '/');
+    if (!raw) return '';
+    return raw.replace(/^\.\/+/, '').replace(/^\/+/, '').split(/[?#]/)[0].split('/').map(part => {
+      try { return decodeURIComponent(part); } catch { return part; }
+    }).join('/');
+  }
+
+  function archivePathKey(input) {
+    return normalizeArchivePath(input).toLowerCase();
+  }
+
+  function findArchiveBytesByPath(pathValue) {
+    const variants = [normalizeArchivePath(pathValue), String(pathValue || '').trim().replace(/\\/g, '/'), stripLeadingDotSlash(String(pathValue || ''))]
+      .filter(Boolean);
+    for (const variant of variants) {
+      const key = archivePathKey(variant);
+      if (state.archiveFileLookup && state.archiveFileLookup.has(key)) {
+        return { name: variant, bytes: state.archiveFileLookup.get(key) };
+      }
+    }
+    return null;
+  }
+
+  function findArchiveTextByName(name) {
+    const target = String(name || '').trim().toLowerCase();
+    if (!target) return null;
+    for (const [key, bytes] of (state.archiveTextLookup || new Map()).entries()) {
+      if (key === target || key.endsWith('/' + target) || key.endsWith('\\' + target)) return bytes;
+    }
+    for (const [key, bytes] of (state.archiveTexts || new Map()).entries()) {
+      const normalized = String(key || '').replace(/\\/g, '/').toLowerCase();
+      if (normalized === target || normalized.endsWith('/' + target)) return bytes;
+    }
+    return null;
+  }
+
+  function parseJsValue(text, expr) {
+    try {
+      const fn = new Function(`${String(text || '').replace(/\r\n?/g, '\n')}\nreturn (typeof ${expr} !== 'undefined') ? ${expr} : null;`);
+      return fn();
+    } catch {
+      return null;
+    }
+  }
+
+  function readLibraryDataFromText(text) {
+    return parseJsValue(text, 'libraryData') || parseJsValue(text, 'window.libraryData');
+  }
+
+  function readMusicLibraryFromText(text) {
+    const entries = parseJsValue(text, 'musicLibrary') || parseJsValue(text, 'window.musicLibrary') || [];
+    const genreMap = parseJsValue(text, 'musicLibraryGenreMap') || parseJsValue(text, 'window.musicLibraryGenreMap') || {};
+    return { entries: Array.isArray(entries) ? entries.slice() : [], genreMap: genreMap && typeof genreMap === 'object' ? genreMap : {} };
+  }
+
+  function readGamesFromText(text) {
+    const games = parseJsValue(text, 'games') || parseJsValue(text, 'window.games') || [];
+    return Array.isArray(games) ? games.slice() : [];
+  }
+
+  function collectLibraryItems(source, visitor) {
+    const items = Array.isArray(source?.items) ? source.items : [];
+    for (const item of items) {
+      if (!item || typeof item !== 'object') continue;
+      visitor(item);
+      if (item.group && Array.isArray(item.books)) {
+        collectLibraryItems({ items: item.books }, visitor);
+      }
+    }
+  }
+
+  function pushQueueItem(out, item) {
+    if (!item || !item.path) return;
+    const key = normalizeRelativePath(item.path).toLowerCase();
+    if (!key || out.has(key)) return;
+    out.set(key, { ...item, path: normalizeRelativePath(item.path) });
+  }
+
+  function queueAsset(out, kind, pathValue, { optional = false, sourceBase = '' } = {}) {
+    const normalized = normalizeRelativePath(pathValue);
+    if (!normalized) return false;
+    const match = findArchiveBytesByPath(pathValue);
+    pushQueueItem(out, {
+      kind,
+      path: normalized,
+      blob: match ? new Blob([match.bytes]) : null,
+      sourceUrl: sourceBase ? joinBase(sourceBase, stripLeadingDotSlash(normalized)) : '',
+      optional
+    });
+    return !!match;
+  }
+
+  function queueCandidates(out, kind, candidates, { optional = false, sourceBase = '' } = {}) {
+    const list = ensureArray(candidates).filter(Boolean);
+    for (const candidate of list) {
+      if (findArchiveBytesByPath(candidate)) {
+        queueAsset(out, kind, candidate, { optional, sourceBase });
+        return true;
+      }
+    }
+    if (list.length) queueAsset(out, kind, list[0], { optional, sourceBase });
+    return false;
+  }
+
+  function queueCandidateAsset(out, kind, candidates, { optional = false, sourceBase = '' } = {}) {
+    const list = uniqueCandidateList(candidates);
+    if (!list.length) return null;
+    const first = list[0];
+    const item = {
+      kind,
+      path: normalizeRelativePath(first.path),
+      sourceUrl: first.sourceUrl || (sourceBase ? joinBase(sourceBase, stripLeadingDotSlash(first.path)) : ''),
+      optional
+    };
+    if (kind === 'media') item.musicCandidates = list;
+    if (kind === 'artwork') item.artworkCandidates = list;
+    pushQueueItem(out, item);
+    return item;
+  }
+
+  function splitGameLinkRom(link) {
+    const raw = String(link || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = /^https?:\/\//i.test(raw) ? new URL(raw) : new URL(raw, 'http://example.invalid');
+      const rom = parsed.searchParams.get('rom') || parsed.searchParams.get('ROM') || '';
+      return rom ? decodeURIComponent(rom) : '';
+    } catch {
+      const m = raw.match(/[?&]rom=([^&#]+)/i);
+      if (!m) return '';
+      try { return decodeURIComponent(m[1]); } catch { return m[1]; }
+    }
+  }
+
+  function getBookPathParts(bookUrl) {
+    const cleaned = normalizeArchivePath(bookUrl).split(/[?#]/)[0];
+    const parts = cleaned.split('/').filter(Boolean);
+    const filename = parts.pop() || '';
+    const baseName = filename.replace(/\.[^/.]+$/, '');
+    const folder = parts.length ? parts.join('/') : '';
+    return { folder, baseName };
+  }
+
+  function buildAudiobookManifestPath(bookUrl) {
+    const { folder, baseName } = getBookPathParts(bookUrl);
+    return `${folder ? `${folder}/` : ''}${baseName}-audiobook.json`;
+  }
+
+  function buildAudiobookManifestSourceCandidates(bookUrl, bookTitle = '') {
+    const { folder, baseName } = getBookPathParts(bookUrl);
+    const folderPrefix = folder ? `${folder}/` : '';
+    const titleVariants = buildAudiobookStemVariants(bookTitle);
+    const out = [];
+    const seen = new Set();
+
+    const add = (candidate) => {
+      const normalized = normalizeRelativePath(candidate);
+      if (!normalized) return;
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(normalized);
+    };
+
+    add(`${folderPrefix}${baseName}-audiobook.json`);
+    add(`${folderPrefix}audiobooks/${baseName}-audiobook.json`);
+
+    for (const variant of titleVariants) {
+      add(`${folderPrefix}${variant}-audiobook.json`);
+      add(`${folderPrefix}audiobooks/${variant}-audiobook.json`);
+    }
+
+    return out;
+  }
+
+  function firstStringValue(...values) {
+    for (const value of values) {
+      if (typeof value !== 'string') continue;
+      const text = value.trim();
+      if (text) return text;
+    }
+    return '';
+  }
+
+function buildAudiobookStemVariants(rawValue) {
+  const base = collapseTrailingAdultMarks(String(rawValue || '').trim());
+  if (!base) return [];
+
+  const variants = [
+    base,
+    base.replace(/\s+/g, ' ').trim(),
+    base.replace(/\s+/g, '_').trim(),
+    base.replace(/\s+/g, '').trim()
+  ];
+
+  const out = [];
+  const seen = new Set();
+
+  for (const variant of variants) {
+    const clean = variant.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').trim();
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(clean);
+  }
+
+  return out;
+}
+function getPathStem(pathValue) {
+  const cleaned = normalizeArchivePath(pathValue);
+  if (!cleaned) return '';
+  const leaf = cleaned.split('/').filter(Boolean).pop() || '';
+  return leaf.replace(/\.[^/.]+$/, '');
+}
+
+function buildBookCoverDestPath(item) {
+  const stem = sanitizeTransferSegment(getPathStem(item.cover || item.file || item.title || ''));
+  if (!stem) return '';
+  return `./Covers/${stem}.jpg`;
+}
+
+function buildBookCoverCandidates(item, currentSourceBase) {
+  const destPath = buildBookCoverDestPath(item);
+  if (!destPath) return [];
+
+  const sourceStem = sanitizeTransferSegment(getPathStem(item.cover || item.file || item.title || ''));
+  const exts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+  const sourcePaths = [];
+
+  if (String(item.cover || '').trim()) {
+    sourcePaths.push(item.cover);
+  }
+
+  if (sourceStem) {
+    for (const folder of ['Covers', 'Books', 'Images']) {
+      for (const ext of exts) {
+        sourcePaths.push(`./${folder}/${sourceStem}.${ext}`);
+      }
+    }
+  }
+
+  return uniqueCandidateList(
+    sourcePaths.map(src => ({
+      path: destPath,
+      sourceUrl: resolveSourceUrl(currentSourceBase, src)
+    }))
+  );
+}
+function buildAudiobookAudioCandidates(bookUrl, bookTitle = '') {
+  const { folder, baseName } = getBookPathParts(bookUrl);
+  const audioFolder = `${folder ? `${folder}/` : ''}audiobooks`;
+  const exts = ['.m4a', '.mp3', '.mp4', '.wav', '.flac'];
+
+  const stems = [];
+  const seen = new Set();
+
+  for (const stem of [baseName, ...buildAudiobookStemVariants(bookTitle)]) {
+    const clean = String(stem || '').trim();
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    stems.push(clean);
+  }
+
+  const candidates = [];
+  const seenPaths = new Set();
+
+  for (const stem of stems) {
+    for (const ext of exts) {
+      const candidate = `${audioFolder}/${stem}${ext}`;
+      const key = candidate.toLowerCase();
+      if (seenPaths.has(key)) continue;
+      seenPaths.add(key);
+      candidates.push(candidate);
+    }
+  }
+
+  return candidates;
+}
+
+
+function queueAudiobookBundle(out, item, currentSourceBase) {
+  const file = String(item.file || '').trim();
+  if (!file) return null;
+
+  if (item.audiobook === false || item.audioBook === false || item.audiobookJson === false || item.audiobookManifest === false) {
+    return null;
+  }
+
+  const explicitManifest = firstStringValue(item.audiobookJson, item.audiobookManifest, item.audioBook, item.audiobook);
+  const manifestPath = normalizeRelativePath(explicitManifest || buildAudiobookManifestPath(file));
+  if (!manifestPath) return null;
+
+  const sourceTitle = firstStringValue(item.title, item.name, item.label);
+  const audioCandidates = uniqueCandidateList(
+    buildAudiobookAudioCandidates(file, sourceTitle).map(path => ({
+      path: normalizeRelativePath(path),
+      sourceUrl: resolveSourceUrl(currentSourceBase, path)
+    }))
+  );
+
+  const manifestCandidates = uniqueCandidateList(
+    buildAudiobookManifestSourceCandidates(file, sourceTitle).map(path => ({
+      path: manifestPath,
+      sourceUrl: resolveSourceUrl(currentSourceBase, path)
+    }))
+  );
+
+  const bundle = {
+    kind: 'audiobook',
+    path: manifestPath,
+    sourceUrl: resolveSourceUrl(currentSourceBase, manifestPath),
+    optional: true,
+    audiobookManifestCandidates: manifestCandidates,
+    audiobookCandidates: audioCandidates
+  };
+
+  pushQueueItem(out, bundle);
+  return bundle;
+}
+
+
+
+  function makeTextBlob(text, type = 'text/javascript') {
+    return new Blob([String(text || '')], { type });
+  }
+
+  function collectMusicAssets(out, musicText, currentSourceBase) {
+    const { entries, genreMap } = readMusicLibraryFromText(musicText);
+    const usedCodes = new Set();
+    const seenArtists = new Map();
+
+    for (const rawEntry of entries) {
+      const entry = cleanTitle(rawEntry);
+      if (!entry) continue;
+
+      const dollarIndex = entry.lastIndexOf('$');
+      const body = dollarIndex >= 0 ? entry.slice(0, dollarIndex).trim() : entry;
+      const code = dollarIndex >= 0 ? entry.slice(dollarIndex + 1).trim() : '';
+      if (code) usedCodes.add(code);
+
+      const parts = parseMusicTrackTitleParts(body);
+      const songTitle = parts.title || body;
+      const artistName = parts.artist || '';
+
+      const musicCandidates = [];
+      const seen = new Set();
+      for (const stem of [body, artistName ? `${songTitle} - ${artistName}` : ''].filter(Boolean)) {
+        for (const candidate of buildMusicCandidates(stem, currentSourceBase)) {
+          const key = candidate.path.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          musicCandidates.push(candidate);
+        }
+      }
+
+      if (musicCandidates.length) {
+        queueCandidateAsset(out, 'media', musicCandidates, {
+          optional: true,
+          sourceBase: currentSourceBase
+        });
+      }
+
+      if (artistName) {
+        const cleanedArtist = collapseTrailingAdultMarks(artistName) || artistName;
+        const artistKey = normalizeLookupKey(cleanedArtist);
+        if (artistKey && !seenArtists.has(artistKey)) {
+          seenArtists.set(artistKey, cleanedArtist);
+        }
+      }
+    }
+
+    for (const artistName of seenArtists.values()) {
+      const artistCandidates = buildMusicArtworkCandidates(artistName, currentSourceBase);
+      if (!artistCandidates.length) continue;
+
+      queueCandidateAsset(out, 'artwork', artistCandidates, {
+        optional: true,
+        sourceBase: currentSourceBase
+      });
+    }
+
+    for (const code of usedCodes) {
+      const genreName = String(genreMap[code] || '').trim();
+      if (!genreName) continue;
+      const genreCandidates = [];
+      for (const ext of ['jpg', 'jpeg', 'png', 'webp', 'gif']) {
+        const candidateA = `Music/Images/${genreName}.${ext}`;
+        const candidateB = `Music/Images/${genreName}/${genreName}.${ext}`;
+        genreCandidates.push(
+          { path: normalizeRelativePath(`./${candidateA}`), sourceUrl: resolveSourceUrl(currentSourceBase, `./${candidateA}`) },
+          { path: normalizeRelativePath(`./${candidateB}`), sourceUrl: resolveSourceUrl(currentSourceBase, `./${candidateB}`) }
+        );
+      }
+      queueCandidateAsset(out, 'artwork', genreCandidates, {
+        optional: true,
+        sourceBase: currentSourceBase
+      });
+    }
+  }
+
+  function normalizeGameRomLeaf(rom) {
+    const clean = normalizeTransferPath(rom);
+    if (!clean) return '';
+    const lower = clean.toLowerCase();
+    const prefixes = [
+      'emulator/roms/',
+      'games/',
+      'roms/',
+      'game roms/',
+      'emulator/games/'
+    ];
+    for (const prefix of prefixes) {
+      if (lower.startsWith(prefix)) {
+        const stripped = clean.slice(prefix.length).replace(/^\/+/, '');
+        return stripped.split('/').filter(Boolean).pop() || '';
+      }
+    }
+    return clean.split('/').filter(Boolean).pop() || '';
+  }
+
+  function collectGameAssets(out, gamesText, currentSourceBase) {
+    const games = readGamesFromText(gamesText);
+    for (const game of games) {
+      if (!game || typeof game !== 'object') continue;
+
+      if (game.img) queueAsset(out, 'artwork', game.img, { optional: true, sourceBase: currentSourceBase });
+
+      const diskList = Array.isArray(game.disks) ? game.disks : [];
+      for (const disk of diskList) {
+        if (!disk || typeof disk !== 'object') continue;
+        if (disk.img) queueAsset(out, 'artwork', disk.img, { optional: true, sourceBase: currentSourceBase });
+      }
+
+      const topLevelRomLeaf = normalizeGameRomLeaf(game.rom || splitGameLinkRom(game.link) || '');
+      if (topLevelRomLeaf) {
+        queueCandidates(
+          out,
+          'media',
+          [normalizeRelativePath(`./emulator/roms/${topLevelRomLeaf}`)],
+          { optional: true, sourceBase: currentSourceBase }
+        );
+      }
+
+      for (const disk of diskList) {
+        if (!disk || typeof disk !== 'object') continue;
+        const diskRomLeaf = normalizeGameRomLeaf(disk.rom || splitGameLinkRom(disk.link) || '');
+        if (!diskRomLeaf) continue;
+        queueCandidates(
+          out,
+          'media',
+          [normalizeRelativePath(`./emulator/roms/${diskRomLeaf}`)],
+          { optional: true, sourceBase: currentSourceBase }
+        );
+      }
+    }
+  }
+function collectLibraryAssets(out, data, kind, currentSourceBase) {
+  collectLibraryItems(data, (item) => {
+    const file = String(item.file || '').trim();
+    const cover = String(item.cover || '').trim();
+    const chapters = String(item.chapters || '').trim();
+
+    if (file) {
+      queueAsset(out, 'media', file, { optional: true, sourceBase: currentSourceBase });
+    }
+
+    if (kind === 'books' && cover) {
+      queueCandidateAsset(out, 'artwork', buildBookCoverCandidates(item, currentSourceBase), {
+        optional: true,
+        sourceBase: currentSourceBase
+      });
+    } else if (cover) {
+      queueAsset(out, 'artwork', cover, { optional: true, sourceBase: currentSourceBase });
+    }
+
+    if (chapters) {
+      queueAsset(out, 'subtitle', chapters, { optional: true, sourceBase: currentSourceBase });
+    }
+
+    if (kind === 'books' && file) {
+      queueAudiobookBundle(out, item, currentSourceBase);
+    }
+
+    const extraAudio = firstStringValue(item.audiobook, item.audioBook, item.audiobookJson, item.audiobookManifest, item.audio, item.audioFile);
+    if (extraAudio && kind !== 'books') {
+      queueAsset(out, 'media', extraAudio, { optional: true, sourceBase: currentSourceBase });
+    }
+  });
+}
+
+  function buildManifestFilesFromArchive() {
+    const specs = SECTION_JS_FILES.map(name => ({ name, kind: name.replace(/\.js$/, '') }));
+    const out = [];
+    for (const spec of specs) {
+      const bytes = findArchiveTextByName(spec.name);
+      if (!bytes) continue;
+      out.push({ path: spec.name, blob: makeTextBlob(new TextDecoder().decode(bytes), 'text/javascript'), kind: spec.kind });
+    }
+    return out;
+  }
+
+  function sourceBaseFromUrl(url) {
+    const raw = String(url || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = raw.startsWith('http://') || raw.startsWith('https://')
+        ? new URL(raw)
+        : new URL(raw, location.href);
+      return `${parsed.protocol}//${parsed.host}`;
+    } catch {
+      return '';
+    }
+  }
+
+  function isOptionalAssetKind(kind) {
+    return kind === 'artwork' || kind === 'subtitle' || kind === 'audiobook';
+  }
+
+  function groupMediaItemsByFolder(transferList) {
+    const groups = [];
+    const byKey = new Map();
+
+    for (const item of Array.isArray(transferList) ? transferList : []) {
+      const mediaPath = normalizeTransferPath(item && item.rewrittenFile ? item.rewrittenFile : item && item.originalFile ? item.originalFile : item && item.path ? item.path : '');
+      if (!mediaPath) continue;
+      const folder = mediaPath.includes('/') ? mediaPath.slice(0, mediaPath.lastIndexOf('/')) : '';
+      const key = folder || '__root__';
+      let group = byKey.get(key);
+      if (!group) {
+        group = { key, folder, media: [] };
+        byKey.set(key, group);
+        groups.push(group);
+      }
+      group.media.push({ ...item, mediaPath });
+    }
+
+    return groups;
+  }
+
+  function buildExpandedTransferQueue(transferList, currentSourceBase, rootTitles = [], mandatedTitles = []) {
+    const queue = [];
+    const seenArtwork = new Set();
+    const groups = groupMediaItemsByFolder(transferList);
+
+    const pushArtwork = (artPath, sourceBase = currentSourceBase) => {
+      const normalized = normalizeRelativePath(artPath);
+      if (!normalized) return;
+      const artKey = normalized.toLowerCase();
+      if (seenArtwork.has(artKey)) return;
+      seenArtwork.add(artKey);
+      queue.push({
+        kind: 'artwork',
+        path: stripLeadingDotSlash(normalized),
+        sourceUrl: joinBase(sourceBase || currentSourceBase, stripLeadingDotSlash(normalized)),
+        optional: true
+      });
+    };
+
+    const rootTitleList = Array.from(new Set([
+      ...REQUIRED_MAIN_FOLDER_TITLES,
+      ...ensureArray(mandatedTitles)
+        .map(title => collapseTrailingAdultMarks(title))
+        .filter(Boolean),
+      ...ensureArray(rootTitles)
+        .map(title => collapseTrailingAdultMarks(title))
+        .filter(Boolean)
+    ]));
+
+    for (const rootTitle of rootTitleList) {
+      pushArtwork(deriveRootArtworkPathFromTitle(rootTitle), currentSourceBase);
+    }
+
+    for (const group of groups) {
+      const first = group.media[0];
+      const groupSourceBase = sourceBaseFromUrl(first?.sourceUrl) || currentSourceBase;
+      const artPath = deriveArtworkPathFromMediaPath(first?.rewrittenFile || first?.originalFile || first?.mediaPath || '');
+      pushArtwork(artPath, currentSourceBase);
+
+      for (const media of group.media) {
+        const mediaPath = stripLeadingDotSlash(media.rewrittenFile || media.originalFile || media.mediaPath || media.path || '');
+        if (!mediaPath) continue;
+
+        queue.push({
+          ...media,
+          kind: 'media',
+          path: mediaPath,
+          sourceUrl: media.sourceUrl || joinBase(currentSourceBase, mediaPath)
+        });
+
+        const subtitlePath = deriveSubtitlePathFromMediaPath(mediaPath);
+        if (subtitlePath) {
+          queue.push({
+            kind: 'subtitle',
+            path: stripLeadingDotSlash(subtitlePath),
+            sourceUrl: joinBase(groupSourceBase, stripLeadingDotSlash(subtitlePath)),
+            optional: true
+          });
+        }
+      }
+    }
+
+    return queue;
+  }
+
+
+  function summarizeQueue(queue) {
+    const counts = { setup: 0, manifest: 0, audiobook: 0, artwork: 0, media: 0, subtitle: 0, other: 0 };
+    for (const item of Array.isArray(queue) ? queue : []) {
+      if (item && item.kind && counts[item.kind] != null) counts[item.kind]++;
+      else counts.other++;
+    }
+    return counts;
+  }
+
+  function normalizeJsText(source) {
+    return String(source ?? '')
+      .replace(/^\uFEFF/, '')
+      .replace(/\r\n?/g, '\n');
+  }
+
+  function splitLibraryFooter(source) {
+    const text = String(source ?? '').replace(/\r\n?/g, '\n');
+    const footerMatch = text.match(/(?:^|\n)([ \t]*\}\s*;{1,2}[ \t]*)(?:\n\s*)*$/);
+    if (!footerMatch) {
+      return { body: text, footer: '' };
+    }
+    const footerIndex = footerMatch.index + (footerMatch[0].startsWith('\n') ? 1 : 0);
+    return {
+      body: text.slice(0, footerIndex).replace(/[\t ]+$/g, ''),
+      footer: footerMatch[1].trim()
+    };
+  }
+
+  function parseLibraryBlocks(source) {
+    const text = String(source ?? '').replace(/\r\n?/g, '\n');
+    const blocks = [];
+    const re = /(?:^|\n)((?:[ \t]*\/\/[^\n]*\n)*)([ \t]*)(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)')\s*:\s*\[/g;
+    let match;
+    while ((match = re.exec(text))) {
+      const openIndex = match.index + match[0].lastIndexOf('[');
+      const openBlock = findBalancedBlock(text, openIndex, '[', ']');
+      if (!openBlock) continue;
+
+      let end = openIndex + openBlock.length;
+      const rest = text.slice(end);
+      const commaMatch = rest.match(/^[ \t]*,/);
+      if (commaMatch) end += commaMatch[0].length;
+
+      const blockText = text.slice(match.index, end).replace(/[\t ]+$/gm, '').trimEnd();
+      const keyRaw = match[3] ?? match[4] ?? '';
+      let key = keyRaw;
+      try {
+        key = JSON.parse(match[3] ? `"${keyRaw.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : `'${keyRaw.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`);
+      } catch (err) {}
+      blocks.push({ key: String(key), start: match.index, end, text: blockText });
+      re.lastIndex = end;
+    }
+    return blocks;
+  }
+
+  function mergeLibrarySetupText(currentText, generatedText) {
+    const current = String(currentText ?? '').replace(/\r\n?/g, '\n');
+    const generated = String(generatedText ?? '').replace(/\r\n?/g, '\n').trim();
+    if (!generated) return current;
+
+    const currentSplit = splitLibraryFooter(current);
+    const generatedBlocks = parseLibraryBlocks(generated);
+    if (!generatedBlocks.length) {
+      const trimmedBody = currentSplit.body.replace(/[\t ]+$/g, '');
+      return `${trimmedBody}\n\n${generated}${currentSplit.footer || '};'}`;
+    }
+
+    const existingBlocks = parseLibraryBlocks(currentSplit.body);
+    const generatedByKey = new Map(generatedBlocks.map(block => [block.key, block]));
+
+    let mergedBody = '';
+    let cursor = 0;
+
+    for (const block of existingBlocks) {
+      if (block.start > cursor) {
+        mergedBody += currentSplit.body.slice(cursor, block.start);
+      }
+
+      if (!generatedByKey.has(block.key)) {
+        mergedBody += currentSplit.body.slice(block.start, block.end);
+      }
+
+      cursor = block.end;
+    }
+
+    mergedBody += currentSplit.body.slice(cursor).replace(/[\t ]+$/g, '');
+
+    const appended = generatedBlocks.map(block => block.text.trimEnd()).join('\n\n');
+    const bodyClean = mergedBody.replace(/[\t ]+$/g, '');
+    const footer = currentSplit.footer || '};';
+    const needsSpacer = bodyClean && !/\n\n$/.test(bodyClean);
+    if (!appended) {
+      return `${bodyClean}${needsSpacer ? '\n\n' : '\n'}${footer}`;
+    }
+
+    return `${bodyClean}${needsSpacer ? '\n\n' : '\n'}${appended}\n${footer}`;
+  }
+
+  function normalizeLoadSeasonFunctionsText(source) {
+    return String(source ?? '')
+      .replace(/\r\n?/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  function safeText(value) {
+    return String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  }
+
+  function ensureArray(value) {
+    if (Array.isArray(value)) return value;
+    if (value == null) return [];
+    return [value];
+  }
+
+  function normalizeLookupKey(value) {
+    return safeText(value)
+      .replace(/\*/g, '')
+      .replace(/[\u2018\u2019\u201c\u201d]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  function titleFromFnName(fnName) {
+    return String(fnName || '')
+      .replace(/^load/i, '')
+      .replace(/Seasons$/i, '')
+      .replace(/_/g, ' ')
+      .trim();
+  }
+
+  function loaderFunctionName(raw) {
+    const clean = safeText(raw)
+      .replace(/\*+$/g, '')
+      .replace(/[\u2018\u2019\u201c\u201d]/g, '')
+      .trim();
+    if (!clean) return '';
+    const compact = clean.replace(/\s+/g, '');
+    return compact.startsWith('load') ? compact : `load${compact}Seasons`;
+  }
+
+  function expandRemovalKeys(keys) {
+    const out = new Set();
+    for (const key of ensureArray(keys)) {
+      const raw = safeText(key);
+      if (!raw) continue;
+      [raw, normalizeLookupKey(raw), loaderFunctionName(raw), titleFromFnName(raw), titleFromFnName(loaderFunctionName(raw))].forEach(v => {
+        const clean = normalizeLookupKey(v);
+        if (clean) out.add(clean);
+      });
+    }
+    return out;
+  }
+
+  function removeMatchingLoaderBlocks(source, removeKeys = []) {
+    let text = normalizeLoadSeasonFunctionsText(source);
+
+    const removeSet = expandRemovalKeys(
+      removeKeys.map(key => {
+        const clean = safeText(key);
+        if (!clean) return clean;
+        if (!/^load.*Seasons$/i.test(clean)) return loaderFunctionName(clean);
+        return clean;
+      })
+    );
+
+    const matches = [];
+    const re = /function\s+(load[A-Za-z0-9_$]+Seasons)\s*\(\)\s*\{/g;
+    let match;
+
+    while ((match = re.exec(text))) {
+      matches.push({ name: match[1], index: match.index });
+    }
+
+    if (!matches.length) return text;
+
+    matches.push({ name: '__END__', index: text.length });
+
+    let output = '';
+    for (let i = 0; i < matches.length - 1; i++) {
+      const current = matches[i];
+      const next = matches[i + 1];
+      const fnKey = normalizeLookupKey(current.name);
+      const titleKey = normalizeLookupKey(titleFromFnName(current.name));
+      const shouldRemove = removeSet.has(fnKey) || removeSet.has(titleKey);
+      if (!shouldRemove) {
+        output += text.slice(current.index, next.index).trim() + '\n\n';
+      }
+    }
+
+    return output.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function extractLoadSeasonFunctionBlocks(source) {
+    const text = normalizeLoadSeasonFunctionsText(source);
+    const blocks = [];
+    const re = /function\s+(load[A-Za-z0-9_$]+Seasons)\s*\(\)\s*\{/g;
+    let match;
+
+    while ((match = re.exec(text))) {
+      const openIndex = text.indexOf('{', match.index);
+      if (openIndex < 0) continue;
+      const block = findBalancedBlock(text, openIndex, '{', '}');
+      if (!block) continue;
+      const end = openIndex + block.length;
+      blocks.push({
+        name: match[1],
+        start: match.index,
+        end,
+        text: text.slice(match.index, end)
+      });
+      re.lastIndex = end;
+    }
+
+    return blocks;
+  }
+
+  function extractQuotedArrayItems(arrayBody) {
+    const text = String(arrayBody ?? '');
+    const items = [];
+    const re = /"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g;
+    let match;
+
+    while ((match = re.exec(text))) {
+      const raw = match[1] ?? match[2] ?? '';
+      try {
+        items.push(JSON.parse(match[0]));
+      } catch (err) {
+        items.push(raw);
+      }
+    }
+
+    return items.map(safeText).filter(Boolean);
+  }
+
+  function mergeSeasonTitlesPreferAdult(currentTitles, incomingTitles) {
+    const merged = new Map();
+
+    function upsert(rawTitle) {
+      const title = safeText(rawTitle);
+      if (!title) return;
+
+      const key = normalizeLookupKey(title.replace(/\*/g, ''));
+      const hasStar = title.includes('*');
+      const existing = merged.get(key);
+
+      if (!existing) {
+        merged.set(key, { title, hasStar });
+        return;
+      }
+
+      if (hasStar && !existing.hasStar) {
+        merged.set(key, { title, hasStar: true });
+      }
+    }
+
+    ensureArray(currentTitles).forEach(upsert);
+    ensureArray(incomingTitles).forEach(upsert);
+
+    return Array.from(merged.values()).map(entry => entry.title);
+  }
+
+  function splitLoadSeasonArrayBlock(block) {
+    const text = normalizeLoadSeasonFunctionsText(block);
+    const match = text.match(/const\s+seasons\s*=\s*\[/);
+    if (!match) return null;
+
+    const openIndex = text.indexOf('[', match.index);
+    if (openIndex < 0) return null;
+
+    const bracketBlock = findBalancedBlock(text, openIndex, '[', ']');
+    if (!bracketBlock) return null;
+
+    const closeIndex = openIndex + bracketBlock.length - 1;
+    return {
+      prefix: text.slice(0, openIndex + 1),
+      body: text.slice(openIndex + 1, closeIndex),
+      suffix: text.slice(closeIndex + 1)
+    };
+  }
+
+  function extractLoadSeasonSwitchBlock(block) {
+    const text = normalizeLoadSeasonFunctionsText(block);
+    const match = text.match(/switch\s*\(\s*[^)]+\s*\)\s*\{/);
+    if (!match) return null;
+
+    const openIndex = text.indexOf('{', match.index);
+    if (openIndex < 0) return null;
+
+    const braceBlock = findBalancedBlock(text, openIndex, '{', '}');
+    if (!braceBlock) return null;
+
+    const closeIndex = openIndex + braceBlock.length - 1;
+    return {
+      prefix: text.slice(0, openIndex + 1),
+      body: text.slice(openIndex + 1, closeIndex),
+      suffix: text.slice(closeIndex + 1)
+    };
+  }
+
+  function extractLoadSeasonCaseBlocks(switchBody) {
+    const text = normalizeLoadSeasonFunctionsText(switchBody);
+    if (!text) return [];
+
+    const defaultMatch = text.match(/\n\s*default\s*:/);
+    const defaultIndex = defaultMatch ? defaultMatch.index : text.length;
+    const caseRe = /(^|\n)([ \t]*case\s+(["'])(.*?)\3\s*:\s*)/g;
+    const starts = [];
+    let match;
+
+    while ((match = caseRe.exec(text))) {
+      starts.push({
+        title: safeText(match[4]),
+        start: match.index + match[1].length
+      });
+    }
+
+    if (!starts.length) return [];
+
+    const blocks = [];
+    for (let i = 0; i < starts.length; i++) {
+      const current = starts[i];
+      const next = i + 1 < starts.length ? starts[i + 1].start : defaultIndex;
+      const block = text.slice(current.start, next).trimEnd();
+      if (current.title && block) blocks.push({ title: current.title, text: block });
+    }
+
+    return blocks;
+  }
+
+  function mergeLoadSeasonSwitchBody(currentBlock, generatedBlock) {
+    const currentSwitch = extractLoadSeasonSwitchBlock(currentBlock);
+    const generatedSwitch = extractLoadSeasonSwitchBlock(generatedBlock);
+    if (!currentSwitch || !generatedSwitch) return currentBlock;
+
+    const currentCaseKeys = new Set(
+      extractLoadSeasonCaseBlocks(currentSwitch.body).map(block => normalizeLookupKey(block.title))
+    );
+
+    const additions = extractLoadSeasonCaseBlocks(generatedSwitch.body).filter(block => {
+      const key = normalizeLookupKey(block.title);
+      if (!key || currentCaseKeys.has(key)) return false;
+      currentCaseKeys.add(key);
+      return true;
+    });
+
+    if (!additions.length) return currentBlock;
+
+    const defaultMatch = currentSwitch.body.match(/\n\s*default\s*:/);
+    if (!defaultMatch) return currentBlock;
+
+    const beforeDefault = currentSwitch.body.slice(0, defaultMatch.index).replace(/[ \t]+$/g, '');
+    const afterDefault = currentSwitch.body.slice(defaultMatch.index);
+    const insertion = additions.map(block => block.text.trimEnd()).join('\n\n');
+    const mergedBody = `${beforeDefault}${beforeDefault ? '\n' : ''}${insertion}${insertion ? '\n' : ''}${afterDefault.replace(/^\n+/, '\n')}`;
+    return `${currentSwitch.prefix}${mergedBody}}${currentSwitch.suffix}`;
+  }
+
+  function mergeLoadSeasonFunctionBlock(currentBlock, generatedBlock) {
+    const current = normalizeLoadSeasonFunctionsText(currentBlock);
+    const generated = normalizeLoadSeasonFunctionsText(generatedBlock);
+    if (!generated) return current;
+    if (!current) return generated;
+
+    let merged = current;
+
+    const currentArray = splitLoadSeasonArrayBlock(merged);
+    const generatedArray = splitLoadSeasonArrayBlock(generated);
+    if (currentArray && generatedArray) {
+      const currentItems = extractQuotedArrayItems(currentArray.body);
+      const generatedItems = extractQuotedArrayItems(generatedArray.body);
+      const combined = mergeSeasonTitlesPreferAdult(currentItems, generatedItems);
+      const replacement = `\n${combined.map(item => `        ${jsString(item)}`).join(',\n')}\n    ]`;
+      merged = `${currentArray.prefix}${replacement}${currentArray.suffix}`;
+    }
+
+    merged = mergeLoadSeasonSwitchBody(merged, generated);
+
+    return merged.replace(/\n{3,}/g, '\n\n').trimEnd();
+  }
+
+  function mergeLoadSeasonFunctionsText(currentText, generatedText, removeKeys = []) {
+    const current = normalizeLoadSeasonFunctionsText(currentText);
+    const generated = normalizeLoadSeasonFunctionsText(generatedText);
+    if (!generated) return current ? `${current}\n` : '';
+    if (!current) return `${generated}\n`;
+
+    const removeSet = expandRemovalKeys(removeKeys);
+    const currentBlocks = extractLoadSeasonFunctionBlocks(current).filter(block => !removeSet.has(normalizeLookupKey(block.name)) && !removeSet.has(normalizeLookupKey(titleFromFnName(block.name))));
+    const generatedBlocks = extractLoadSeasonFunctionBlocks(generated).filter(block => !removeSet.has(normalizeLookupKey(block.name)) && !removeSet.has(normalizeLookupKey(titleFromFnName(block.name))));
+
+    const byName = new Map(currentBlocks.map(block => [normalizeLookupKey(block.name), block]));
+    const mergedParts = [];
+    let cursor = 0;
+
+    for (const block of currentBlocks) {
+      if (block.start > cursor) {
+        mergedParts.push(current.slice(cursor, block.start).trimEnd());
+      }
+
+      const generatedMatch = generatedBlocks.find(item => normalizeLookupKey(item.name) === normalizeLookupKey(block.name));
+      if (generatedMatch) {
+        mergedParts.push(mergeLoadSeasonFunctionBlock(block.text, generatedMatch.text).trimEnd());
+      } else {
+        mergedParts.push(block.text.trimEnd());
+      }
+
+      cursor = block.end;
+    }
+
+    const remainingCurrent = current.slice(cursor).trimEnd();
+    if (remainingCurrent) mergedParts.push(remainingCurrent);
+
+    for (const block of generatedBlocks) {
+      if (byName.has(normalizeLookupKey(block.name))) continue;
+      mergedParts.push(block.text.trimEnd());
+    }
+
+    return mergedParts.filter(Boolean).join('\n\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  }
+
+  function jsString(value) {
+    return JSON.stringify(String(value ?? ''));
+  }
+
+  function collapseTrailingAdultMarks(value) {
+    return safeText(value).replace(/\s*\*+$/g, '').trim();
+  }
+
+  function titleWithAdultMark(value, adult = false) {
+    const base = collapseTrailingAdultMarks(value);
+    if (!base) return '';
+    return adult ? `${base}*` : base;
+  }
+
+  function uniqueTitles(values) {
+    const merged = new Map();
+
+    for (const rawValue of ensureArray(values)) {
+      const title = safeText(rawValue);
+      if (!title) continue;
+
+      const base = collapseTrailingAdultMarks(title);
+      const key = normalizeLookupKey(base || title);
+      const hasStar = /\*$/.test(title);
+      const existing = merged.get(key);
+
+      if (!existing) {
+        merged.set(key, { title, hasStar });
+        continue;
+      }
+
+      if (hasStar && !existing.hasStar) {
+        merged.set(key, { title, hasStar: true });
+      }
+    }
+
+    return Array.from(merged.values()).map(entry => entry.title);
+  }
+
+  function normalizeMainFolderTitle(value) {
+    return safeText(value).replace(/^the\s+/i, '').trim();
+  }
+
+  function mainFolderSortCategory(value) {
+    return /^[0-9]/.test(normalizeMainFolderTitle(value)) ? 1 : 0;
+  }
+
+  const MAIN_FOLDER_PINNED_TOP = [
+    "Continue Watching",
+    "Games",
+    "Music",
+    "Books",
+    "Manga",
+    "Animated Movies",
+    "Movies",
+    "Favorites"
+  ];
+
+  const MAIN_FOLDER_PINNED_BOTTOM = [
+    "Beanstalk Videos"
+  ];
+
+  const REQUIRED_MAIN_FOLDER_TITLES = [
+    "Continue Watching",
+    "Favorites"
+  ];
+
+  const MANDATED_SECTION_MAIN_FOLDER_TITLES = [
+    "Games",
+    "Music",
+    "Books",
+    "Manga",
+    "Animated Movies",
+    "Movies"
+  ];
+
+  const SETUP_JS_FILES = [
+    'mainfolders.js',
+    'library.js',
+    'loadseasonfunctions.js'
+  ];
+
+  const SECTION_JS_FILES = [
+    'musiclibrary.js',
+    'games.js',
+    'guidebooks.js',
+    'books.js',
+    'manga.js'
+  ];
+
+  function ensureRequiredMainFolderTitles(values) {
+    const merged = new Map();
+    for (const rawValue of uniqueTitles(values)) {
+      const title = safeText(rawValue);
+      if (!title) continue;
+      const key = normalizeLookupKey(collapseTrailingAdultMarks(title) || title);
+      if (!merged.has(key)) {
+        merged.set(key, title);
+      }
+    }
+
+    for (const rawTitle of REQUIRED_MAIN_FOLDER_TITLES) {
+      const title = safeText(rawTitle);
+      if (!title) continue;
+      const key = normalizeLookupKey(collapseTrailingAdultMarks(title) || title);
+      if (!merged.has(key)) {
+        merged.set(key, title);
+      }
+    }
+
+    return Array.from(merged.values()).sort(compareMainFolderTitles);
+  }
+
+  function renderMainfoldersText(values, header = '/* Generated by transfer-backup.html */') {
+    const folders = ensureRequiredMainFolderTitles(values);
+    return `${header}\n\nconst folders = [\n${folders.map(v => `  ${jsString(v)}`).join(',\n')}\n];\n`;
+  }
+
+  function compareMainFolderTitles(a, b) {
+    const aTitle = safeText(a);
+    const bTitle = safeText(b);
+
+    const aTop = MAIN_FOLDER_PINNED_TOP.indexOf(aTitle);
+    const bTop = MAIN_FOLDER_PINNED_TOP.indexOf(bTitle);
+    if (aTop !== -1 || bTop !== -1) {
+      if (aTop === -1) return 1;
+      if (bTop === -1) return -1;
+      if (aTop !== bTop) return aTop - bTop;
+      return 0;
+    }
+
+    const aBottom = MAIN_FOLDER_PINNED_BOTTOM.indexOf(aTitle);
+    const bBottom = MAIN_FOLDER_PINNED_BOTTOM.indexOf(bTitle);
+    if (aBottom !== -1 || bBottom !== -1) {
+      if (aBottom === -1) return -1;
+      if (bBottom === -1) return 1;
+      if (aBottom !== bBottom) return aBottom - bBottom;
+      return 0;
+    }
+
+    const aCat = mainFolderSortCategory(aTitle);
+    const bCat = mainFolderSortCategory(bTitle);
+    if (aCat !== bCat) return aCat - bCat;
+
+    const ak = normalizeLookupKey(normalizeMainFolderTitle(aTitle));
+    const bk = normalizeLookupKey(normalizeMainFolderTitle(bTitle));
+    if (ak !== bk) return ak.localeCompare(bk, undefined, { sensitivity: 'base' });
+
+    return aTitle.localeCompare(bTitle, undefined, { sensitivity: 'base' });
+  }
+
+  function sortMainFolderTitles(values) {
+    return uniqueTitles(values).sort(compareMainFolderTitles);
+  }
+
+  function mergeMainFolderTitlesPreferAdult(currentTitles, incomingTitles) {
+    const merged = new Map();
+
+    function upsert(rawTitle) {
+      const title = safeText(rawTitle);
+      if (!title) return;
+
+      const key = normalizeLookupKey(title.replace(/\*/g, ''));
+      const hasStar = title.includes('*');
+      const existing = merged.get(key);
+
+      if (!existing) {
+        merged.set(key, { title, hasStar });
+        return;
+      }
+
+      if (hasStar && !existing.hasStar) {
+        merged.set(key, { title, hasStar: true });
+      }
+    }
+
+    ensureArray(currentTitles).forEach(upsert);
+    ensureArray(incomingTitles).forEach(upsert);
+
+    return ensureRequiredMainFolderTitles(
+      Array.from(merged.values()).map(entry => entry.title)
+    );
+  }
+
+  function decodeJsStringLiteral(raw) {
+    const text = String(raw ?? '');
+    return text.replace(/\\([\\'"bfnrtv])/g, (match, esc) => {
+      switch (esc) {
+        case '\\': return '\\';
+        case "'": return "'";
+        case '"': return '"';
+        case 'b': return '\b';
+        case 'f': return '\f';
+        case 'n': return '\n';
+        case 'r': return '\r';
+        case 't': return '\t';
+        case 'v': return '\v';
+        default: return esc;
+      }
+    });
+  }
+
+
+  function normalizeSourceText(source) {
+    let text = String(source ?? '');
+    if (text.startsWith('\ufeff')) text = text.slice(1);
+    text = text.replace(/\r\n?/g, '\n');
+    return text.replace(/\u00a0/g, ' ');
+  }
+
+  function parseMainfoldersList(source) {
+    const text = normalizeSourceText(source);
+    const match = text.match(/const\s+folders\s*=\s*\[(.*?)\]\s*;?/s);
+    if (!match) return [];
+
+    const body = match[1];
+    const items = [];
+    const re = /"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g;
+    let m;
+    while ((m = re.exec(body))) {
+      const raw = m[1] ?? m[2] ?? '';
+      const decoded = decodeJsStringLiteral(raw).trim();
+      if (decoded) items.push(decoded);
+    }
+    return sortMainFolderTitles(items);
+  }
+
+  function extractFunctionBody(source, functionName) {
+    const text = normalizeSourceText(source);
+    const fnRe = new RegExp(`function\\s+${functionName}\\s*\\([^)]*\\)\\s*\\{`, 'm');
+    const match = fnRe.exec(text);
+    if (!match) return '';
+    const openIndex = text.indexOf('{', match.index);
+    if (openIndex < 0) return '';
+    const block = findBalancedBlock(text, openIndex, '{', '}');
+    if (!block) return '';
+    return text.slice(openIndex + 1, openIndex + block.length - 1);
+  }
+
+  function parseQuotedListValues(sourceText) {
+    const body = String(sourceText ?? '');
+    const items = [];
+    const re = /"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g;
+    let m;
+    while ((m = re.exec(body))) {
+      const raw = m[1] ?? m[2] ?? '';
+      const decoded = decodeJsStringLiteral(raw).trim();
+      if (decoded) items.push(decoded);
+    }
+    return items;
+  }
+
+  function parseLoadSeasonRootTitles(source) {
+    const roots = new Set();
+    for (const fnName of ['loadMoviesSeasons', 'loadAnimatedMoviesSeasons']) {
+      const body = extractFunctionBody(source, fnName);
+      if (!body) continue;
+      const match = body.match(/const\s+seasons\s*=\s*\[((?:.|\n)*?)\]\s*;/s);
+      if (!match) continue;
+      for (const title of parseQuotedListValues(match[1])) {
+        const clean = collapseTrailingAdultMarks(title);
+        if (clean) roots.add(clean);
+      }
+    }
+    return [...roots];
+  }
+
+  function extractMainfoldersHeader(source) {
+    const text = normalizeSourceText(source).trim();
+    const match = text.match(/^(.*?)(?:\n\s*const\s+folders\s*=\s*\[)/s);
+    const header = match ? match[1].trimEnd() : '';
+    return header || '/* Generated by server-content-backup.html */';
+  }
+
+  function mergeMainfoldersText(currentText, generatedText, mandatedTitles = []) {
+    const current = normalizeSourceText(currentText);
+    const generated = normalizeSourceText(generatedText).trim();
+    const mandated = uniqueTitles(mandatedTitles).filter(Boolean);
+
+    if (!generated) {
+      const currentList = parseMainfoldersList(current);
+      return renderMainfoldersText([...currentList, ...mandated], extractMainfoldersHeader(current));
+    }
+
+    const currentList = parseMainfoldersList(current);
+    const generatedList = parseMainfoldersList(generated);
+
+    const mergedList = mergeMainFolderTitlesPreferAdult(currentList, [...generatedList, ...mandated]);
+    const header = extractMainfoldersHeader(generated) || extractMainfoldersHeader(current);
+    return renderMainfoldersText(mergedList, header);
+  }
+
+  async function buildMainfoldersUploadBlob(destBase, sourceMainfoldersText, mandatedTitles = []) {
+    const mandated = uniqueTitles(mandatedTitles).filter(Boolean);
+    const generated = sourceMainfoldersText
+      ? rewriteMainfoldersText(sourceMainfoldersText)
+      : renderMainfoldersText(mandated);
+
+    let currentText = '';
+    if (destBase) {
+      try {
+        currentText = await fetchCurrentText(destBase, 'mainfolders.js');
+      } catch (_) {
+        currentText = '';
+      }
+    }
+
+    if (currentText && String(currentText).trim()) {
+      const merged = mergeMainfoldersText(currentText, generated, mandated);
+      return new Blob([merged], { type: 'text/javascript' });
+    }
+
+    const generatedList = parseMainfoldersList(generated);
+    const mergedList = mergeMainFolderTitlesPreferAdult(generatedList, mandated);
+    const header = extractMainfoldersHeader(generated) || '/* Generated by transfer-backup.html */';
+    return new Blob([renderMainfoldersText(mergedList, header)], { type: 'text/javascript' });
+  }
+
+
+  function extractGamesHeader(source) {
+    const text = normalizeSourceText(source).trim();
+    const match = text.match(/^(.*?)(?:\n\s*(?:const|let|var)\s+games\s*=\s*\[)/s);
+    const header = match ? match[1].trimEnd() : '';
+    return header || '/* Generated by transfer-backup.html */';
+  }
+
+  function splitGamesArrayBlock(source) {
+    const text = normalizeSourceText(source);
+    const match = text.match(/(?:const|let|var)\s+games\s*=\s*\[/);
+    if (!match) return null;
+
+    const openIndex = text.indexOf('[', match.index);
+    if (openIndex < 0) return null;
+
+    const block = findBalancedBlock(text, openIndex, '[', ']');
+    if (!block) return null;
+
+    const closeIndex = openIndex + block.length - 1;
+    return {
+      prefix: text.slice(0, openIndex + 1),
+      body: text.slice(openIndex + 1, closeIndex),
+      suffix: text.slice(closeIndex + 1)
+    };
+  }
+
+  function parseGamesList(source) {
+    const list = parseJsValue(source, 'games') || parseJsValue(source, 'window.games') || [];
+    return Array.isArray(list) ? list.filter(item => item && typeof item === 'object').map(item => ({ ...item })) : [];
+  }
+
+  function normalizeGameKey(item) {
+    const raw = safeText(item && (item.title || item.name || item.game || item.label || item.displayName || item.id || item.link || item.rom || ''));
+    return normalizeLookupKey(collapseTrailingAdultMarks(raw) || raw);
+  }
+
+  function mergeGameLists(currentItems, incomingItems) {
+    const merged = new Map();
+    let fallbackIndex = 0;
+
+    const preferCurrentLink = (currentItem, incomingItem) => {
+      const currentLink = String(currentItem && currentItem.link || '').trim();
+      const incomingLink = String(incomingItem && incomingItem.link || '').trim();
+      if (!currentLink) return false;
+      if (isNumericHttpsUrl(currentLink) && (!incomingLink || isRelativeGameLink(incomingLink))) return true;
+      return false;
+    };
+
+    const upsert = (item, preferIncoming = false) => {
+      if (!item || typeof item !== 'object') return;
+      const key = normalizeGameKey(item) || `__game_${fallbackIndex++}`;
+      if (!merged.has(key)) {
+        merged.set(key, { ...item });
+        return;
+      }
+      if (preferIncoming) {
+        const current = merged.get(key);
+        const next = { ...current, ...item };
+        if (preferCurrentLink(current, item)) {
+          next.link = current.link;
+        }
+        merged.set(key, next);
+      }
+    };
+
+    for (const item of ensureArray(currentItems)) upsert(item, false);
+    for (const item of ensureArray(incomingItems)) upsert(item, true);
+
+    return Array.from(merged.values());
+  }
+
+  function renderGamesText(values, header = '/* Generated by transfer-backup.html */') {
+    const games = ensureArray(values).filter(item => item && typeof item === 'object').map(item => JSON.stringify(item, null, 2));
+    return `${header}\n\nconst games = [\n${games.map(v => `  ${v.replace(/\n/g, '\n  ')}`).join(',\n')}\n];\n\nif (typeof window !== 'undefined') window.games = games;\n`;
+  }
+
+  function mergeGamesText(currentText, generatedText) {
+    const current = normalizeSourceText(currentText);
+    const generated = normalizeSourceText(generatedText).trim();
+    if (!generated) return current ? `${current}\n` : '';
+
+    const currentGames = parseGamesList(current);
+    const generatedGames = parseGamesList(generated);
+    const mergedGames = mergeGameLists(currentGames, generatedGames);
+    const header = extractGamesHeader(generated) || extractGamesHeader(current);
+    return renderGamesText(mergedGames, header);
+  }
+
+  function mergeGamesText(currentText, generatedText) {
+    const current = normalizeSourceText(currentText);
+    const generated = normalizeSourceText(generatedText).trim();
+    if (!generated) return current ? `${current}\n` : '';
+
+    const currentGames = parseGamesList(current);
+    const generatedGames = parseGamesList(generated);
+    const mergedGames = mergeGameLists(currentGames, generatedGames);
+    const header = extractGamesHeader(generated) || extractGamesHeader(current);
+    return renderGamesText(mergedGames, header);
+  }
+
+  function normalizeHttpsServerBase(text) {
+    const raw = String(text || '').trim().replace(/\?I\s*$/i, '').replace(/\/+$/, '');
+    if (!raw) return '';
+    try {
+      if (/^https?:\/\//i.test(raw)) {
+        const parsed = new URL(raw);
+        if (parsed.protocol !== 'https:') return '';
+        return `https://${parsed.host}`;
+      }
+
+      const hostPart = raw.split(/[/?#]/)[0].trim();
+      if (!hostPart) return '';
+      if (/^(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?$/.test(hostPart) || /^[A-Za-z0-9.-]+(?::\d+)?$/.test(hostPart)) {
+        return `https://${hostPart}`;
+      }
+    } catch {
+      return '';
+    }
+    return '';
+  }
+
+  function deriveDestinationHttpsBase(destBase) {
+    const raw = String(destBase || '').trim().replace(/\/+$/, '');
+    if (!raw) return '';
+    try {
+      const parsed = raw.startsWith('http://') || raw.startsWith('https://')
+        ? new URL(raw)
+        : new URL(raw, location.href);
+
+      const host = String(parsed.hostname || '').trim();
+      if (!host) return '';
+
+      const port = String(parsed.port || '').trim();
+      if (parsed.protocol === 'https:') {
+        return `https://${host}${port ? `:${port}` : ''}`;
+      }
+      if (!port || port === '8080') {
+        return `https://${host}:8081`;
+      }
+      return `https://${host}:${port}`;
+    } catch {
+      return '';
+    }
+  }
+
+  function isNumericHostName(hostname) {
+    return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(String(hostname || '').trim());
+  }
+
+  function isNumericHttpsUrl(value) {
+    const raw = String(value || '').trim();
+    if (!/^https:\/\//i.test(raw)) return false;
+    try {
+      const parsed = new URL(raw);
+      return parsed.protocol === 'https:' && isNumericHostName(parsed.hostname);
+    } catch {
+      return false;
+    }
+  }
+
+  function collectNumericServerLinks(sourceText) {
+    const links = [];
+    const seen = new Set();
+    for (const item of parseGamesList(sourceText)) {
+      if (!item || typeof item !== 'object') continue;
+      const rawLinks = [item.link, ...(Array.isArray(item.disks) ? item.disks.map(disk => disk && disk.link).filter(Boolean) : [])];
+      for (const rawLink of rawLinks) {
+        const link = String(rawLink || '').trim();
+        if (!/^https?:\/\//i.test(link)) continue;
+        try {
+          const parsed = new URL(link);
+          if (!isNumericHostName(parsed.hostname)) continue;
+          const key = link.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          links.push(link);
+        } catch {
+          continue;
+        }
+      }
+    }
+    return links;
+  }
+
+  function collectNumericHttpsLinks(sourceText) {
+    return collectNumericServerLinks(sourceText).filter(link => /^https:\/\//i.test(link));
+  }
+
+  function isRelativeGameLink(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return false;
+    if (/^https?:\/\//i.test(raw)) return false;
+    return raw.startsWith('./') || raw.startsWith('../') || raw.startsWith('/');
+  }
+
+  function rewriteGameLinkForTransfer(value, httpsBase) {
+    const raw = String(value || '').trim();
+    if (!raw) return raw;
+
+    if (raw.startsWith('./') || raw.startsWith('../')) return raw;
+    if (raw.startsWith('/')) return `.${raw}`;
+    if (!/^https?:\/\//i.test(raw)) return raw;
+
+    let parsed;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      return raw;
+    }
+
+    if (!isNumericHostName(parsed.hostname)) {
+      return raw;
+    }
+
+    const suffix = `${parsed.pathname || ''}${parsed.search || ''}${parsed.hash || ''}`;
+    if (parsed.protocol === 'https:') {
+      const normalizedBase = normalizeHttpsServerBase(httpsBase);
+      if (normalizedBase) {
+        return `${normalizedBase}${suffix}`;
+      }
+      return `.${suffix}`;
+    }
+
+    if (parsed.protocol === 'http:') {
+      return `.${suffix}`;
+    }
+
+    return raw;
+  }
+
+  function rewriteNumericHttpsLink(value, httpsBase) {
+    return rewriteGameLinkForTransfer(value, httpsBase);
+  }
+
+  function rewriteGamesHttpsLinks(sourceText, httpsBase) {
+    const current = normalizeSourceText(sourceText).trim();
+    if (!current) return current;
+    const games = parseGamesList(current).map(item => {
+      if (!item || typeof item !== 'object') return item;
+      const next = { ...item };
+      if (typeof next.link === 'string') {
+        next.link = rewriteGameLinkForTransfer(next.link, httpsBase);
+      }
+      if (Array.isArray(next.disks)) {
+        next.disks = next.disks.map(disk => {
+          if (!disk || typeof disk !== 'object') return disk;
+          const nextDisk = { ...disk };
+          if (typeof nextDisk.link === 'string') {
+            nextDisk.link = rewriteGameLinkForTransfer(nextDisk.link, httpsBase);
+          }
+          return nextDisk;
+        });
+      }
+      return next;
+    });
+    const header = extractGamesHeader(current);
+    return renderGamesText(games, header);
+  }
+
+  function hasNumericHostedHttpsLinks(sourceText) {
+    return parseGamesList(sourceText).some(item => {
+      if (!item || typeof item !== 'object') return false;
+      if (isNumericHttpsUrl(item.link)) return true;
+      return Array.isArray(item.disks) && item.disks.some(disk => disk && isNumericHttpsUrl(disk.link));
+    });
+  }
+
+  async function buildGamesUploadBlob(destBase, sourceGamesText, preserveSetup = false, httpsBase = '') {
+    const generated = normalizeSourceText(sourceGamesText).trim();
+    if (!generated) return null;
+
+    let mergedText = generated;
+
+    if (preserveSetup) {
+      let currentText = '';
+      if (destBase) {
+        try {
+          currentText = await fetchCurrentText(destBase, 'games.js');
+        } catch (_) {
+          currentText = '';
+        }
+      }
+
+      if (currentText && String(currentText).trim()) {
+        mergedText = mergeGamesText(currentText, generated);
+      }
+    }
+
+    const rewritten = rewriteGamesHttpsLinks(mergedText, httpsBase);
+    return new Blob([rewritten.endsWith('\n') ? rewritten : `${rewritten}\n`], { type: 'text/javascript' });
+  }
+
+
+  function cloneDeepJson(value) {
+    return value == null ? value : JSON.parse(JSON.stringify(value));
+  }
+
+  function normalizeLibraryDataItemKey(item) {
+    if (!item || typeof item !== 'object') return '';
+    const file = safeText(item.file || '').trim();
+    const title = safeText(item.title || '').trim();
+    return normalizeLookupKey(file || title);
+  }
+
+  function mergeLibraryDataItems(currentItems, generatedItems) {
+    const currentList = Array.isArray(currentItems) ? currentItems : [];
+    const generatedList = Array.isArray(generatedItems) ? generatedItems : [];
+    const merged = generatedList.map(item => cloneDeepJson(item));
+    const byKey = new Map();
+
+    for (let i = 0; i < merged.length; i++) {
+      const key = normalizeLibraryDataItemKey(merged[i]);
+      if (key && !byKey.has(key)) byKey.set(key, i);
+    }
+
+    for (const currentItem of currentList) {
+      const currentClone = cloneDeepJson(currentItem);
+      const key = normalizeLibraryDataItemKey(currentClone);
+
+      if (!key) {
+        merged.push(currentClone);
+        continue;
+      }
+
+      const existingIndex = byKey.get(key);
+      if (existingIndex == null) {
+        byKey.set(key, merged.length);
+        merged.push(currentClone);
+        continue;
+      }
+
+      const existing = merged[existingIndex];
+      const next = { ...existing, ...currentClone };
+
+      if (Array.isArray(existing.books) || Array.isArray(currentClone.books)) {
+        next.books = mergeLibraryDataItems(currentClone.books || [], existing.books || []);
+      }
+
+      merged[existingIndex] = next;
+    }
+
+    return merged;
+  }
+
+  function mergeLibraryDataObjects(currentData, generatedData) {
+    const generatedClone = cloneDeepJson(generatedData);
+    const currentClone = cloneDeepJson(currentData);
+
+    if (!generatedClone || typeof generatedClone !== 'object') return generatedClone || currentClone;
+    if (!currentClone || typeof currentClone !== 'object') return generatedClone;
+
+    const merged = { ...generatedClone };
+
+    for (const [key, value] of Object.entries(currentClone)) {
+      if (key === 'items' && (Array.isArray(currentClone.items) || Array.isArray(generatedClone.items))) {
+        merged.items = mergeLibraryDataItems(currentClone.items || [], generatedClone.items || []);
+      } else if (!(key in merged) || merged[key] == null || merged[key] === '') {
+        merged[key] = cloneDeepJson(value);
+      }
+    }
+
+    if (!Array.isArray(merged.items) && Array.isArray(generatedClone.items)) {
+      merged.items = cloneDeepJson(generatedClone.items);
+    }
+
+    return merged;
+  }
+
+  function replaceLibraryDataObject(templateText, libraryDataObject) {
+    const text = normalizeSourceText(templateText);
+    const match = text.match(/window\.libraryData\s*=\s*/);
+    if (!match) return text;
+    const openIndex = text.indexOf('{', match.index);
+    if (openIndex < 0) return text;
+    const block = findBalancedBlock(text, openIndex, '{', '}');
+    if (!block) return text;
+    const json = JSON.stringify(libraryDataObject, null, 2);
+    return `${text.slice(0, openIndex)}${json}${text.slice(openIndex + block.length)}`;
+  }
+
+  async function buildSectionUploadBlob(destBase, sectionPath, sourceText, preserveSetup = false) {
+    const generated = normalizeSourceText(sourceText).trim();
+    if (!generated) return null;
+
+    let mergedText = generated;
+
+    if (preserveSetup && destBase && sectionPath) {
+      let currentText = '';
+      try {
+        currentText = await fetchCurrentText(destBase, sectionPath);
+      } catch (_) {
+        currentText = '';
+      }
+
+      if (currentText && String(currentText).trim()) {
+        const currentData = readLibraryDataFromText(currentText);
+        const generatedData = readLibraryDataFromText(generated);
+        if (currentData && generatedData) {
+          const mergedData = mergeLibraryDataObjects(currentData, generatedData);
+          mergedText = replaceLibraryDataObject(generated, mergedData);
+        }
+      }
+    }
+
+    return new Blob([mergedText.endsWith('\n') ? mergedText : `${mergedText}\n`], { type: 'text/javascript' });
+  }
+
+  function findBalancedBlock(source, openIndex, openChar, closeChar) {
+    if (openIndex < 0 || openIndex >= source.length) return null;
+
+    let depth = 0;
+    let state = 'code';
+    let quote = '';
+    let escape = false;
+    let regexClass = false;
+    let expectRegex = true;
+
+    function setExpectFromChar(ch) {
+      if (/\s/.test(ch)) return;
+      if (/[\w$\]]/.test(ch)) {
+        expectRegex = false;
+        return;
+      }
+      if (/[)\}]/.test(ch)) {
+        expectRegex = false;
+        return;
+      }
+      if (/[\(\[\{,;:\?!=<>~&|+\-*%^]/.test(ch) || ch === '.') {
+        expectRegex = true;
+        return;
+      }
+      expectRegex = true;
+    }
+
+    for (let i = openIndex; i < source.length; i++) {
+      const ch = source[i];
+      const next = source[i + 1];
+
+      if (state === 'lineComment') {
+        if (ch === '\n') state = 'code';
+        continue;
+      }
+      if (state === 'blockComment') {
+        if (ch === '*' && next === '/') { state = 'code'; i++; }
+        continue;
+      }
+      if (state === 'string') {
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === quote) { state = 'code'; expectRegex = false; }
+        continue;
+      }
+      if (state === 'template') {
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === '`') { state = 'code'; expectRegex = false; }
+        continue;
+      }
+      if (state === 'regex') {
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === '[') { regexClass = true; continue; }
+        if (ch === ']') { regexClass = false; continue; }
+        if (ch === '/' && !regexClass) { state = 'code'; expectRegex = false; continue; }
+        continue;
+      }
+
+      if (ch === '/' && next === '/') { state = 'lineComment'; i++; continue; }
+      if (ch === '/' && next === '*') { state = 'blockComment'; i++; continue; }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        state = ch === '`' ? 'template' : 'string';
+        quote = ch;
+        continue;
+      }
+
+      if (ch === '/' && expectRegex) {
+        state = 'regex';
+        regexClass = false;
+        continue;
+      }
+
+      if (ch === openChar) {
+        depth++;
+        expectRegex = true;
+        continue;
+      }
+      if (ch === closeChar) {
+        depth--;
+        if (depth === 0) return source.slice(openIndex, i + 1);
+        expectRegex = false;
+        continue;
+      }
+
+      setExpectFromChar(ch);
+    }
+    return null;
+  }
+
+  function findMatchingBrace(source, openIndex) {
+    let depth = 0;
+    let state = 'code';
+    let quote = '';
+    let escape = false;
+
+    for (let i = openIndex; i < source.length; i++) {
+      const ch = source[i];
+      const next = source[i + 1];
+
+      if (state === 'lineComment') {
+        if (ch === '\n') state = 'code';
+        continue;
+      }
+      if (state === 'blockComment') {
+        if (ch === '*' && next === '/') {
+          state = 'code';
+          i++;
+        }
+        continue;
+      }
+      if (state === 'string') {
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escape = true;
+          continue;
+        }
+        if (ch === quote) state = 'code';
+        continue;
+      }
+
+      if (ch === '/' && next === '/') {
+        state = 'lineComment';
+        i++;
+        continue;
+      }
+      if (ch === '/' && next === '*') {
+        state = 'blockComment';
+        i++;
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        state = 'string';
+        quote = ch;
+        continue;
+      }
+
+      if (ch === '{') depth++;
+      if (ch === '}') {
+        depth--;
+        if (depth === 0) return i;
+      }
+    }
+    return -1;
+  }
+
+  async function fetchCurrentText(destBase, path) {
+    const cleanedBase = String(destBase || '').trim().replace(/\/+$/, '');
+    if (!cleanedBase) return '';
+    const candidates = baseCandidates(cleanedBase);
+    const targetPath = stripLeadingDotSlash(path);
+    for (const candidateBase of candidates) {
+      const url = normalizeRequestUrl(joinBase(candidateBase, targetPath));
+      try {
+        const res = await fetchWithTimeout(url, { cache: 'no-store' }, 20000);
+        if (res.ok) return await res.text();
+      } catch (_) {}
+    }
+    return '';
+  }
+
+  async function probePlatform() {
+    const dest = String(el.destBase.value || '').trim().replace(/\/+$/, '');
+    if (!dest) {
+      el.platformInfo.textContent = 'Enter a destination server URL first.';
+      return null;
+    }
+
+    const platformProbe = await fetchTextFromCandidates(dest, ['platform.txt', './platform.txt']);
+    let platformText = platformProbe ? platformProbe.text : '';
+    let platformUrl = platformProbe ? platformProbe.url : '';
+    let lastErr = null;
+
+    const info = {
+      raw: platformText,
+      platform: '',
+      method: 'put',
+      endpoint: '',
+      mode: 'put',
+      resolvedBase: dest,
+      httpsBase: '',
+      httpsProbeBase: '',
+      platformUrl: platformUrl
+    };
+
+    const lines = String(platformText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    let methodWasExplicit = false;
+    for (const line of lines) {
+      const m = line.match(/^([a-z0-9_-]+)\s*=\s*(.+)$/i);
+      if (m) {
+        const key = m[1].toLowerCase();
+        const val = m[2].trim();
+        if (key === 'method' || key === 'uploadmethod' || key === 'transfermethod') {
+          info.method = val.toLowerCase();
+          methodWasExplicit = true;
+        }
+        if (key === 'endpoint' || key === 'uploadendpoint' || key === 'transferendpoint') info.endpoint = val;
+        if (key === 'platform') info.platform = val;
+        continue;
+      }
+      if (!info.platform && /android|windows|iphone|ipad|linux/i.test(line)) {
+        info.platform = line;
+      }
+      if (/put|post|patch|webdav|filesystem|copy/i.test(line) && !/^platform\s*=/i.test(line)) {
+        info.method = line.toLowerCase();
+        methodWasExplicit = true;
+      }
+    }
+
+    const serverProbe = await fetchTextFromCandidates(dest, ['serverip.txt', './serverip.txt', 'httpserverip.txt', './httpserverip.txt']);
+    if (serverProbe && serverProbe.text) {
+      const resolved = serverProbe.text.trim().replace(/\?I\s*$/i, '').replace(/\/+$/, '');
+      if (/^https?:\/\//i.test(resolved)) {
+        info.resolvedBase = resolved;
+      }
+    }
+
+    const httpsProbe = await fetchTextFromCandidates(dest, ['httpsserverip.txt', './httpsserverip.txt']);
+    const probedHttpsBase = httpsProbe && httpsProbe.text ? normalizeHttpsServerBase(httpsProbe.text) : '';
+    const derivedHttpsBase = deriveDestinationHttpsBase(dest);
+    if (httpsProbe && httpsProbe.text) {
+      info.httpsProbeBase = probedHttpsBase;
+    }
+    info.httpsBase = derivedHttpsBase || probedHttpsBase;
+
+    if (!lines.length && lastErr) {
+      info.method = 'put';
+    }
+
+    // Normalize aliases.
+    const alias = {
+      'direct-put': 'put',
+      'http-put': 'put',
+      'put-direct': 'put',
+      'direct': 'put',
+      'webdav': 'put',
+      'filesystem': 'filesystem',
+      'fs': 'filesystem',
+      'local': 'filesystem',
+      'post-form': 'post',
+      'multipart': 'post',
+      'post': 'post',
+      'remote-copy': 'copy',
+      'copy': 'copy'
+    };
+    info.method = alias[info.method] || info.method || 'put';
+    if (!['put', 'post', 'filesystem', 'copy'].includes(info.method)) info.method = 'put';
+    if (info.platform && /android/i.test(info.platform) && !methodWasExplicit && info.method === 'put') {
+      info.method = 'copy';
+    }
+    if (!info.endpoint) info.endpoint = el.endpoint.value.trim();
+    if (!info.resolvedBase) info.resolvedBase = dest;
+    return info;
+  }
+
+  async function uploadToServer(base, destPath, payload, strategy, sourceUrl = '') {
+    const cleanBase = String(base || '').trim().replace(/\/+$/, '');
+    const resolvedBase = String(strategy.resolvedBase || cleanBase || '').trim().replace(/\/+$/, '');
+    const path = stripLeadingDotSlash(destPath);
+    const endpoint = String(strategy.endpoint || '').trim();
+    const platform = String(strategy.platform || '').trim().toLowerCase();
+    const hasSourceUrl = String(sourceUrl || '').trim().length > 0;
+
+    const joinEndpoint = (fallbackPath) => {
+      if (endpoint) {
+        return endpoint.startsWith('http')
+          ? endpoint
+          : joinBase(resolvedBase, endpoint.replace(/^\/+/, ''));
+      }
+      return joinBase(resolvedBase, fallbackPath);
+    };
+
+    if (hasSourceUrl && (strategy.method === 'copy' || platform === 'android')) {
+      const url = normalizeRequestUrl(joinEndpoint('api/file/copy'));
+      // Remote copy can take a long time for multi-gigabyte media because the server
+      // is streaming from the source URL to the destination file. Do not abort this
+      // request at the default 90s timeout; let the server finish the stream.
+      const res = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceUrl,
+          targetPath: path
+        })
+      }, 0);
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Remote copy failed for ${path}: HTTP ${res.status}${text ? ` — ${text.slice(0, 240)}` : ''}`);
+      }
+      return;
+    }
+
+    if (strategy.method === 'post' || (platform === 'android' && !isReadableStream(payload))) {
+      if (isReadableStream(payload)) {
+        throw new Error(`POST upload for ${path} requires a Blob-like payload.`);
+      }
+      const url = normalizeRequestUrl(joinEndpoint(path));
+      const body = new FormData();
+      body.append('path', path);
+      body.append('file', payload, path.split('/').pop() || 'file.bin');
+      const res = await fetch(url, {
+        method: 'POST',
+        body
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`POST failed for ${path}: HTTP ${res.status}${text ? ` — ${text.slice(0, 240)}` : ''}`);
+      }
+      return;
+    }
+
+    // Default and fallback: direct PUT to the mirrored path.
+    const url = normalizeRequestUrl(joinBase(resolvedBase, path));
+    const init = {
+      method: 'PUT',
+      body: payload
+    };
+    if (isReadableStream(payload)) init.duplex = 'half';
+
+    let res;
+    try {
+      res = await fetchWithTimeout(url, init, 120000);
+    } catch (err) {
+      if (isReadableStream(payload)) {
+        throw new Error(`PUT stream failed for ${path}: ${err?.message || err}`);
+      }
+      throw err;
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`PUT failed for ${path}: HTTP ${res.status}${text ? ` — ${text.slice(0, 240)}` : ''}`);
+    }
+  }
+
+  async function uploadToUSB(rootHandle, destPath, payload) {
+    const path = stripLeadingDotSlash(destPath);
+    const parts = path.split('/').filter(Boolean);
+    let dir = rootHandle;
+    for (let i = 0; i < parts.length - 1; i++) {
+      dir = await dir.getDirectoryHandle(parts[i], { create: true });
+    }
+    const fileHandle = await dir.getFileHandle(parts[parts.length - 1], { create: true });
+    const writable = await fileHandle.createWritable();
+    try {
+      if (isReadableStream(payload)) {
+        await payload.pipeTo(writable);
+      } else {
+        await writable.write(payload);
+        await writable.close();
+      }
+    } catch (err) {
+      try { await writable.abort?.(err); } catch {}
+      throw err;
+    }
+  }
+
+  async function buildTransferPlan() {
+    if (!state.archiveFile) throw new Error('Load a zip archive first.');
+
+    const currentSourceBase = String(el.sourceBase.value || state.sourceBase || location.origin).trim().replace(/\/+$/, '');
+    state.sourceBase = currentSourceBase;
+
+    const mainfoldersBytes = findArchiveTextByName('mainfolders.js');
+    const libraryBytes = findArchiveTextByName('library.js');
+    const loadersBytes = findArchiveTextByName('loadseasonfunctions.js');
+
+    const mainfoldersText = mainfoldersBytes ? new TextDecoder().decode(mainfoldersBytes) : '';
+    const libraryText = libraryBytes ? new TextDecoder().decode(libraryBytes) : '';
+    const loadersText = loadersBytes ? new TextDecoder().decode(loadersBytes) : '';
+
+    state.rewrittenMainfoldersText = mainfoldersBytes ? rewriteMainfoldersText(mainfoldersText) : '';
+    state.loadSeasonText = loadersBytes ? normalizeLoadseasonText(loadersText) : '';
+
+    let rew = { text: '', rewriteCount: 0 };
+    let videoTransferList = [];
+    let episodesObject = {};
+    if (libraryBytes) {
+      rew = rewriteLibraryText(libraryText, currentSourceBase);
+      state.rewrittenLibraryText = rew.text;
+      episodesObject = evalVariableSource(libraryText, 'episodes') || {};
+      videoTransferList = collectTransferList(episodesObject, currentSourceBase);
+    } else {
+      state.rewrittenLibraryText = '';
+    }
+
+    const rootTitles = mainfoldersBytes ? parseMainfoldersList(mainfoldersText) : [];
+    const episodeRoots = Object.keys(episodesObject || {});
+    const episodeRootLookup = new Set(episodeRoots.map(title => normalizeLookupKey(collapseTrailingAdultMarks(title))));
+
+    const extraQueue = new Map();
+    const manifestFiles = buildManifestFilesFromArchive();
+
+    const musicTextBytes = findArchiveTextByName('musiclibrary.js');
+    const gamesTextBytes = findArchiveTextByName('games.js');
+    const gamesText = gamesTextBytes ? new TextDecoder().decode(gamesTextBytes) : '';
+    const guidebooksTextBytes = findArchiveTextByName('guidebooks.js');
+    const guidebooksText = guidebooksTextBytes ? new TextDecoder().decode(guidebooksTextBytes) : '';
+    const booksTextBytes = findArchiveTextByName('books.js');
+    const booksText = booksTextBytes ? new TextDecoder().decode(booksTextBytes) : '';
+    const mangaTextBytes = findArchiveTextByName('manga.js');
+    const mangaText = mangaTextBytes ? new TextDecoder().decode(mangaTextBytes) : '';
+
+    const mandatedMainFolderTitles = uniqueTitles([
+      ...(libraryBytes ? ['Continue Watching', 'Favorites'] : []),
+      ...(gamesTextBytes ? ['Games'] : []),
+      ...(musicTextBytes ? ['Music'] : []),
+      ...(booksTextBytes ? ['Books'] : []),
+      ...(mangaTextBytes ? ['Manga'] : []),
+      ...(loadersBytes ? parseLoadSeasonRootTitles(loadersText) : [])
+    ]);
+    state.mandatedMainFolderTitles = mandatedMainFolderTitles;
+
+    const rootTitlesForArtwork = [
+      ...rootTitles.filter(title => episodeRootLookup.has(normalizeLookupKey(collapseTrailingAdultMarks(title)))),
+      ...mandatedMainFolderTitles
+    ];
+    const uniqueRootTitlesForArtwork = [...new Set(rootTitlesForArtwork.map(title => collapseTrailingAdultMarks(title)).filter(Boolean))];
+
+    if (musicTextBytes) collectMusicAssets(extraQueue, new TextDecoder().decode(musicTextBytes), currentSourceBase);
+    if (gamesTextBytes) collectGameAssets(extraQueue, new TextDecoder().decode(gamesTextBytes), currentSourceBase);
+    if (guidebooksTextBytes) collectLibraryAssets(extraQueue, readLibraryDataFromText(new TextDecoder().decode(guidebooksTextBytes)), 'guidebooks', currentSourceBase);
+    if (booksTextBytes) collectLibraryAssets(extraQueue, readLibraryDataFromText(new TextDecoder().decode(booksTextBytes)), 'books', currentSourceBase);
+    if (mangaTextBytes) collectLibraryAssets(extraQueue, readLibraryDataFromText(new TextDecoder().decode(mangaTextBytes)), 'manga', currentSourceBase);
+
+    const extraItems = [...extraQueue.values()];
+    state.transferList = [...videoTransferList, ...extraItems];
+    state.transferQueue = [...buildExpandedTransferQueue(videoTransferList, currentSourceBase, uniqueRootTitlesForArtwork, mandatedMainFolderTitles), ...extraItems];
+
+    return {
+      currentSourceBase,
+      rewrittenLibraryText: state.rewrittenLibraryText,
+      rewrittenMainfoldersText: state.rewrittenMainfoldersText,
+      loadSeasonText: state.loadSeasonText,
+      transferList: state.transferList,
+      transferQueue: state.transferQueue,
+      manifestFiles,
+      gamesText,
+      guidebooksText,
+      booksText,
+      mangaText,
+      mandatedMainFolderTitles,
+      rewriteCount: rew.rewriteCount
+    };
+  }
+
+  async function scanArchive() {
+    const file = el.zipFile.files && el.zipFile.files[0];
+    if (!file) throw new Error('Choose a server-content-backup zip first.');
+
+    state.archiveFile = file;
+    state.archiveEntries = [];
+    state.archiveTexts = new Map();
+    state.archiveTextLookup = new Map();
+    state.archiveFiles = new Map();
+    state.archiveFileLookup = new Map();
+    state.transferList = [];
+    state.transferQueue = [];
+    state.rewrittenLibraryText = '';
+    state.rewrittenMainfoldersText = '';
+    state.loadSeasonText = '';
+    state.mandatedMainFolderTitles = [];
+
+    log('Reading archive...');
+    const entries = await parseZip(file);
+
+    for (const [name, bytes] of entries.entries()) {
+      state.archiveFiles.set(name, bytes);
+      state.archiveFileLookup.set(archivePathKey(name), bytes);
+      state.archiveEntries.push({ name, size: bytes.length });
+      if (name.toLowerCase().endsWith('.js')) {
+        state.archiveTexts.set(name, bytes);
+        state.archiveTextLookup.set(archivePathKey(name), bytes);
+      }
+    }
+
+    const preview = [];
+    preview.push(`Archive: ${file.name}`);
+    preview.push(`Files: ${entries.size}`);
+    preview.push('');
+    for (const name of entries.keys()) preview.push(`• ${name}`);
+    el.rewritePreview.textContent = preview.join('\n');
+    updateArchiveList();
+    updateSummary();
+
+    log('Parsing archive files and preparing the transfer plan...');
+    const plan = await buildTransferPlan();
+
+    const textPreview = [
+      `mainfolders.js: ${plan.rewrittenMainfoldersText ? 'ready' : 'missing'}`,
+      `library.js: ${plan.rewrittenLibraryText ? 'ready' : 'missing'}`,
+      `loadseasonfunctions.js: ${plan.loadSeasonText ? 'ready' : 'missing'}`,
+      '',
+      `Rewritten media paths: ${plan.rewriteCount}`,
+      `Transfer items: ${plan.transferList.length}`,
+      '',
+      `Example rewrite:`,
+      `http://192.168.254.16:8083/Adventure Time/Adventure Time Specials/Distant Lands - Wizard City.mp4`,
+      `=>`,
+      `./Adventure Time/Adventure Time Specials/Distant Lands - Wizard City.mp4`
+    ];
+    el.rewritePreview.textContent = textPreview.join('\n');
+
+    updateSummary();
+    const queueCounts = summarizeQueue(plan.transferQueue);
+    log(`Archive scanned. ${plan.transferList.length} media item(s) are ready to move.`);
+    log(`Queue preview: ${queueCounts.artwork} artwork, ${queueCounts.media} media, ${queueCounts.subtitle} subtitles, ${queueCounts.audiobook} audiobooks.`);
+  }
+
+  async function transferArchive() {
+    if (!validateDistinctServerBases()) {
+      throw new Error('Destination server base must be different from the source server base.');
+    }
+    const plan = await buildTransferPlan();
+    const destType = (document.querySelector('input[name="destType"]:checked') || {}).value || 'server';
+    state.destination.type = destType;
+
+    if (!plan.transferList.length && !(plan.manifestFiles || []).length) {
+      throw new Error('No transferable items were found in the backup archive.');
+    }
+
+    const gamesBytes = findArchiveTextByName('games.js');
+    const gamesText = gamesBytes ? new TextDecoder().decode(gamesBytes) : '';
+
+    if (destType === 'usb') {
+      if (!window.showDirectoryPicker) throw new Error('This browser does not support folder picking for USB/local transfer.');
+      const rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+
+      const supportFiles = [
+        { path: 'mainfolders.js', blob: await buildMainfoldersUploadBlob('', plan.rewrittenMainfoldersText, plan.mandatedMainFolderTitles || []), kind: 'mainfolders' },
+        ...(plan.rewrittenLibraryText ? [{ path: 'library.js', blob: new Blob([plan.rewrittenLibraryText], { type: 'text/javascript' }), kind: 'library' }] : []),
+        ...(plan.loadSeasonText ? [{ path: 'loadseasonfunctions.js', blob: new Blob([plan.loadSeasonText], { type: 'text/javascript' }), kind: 'loadseason' }] : []),
+        ...(plan.manifestFiles || [])
+      ];
+
+      const queue = [...supportFiles, ...(plan.transferQueue || [])];
+
+      state.transferRun = { total: queue.length, done: 0, failures: [] };
+      const queueCounts = summarizeQueue(plan.transferQueue);
+      log(`USB/local queue ready: ${queue.length} item(s).`);
+      log('Queue order: setup files first, then artwork, media, and subtitles. Each subtitle follows its matching MP4.');
+      log(`Queue detail: ${queueCounts.artwork} artwork, ${queueCounts.media} media, ${queueCounts.subtitle} subtitles, ${queueCounts.audiobook} audiobooks.`);
+
+      for (let i = 0; i < queue.length; i++) {
+        const item = queue[i];
+        try {
+          let payload = item.blob || null;
+          if (!payload && item.sourceUrl) {
+            payload = await withRetry(
+              `download ${item.path}`,
+              () => sourcePayloadFromUrl(item.sourceUrl),
+              { retries: 3, delay: 500 }
+            );
+          }
+          log(`Writing ${itemKindLabel(item)}...`);
+          await withRetry(
+            `write ${item.path}`,
+            () => uploadToUSB(rootHandle, item.path, payload),
+            { retries: 3, delay: 350 }
+          );
+          state.transferRun.done++;
+          setProgress(state.transferRun.done, state.transferRun.total, `Writing ${item.path} (${state.transferRun.done}/${state.transferRun.total})`);
+          log(`Wrote ${item.path}.`);
+        } catch (err) {
+          const message = err?.message || String(err);
+          if (isOptionalAssetKind(item.kind) && /HTTP\s+404/i.test(message)) {
+            state.transferRun.done++;
+            setProgress(state.transferRun.done, state.transferRun.total, `Skipped ${item.path} (${state.transferRun.done}/${state.transferRun.total})`);
+            log(`Skipped ${item.path}: not found on source.`);
+            continue;
+          }
+          state.transferRun.failures.push({ path: item.path, error: message });
+          log(`USB/local failed for ${item.path}: ${message}`);
+        }
+      }
+
+      if (state.transferRun.failures.length) {
+        log(`USB/local transfer completed with ${state.transferRun.failures.length} failure(s).`);
+      } else {
+        log(`USB/local transfer complete. ${queue.length} file(s) written.`);
+      }
+      return;
+    }
+
+    const dest = String(el.destBase.value || '').trim().replace(/\/+$/, '');
+    if (!dest) throw new Error('Enter a destination server URL first.');
+
+    const platform = await probePlatform();
+    state.destination = {
+      type: 'server',
+      base: dest,
+      resolvedBase: platform ? platform.resolvedBase || dest : dest,
+      platform: platform ? platform.platform : '',
+      method: platform ? platform.method : 'put',
+      endpoint: platform ? platform.endpoint : ''
+    };
+    el.modeText.textContent = state.destination.method;
+
+    const preserveSetup = !!el.preserveSetupFiles.checked;
+    const strategyLabel = [
+      `Destination: ${state.destination.resolvedBase || dest}`,
+      platform && platform.platform ? `Platform: ${platform.platform}` : 'Platform: unknown',
+      `Upload method: ${state.destination.method}`,
+      platform && platform.endpoint ? `Endpoint override: ${platform.endpoint}` : 'Endpoint override: none',
+      `Setup files: ${preserveSetup ? 'merge existing setup files' : 'overwrite with archive files when present'}`,
+      '',
+      preserveSetup && state.destination.type === 'server'
+        ? 'When possible, the page fetches the destination’s current setup files first and weaves the backup into them.'
+        : state.destination.method === 'copy'
+          ? 'Using remote-copy for media items when the source URL is available. Small generated files still fall back to normal uploads.'
+          : state.destination.method === 'post'
+            ? 'Using POST upload because platform.txt requested it. The page will send FormData with path + file.'
+            : 'Using direct PUT to each mirrored path.'
+    ].join('\n');
+    el.strategyText.textContent = strategyLabel;
+    el.platformInfo.textContent = platform
+      ? `Detected ${platform.platform || 'platform'}; method=${platform.method}; endpoint=${platform.endpoint || '(none)'}; https=${platform.httpsBase || 'not found'}${platform.httpsProbeBase && platform.httpsProbeBase !== platform.httpsBase ? ` (probe: ${platform.httpsProbeBase})` : ''}`
+      : 'platform.txt not found; using direct PUT fallback.';
+
+    const sourceNumericGamesLinks = collectNumericServerLinks(plan.gamesText || '');
+    const destinationHttpsBase = state.destination.httpsBase || deriveDestinationHttpsBase(dest) || '';
+    if (sourceNumericGamesLinks.length && destinationHttpsBase) {
+      log(`Destination HTTPS server detected for games.js rewrite: ${sourceNumericGamesLinks.join(', ')} to ${destinationHttpsBase} in backup.`);
+    } else if (sourceNumericGamesLinks.length && !destinationHttpsBase) {
+      log('Warning: no destination HTTPS server was detected; numeric-host games links will be rewritten to relative ./ paths instead.');
+    }
+
+    const sectionFileNames = new Set(['games.js', 'guidebooks.js', 'books.js', 'manga.js'].map(normalizeLookupKey));
+    const manifestFiles = (plan.manifestFiles || []).filter(item => !sectionFileNames.has(normalizeLookupKey(item.path)));
+
+    const support = [
+      { path: 'mainfolders.js', blob: await buildMainfoldersUploadBlob(state.destination.resolvedBase || dest, plan.rewrittenMainfoldersText, plan.mandatedMainFolderTitles || []), kind: 'mainfolders' },
+      ...(plan.rewrittenLibraryText ? [{ path: 'library.js', blob: new Blob([plan.rewrittenLibraryText], { type: 'text/javascript' }), kind: 'library' }] : []),
+      ...(plan.gamesText ? [{ path: 'games.js', blob: await buildGamesUploadBlob(state.destination.resolvedBase || dest, plan.gamesText, preserveSetup, destinationHttpsBase || state.destination.httpsBase || ''), kind: 'games' }] : []),
+      ...(plan.guidebooksText ? [{ path: 'guidebooks.js', blob: await buildSectionUploadBlob(state.destination.resolvedBase || dest, 'guidebooks.js', plan.guidebooksText, preserveSetup), kind: 'guidebooks' }] : []),
+      ...(plan.booksText ? [{ path: 'books.js', blob: await buildSectionUploadBlob(state.destination.resolvedBase || dest, 'books.js', plan.booksText, preserveSetup), kind: 'books' }] : []),
+      ...(plan.mangaText ? [{ path: 'manga.js', blob: await buildSectionUploadBlob(state.destination.resolvedBase || dest, 'manga.js', plan.mangaText, preserveSetup), kind: 'manga' }] : []),
+      ...(plan.loadSeasonText ? [{ path: 'loadseasonfunctions.js', blob: new Blob([plan.loadSeasonText], { type: 'text/javascript' }), kind: 'loadseason' }] : []),
+      ...manifestFiles
+    ];
+
+    const queue = [...support, ...(plan.transferQueue || [])];
+
+    state.transferRun = { total: queue.length, done: 0, failures: [] };
+    state.pendingArtworkTasks = [];
+    const queueCounts = summarizeQueue(plan.transferQueue);
+    const musicBatchSize = Math.max(1, getMusicBatchSize());
+
+    log(`Server transfer queue ready: ${queue.length} item(s).`);
+    log('Queue order: setup files first, then artwork, media, and subtitles. Each subtitle follows its matching MP4.');
+    log(`Queue detail: ${queueCounts.artwork} artwork, ${queueCounts.media} media, ${queueCounts.subtitle} subtitles, ${queueCounts.audiobook} audiobooks.`);
+    log(`Music tracks are processed with a rolling pool of ${musicBatchSize} worker(s) and ${getMusicPreference().toUpperCase()} tried first.`);
+    log(`Setup preserve mode: ${preserveSetup ? 'on' : 'off'}.`);
+
+    const recordResult = (item, result) => {
+      if (result.status === 'fulfilled') {
+        state.transferRun.done++;
+        const selectedPath = result.value && result.value.selectedPath ? result.value.selectedPath : item.path;
+        setProgress(state.transferRun.done, state.transferRun.total, `Sending ${selectedPath} (${state.transferRun.done}/${state.transferRun.total})`);
+        return;
+      }
+      const message = result.reason?.message || String(result.reason);
+      if (isOptionalAssetKind(item.kind) && /HTTP\s+404/i.test(message)) {
+        state.transferRun.done++;
+        setProgress(state.transferRun.done, state.transferRun.total, `Skipped ${item.path} (${state.transferRun.done}/${state.transferRun.total})`);
+        log(`Skipped ${item.path}: not found on source.`);
+        return;
+      }
+      state.transferRun.failures.push({ path: item.path, error: message });
+      log(`Server transfer failed for ${item.path}: ${message}`);
+      setProgress(state.transferRun.done, state.transferRun.total, `Issue on ${item.path} (${state.transferRun.done}/${state.transferRun.total})`);
+    };
+
+    async function processMusicRun(entries) {
+      if (!entries.length) return;
+      const workerCount = Math.max(1, Math.min(musicBatchSize, entries.length));
+      log(`Music stream starting: ${entries.length} track(s) with ${workerCount} worker(s).`);
+
+      let cursor = 0;
+      const workers = Array.from({ length: workerCount }, async () => {
+        while (true) {
+          const current = cursor++;
+          if (current >= entries.length) return;
+          const entry = entries[current];
+          try {
+            const result = await processTransferItem({
+              item: entry.item,
+              preserveSetup,
+              dest,
+              strategy: state.destination,
+              total: queue.length,
+              index: entry.queueIndex,
+              batchMode: true
+            });
+            recordResult(entry.item, { status: 'fulfilled', value: result });
+          } catch (err) {
+            recordResult(entry.item, { status: 'rejected', reason: err });
+          }
+        }
+      });
+
+      await Promise.all(workers);
+    }
+
+    for (let i = 0; i < queue.length; i++) {
+      const item = queue[i];
+      const isMusicItem = item.kind === 'media' && isMusicTrackPath(item.path) && Array.isArray(item.musicCandidates) && item.musicCandidates.length;
+      if (isMusicItem) {
+        const run = [{ item, queueIndex: i + 1 }];
+        let j = i + 1;
+        while (j < queue.length) {
+          const next = queue[j];
+          const nextIsMusic = next.kind === 'media' && isMusicTrackPath(next.path) && Array.isArray(next.musicCandidates) && next.musicCandidates.length;
+          if (!nextIsMusic) break;
+          run.push({ item: next, queueIndex: j + 1 });
+          j++;
+        }
+
+        await processMusicRun(run);
+        i = j - 1;
+        continue;
+      }
+
+      try {
+        const result = await processTransferItem({
+          item,
+          preserveSetup,
+          dest,
+          strategy: state.destination,
+          total: queue.length,
+          index: i + 1
+        });
+        recordResult(item, { status: 'fulfilled', value: result });
+      } catch (err) {
+        recordResult(item, { status: 'rejected', reason: err });
+      }
+    }
+
+    if (state.pendingArtworkTasks && state.pendingArtworkTasks.length) {
+      log(`Waiting on ${state.pendingArtworkTasks.length} artist artwork task(s)...`);
+      const settled = await Promise.allSettled(state.pendingArtworkTasks);
+      const rejected = settled.filter(result => result.status === 'rejected');
+      for (const result of rejected) {
+        const message = result.reason?.message || String(result.reason);
+        log(`Artist artwork task issue: ${message}`);
+      }
+    }
+
+    if (state.transferRun.failures.length) {
+      const sample = state.transferRun.failures.slice(0, 5).map(f => `• ${f.path}: ${f.error}`).join('\n');
+      log(`Transfer completed with ${state.transferRun.failures.length} failure(s).\n${sample}`);
+      setProgress(state.transferRun.done, state.transferRun.total, `Completed with ${state.transferRun.failures.length} issue(s)`);
+    } else {
+      log(`Transfer complete. ${queue.length} file(s) moved to the destination server.`);
+      setProgress(queue.length, queue.length, 'Transfer complete');
+    }
+  }
+
+
+  el.scanBtn.addEventListener('click', async () => {
+    try {
+      setProgress(0, 1, 'Scanning archive');
+      await scanArchive();
+      setProgress(1, 1, 'Scan complete');
+    } catch (e) {
+      console.error(e);
+      log(`Scan failed: ${e.message || e}`);
+      setProgress(0, 0, 'Idle');
+    }
+  });
+
+  el.startBtn.addEventListener('click', async () => {
+    if (state.busy) return;
+    if (!validateDistinctServerBases()) {
+      const message = 'Destination server base must be different from the source server base.';
+      log(message);
+      try { el.destBase.reportValidity(); } catch {}
+      return;
+    }
+    state.busy = true;
+    el.startBtn.disabled = true;
+    try {
+      log('Preparing transfer...', { reset: true });
+      await transferArchive();
+    } catch (e) {
+      console.error(e);
+      log(`Transfer failed: ${e.message || e}`);
+    } finally {
+      state.busy = false;
+      el.startBtn.disabled = false;
+    }
+  });
+
+  el.probeBtn.addEventListener('click', async () => {
+    try {
+      const info = await probePlatform();
+      if (!info) return;
+      state.destination.method = info.method;
+      state.destination.endpoint = info.endpoint;
+      state.destination.platform = info.platform;
+      state.destination.resolvedBase = info.resolvedBase || state.destination.resolvedBase || el.destBase.value.trim();
+      el.modeText.textContent = info.method;
+      el.platformInfo.textContent = info.raw
+        ? `Detected ${info.platform || 'platform'}; method=${info.method}; endpoint=${info.endpoint || '(none)'}${info.resolvedBase ? `; resolved=${info.resolvedBase}` : ''}`
+        : 'platform.txt not found; using direct PUT fallback.';
+      log('platform.txt checked and destination strategy refreshed.');
+    } catch (e) {
+      console.error(e);
+      el.platformInfo.textContent = `Could not read platform.txt: ${e.message || e}`;
+      log(`platform.txt probe failed: ${e.message || e}`);
+    }
+  });
+
+  document.querySelectorAll('input[name="destType"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const mode = (document.querySelector('input[name="destType"]:checked') || {}).value || 'server';
+      state.destination.type = mode;
+      if (mode === 'usb') {
+        el.strategyText.textContent = 'USB/local folder mode writes files into a picked directory using the File System Access API. The archive still rewrites absolute URLs into mirrored ./ paths before writing.';
+      } else {
+        el.strategyText.textContent = 'Another server mode reads platform.txt from the destination, chooses the upload method, and defaults to direct PUT when nothing explicit is declared.';
+      }
+    });
+  });
+
+  function normalizeServerBaseValue(value) {
+    const raw = String(value || '').trim().replace(/\/+$/, '');
+    if (!raw) return '';
+    try {
+      const parsed = /^https?:\/\//i.test(raw) ? new URL(raw) : new URL(raw, location.href);
+      return `${parsed.protocol}//${parsed.host}`;
+    } catch {
+      return raw.toLowerCase();
+    }
+  }
+
+  function validateDistinctServerBases() {
+    const source = normalizeServerBaseValue(el.sourceBase.value || state.sourceBase || '');
+    const destination = normalizeServerBaseValue(el.destBase.value || state.destination.base || '');
+    if (!source || !destination) return true;
+    return source !== destination;
+  }
+
+  const syncBaseValidation = () => {
+    const ok = validateDistinctServerBases();
+    try {
+      if (!ok) {
+        el.destBase.setAttribute('aria-invalid', 'true');
+        el.platformInfo.textContent = 'Destination server base must be different from the source server base.';
+      } else {
+        el.destBase.removeAttribute('aria-invalid');
+      }
+    } catch {}
+    return ok;
+  };
+
+  el.sourceBase.addEventListener('input', () => {
+    state.sourceBase = el.sourceBase.value.trim();
+    syncBaseValidation();
+  });
+
+  el.destBase.addEventListener('input', () => {
+    state.destination.base = el.destBase.value.trim();
+    syncBaseValidation();
+  });
+
+  el.endpoint.addEventListener('input', () => {
+    state.destination.endpoint = el.endpoint.value.trim();
+  });
+
+  document.querySelectorAll('input[name="musicPref"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      state.musicPreference = getMusicPreference();
+    });
+  });
+
+  if (el.musicBatchSize) {
+    el.musicBatchSize.addEventListener('input', () => {
+      state.musicBatchSize = getMusicBatchSize();
+    });
+  }
+
+  if (el.preserveSetupFiles) {
+    el.preserveSetupFiles.addEventListener('change', () => {
+      state.preserveSetupFiles = !!el.preserveSetupFiles.checked;
+    });
+  }
+
+  if (el.preserveSetupFiles) {
+    state.preserveSetupFiles = !!el.preserveSetupFiles.checked;
+  }
+
+  state.musicPreference = getMusicPreference();
+  state.musicBatchSize = getMusicBatchSize();
+  syncBaseValidation();
+
+  updateSummary();
+})();
+</script>
+</body>
+</html>
