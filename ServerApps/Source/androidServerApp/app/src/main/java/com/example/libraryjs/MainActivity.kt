@@ -2,6 +2,7 @@ package com.example.libraryjs
 
 import android.Manifest
 import android.content.Intent
+import android.graphics.drawable.ColorDrawable
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -12,13 +13,18 @@ import android.text.TextUtils
 import android.content.res.ColorStateList
 import android.text.method.LinkMovementMethod
 import android.util.TypedValue
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.text.HtmlCompat
@@ -160,7 +166,7 @@ class MainActivity : AppCompatActivity() {
         mainPickButton = findViewById(R.id.pickFolderButton)
         extendedContainer = findViewById(R.id.extendedContainer)
 
-        installLibraryJsButton.setOnClickListener { openInstallLibraryJsPage() }
+        installLibraryJsButton.setOnClickListener { showInstallLibraryJsDialog() }
         temporaryUsbButton.setOnClickListener { toggleTemporaryUsb() }
         temporaryUsbPortInput.doAfterTextChanged {
             if (bindingUi) return@doAfterTextChanged
@@ -596,11 +602,155 @@ class MainActivity : AppCompatActivity() {
         textView.isLongClickable = true
     }
 
-    private fun openInstallLibraryJsPage() {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(ServerConfig.INSTALL_LIBRARYJS_URL))
-        runCatching { startActivity(intent) }
-            .onSuccess { statusText.text = "Opened the LibraryJS install page." }
-            .onFailure { error -> statusText.text = "Could not open install page: ${error.message ?: error.javaClass.simpleName}" }
+    private data class InstallTarget(val label: String, val root: StorageRoot)
+
+    private fun showInstallLibraryJsDialog() {
+        val targets = buildInstallTargets()
+        if (targets.isEmpty()) {
+            statusText.text = "Pick the main server root or start the temporary USB server before installing the hosted bundle."
+            return
+        }
+
+        val dialogBg = 0xFF141A22.toInt()
+        val dialogTextPrimary = 0xFFE8EEF7.toInt()
+        val dialogTextSecondary = 0xFFA8B3C7.toInt()
+        val dialogAccent = 0xFF79A8FF.toInt()
+
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(dialogBg)
+            isFillViewport = true
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(dialogBg)
+            setPadding(dp(20), dp(18), dp(20), dp(8))
+        }
+
+        val intro = TextView(this).apply {
+            text = "Choose where to install LibraryJS and whether to preserve your database files."
+            setTextColor(dialogTextPrimary)
+            textSize = 14f
+        }
+        content.addView(intro)
+
+        val targetLabel = TextView(this).apply {
+            text = "Destination server"
+            setTextColor(dialogTextSecondary)
+            setPadding(0, dp(14), 0, dp(8))
+        }
+        content.addView(targetLabel)
+
+        val targetGroup = RadioGroup(this).apply {
+            orientation = RadioGroup.VERTICAL
+        }
+        val targetButtons = targets.mapIndexed { index, target ->
+            RadioButton(this).apply {
+                id = View.generateViewId()
+                text = target.label
+                setTextColor(dialogTextPrimary)
+                isChecked = index == 0
+            }.also { targetGroup.addView(it) }
+        }
+        content.addView(targetGroup)
+
+        val modeLabel = TextView(this).apply {
+            text = "Install mode"
+            setTextColor(dialogTextSecondary)
+            setPadding(0, dp(16), 0, dp(8))
+        }
+        content.addView(modeLabel)
+
+        val modeGroup = RadioGroup(this).apply {
+            orientation = RadioGroup.VERTICAL
+        }
+        val wipeButton = RadioButton(this).apply {
+            id = View.generateViewId()
+            text = "Complete Wipe"
+            setTextColor(dialogTextPrimary)
+            isChecked = true
+        }
+        val preserveButton = RadioButton(this).apply {
+            id = View.generateViewId()
+            text = "Preserve current files"
+            setTextColor(dialogTextPrimary)
+        }
+        modeGroup.addView(wipeButton)
+        modeGroup.addView(preserveButton)
+        content.addView(modeGroup)
+
+        val note = TextView(this).apply {
+            text = "Preserve mode saves and restores your database JS files after the bundle finishes unpacking."
+            setTextColor(dialogTextSecondary)
+            setPadding(0, dp(12), 0, 0)
+        }
+        content.addView(note)
+
+        scroll.addView(content)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(scroll)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Install", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawable(ColorDrawable(dialogBg))
+            dialog.findViewById<View>(androidx.appcompat.R.id.parentPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.topPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.contentPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.buttonPanel)?.setBackgroundColor(dialogBg)
+
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).apply {
+                setTextColor(dialogAccent)
+                setOnClickListener {
+                    val selectedIndex = targetGroup.indexOfChild(
+                        targetButtons.firstOrNull { it.isChecked } ?: targetButtons.first()
+                    ).coerceAtLeast(0)
+                    val selectedTarget = targets.getOrNull(selectedIndex) ?: targets.first()
+                    val preserve = preserveButton.isChecked
+                    dialog.dismiss()
+                    startHostedBundleInstall(selectedTarget.root, selectedTarget.label, preserve)
+                }
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(dialogTextPrimary)
+        }
+        dialog.show()
+    }
+
+    private fun buildInstallTargets(): List<InstallTarget> {
+        val targets = mutableListOf<InstallTarget>()
+        store.loadMainRoot()?.let { targets += InstallTarget("Mainserver • ${it.displayName}", it) }
+        TemporaryUsbRegistry.get()?.let { targets += InstallTarget("Temporary USB server • ${it.displayName}", it) }
+        return targets.distinctBy { it.root.treeUri }
+    }
+
+    private fun startHostedBundleInstall(root: StorageRoot, targetLabel: String, preserve: Boolean) {
+        statusText.text = if (preserve) {
+            "Downloading HostedByServerApp.zip for ${root.displayName} with preserve mode..."
+        } else {
+            "Downloading HostedByServerApp.zip for ${root.displayName}..."
+        }
+
+        Thread {
+            runCatching {
+                ReleaseBundleInstaller.installHostedBundle(
+                    context = this,
+                    root = root,
+                    releaseZipUrl = ServerConfig.INSTALL_LIBRARYJS_URL,
+                    preserveRelativePaths = if (preserve) ServerConfig.INSTALL_LIBRARYJS_PRESERVE_PATHS else emptyList(),
+                    onProgress = { message -> runOnUiThread { statusText.text = message } }
+                )
+            }.onSuccess { message ->
+                runOnUiThread {
+                    statusText.text = "${message} (Target: $targetLabel)"
+                    startServerService()
+                }
+            }.onFailure { error ->
+                runOnUiThread {
+                    statusText.text = "Install failed: ${error.message ?: error.javaClass.simpleName}"
+                }
+            }
+        }.start()
     }
 
     private fun toggleTemporaryUsb() {

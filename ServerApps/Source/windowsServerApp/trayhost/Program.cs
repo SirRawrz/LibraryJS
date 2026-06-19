@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.IO.Compression;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -46,6 +47,11 @@ internal static class PortUtil
 internal sealed record ActiveEndpointLink(string DisplayText, string Url);
 internal sealed record ActiveEndpointGroup(string Title, IReadOnlyList<ActiveEndpointLink> Links);
 internal sealed record TemporaryUsbLaunchOptions(string FolderRoot, int Port);
+internal sealed record InstallTarget(string Label, string FolderRoot)
+{
+    public override string ToString() => Label;
+}
+
 
 internal sealed class LibraryJSServerContext : ApplicationContext
 {
@@ -67,6 +73,19 @@ internal sealed class LibraryJSServerContext : ApplicationContext
     private bool _autoStartAttempted;
     private bool _suppressServerExitNotifications;
 
+    private static readonly string[] HostedBundlePreservePaths = new[]
+    {
+        "mainfolders.js",
+        "library.js",
+        "loadseasonfunctions.js",
+        "musiclibrary.js",
+        "manga.js",
+        "books.js",
+        "guidebooks.js",
+        "profile.js",
+        "games.js"
+    };
+
     public LibraryJSServerContext()
     {
         _appIcon = LoadAppIcon();
@@ -76,7 +95,7 @@ internal sealed class LibraryJSServerContext : ApplicationContext
         _window.RequestStart += async (_, port) => await StartAsync(port);
         _window.RequestStop += (_, _) => StopRunningServers();
         _window.RequestExit += (_, _) => ExitApplication();
-        _window.RequestInstallLibraryJs += (_, _) => OpenLibraryJsInstaller();
+        _window.RequestInstallLibraryJs += async (_, _) => await OpenLibraryJsInstallerAsync();
         _window.RequestTemporaryUsb += async (_, _) => await ToggleTemporaryUsbAsync();
         _window.PortChanged += (_, port) =>
         {
@@ -539,29 +558,424 @@ internal sealed class LibraryJSServerContext : ApplicationContext
         }
     }
 
-    private void OpenLibraryJsInstaller()
+    private async Task OpenLibraryJsInstallerAsync()
     {
+        var targets = BuildInstallTargets();
+        if (targets.Count == 0)
+        {
+            _window.SetStatus("Choose the main server root or start the temporary USB server before installing the hosted bundle.");
+            _window.SetStatusDetail("The installer needs at least one active folder root so it knows where to unpack the files.");
+            return;
+        }
+
+        using var dialog = BuildInstallDialog(targets);
+        if (dialog.ShowDialog(_window) != DialogResult.OK)
+        {
+            _window.SetStatus("Hosted bundle install canceled.");
+            _window.SetStatusDetail(string.Empty);
+            return;
+        }
+
+        if (dialog.SelectedTarget is null)
+        {
+            _window.SetStatus("No installation target was selected.");
+            _window.SetStatusDetail(string.Empty);
+            return;
+        }
+
         var url = Environment.GetEnvironmentVariable("LIBRARYJS_INSTALL_URL");
         if (string.IsNullOrWhiteSpace(url))
         {
-            url = "https://github.com/search?q=HostedByServer&type=repositories";
+            url = "https://github.com/SirRawrz/LibraryJS/releases/download/V1.0/HostedByServerApp.zip";
         }
+
+        var selectedTarget = dialog.SelectedTarget;
+        var preserve = dialog.PreserveCurrentFiles;
+        _window.SetStatus(preserve
+            ? $"Downloading HostedByServerApp.zip for {selectedTarget.Label} with preserve mode..."
+            : $"Downloading HostedByServerApp.zip for {selectedTarget.Label}...");
+        _window.SetStatusDetail(selectedTarget.FolderRoot);
 
         try
         {
-            Process.Start(new ProcessStartInfo(url)
-            {
-                UseShellExecute = true
-            });
-            _window.SetStatus("Opened the LibraryJS install page.");
+            var installed = await DownloadAndInstallHostedBundleAsync(selectedTarget.FolderRoot, url, preserve).ConfigureAwait(true);
+            _window.SetStatus(installed);
+            _window.SetStatusDetail(selectedTarget.FolderRoot);
         }
         catch (Exception ex)
         {
-            _window.SetStatus("Unable to open the LibraryJS install page.");
+            _window.SetStatus("Hosted bundle install failed.");
+            _window.SetStatusDetail(ex.Message);
             MessageBox.Show(_window, ex.Message, "LibraryJS Server", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
+    private IReadOnlyList<InstallTarget> BuildInstallTargets()
+    {
+        var targets = new List<InstallTarget>();
+        var mainRoot = _window.SelectedFolderRoot?.Trim();
+        if (!string.IsNullOrWhiteSpace(mainRoot))
+        {
+            targets.Add(new InstallTarget("Mainserver", mainRoot));
+        }
+
+        if (_temporaryUsbServer is not null && !string.IsNullOrWhiteSpace(_temporaryUsbServer.FolderRoot))
+        {
+            targets.Add(new InstallTarget("Temporary USB server", _temporaryUsbServer.FolderRoot));
+        }
+
+        return targets
+            .GroupBy(target => target.FolderRoot, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+    }
+
+    private InstallDialogResult BuildInstallDialog(IReadOnlyList<InstallTarget> targets)
+    {
+        var form = new Form
+        {
+            Text = "Install LibraryJS",
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            ClientSize = new System.Drawing.Size(540, 300),
+            BackColor = Color.FromArgb(20, 32, 34),
+            ForeColor = Color.FromArgb(240, 245, 242),
+            Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point)
+        };
+
+        var title = new Label
+        {
+            Left = 20,
+            Top = 18,
+            Width = 490,
+            Height = 38,
+            Text = "Choose where to install the hosted bundle, then decide whether to preserve your database files.",
+            ForeColor = Color.FromArgb(240, 245, 242)
+        };
+
+        var targetLabel = new Label
+        {
+            Left = 20,
+            Top = 70,
+            Width = 180,
+            Height = 20,
+            Text = "Destination server",
+            ForeColor = Color.FromArgb(183, 201, 198)
+        };
+
+        var targetCombo = new ComboBox
+        {
+            Left = 20,
+            Top = 94,
+            Width = 490,
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            BackColor = Color.FromArgb(18, 29, 31),
+            ForeColor = Color.FromArgb(240, 245, 242)
+        };
+        foreach (var target in targets)
+        {
+            targetCombo.Items.Add(target);
+        }
+        if (targetCombo.Items.Count > 0)
+        {
+            targetCombo.SelectedIndex = 0;
+        }
+
+        var modeLabel = new Label
+        {
+            Left = 20,
+            Top = 136,
+            Width = 180,
+            Height = 20,
+            Text = "Install mode",
+            ForeColor = Color.FromArgb(183, 201, 198)
+        };
+
+        var wipeRadio = new RadioButton
+        {
+            Left = 20,
+            Top = 162,
+            Width = 260,
+            Height = 22,
+            Text = "Complete Wipe",
+            Checked = true,
+            ForeColor = Color.FromArgb(240, 245, 242)
+        };
+        var preserveRadio = new RadioButton
+        {
+            Left = 20,
+            Top = 188,
+            Width = 340,
+            Height = 22,
+            Text = "Preserve current files",
+            ForeColor = Color.FromArgb(240, 245, 242)
+        };
+
+        var note = new Label
+        {
+            Left = 20,
+            Top = 220,
+            Width = 490,
+            Height = 34,
+            Text = "Preserve mode backs up the existing database JS files, installs the ZIP, then restores the files you listed.",
+            ForeColor = Color.FromArgb(148, 163, 184)
+        };
+
+        var okButton = new Button
+        {
+            Left = 350,
+            Top = 262,
+            Width = 80,
+            Height = 28,
+            Text = "Install",
+            DialogResult = DialogResult.OK,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(64, 165, 109),
+            ForeColor = Color.White
+        };
+        var cancelButton = new Button
+        {
+            Left = 440,
+            Top = 262,
+            Width = 80,
+            Height = 28,
+            Text = "Cancel",
+            DialogResult = DialogResult.Cancel,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(46, 62, 63),
+            ForeColor = Color.FromArgb(240, 245, 242)
+        };
+
+        okButton.Click += (_, _) =>
+        {
+            if (targetCombo.SelectedItem is not InstallTarget)
+            {
+                MessageBox.Show(form, "Choose a destination server first.", "LibraryJS Server", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                form.DialogResult = DialogResult.None;
+                return;
+            }
+        };
+
+        form.Controls.Add(title);
+        form.Controls.Add(targetLabel);
+        form.Controls.Add(targetCombo);
+        form.Controls.Add(modeLabel);
+        form.Controls.Add(wipeRadio);
+        form.Controls.Add(preserveRadio);
+        form.Controls.Add(note);
+        form.Controls.Add(okButton);
+        form.Controls.Add(cancelButton);
+        form.AcceptButton = okButton;
+        form.CancelButton = cancelButton;
+
+        return new InstallDialogResult(form, targetCombo, preserveRadio);
+    }
+
+    private sealed class InstallDialogResult : IDisposable
+    {
+        private readonly Form _form;
+        private readonly ComboBox _targetCombo;
+        private readonly RadioButton _preserveRadio;
+
+        public InstallDialogResult(Form form, ComboBox targetCombo, RadioButton preserveRadio)
+        {
+            _form = form;
+            _targetCombo = targetCombo;
+            _preserveRadio = preserveRadio;
+        }
+
+        public InstallTarget? SelectedTarget => _targetCombo.SelectedItem as InstallTarget;
+        public bool PreserveCurrentFiles => _preserveRadio.Checked;
+
+        public DialogResult ShowDialog(IWin32Window owner) => _form.ShowDialog(owner);
+        public void Dispose() => _form.Dispose();
+    }
+
+    private static async Task<string> DownloadAndInstallHostedBundleAsync(string destinationRoot, string releaseZipUrl, bool preserveCurrentFiles)
+    {
+        if (string.IsNullOrWhiteSpace(destinationRoot))
+        {
+            throw new InvalidOperationException("Destination root is missing.");
+        }
+
+        Directory.CreateDirectory(destinationRoot);
+        var preservedFiles = preserveCurrentFiles ? SnapshotPreservedFiles(destinationRoot, HostedBundlePreservePaths) : Array.Empty<PreservedFile>();
+
+        var installRoot = Path.Combine(Path.GetTempPath(), "LibraryJS", "HostedByServerApp", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(installRoot);
+        var zipPath = Path.Combine(installRoot, "HostedByServerApp.zip");
+
+        try
+        {
+            using (var client = new HttpClient())
+            {
+                client.Timeout = TimeSpan.FromMinutes(10);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("LibraryJS-ServerTray/1.0");
+
+                using var response = await client.GetAsync(releaseZipUrl, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                await using var network = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                await using var file = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                await network.CopyToAsync(file).ConfigureAwait(false);
+            }
+
+            var installed = ExtractHostedBundle(zipPath, destinationRoot);
+            var restored = preserveCurrentFiles ? RestorePreservedFiles(destinationRoot, preservedFiles) : 0;
+            return restored > 0
+                ? $"Installed {installed} file{(installed == 1 ? string.Empty : "s")} to {destinationRoot} and restored {restored} preserved file{(restored == 1 ? string.Empty : "s")}."
+                : $"Installed {installed} file{(installed == 1 ? string.Empty : "s")} to the selected server root.";
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(installRoot))
+                {
+                    Directory.Delete(installRoot, recursive: true);
+                }
+            }
+            catch
+            {
+                // Best effort cleanup.
+            }
+        }
+    }
+
+    private sealed record PreservedFile(string RelativePath, byte[] Content);
+
+    private static IReadOnlyList<PreservedFile> SnapshotPreservedFiles(string destinationRoot, IEnumerable<string> relativePaths)
+    {
+        var files = new List<PreservedFile>();
+        foreach (var relativePath in relativePaths.Select(path => NormalizeRelativePreservePath(path)).Where(path => !string.IsNullOrWhiteSpace(path)))
+        {
+            var fullPath = Path.Combine(destinationRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(fullPath))
+            {
+                continue;
+            }
+
+            files.Add(new PreservedFile(relativePath, File.ReadAllBytes(fullPath)));
+        }
+        return files;
+    }
+
+    private static int RestorePreservedFiles(string destinationRoot, IReadOnlyList<PreservedFile> files)
+    {
+        var restored = 0;
+        foreach (var file in files)
+        {
+            var fullPath = Path.Combine(destinationRoot, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+            var directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.WriteAllBytes(fullPath, file.Content);
+            restored++;
+        }
+        return restored;
+    }
+
+    private static string NormalizeRelativePreservePath(string path)
+    {
+        return (path ?? string.Empty).Replace('\\', '/').TrimStart('/').Trim();
+    }
+
+    private static int ExtractHostedBundle(string zipPath, string destinationRoot)
+    {
+        var installed = 0;
+        using var archive = ZipFile.OpenRead(zipPath);
+        var entries = archive.Entries.Where(entry => !string.IsNullOrWhiteSpace(entry.FullName) && !entry.FullName.EndsWith("/", StringComparison.Ordinal)).ToList();
+        var prefix = DetectCommonRootPrefix(entries.Select(entry => NormalizeZipPath(entry.FullName)).ToList());
+
+        foreach (var entry in entries)
+        {
+            var normalized = NormalizeZipPath(entry.FullName);
+            var relative = StripZipPrefix(normalized, prefix);
+            if (!IsSafeRelativeZipPath(relative))
+            {
+                continue;
+            }
+
+            var targetPath = Path.Combine(destinationRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+            var targetDirectory = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrWhiteSpace(targetDirectory))
+            {
+                Directory.CreateDirectory(targetDirectory);
+            }
+
+            using var input = entry.Open();
+            using var output = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            input.CopyTo(output);
+            installed++;
+        }
+
+        return installed;
+    }
+
+    private static string NormalizeZipPath(string path)
+    {
+        return (path ?? string.Empty).Replace('\\', '/').TrimStart('/').Trim();
+    }
+
+    private static string? DetectCommonRootPrefix(IReadOnlyList<string> entryNames)
+    {
+        var roots = entryNames
+            .Select(name => name.Split('/', 2)[0])
+            .Where(name => !string.IsNullOrWhiteSpace(name) && entryNames.Any(full => full.StartsWith(name + "/", StringComparison.OrdinalIgnoreCase)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (roots.Count != 1)
+        {
+            return null;
+        }
+
+        var root = roots[0];
+        return entryNames.All(name => string.Equals(name, root, StringComparison.OrdinalIgnoreCase) || name.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase))
+            ? root
+            : null;
+    }
+
+    private static string StripZipPrefix(string path, string? prefix)
+    {
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            return path;
+        }
+
+        if (string.Equals(path, prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        var rootPrefix = prefix.TrimEnd('/') + "/";
+        if (path.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return path.Substring(rootPrefix.Length);
+        }
+
+        return path;
+    }
+
+    private static bool IsSafeRelativeZipPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var normalized = path.Replace('\\', '/');
+        return !normalized.StartsWith("../", StringComparison.Ordinal) &&
+               !normalized.Contains("/../", StringComparison.Ordinal) &&
+               normalized != ".." &&
+               !Path.IsPathRooted(normalized);
+    }
     private async Task ToggleTemporaryUsbAsync()
     {
         if (_temporaryUsbServer is not null)

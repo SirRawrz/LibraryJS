@@ -3721,7 +3721,7 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     };
     info.method = alias[info.method] || info.method || 'put';
     if (!['put', 'post', 'filesystem', 'copy'].includes(info.method)) info.method = 'put';
-    if (info.platform && /android/i.test(info.platform) && !methodWasExplicit && info.method === 'put') {
+    if (info.platform && /android|windows/i.test(info.platform) && !methodWasExplicit && info.method === 'put') {
       info.method = 'copy';
     }
     if (!info.endpoint) info.endpoint = el.endpoint.value.trim();
@@ -3746,7 +3746,8 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
       return joinBase(resolvedBase, fallbackPath);
     };
 
-    if (hasSourceUrl && (strategy.method === 'copy' || platform === 'android')) {
+    // Prefer the destination server's copy API for sourceUrl-backed transfers on Android and Windows.
+    if (hasSourceUrl && (strategy.method === 'copy' || platform === 'android' || platform === 'windows')) {
       const url = normalizeRequestUrl(joinEndpoint('api/file/copy'));
       // Remote copy can take a long time for multi-gigabyte media because the server
       // is streaming from the source URL to the destination file. Do not abort this
