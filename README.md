@@ -1,3 +1,68 @@
+## README-HostedBundle.md
+Project documentation / readme
+
+    # LibraryJS Hosted Bundle
+
+    This folder is the actual LibraryJS experience.
+
+    The Android and Windows apps are only the host shells. This bundle is the part people browse, organize, assemble, read, watch, launch, back up, restore, and clone. It is designed to feel like one local-first media environment rather than a pile of unrelated pages.
+
+    ## The core idea
+
+    LibraryJS is built around a contract between the host and the hosted files.
+
+    The host is responsible for:
+
+    - serving the bundle over HTTP or HTTPS
+    - writing the runtime identity files the pages read
+    - exposing upload, copy, proxy, and repair routes
+    - keeping the chosen roots available
+    - supporting cloning and temporary USB workflows
+
+    The hosted bundle is responsible for:
+
+    - presenting the UI
+    - discovering and organizing content
+    - keeping profile state and playback history
+    - switching between media, reading, games, and tools
+    - using relative paths so the same bundle can move between hosts
+
+    That split is what makes the project portable.
+
+    ## How the project is meant to be used
+
+    The usual flow is:
+
+    1. A setup host is pointed at a root.
+    2. Content is gathered and assembled through `lib.html`, `manage.html`, the extension, and the other helper pages.
+    3. Media that is missing or incomplete can be added through the management flows.
+    4. Once the library has enough substance, the host can be backed up or selectively cloned to another server.
+    5. The same bundle can then be opened again on the next host with its identity files rewritten for that environment.
+
+    That makes the project feel less like a downloader and more like a portable library seed.
+
+    ## The host-written contract files
+
+    These files tell the bundle what machine it is sitting on and how to talk back to it:
+
+    - `platform.txt`
+    - `serverip.txt`
+    - `httpserverip.txt`
+    - `httpsserverip.txt`
+    - `tailscaleip.txt`
+    - `tailscaleserverip.txt`
+    - `expandedstorage.txt`
+    - `https setup.txt`
+
+    The bundle leans on these files instead of hardcoded machine paths so the same content can be moved, mirrored, or restored elsewhere.
+
+    ## The main parts of the bundle
+
+    ### `index.html`
+    The home page and dispatcher.
+
+    This is the first place most users land. It links the profile system, the me
+
 ## README-AndroidServerApp.md
 Project documentation / readme
 
@@ -65,70 +130,7 @@ Project documentation / readme
 
     It creates and reloads local certificate material so the host ca
 
-## README-HostedBundle.md
-Project documentation / readme
 
-    # LibraryJS Hosted Bundle
-
-    This folder is the actual LibraryJS experience.
-
-    The Android and Windows apps are only the host shells. This bundle is the part people browse, organize, assemble, read, watch, launch, back up, restore, and clone. It is designed to feel like one local-first media environment rather than a pile of unrelated pages.
-
-    ## The core idea
-
-    LibraryJS is built around a contract between the host and the hosted files.
-
-    The host is responsible for:
-
-    - serving the bundle over HTTP or HTTPS
-    - writing the runtime identity files the pages read
-    - exposing upload, copy, proxy, and repair routes
-    - keeping the chosen roots available
-    - supporting cloning and temporary USB workflows
-
-    The hosted bundle is responsible for:
-
-    - presenting the UI
-    - discovering and organizing content
-    - keeping profile state and playback history
-    - switching between media, reading, games, and tools
-    - using relative paths so the same bundle can move between hosts
-
-    That split is what makes the project portable.
-
-    ## How the project is meant to be used
-
-    The usual flow is:
-
-    1. A setup host is pointed at a root.
-    2. Content is gathered and assembled through `lib.html`, `manage.html`, the extension, and the other helper pages.
-    3. Media that is missing or incomplete can be added through the management flows.
-    4. Once the library has enough substance, the host can be backed up or selectively cloned to another server.
-    5. The same bundle can then be opened again on the next host with its identity files rewritten for that environment.
-
-    That makes the project feel less like a downloader and more like a portable library seed.
-
-    ## The host-written contract files
-
-    These files tell the bundle what machine it is sitting on and how to talk back to it:
-
-    - `platform.txt`
-    - `serverip.txt`
-    - `httpserverip.txt`
-    - `httpsserverip.txt`
-    - `tailscaleip.txt`
-    - `tailscaleserverip.txt`
-    - `expandedstorage.txt`
-    - `https setup.txt`
-
-    The bundle leans on these files instead of hardcoded machine paths so the same content can be moved, mirrored, or restored elsewhere.
-
-    ## The main parts of the bundle
-
-    ### `index.html`
-    The home page and dispatcher.
-
-    This is the first place most users land. It links the profile system, the me
 
 ## README-WindowsServerApp.md
 Project documentation / readme
