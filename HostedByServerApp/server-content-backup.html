@@ -41,7 +41,7 @@
       display:flex; flex-wrap:wrap; gap:14px;
       align-items:flex-start; justify-content:space-between;
       padding:16px;
-      margin-bottom:16px;
+      margin-bottom:12px;
     }
     .hero h1{margin:0;font-size:26px;letter-spacing:-.04em}
     .hero .sub{
@@ -87,22 +87,23 @@
     }
     button.ghost{background:rgba(255,255,255,.04)}
     button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+    .flowMode #backupBtn{display:none!important;}
 
     .rail{
       display:grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap:12px;
-      margin-bottom:16px;
+      gap:6px;
+      margin-bottom:8px;
     }
     .sectionCard{
       position:relative;
-      min-height:106px;
+      min-height:44px;
       overflow:hidden;
-      padding:14px 14px 12px;
+      padding:4px 8px 4px;
       display:flex;
       flex-direction:column;
       justify-content:space-between;
-      gap:10px;
+      gap:2px;
     }
     .sectionCard.active{
       outline:2px solid rgba(121,227,197,.28);
@@ -110,40 +111,41 @@
     }
     .sectionCard.disabled{opacity:.68}
     .sectionCard .topline{
-      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
     }
     .sectionCard .name{
-      font-size:15px;
+      font-size:10px;
       font-weight:800;
       letter-spacing:-.02em;
+      line-height:1.05;
     }
     .sectionCard .meta{
-      margin-top:4px;
+      margin-top:1px;
       color:var(--muted);
-      font-size:12px;
-      line-height:1.35;
+      font-size:9px;
+      line-height:1.15;
     }
     .sectionCard .count{
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      min-width:30px;
-      padding:4px 8px;
+      min-width:22px;
+      padding:2px 5px;
       border-radius:999px;
       background:rgba(255,255,255,.05);
       border:1px solid rgba(255,255,255,.08);
       color:var(--text);
-      font-size:11px;
+      font-size:9px;
       font-weight:700;
       white-space:nowrap;
     }
     .sectionCheck{
       position:absolute;
-      top:10px;
-      right:10px;
-      width:26px;
-      height:26px;
-      border-radius:8px;
+      top:6px;
+      right:6px;
+      width:20px;
+      height:20px;
+      border-radius:7px;
       background:rgba(10,14,22,.7);
       border:1px solid rgba(255,255,255,.12);
       display:flex;
@@ -152,7 +154,7 @@
       backdrop-filter:blur(8px);
       z-index:2;
     }
-    .sectionCheck input{width:18px;height:18px;margin:0;cursor:pointer}
+    .sectionCheck input{width:14px;height:14px;margin:0;cursor:pointer}
 
     .main{
       display:grid;
@@ -191,7 +193,7 @@
     }
     .grid{
       display:grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap:14px;
     }
     .tile{
@@ -202,14 +204,14 @@
       background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
       box-shadow:0 10px 25px rgba(0,0,0,.18);
       cursor:pointer;
-      min-height:220px;
+      min-height:196px;
       display:flex;
       flex-direction:column;
       transition:transform .12s ease, border-color .12s ease, box-shadow .12s ease;
     }
     .tile:hover{transform:translateY(-2px); border-color:rgba(134,170,252,.25); box-shadow:0 16px 30px rgba(0,0,0,.28)}
     .tile .art{
-      height:132px;
+      height:108px;
       background:
         radial-gradient(circle at 30% 20%, rgba(121,227,197,.25), transparent 30%),
         radial-gradient(circle at 70% 80%, rgba(134,170,252,.22), transparent 26%),
@@ -223,7 +225,7 @@
     .tile .fallback{
       position:absolute; inset:0;
       display:flex; align-items:center; justify-content:center;
-      padding:14px;
+      padding:12px;
       text-align:center;
       font-size:22px;
       line-height:1.05;
@@ -234,15 +236,15 @@
       background:linear-gradient(135deg, rgba(12,16,24,.15), rgba(12,16,24,.5));
     }
     .tile .body{
-      padding:12px 12px 13px;
+      padding:10px 10px 11px;
       display:flex;
       flex-direction:column;
       gap:8px;
-      min-height:88px;
+      min-height:72px;
     }
     .tile .name{
       font-weight:750;
-      font-size:14px;
+      font-size:13px;
       line-height:1.15;
       overflow:hidden;
       display:-webkit-box;
@@ -260,12 +262,12 @@
       border:1px solid rgba(255,255,255,.08);
       background:rgba(255,255,255,.04);
       color:var(--text);
-      font-size:11px;
+      font-size:10px;
       white-space:nowrap;
     }
     .check{
       position:absolute;
-      top:10px; right:10px;
+      top:8px; right:8px;
       width:26px; height:26px;
       border-radius:8px;
       background:rgba(10,14,22,.75);
@@ -282,9 +284,9 @@
     .tile.partial{outline:2px solid rgba(255,190,106,.45); border-color:rgba(255,190,106,.24)}
     .tile .openHint{
       position:absolute; bottom:10px; right:10px;
-      padding:5px 8px;
+      padding:4px 7px;
       border-radius:999px;
-      font-size:11px;
+      font-size:10px;
       background:rgba(0,0,0,.38);
       border:1px solid rgba(255,255,255,.12);
       color:#fff;
@@ -365,24 +367,6 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="hero">
-      <div class="titleBlock">
-        <h1>Server Content Backup</h1>
-        <div class="sub">
-          Video, Music, Games, Books, and Manga each get their own backup logic. Video mirrors your main-folder library like <span class="mono">index.html</span>; Music exports a trimmed <span class="mono">musiclibrary.js</span>; Games exports <span class="mono">games.js</span> together with matching <span class="mono">guidebooks.js</span> entries; Books and Manga export trimmed library data with book audiobook flags preserved when present.
-        </div>
-        <div class="notice" id="notice"></div>
-      </div>
-      <div class="actions">
-        <input id="search" type="text" placeholder="Filter current view..." />
-        <button id="homeBtn">Roots</button>
-        <button id="upBtn">Up</button>
-        <button id="selectAllBtn">Select view</button>
-        <button id="clearViewBtn" class="danger">Clear view</button>
-        <button id="backupBtn" class="primary">Backup selected</button>
-      </div>
-    </div>
-
     <div class="rail" id="rail">
       <div class="sectionCard active" id="videoCard">
         <label class="sectionCheck"><input id="videoCardCheck" type="checkbox" /></label>
@@ -444,6 +428,18 @@
         <div class="meta" id="mangaHint">Active section</div>
       </div>
     </div>
+
+    <div class="hero">
+      <div class="actions">
+        <input id="search" type="text" placeholder="Filter current view..." />
+        <button id="homeBtn">Roots</button>
+        <button id="upBtn">Up</button>
+        <button id="selectAllBtn">Select view</button>
+        <button id="clearViewBtn" class="danger">Clear view</button>
+        <button id="backupBtn" class="primary">Backup selected</button>
+      </div>
+    </div>
+    <div class="notice" id="notice"></div>
 
     <div class="main">
       <div class="panel">
@@ -560,6 +556,10 @@
     sourceBase: "",
     selectionVersion: 0
   };
+
+  const flowMode = new URLSearchParams(location.search).has('flow');
+  const flowTargetOrigin = location.origin === 'null' ? '*' : location.origin;
+  if (flowMode) document.body.classList.add("flowMode");
 
   Object.defineProperty(state, "selected", {
     get() {
@@ -894,6 +894,7 @@
       title: cleanSong,
       song: cleanSong,
       artist: cleanArtist,
+      code: genreCode,
       genreCode,
       genreName,
       sortTitle: cleanSong,
@@ -1514,13 +1515,15 @@ window.musicLibrary = ${JSON.stringify(out, null, 2)};
 `;
   }
 
-  function buildMiniGuidebooksLibrary(selectedGames = selectedGameEntries()) {
-    const games = Array.isArray(selectedGames) ? selectedGames : [];
+  function buildMiniGuidebooksLibrary(selectedRoots = selectedRootsForOutput()) {
+    const selectedGames = (Array.isArray(selectedRoots) && selectedRoots.length && typeof selectedRoots[0] !== "object")
+      ? selectedGameEntries(selectedRoots)
+      : (Array.isArray(selectedRoots) ? selectedRoots : selectedGameEntries());
 
     function itemMatchesGame(item) {
       if (!item || typeof item !== "object") return false;
-      for (let i = 0; i < games.length; i++) {
-        if (guidebookMatchesGame(item, games[i], i)) return true;
+      for (let i = 0; i < selectedGames.length; i++) {
+        if (guidebookMatchesGame(item, selectedGames[i], i)) return true;
       }
       return false;
     }
@@ -1538,11 +1541,26 @@ window.musicLibrary = ${JSON.stringify(out, null, 2)};
       return item && typeof item === "object" ? JSON.parse(JSON.stringify(item)) : item;
     }
 
+    function guidebookOutputKey(item) {
+      const parts = [
+        item && item.matchedGameRomBase,
+        item && item.matchedGameBase,
+        item && item.matchedGame,
+        item && item.file,
+        item && item.cover,
+        item && item.title
+      ].filter(Boolean).map(cleanTitle);
+      return compareKey(parts.join(" | "));
+    }
+
     const items = [];
+    const seen = new Set();
     for (const item of state.guidebooks || []) {
-      if (groupMatchesAnyGame(item)) {
-        items.push(cloneGuidebookItem(item));
-      }
+      if (!groupMatchesAnyGame(item)) continue;
+      const key = guidebookOutputKey(item);
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      items.push(cloneGuidebookItem(item));
     }
 
     return `/* Generated by server-content-backup.html */
@@ -2219,24 +2237,84 @@ window.libraryData = ${JSON.stringify({ title: "Manga Library", items }, null, 2
     return firstSelectedPath ? String(firstSelectedPath[0] || "").trim() : "";
   }
 
-  function selectedRootsForOutput() {
-    const deepSelected = getDeepSelectedPaths();
-    const roots = [];
-    const seen = new Set();
-
-    for (const path of deepSelected) {
-      const root = String(path[0] || "").trim();
-      if (!root || seen.has(root)) continue;
-      seen.add(root);
-      roots.push(root);
+  function withSection(section, fn) {
+    const prev = state.currentSection;
+    state.currentSection = section || prev || "video";
+    try {
+      return fn();
+    } finally {
+      state.currentSection = prev;
     }
+  }
 
-    if (roots.length) return roots;
+  function selectedRootsForOutput(section = state.currentSection) {
+    return withSection(section, () => {
+      const deepSelected = getDeepSelectedPaths();
+      const roots = [];
+      const seen = new Set();
 
-    const scopeRoot = getBackupScopeRoot();
-    if (!scopeRoot) return [];
-    const root = { title: scopeRoot, path: [scopeRoot], ancestry: [scopeRoot] };
-    return subtreeHasSelection(root) ? [scopeRoot] : [];
+      for (const path of deepSelected) {
+        const root = String(path[0] || "").trim();
+        if (!root || seen.has(root)) continue;
+        seen.add(root);
+        roots.push(root);
+      }
+
+      if (roots.length) return roots;
+
+      const scopeRoot = getBackupScopeRoot();
+      if (!scopeRoot) return [];
+      const root = { title: scopeRoot, path: [scopeRoot], ancestry: [scopeRoot] };
+      return subtreeHasSelection(root) ? [scopeRoot] : [];
+    });
+  }
+
+  function selectedSectionsForOutput() {
+    const sections = ["video", "music", "games", "books", "manga"];
+    return sections.filter(section => selectedRootsForOutput(section).length);
+  }
+
+  function buildFilesForSection(section) {
+    return withSection(section, () => {
+      const selectedRoots = selectedRootsForOutput(section);
+      if (!selectedRoots.length) return [];
+
+      if (section === "music") {
+        const miniMusic = buildMiniMusicLibrary(selectedRoots);
+        return [{ name: "musiclibrary.js", content: miniMusic }];
+      }
+
+      if (section === "games") {
+        const miniGames = buildMiniGamesLibrary(selectedRoots);
+        const miniGuidebooks = buildMiniGuidebooksLibrary(selectedRoots);
+        return [
+          { name: "games.js", content: miniGames },
+          { name: "guidebooks.js", content: miniGuidebooks }
+        ];
+      }
+
+      if (section === "books") {
+        const miniBooks = buildMiniBooksLibrary(selectedRoots);
+        return [{ name: "books.js", content: miniBooks }];
+      }
+
+      if (section === "manga") {
+        const miniManga = buildMiniMangaLibrary(selectedRoots);
+        return [{ name: "manga.js", content: miniManga }];
+      }
+
+      const miniFolders = buildMiniMainfolders(selectedRoots);
+      const miniLibrary = buildMiniLibrary(selectedRoots);
+      const miniLoaders = buildMiniLoaders(selectedRoots);
+      const files = [
+        { name: "mainfolders.js", content: miniFolders },
+        { name: "library.js", content: miniLibrary }
+      ];
+      if (String(miniLoaders || "").trim()) {
+        files.push({ name: "loadseasonfunctions.js", content: miniLoaders });
+      }
+      return files;
+    });
   }
 
   function buildMiniMainfolders(selectedRoots) {
@@ -2547,8 +2625,40 @@ function crc32(bytes) {
     return concatBytes([...localParts, centralBytes, end]);
   }
 
+  function serializeFlowFiles(files) {
+    const payload = [];
+    const transfer = [];
+    const encoder = new TextEncoder();
+    for (const file of files) {
+      const raw = file.bytes instanceof Uint8Array
+        ? file.bytes
+        : file.bytes instanceof ArrayBuffer
+          ? new Uint8Array(file.bytes)
+          : encoder.encode(String(file.content || ''));
+      const owned = raw.byteOffset === 0 && raw.byteLength === raw.buffer.byteLength
+        ? raw.buffer
+        : raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
+      payload.push({ name: file.name, bytes: owned });
+      transfer.push(owned);
+    }
+    return { payload, transfer };
+  }
+
   async function downloadZip(filename, files) {
     const zipBytes = makeZip(files);
+    if (flowMode && window.parent && window.parent !== window) {
+      const { payload, transfer } = serializeFlowFiles(files);
+      window.parent.postMessage({
+        type: 'libraryjs-flow-result',
+        flow: 'backup',
+        lane: 'content',
+        page: 'server-content-backup',
+        filename,
+        files: payload
+      }, flowTargetOrigin, transfer);
+      log(`Backup ready for flow: ${filename}`);
+      return { sentToFlow: true, zipBytes };
+    }
     const blob = new Blob([zipBytes], { type: "application/zip" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -2560,9 +2670,10 @@ function crc32(bytes) {
       URL.revokeObjectURL(url);
       a.remove();
     }, 1500);
+    return { sentToFlow: false, zipBytes };
   }
 
-  
+
   function buildImageCandidates(nodeOrTitle) {
     const sourceNode = nodeOrTitle && typeof nodeOrTitle === "object" ? nodeOrTitle : null;
     const folderName = cleanTitle(sourceNode ? (sourceNode.title || sourceNode.name || "") : nodeOrTitle);
@@ -3102,22 +3213,10 @@ function crc32(bytes) {
     const selected = [...state.selected].sort();
     el.selectedCount.textContent = String(selected.length);
 
-    const selectedRoots = selectedRootsForOutput();
     const outputFiles = [];
-    if (selectedRoots.length) {
-      if (state.currentSection === "music") {
-        outputFiles.push("musiclibrary.js");
-      } else if (state.currentSection === "games") {
-        outputFiles.push("games.js");
-        outputFiles.push("guidebooks.js");
-      } else if (state.currentSection === "books") {
-        outputFiles.push("books.js");
-      } else if (state.currentSection === "manga") {
-        outputFiles.push("manga.js");
-      } else {
-        outputFiles.push("mainfolders.js");
-        outputFiles.push("library.js");
-        if (collectLoaderEntriesForSelection(selectedRoots).length) outputFiles.push("loadseasonfunctions.js");
+    for (const section of selectedSectionsForOutput()) {
+      for (const file of buildFilesForSection(section)) {
+        outputFiles.push(file.name);
       }
     }
     el.outputCount.textContent = String(outputFiles.length);
@@ -3207,8 +3306,8 @@ function crc32(bytes) {
   }
 
   async function doBackup() {
-    const selectedRoots = selectedRootsForOutput();
-    if (!selectedRoots.length) {
+    const selectedSections = selectedSectionsForOutput();
+    if (!selectedSections.length) {
       const scopeRoot = getBackupScopeRoot();
       log(scopeRoot
         ? `No selected content found inside the current branch root: ${scopeRoot}.`
@@ -3220,48 +3319,41 @@ function crc32(bytes) {
     el.backupBtn.textContent = "Building…";
     try {
       let files = [];
-      if (state.currentSection === "music") {
-        log("Building mini musiclibrary.js…");
-        const miniMusic = buildMiniMusicLibrary(selectedRoots);
-        files = [{ name: "musiclibrary.js", content: miniMusic }];
-      } else if (state.currentSection === "games") {
-        log("Building mini games.js…");
-        const miniGames = buildMiniGamesLibrary(selectedRoots);
-        log("Building matching guidebooks.js…");
-        const miniGuidebooks = buildMiniGuidebooksLibrary(selectedGameEntries());
-        files = [
-          { name: "games.js", content: miniGames },
-          { name: "guidebooks.js", content: miniGuidebooks }
-        ];
-      } else if (state.currentSection === "books") {
-        log("Checking audiobook availability…");
-        await primeBookAudiobookAvailability(selectedRoots);
-        log("Building mini books.js…");
-        const miniBooks = buildMiniBooksLibrary(selectedRoots);
-        files = [{ name: "books.js", content: miniBooks }];
-      } else if (state.currentSection === "manga") {
-        log("Building mini manga.js…");
-        const miniManga = buildMiniMangaLibrary(selectedRoots);
-        files = [{ name: "manga.js", content: miniManga }];
-      } else {
-        log("Building mini mainfolders.js…");
-        const miniFolders = buildMiniMainfolders(selectedRoots);
-        log("Building mini library.js…");
-        const miniLibrary = buildMiniLibrary(selectedRoots);
-        log("Building mini loadseasonfunctions.js…");
-        const miniLoaders = buildMiniLoaders(selectedRoots);
-        files = [
-          { name: "mainfolders.js", content: miniFolders },
-          { name: "library.js", content: miniLibrary },
-          { name: "loadseasonfunctions.js", content: miniLoaders }
-        ];
+
+      for (const section of selectedSections) {
+        const sectionRoots = selectedRootsForOutput(section);
+        if (!sectionRoots.length) continue;
+
+        if (section === "music") {
+          log("Building mini musiclibrary.js…");
+        } else if (section === "games") {
+          log("Building mini games.js and guidebooks.js…");
+        } else if (section === "books") {
+          log("Checking audiobook availability…");
+          await withSection(section, () => primeBookAudiobookAvailability(sectionRoots));
+          log("Building mini books.js…");
+        } else if (section === "manga") {
+          log("Building mini manga.js…");
+        } else {
+          log("Building mini mainfolders.js, library.js, and loaders…");
+        }
+
+        const built = buildFilesForSection(section);
+        files.push(...built);
+      }
+
+      if (!files.length) {
+        log("Nothing could be built from the selected sections.");
+        return;
       }
 
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const zipName = `server-content-backup_${stamp}.zip`;
       log(`Zipping ${files.length} file(s)…`);
-      await downloadZip(zipName, files);
-      log(`Done. Downloaded ${zipName}`);
+      const downloadResult = await downloadZip(zipName, files);
+      if (!(downloadResult && downloadResult.sentToFlow)) {
+        log(`Done. Downloaded ${zipName}`);
+      }
     } catch (e) {
       console.error(e);
       log(`Backup failed: ${e && e.message ? e.message : e}`);
@@ -3326,6 +3418,7 @@ function crc32(bytes) {
   el.upBtn.addEventListener("click", upOne);
   el.selectAllBtn.addEventListener("click", () => selectView(true));
   el.clearViewBtn.addEventListener("click", () => selectView(false));
+  if (flowMode && el.backupBtn) el.backupBtn.style.display = "none";
   el.backupBtn.addEventListener("click", doBackup);
   el.videoCard.addEventListener("click", (ev) => {
     if (ev.target && ev.target.tagName === "INPUT") return;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Backup Flow</title>
+  <title>Backup Profile and Server Content</title>
   <style>
     :root {
       --bg:#212222;
@@ -13,88 +13,843 @@
       --text:#ffffff;
       --muted:#9fb3c8;
       --accent:#2f8cff;
-      --radius:14px;
-      --shadow:0 20px 60px rgba(0,0,0,.6);
+      --ok:#79e3c5;
+      --warn:#ffd08a;
+      --radius:16px;
+      --shadow:0 20px 60px rgba(0,0,0,.55);
     }
     *{box-sizing:border-box}
     html,body{min-height:100%}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:Arial, Helvetica, sans-serif;
+    }
+    a{color:inherit;text-decoration:none}
     .wrap{max-width:1280px;margin:0 auto;padding:16px}
-    .topbar{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;background:rgba(0,0,0,0.2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
-    h1{margin:0;font-size:24px}
-    .sub{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.45;max-width:980px}
+    .topbar{
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr) auto;
+      gap:14px;
+      align-items:center;
+      background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:16px;margin-bottom:14px
+    }
+    .topbarLeft,.topbarCenter,.topbarRight{display:flex;align-items:center;gap:10px;min-width:0}
+    .topbarCenter{justify-content:center;text-align:center}
+    .topbarCenter h1{width:100%}
+    .topbarRight{justify-content:flex-end;flex-wrap:wrap}
+    h1{margin:0;font-size:24px;letter-spacing:-.02em}
+    .sub{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.45;max-width:960px}
     .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
-    .btn, a.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:5px;padding:8px 12px;font:inherit;font-weight:700;cursor:pointer;background:rgba(128,128,128,0.7);color:#fff;text-decoration:none;transition:background-color .2s ease, transform .12s ease}
-    .btn:hover, a.btn:hover{transform:translateY(-1px);background:rgba(160,160,160,0.7)}
+    .btn,
+    button.btn,
+    a.btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      border:1px solid transparent;border-radius:10px;padding:10px 14px;
+      font:inherit;font-weight:700;cursor:pointer;background:rgba(128,128,128,.7);
+      color:#fff;text-decoration:none;transition:transform .12s ease, background-color .2s ease, border-color .2s ease;
+    }
+    .btn:hover{transform:translateY(-1px)}
     .primary{background:#2f8cff;color:#fff}
     .primary:hover{background:#4b9dff}
-    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
-    .panel{grid-column:span 12;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
-    .panelHead{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02)}
+    .ghost{background:rgba(255,255,255,.06);border-color:var(--line)}
+    .ghost:hover{background:rgba(255,255,255,.1)}
+    .toggleChoice{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:9px 12px;border-radius:999px;
+      border:1px solid var(--line);background:rgba(255,255,255,.04);
+      cursor:pointer;user-select:none;font-size:13px;font-weight:800;
+      color:var(--text);
+    }
+    .toggleChoice input{margin:0;accent-color:var(--ok)}
+    .toggleChoice.active{border-color:rgba(121,227,197,.35);background:rgba(121,227,197,.07)}
+    .stack{display:grid;gap:14px}
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+      border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;
+    }
+    .panelHead{
+      padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    }
     .panelHead h2{margin:0;font-size:16px}
+    .panelHead .meta{color:var(--muted);font-size:12px}
     .panelBody{padding:16px}
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-    .card{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;min-height:180px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-    .card h3{margin:0 0 6px 0;font-size:18px}
-    .card p{margin:0;color:var(--muted);line-height:1.45;font-size:13px}
-    .meta{font-size:12px;color:#cfe6ff;opacity:.9}
-    .stepbox{margin-top:16px;display:grid;gap:12px}
-    .step{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px}
-    .num{width:32px;height:32px;border-radius:999px;background:rgba(47,140,255,0.18);color:#79b7ff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
-    .mini{font-size:12px;color:#9fb3c8;line-height:1.45}
-    @media (max-width: 720px){.actions{justify-content:flex-start} h1{font-size:22px}}
+    .choiceGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .choice{
+      position:relative;display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;
+      border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;user-select:none;
+      transition:transform .12s ease, border-color .15s ease, background .15s ease;
+    }
+    .choice:hover{transform:translateY(-1px);border-color:rgba(47,140,255,.35)}
+    .choice input{margin-top:2px;accent-color:var(--ok);width:18px;height:18px}
+    .choice .copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+    .choice .name{font-weight:800;font-size:15px;letter-spacing:-.01em}
+    .choice .desc{color:var(--muted);font-size:13px;line-height:1.45}
+    .choice.active{border-color:rgba(121,227,197,.35);background:rgba(121,227,197,.07)}
+    .seq{display:flex;flex-wrap:wrap;gap:10px}
+    .chip{
+      display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;
+      border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);font-size:12px;font-weight:700;
+    }
+    .chip.on{color:#e9fff8;border-color:rgba(121,227,197,.35);background:rgba(121,227,197,.08)}
+    .chip .dot{width:8px;height:8px;border-radius:999px;background:currentColor;opacity:.85}
+    .heroNote{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;line-height:1.45}
+    .heroNote b{color:var(--text)}
+    .workspace{
+      display:grid;grid-template-columns:minmax(0,1fr);gap:12px;
+    }
+    .frameShell{overflow:hidden;padding:0}
+    .frameTop{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02)
+    }
+    .frameTop .left{display:flex;flex-direction:column;gap:3px;min-width:0}
+    .frameTop .title{font-size:15px;font-weight:800}
+    .frameTop .meta{font-size:12px;color:var(--muted)}
+    .statusLine{font-size:12px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .iframeWrap{position:relative;min-height:88vh;background:rgba(255,255,255,.02)}
+    iframe{width:100%;height:74vh;border:0;display:block;background:#111}
+    .overlayMsg{
+      position:absolute;left:16px;top:16px;z-index:3;max-width:min(560px,calc(100% - 32px));
+      padding:10px 12px;border-radius:12px;background:rgba(15,23,32,.86);border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(10px);font-size:13px;line-height:1.45;
+    }
+    .overlayMsg strong{display:block;margin-bottom:4px;color:#fff}
+    .frameShell.compactMode .frameTop{
+      padding:10px 12px;
+      justify-content:flex-end;
+    }
+    .frameShell.compactMode .frameTop .left{display:none}
+    .frameShell.compactMode .overlayMsg{display:none!important}
+    .frameShell.compactMode .iframeWrap{min-height:calc(100vh - 136px)}
+    .frameShell.compactMode iframe{height:calc(100vh - 136px)}
+    .doneCard{
+      display:none;padding:18px;border:1px solid rgba(121,227,197,.25);border-radius:18px;
+      background:rgba(121,227,197,.06);box-shadow:var(--shadow);
+    }
+    .doneCard.show{display:block}
+    .doneCard h3{margin:0 0 6px 0;font-size:18px}
+    .doneCard p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+    .doneActions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+    .progressOuter{width:100%;height:12px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06)}
+    .progressInner{width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg, rgba(121,227,197,1), rgba(47,140,255,1));transition:width .18s ease}
+    .small{color:var(--muted);font-size:12px;line-height:1.45}
+    @media (max-width: 860px){
+      .choiceGrid{grid-template-columns:1fr}
+      iframe{height:70vh}
+      .iframeWrap{min-height:70vh}
+    }
+    @media (max-width: 760px){
+      .topbar{grid-template-columns:1fr}
+      .topbarCenter{justify-content:flex-start;text-align:left}
+      .topbarRight{justify-content:flex-start}
+    }
+    @media (max-width: 640px){
+      .actions{justify-content:flex-start}
+      h1{font-size:22px}
+      .topbar{padding:14px}
+      .panelBody{padding:14px}
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div>
-        <h1>Backup Flow</h1>
-        <div class="sub">Choose the backup lane first, then drop into the more detailed backup screens. This keeps the front door calm and visual.</div>
+      <div class="topbarLeft">
+        <a class="btn ghost" id="homeBtn" href="./index.html">Home</a>
+        <button class="btn ghost" id="backBtn" type="button">Back</button>
       </div>
-      <div class="actions">
-        <a class="btn" href="./profile.html">Back to Profiles</a>
-        <a class="btn primary" href="./Restore-flow.html">Restore Flow</a>
+      <div class="topbarCenter">
+        <h1>Backup Profile and Server Content</h1>
+      </div>
+      <div class="topbarRight">
+        <label class="toggleChoice" id="currentBackupChoice" style="display:none;">
+          <input id="currentBackupMode" type="checkbox" checked />
+          <span>Current Backup</span>
+        </label>
+        <button class="btn primary" id="continueBtn">Begin Backup</button>
       </div>
     </div>
 
-    <div class="grid">
+    <div class="stack" id="chooserView">
       <section class="panel">
-        <div class="panelHead"><h2>Pick a backup branch</h2></div>
+        <div class="panelHead">
+          <div>
+            <h2>What are we backing up?</h2>
+            <div class="meta">Select one or both. When both are checked, profile backup runs first.</div>
+          </div>
+          <div class="meta" id="choiceMeta">Nothing selected yet</div>
+        </div>
         <div class="panelBody">
-          <div class="cards">
-            <div class="card">
-              <div>
-                <h3>Server content</h3>
-                <p>The hosted library files, manifests, and the content-side pieces that make the server feel complete.</p>
-                <div class="meta">server-content-backup.html</div>
+          <div class="choiceGrid">
+            <label class="choice active" id="choiceProfile">
+              <input id="profileCheck" type="checkbox" checked />
+              <div class="copy">
+                <div class="name">Server Profile Data</div>
+                <div class="desc">Profiles, saved media prefs, bookmarks, favorites, and the profile-scoped bits that travel with a user.</div>
               </div>
-              <a class="btn primary" href="./server-content-backup.html">Open content backup</a>
-            </div>
-            <div class="card">
-              <div>
-                <h3>Profile data</h3>
-                <p>The profile database and identity data that travel with the library experience.</p>
-                <div class="meta">server-profile-backup.html</div>
+            </label>
+            <label class="choice" id="choiceContent">
+              <input id="contentCheck" type="checkbox" />
+              <div class="copy">
+                <div class="name">Server Content</div>
+                <div class="desc">Hosted library content, manifests, and the content-side files that make the server feel complete.</div>
               </div>
-              <a class="btn primary" href="./server-profile-backup.html">Open profile backup</a>
-            </div>
-            <div class="card">
-              <div>
-                <h3>Portable transfer</h3>
-                <p>A more packaged backup path for moving a setup to a flash drive or another machine.</p>
-                <div class="meta">transfer-backup.html</div>
-              </div>
-              <a class="btn primary" href="./transfer-backup.html">Open transfer backup</a>
-            </div>
+            </label>
           </div>
-          <div class="stepbox">
-            <div class="step"><div class="num">1</div><div><strong>Start with the data family.</strong><div class="mini">Choose content, profiles, or a portable package before you see the detailed pages.</div></div></div>
-            <div class="step"><div class="num">2</div><div><strong>Open the matching backup screen.</strong><div class="mini">The detailed page still does the actual export work; this is just the clearer entry point.</div></div></div>
-          </div>
+
         </div>
       </section>
     </div>
+
+    <section class="stack" id="workView" style="display:none;">
+      <div class="panel frameShell">
+        <div class="frameTop">
+          <div class="left">
+            <div class="title" id="stepTitle">Loading…</div>
+            <div class="meta" id="stepMeta">Preparing workspace.</div>
+          </div>
+          <div class="statusLine" id="statusLine">Idle.</div>
+        </div>
+        <div class="panelBody" style="padding:0;">
+          <div class="iframeWrap">
+            <div class="overlayMsg" id="overlayMsg">
+              <strong>Workspace</strong>
+              The detailed backup page lives inside the frame. Use its search, selection checkboxes, and build button there; this flow will move to the next lane when the current one finishes.
+            </div>
+            <iframe id="frame" title="Backup workspace"></iframe>
+          </div>
+        </div>
+      </div>
+
+      <div class="doneCard" id="doneCard">
+        <h3>Backup flow complete</h3>
+        <p id="doneText">Everything selected in this flow has finished backing up.</p>
+        <div class="doneActions">
+          <button class="btn primary" id="downloadBtn" type="button">Download Backup</button>
+          <button class="btn" id="serverBtn" type="button">Backup to server</button>
+        </div>
+        <div class="small" id="bundleSummary" style="margin-top:10px;"></div>
+      </div>
+    </section>
   </div>
+
+  
+  <script>
+  (() => {
+    const params = new URLSearchParams(location.search);
+    const flowMode = params.has('flow');
+
+    const childUrls = {
+      profile: './server-profile-backup.html?flow=1',
+      content: './server-content-backup.html?flow=1'
+    };
+
+    const el = {
+      chooserView: document.getElementById('chooserView'),
+      workView: document.getElementById('workView'),
+      profileCheck: document.getElementById('profileCheck'),
+      contentCheck: document.getElementById('contentCheck'),
+      choiceProfile: document.getElementById('choiceProfile'),
+      choiceContent: document.getElementById('choiceContent'),
+      choiceMeta: document.getElementById('choiceMeta'),
+      continueBtn: document.getElementById('continueBtn'),
+      currentBackupChoice: document.getElementById('currentBackupChoice'),
+      currentBackupMode: document.getElementById('currentBackupMode'),
+      homeBtn: document.getElementById('homeBtn'),
+      backBtn: document.getElementById('backBtn'),
+      frameShell: document.querySelector('.frameShell'),
+      frame: document.getElementById('frame'),
+      stepTitle: document.getElementById('stepTitle'),
+      stepMeta: document.getElementById('stepMeta'),
+      statusLine: document.getElementById('statusLine'),
+      overlayMsg: document.getElementById('overlayMsg'),
+      doneCard: document.getElementById('doneCard'),
+      doneText: document.getElementById('doneText'),
+      bundleSummary: document.getElementById('bundleSummary'),
+      downloadBtn: document.getElementById('downloadBtn'),
+      serverBtn: document.getElementById('serverBtn')
+    };
+
+    const state = {
+      lanes: [],
+      laneIndex: 0,
+      activeLane: '',
+      watcher: null,
+      finished: false,
+      lastText: '',
+      results: { profile: null, content: null },
+      finalBundle: null,
+      finalName: '',
+      busy: false
+    };
+
+    function updateChoiceStyles() {
+      el.choiceProfile.classList.toggle('active', el.profileCheck.checked);
+      el.choiceContent.classList.toggle('active', el.contentCheck.checked);
+      if (el.currentBackupChoice) {
+        el.currentBackupChoice.classList.toggle('active', !!el.currentBackupMode?.checked);
+      }
+      const count = [el.profileCheck.checked, el.contentCheck.checked].filter(Boolean).length;
+      el.choiceMeta.textContent = count === 0 ? 'Nothing selected yet' : count === 1 ? '1 lane selected' : '2 lanes selected';
+      el.continueBtn.disabled = count === 0;
+      syncPrimaryActionLabel();
+    }
+
+    function selectedLanes() {
+      return [
+        el.profileCheck.checked ? 'profile' : null,
+        el.contentCheck.checked ? 'content' : null
+      ].filter(Boolean);
+    }
+
+
+    function syncPrimaryActionLabel() {
+      if (el.currentBackupChoice) {
+        el.currentBackupChoice.style.display = state.finished ? 'inline-flex' : 'none';
+      }
+      if (state.finished) {
+        el.continueBtn.textContent = 'Restore from Backup';
+        return;
+      }
+      if (el.workView.style.display === 'grid') {
+        el.continueBtn.textContent = state.activeLane === 'profile' ? 'Profile Backup' : 'Content Backup';
+        return;
+      }
+      el.continueBtn.textContent = 'Begin Backup';
+    }
+
+    function setUiForRunning() {
+      el.chooserView.style.display = 'none';
+      el.workView.style.display = 'grid';
+      el.doneCard.classList.remove('show');
+      el.frameShell.style.display = '';
+      el.workView.classList.add('compactMode');
+      el.overlayMsg.style.display = 'none';
+      el.frame.src = 'about:blank';
+      syncPrimaryActionLabel();
+    }
+
+    function setStatus(text) {
+      el.statusLine.textContent = text || 'Idle.';
+      if (text) state.lastText = text;
+    }
+
+    function formatStamp(date = new Date()) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}`;
+    }
+
+    function currentLaneLabel(lane) {
+      return lane === 'profile' ? 'Server profile backup' : 'Server content backup';
+    }
+
+    function finalNameForLanes(lanes) {
+      const stamp = formatStamp();
+      const suffix = lanes.length === 2 ? 'profile-and-content' : lanes[0] || 'backup';
+      return `${stamp}-${suffix}.zip`;
+    }
+
+    function encodeUtf8(text) {
+      return new TextEncoder().encode(String(text || ''));
+    }
+
+    const CURRENT_BACKUP_STORAGE_KEY = 'libraryjs.currentBackupBundle';
+
+    function bytesToBase64(bytes) {
+      const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < arr.length; i += chunkSize) {
+        binary += String.fromCharCode(...arr.subarray(i, i + chunkSize));
+      }
+      return btoa(binary);
+    }
+
+    function saveCurrentBackupForRestore(bytes, name) {
+      try {
+        const payload = {
+          name: String(name || 'current-backup.zip'),
+          type: 'application/zip',
+          data: bytesToBase64(bytes)
+        };
+        localStorage.setItem(CURRENT_BACKUP_STORAGE_KEY, JSON.stringify(payload));
+        return true;
+      } catch (err) {
+        console.warn('Could not cache backup for Restore-flow:', err);
+        return false;
+      }
+    }
+
+    const crcTable = (() => {
+      const table = new Uint32Array(256);
+      for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let k = 0; k < 8; k++) {
+          c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        }
+        table[i] = c >>> 0;
+      }
+      return table;
+    })();
+
+    function crc32(bytes) {
+      let crc = 0xFFFFFFFF;
+      for (let i = 0; i < bytes.length; i++) {
+        crc = crcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+      }
+      return (~crc) >>> 0;
+    }
+
+    function concatBytes(parts) {
+      const total = parts.reduce((sum, part) => sum + part.length, 0);
+      const out = new Uint8Array(total);
+      let offset = 0;
+      for (const part of parts) {
+        out.set(part, offset);
+        offset += part.length;
+      }
+      return out;
+    }
+
+    function dosDateTime(date = new Date()) {
+      const year = Math.max(1980, date.getFullYear());
+      const dosTime = ((date.getHours() & 31) << 11) | ((date.getMinutes() & 63) << 5) | ((Math.floor(date.getSeconds() / 2)) & 31);
+      const dosDate = (((year - 1980) & 127) << 9) | (((date.getMonth() + 1) & 15) << 5) | (date.getDate() & 31);
+      return { dosTime, dosDate };
+    }
+
+    function makeZip(files) {
+      const localParts = [];
+      const centralParts = [];
+      let offset = 0;
+      const { dosTime, dosDate } = dosDateTime(new Date());
+
+      for (const file of files) {
+        const nameBytes = encodeUtf8(file.name);
+        const dataBytes = file.bytes instanceof Uint8Array
+          ? file.bytes
+          : file.bytes instanceof ArrayBuffer
+            ? new Uint8Array(file.bytes)
+            : file.content instanceof Uint8Array
+              ? file.content
+              : encodeUtf8(String(file.content || ''));
+        const crc = crc32(dataBytes);
+
+        const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
+        const ldv = new DataView(local.buffer);
+        ldv.setUint32(0, 0x04034b50, true);
+        ldv.setUint16(4, 20, true);
+        ldv.setUint16(6, 0x0800, true);
+        ldv.setUint16(8, 0, true);
+        ldv.setUint16(10, dosTime, true);
+        ldv.setUint16(12, dosDate, true);
+        ldv.setUint32(14, crc, true);
+        ldv.setUint32(18, dataBytes.length, true);
+        ldv.setUint32(22, dataBytes.length, true);
+        ldv.setUint16(26, nameBytes.length, true);
+        ldv.setUint16(28, 0, true);
+        local.set(nameBytes, 30);
+        local.set(dataBytes, 30 + nameBytes.length);
+        localParts.push(local);
+
+        const central = new Uint8Array(46 + nameBytes.length);
+        const cdv = new DataView(central.buffer);
+        cdv.setUint32(0, 0x02014b50, true);
+        cdv.setUint16(4, 20, true);
+        cdv.setUint16(6, 20, true);
+        cdv.setUint16(8, 0x0800, true);
+        cdv.setUint16(10, 0, true);
+        cdv.setUint16(12, dosTime, true);
+        cdv.setUint16(14, dosDate, true);
+        cdv.setUint32(16, crc, true);
+        cdv.setUint32(20, dataBytes.length, true);
+        cdv.setUint32(24, dataBytes.length, true);
+        cdv.setUint16(28, nameBytes.length, true);
+        cdv.setUint16(30, 0, true);
+        cdv.setUint16(32, 0, true);
+        cdv.setUint16(34, 0, true);
+        cdv.setUint16(36, 0, true);
+        cdv.setUint32(38, 0, true);
+        cdv.setUint32(42, offset, true);
+        central.set(nameBytes, 46);
+        centralParts.push(central);
+
+        offset += local.length;
+      }
+
+      const centralBytes = concatBytes(centralParts);
+      const localBytes = concatBytes(localParts);
+      const end = new Uint8Array(22);
+      const edv = new DataView(end.buffer);
+      edv.setUint32(0, 0x06054b50, true);
+      edv.setUint16(4, 0, true);
+      edv.setUint16(6, 0, true);
+      edv.setUint16(8, files.length, true);
+      edv.setUint16(10, files.length, true);
+      edv.setUint32(12, centralBytes.length, true);
+      edv.setUint32(16, localBytes.length, true);
+      edv.setUint16(20, 0, true);
+
+      return concatBytes([localBytes, centralBytes, end]);
+    }
+
+    function serializeFiles(files) {
+      const payload = [];
+      const transfer = [];
+      for (const file of files) {
+        const raw = file.bytes instanceof Uint8Array
+          ? file.bytes
+          : file.bytes instanceof ArrayBuffer
+            ? new Uint8Array(file.bytes)
+            : file.content instanceof Uint8Array
+              ? file.content
+              : encodeUtf8(String(file.content || ''));
+        const owned = raw.byteOffset === 0 && raw.byteLength === raw.buffer.byteLength
+          ? raw.buffer
+          : raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
+        payload.push({ name: file.name, bytes: owned });
+        transfer.push(owned);
+      }
+      return { payload, transfer };
+    }
+
+    function childText() {
+      try {
+        const doc = el.frame.contentDocument;
+        if (!doc) return '';
+        const log = doc.getElementById('log')?.textContent || '';
+        const prog = doc.getElementById('progressText')?.textContent || '';
+        const archiveMeta = doc.getElementById('archiveMeta')?.textContent || '';
+        return [log, prog, archiveMeta].filter(Boolean).join('\n');
+      } catch {
+        return '';
+      }
+    }
+
+    function tuneChildFrame(lane) {
+      try {
+        const doc = el.frame.contentDocument;
+        if (!doc || !doc.head) return;
+        let style = doc.getElementById('backupFlowTweakStyle');
+        if (!style) {
+          style = doc.createElement('style');
+          style.id = 'backupFlowTweakStyle';
+          doc.head.appendChild(style);
+        }
+        style.textContent = lane === 'profile'
+          ? `
+              .topbar{display:none!important;}
+              .panelHead{display:none!important;}
+              .main{grid-template-columns:minmax(0,1fr)!important;}
+              .main > .panel:last-child{display:none!important;}
+              .toolbar{display:flex!important;flex-wrap:wrap!important;}
+              .toolbar #buildBtn,.hero .actions #buildBtn{display:none!important;}
+              .hero .actions .small{display:none!important;}
+              .preview,.card,.stat{display:none!important;}
+            `
+          : `
+              .topbar{display:none!important;}
+              .panelHead{display:none!important;}
+              .main{grid-template-columns:minmax(0,1fr)!important;}
+              .main > .panel.side{display:none!important;}
+              .sectionCard .meta,.sectionCard .count{display:none!important;}
+              .preview,.card,.stat{display:none!important;}
+            `;
+      } catch {}
+    }
+
+    function clearWatcher() {
+      if (state.watcher) {
+        clearInterval(state.watcher);
+        state.watcher = null;
+      }
+    }
+
+    function watchChild(lane) {
+      clearWatcher();
+      state.lastText = '';
+      state.watcher = setInterval(() => {
+        if (state.finished) return;
+        const text = childText();
+        if (text && text !== state.lastText) {
+          state.lastText = text;
+          setStatus(text.split(/\n+/).filter(Boolean).slice(-2).join(' • '));
+        }
+      }, 450);
+    }
+
+    function loadLane(lane) {
+      state.activeLane = lane;
+      el.frame.src = childUrls[lane];
+      el.stepTitle.textContent = currentLaneLabel(lane);
+      el.stepMeta.textContent = lane === 'profile'
+        ? 'Profile lane.'
+        : 'Content lane.';
+      setStatus('Opening workspace…');
+      syncPrimaryActionLabel();
+    }
+
+    function showDoneCard() {
+      el.workView.style.display = 'grid';
+      el.doneCard.classList.add('show');
+      el.frameShell.style.display = 'none';
+      el.overlayMsg.style.display = 'none';
+      el.frame.src = 'about:blank';
+      el.downloadBtn.disabled = false;
+      el.serverBtn.disabled = false;
+      el.bundleSummary.textContent = `Final bundle: ${state.finalName}`;
+      el.doneText.textContent = state.lanes.length === 2
+        ? 'Both lanes finished. Download the combined backup or send it to the server backups folder.'
+        : 'The selected lane finished. Download the backup or send it to the server backups folder.';
+      if (el.currentBackupMode) el.currentBackupMode.checked = true;
+      syncPrimaryActionLabel();
+    }
+
+    function handleLaneResult(lane, payload) {
+      const files = Array.isArray(payload?.files) ? payload.files : [];
+      if (!files.length) {
+        throw new Error(`No files were returned from the ${lane} backup lane.`);
+      }
+      state.results[lane] = {
+        files: files.map(file => ({
+          name: String(file.name || '').replace(/^\/+/, ''),
+          bytes: file.bytes instanceof Uint8Array
+            ? new Uint8Array(file.bytes)
+            : file.bytes instanceof ArrayBuffer
+              ? new Uint8Array(file.bytes)
+              : file.content instanceof Uint8Array
+                ? new Uint8Array(file.content)
+                : encodeUtf8(String(file.content || ''))
+        }))
+      };
+      setStatus(`${lane === 'profile' ? 'Profile' : 'Content'} backup captured. ${state.laneIndex + 1}/${state.lanes.length} lane(s) complete.`);
+      const next = state.lanes[state.laneIndex + 1];
+      state.laneIndex += 1;
+      if (next) {
+        setTimeout(() => {
+          el.frame.src = 'about:blank';
+          setTimeout(() => loadLane(next), 250);
+        }, 350);
+      } else {
+        state.finished = true;
+        state.finalBundle = null;
+        state.finalName = finalNameForLanes(state.lanes);
+        showDoneCard();
+        setStatus('All selected lanes complete.');
+      }
+    }
+
+    async function buildFinalBundle() {
+      if (state.finalBundle) return state.finalBundle;
+      const ordered = state.lanes.flatMap(lane => state.results[lane]?.files || []);
+      if (!ordered.length) {
+        throw new Error('No backed-up files are available yet.');
+      }
+      state.finalName = state.finalName || finalNameForLanes(state.lanes);
+      state.finalBundle = makeZip(ordered);
+      return state.finalBundle;
+    }
+
+    async function downloadFinalBundle() {
+      if (state.busy) return;
+      state.busy = true;
+      el.downloadBtn.disabled = true;
+      el.serverBtn.disabled = true;
+      try {
+        const bytes = await buildFinalBundle();
+        const blob = new Blob([bytes], { type: 'application/zip' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = state.finalName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+        setStatus(`Downloaded ${state.finalName}.`);
+      } catch (err) {
+        console.error(err);
+        setStatus(`Download failed: ${err && err.message ? err.message : String(err)}`);
+      } finally {
+        state.busy = false;
+        el.downloadBtn.disabled = false;
+        el.serverBtn.disabled = false;
+      }
+    }
+
+    async function uploadFinalBundle() {
+      if (state.busy) return;
+      state.busy = true;
+      el.downloadBtn.disabled = true;
+      el.serverBtn.disabled = true;
+      try {
+        const bytes = await buildFinalBundle();
+        const blob = new Blob([bytes], { type: 'application/zip' });
+        const res = await fetch(`/backups/${encodeURIComponent(state.finalName)}`, {
+          method: 'PUT',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/zip' },
+          body: blob
+        });
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          throw new Error(`${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 160)}` : ''}`);
+        }
+        setStatus(`Backed up to server as ${state.finalName}.`);
+      } catch (err) {
+        console.error(err);
+        setStatus(`Server backup failed: ${err && err.message ? err.message : String(err)}`);
+      } finally {
+        state.busy = false;
+        el.downloadBtn.disabled = false;
+        el.serverBtn.disabled = false;
+      }
+    }
+
+    function onFlowMessage(event) {
+      if (event.source !== el.frame.contentWindow) return;
+      if (event.origin !== location.origin && event.origin !== 'null') return;
+      const data = event.data || {};
+      if (data.type !== 'libraryjs-flow-result' || data.flow !== 'backup') return;
+      const lane = data.lane === 'content' ? 'content' : 'profile';
+      try {
+        handleLaneResult(lane, data);
+      } catch (err) {
+        console.error(err);
+        setStatus(`Flow handoff failed: ${err && err.message ? err.message : String(err)}`);
+      }
+    }
+
+    function looksLikeComplete(text) {
+      const t = String(text || '').toLowerCase();
+      return (
+        t.includes('backup built') ||
+        t.includes('backup ready for flow') ||
+        t.includes('done. downloaded') ||
+        (t.includes('complete') && t.includes('download'))
+      );
+    }
+
+    el.profileCheck.addEventListener('change', updateChoiceStyles);
+    el.contentCheck.addEventListener('change', updateChoiceStyles);
+    if (el.currentBackupMode) {
+      el.currentBackupMode.addEventListener('change', updateChoiceStyles);
+    }
+
+    el.backBtn.addEventListener('click', () => {
+      if (el.doneCard.classList.contains('show')) {
+        el.doneCard.classList.remove('show');
+        el.frameShell.style.display = '';
+        el.workView.style.display = 'grid';
+        el.workView.classList.add('compactMode');
+        el.overlayMsg.style.display = 'none';
+        syncPrimaryActionLabel();
+        return;
+      }
+
+      if (el.workView.style.display === 'grid') {
+        clearWatcher();
+        state.activeLane = '';
+        state.laneIndex = 0;
+        state.finished = false;
+        el.frame.src = 'about:blank';
+        el.workView.classList.remove('compactMode');
+        el.workView.style.display = 'none';
+        el.chooserView.style.display = 'grid';
+        syncPrimaryActionLabel();
+        return;
+      }
+
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = './index.html';
+      }
+    });
+
+    function triggerCurrentLaneBuild() {
+      const lane = state.activeLane;
+      if (!lane || !el.frame.contentWindow) return;
+      try {
+        const doc = el.frame.contentDocument;
+        const btn = lane === 'profile'
+          ? doc && doc.getElementById('buildBtn')
+          : doc && doc.getElementById('backupBtn');
+        if (btn && !btn.disabled) {
+          btn.click();
+          setStatus(`${lane === 'profile' ? 'Profile' : 'Content'} backup requested…`);
+        } else {
+          setStatus(`Could not find the ${lane === 'profile' ? 'profile' : 'content'} backup button.`);
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus(`Could not trigger ${lane} backup: ${err && err.message ? err.message : String(err)}`);
+      }
+    }
+
+    el.continueBtn.addEventListener('click', async () => {
+      if (state.finished) {
+        if (el.currentBackupMode && el.currentBackupMode.checked) {
+          try {
+            el.continueBtn.disabled = true;
+            const bytes = await buildFinalBundle();
+            const cached = saveCurrentBackupForRestore(bytes, state.finalName || finalNameForLanes(state.lanes));
+            window.location.href = cached ? './Restore-flow.html?currentBackup=1' : './Restore-flow.html';
+          } catch (err) {
+            console.error(err);
+            setStatus(`Could not prepare current backup for restore: ${err && err.message ? err.message : String(err)}`);
+            el.continueBtn.disabled = false;
+          }
+        } else {
+          window.location.href = './Restore-flow.html';
+        }
+        return;
+      }
+
+      if (el.workView.style.display === 'grid' && state.activeLane) {
+        triggerCurrentLaneBuild();
+        return;
+      }
+
+      state.lanes = selectedLanes();
+      state.laneIndex = 0;
+      state.finished = false;
+      state.results = { profile: null, content: null };
+      state.finalBundle = null;
+      state.finalName = '';
+      if (!state.lanes.length) {
+        setStatus('Pick at least one lane first.');
+        return;
+      }
+      setUiForRunning();
+      loadLane(state.lanes[0]);
+    });
+
+    el.downloadBtn.addEventListener('click', downloadFinalBundle);
+    el.serverBtn.addEventListener('click', uploadFinalBundle);
+    window.addEventListener('message', onFlowMessage);
+
+    el.frame.addEventListener('load', () => {
+      const lane = state.activeLane;
+      if (!lane) return;
+      tuneChildFrame(lane);
+      watchChild(lane);
+      setTimeout(() => {
+        if (!state.finished) {
+          const text = childText();
+          if (text) setStatus(text.split(/\n+/).filter(Boolean).slice(-2).join(' • '));
+        }
+      }, 400);
+    });
+
+    updateChoiceStyles();
+    syncPrimaryActionLabel();
+  })();
+  </script>
+
 </body>
 </html>

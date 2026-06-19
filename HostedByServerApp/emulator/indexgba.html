@@ -124,16 +124,13 @@
 'shader':'crt-aperture.glslp'
         };
       window.onload = async function () {
-  // Try the configured server files in order:
-  // 1) serverip.txt
-  // 2) tailscaleip.txt
-  // 3) httpsserverip.txt
-  // 4) httpstailscaleip.txt
-  //
-  // Each file may contain a bare host:port, a full URL, or a URL with a trailing slash.
-  // If a value omits a scheme, we try the preferred scheme for that file first,
-  // then fall back to the opposite scheme.
+  // Choose the server files that match the current page scheme.
+  // HTTPS pages must stay on HTTPS, and HTTP pages should stay on HTTP.
+  // The filename tells us which combination to use:
+  // - serverip.txt / tailscaleip.txt -> HTTP
+  // - httpsserverip.txt / httpstailscaleip.txt -> HTTPS
 
+  const pageScheme = location.protocol === 'https:' ? 'https' : 'http';
   let serverOrigin = location.origin || `${location.protocol}//${location.host}`;
   let serverIP = location.host || `${location.hostname}${location.port ? ':' + location.port : ''}`;
 
@@ -165,12 +162,10 @@
       const withoutScheme = cleaned.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '');
       if (withoutScheme) {
         addCandidate(`${preferredScheme}://${withoutScheme}`);
-        addCandidate(`${preferredScheme === 'https' ? 'http' : 'https'}://${withoutScheme}`);
       }
     } else {
       // Bare host:port or host path fragment.
       addCandidate(`${preferredScheme}://${cleaned}`);
-      addCandidate(`${preferredScheme === 'https' ? 'http' : 'https'}://${cleaned}`);
     }
 
     return candidates;
@@ -218,12 +213,15 @@
       }
     }
 
-    const sources = [
-      { file: './serverip.txt', preferredScheme: 'http' },
-      { file: './tailscaleip.txt', preferredScheme: 'http' },
-      { file: './httpsserverip.txt', preferredScheme: 'https' },
-      { file: './httpstailscaleip.txt', preferredScheme: 'https' },
-    ];
+    const sources = pageScheme === 'https'
+      ? [
+          { file: '/httpsserverip.txt', preferredScheme: 'https' },
+          { file: '/httpstailscaleip.txt', preferredScheme: 'https' },
+        ]
+      : [
+          { file: '/serverip.txt', preferredScheme: 'http' },
+          { file: '/tailscaleip.txt', preferredScheme: 'http' },
+        ];
 
     for (const source of sources) {
       const value = await readFileTrim(source.file);
@@ -283,7 +281,7 @@
 window.EJS_biosUrl = `${serverOrigin}/emulator/SCPH1001.BIN`;
   window.EJS_gameUrl     = `${serverOrigin}/emulator/roms/${romParam}?t=${Date.now()}`;
  window.EJS_core        = "gba";
- window.linkTradeCableButtons = false;
+ window.linkTradeCableButtons = (window.EJS_core === "gba");
   window.EJS_pathtodata  = "data/";
   window.EJS_startOnLoaded = true;
   window.EJS_DEBUG_XX = true;
@@ -741,7 +739,7 @@ document.body.appendChild(loadDialog);
   // 1) Load platform string from file
   let platformMode = 'windows';  // fallback
   try {
-    const txt = await fetch('./platform.txt', { cache: 'no-store' })
+    const txt = await fetch('/platform.txt', { cache: 'no-store' })
                      .then(res => {
                        if (!res.ok) throw new Error(res.status);
                        return res.text();
@@ -979,6 +977,34 @@ document.getElementById("loadMem2").onclick = async () => {
 };
 
 // ====== LOAD HANDLER: Link Cable Save (WRITE + VERIFY + RESTART with detailed logging) ======
+function waitForRomBaseReady(emulator, timeoutMs = 15000) {
+  const started = Date.now();
+  const clean = (value) => String(value || '').replace(/\.(gba|gbc|gb|zip|7z|rar)$/i, '').trim();
+
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      try {
+        const rawBase = (emulator && typeof emulator.getBaseFileName === 'function')
+          ? emulator.getBaseFileName()
+          : (emulator && emulator.romName) || '';
+        const cleanBase = clean(rawBase);
+
+        if (cleanBase) {
+          resolve(cleanBase);
+          return;
+        }
+      } catch (e) {}
+
+      if (Date.now() - started >= timeoutMs) {
+        reject(new Error('Timed out waiting for ROM to finish loading'));
+        return;
+      }
+      setTimeout(tick, 250);
+    };
+    tick();
+  });
+}
+
 document.getElementById("loadLinkCable").onclick = async () => {
   loadDialog.style.display = 'none';
   try {
@@ -987,10 +1013,9 @@ document.getElementById("loadLinkCable").onclick = async () => {
     if (!emulator) throw new Error("Emulator instance not found");
 
     const profile = localStorage.getItem("activeProfile") || "Guest";
-    const rawBase = (typeof emulator.getBaseFileName === 'function') ? emulator.getBaseFileName() : (emulator.romName || '');
-    const cleanBase = (rawBase || '').replace(/\.(gba|gbc|gb|zip|7z|rar)$/i, '');
+    const cleanBase = await waitForRomBaseReady(emulator);
     const srmFileName = `${profile}-${cleanBase}.srm`;
-    const srmUrl = `/netplay/${encodeURIComponent(srmFileName)}`;
+    const srmUrl = `/emulator/netplay/${encodeURIComponent(srmFileName)}`;
 
     console.log("[LinkLoad] profile:", profile, "base:", cleanBase, "srmFileName:", srmFileName, "url:", srmUrl);
 
@@ -1288,6 +1313,124 @@ fastForwardButton.addEventListener("click", (e) => {
 });
 
 document.body.appendChild(fastForwardButton);
+
+queueMicrotask(() => {
+    if (window.__indexGbLockUIReady) return;
+    window.__indexGbLockUIReady = true;
+
+    const uiStyle = document.createElement('style');
+    uiStyle.textContent = `
+      #indexGbLockBtn {
+        position: fixed;
+        right: 10px;
+        bottom: 28px;
+        width: 28px;
+        height: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.35);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        line-height: 1;
+        opacity: 0.55;
+        cursor: pointer;
+        z-index: 10000;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+        pointer-events: auto;
+      }
+      #indexGbLockBtn.is-locked {
+        background: rgba(255, 215, 0, 0.30);
+        opacity: 0.70;
+      }
+      body.indexgb-ui-locked #netplayButton,
+      body.indexgb-ui-locked #netplayStatus,
+      body.indexgb-ui-locked #guideButton,
+      body.indexgb-ui-locked #fullscreenButton,
+      body.indexgb-ui-locked #fastForwardButton,
+      body.indexgb-ui-locked #homeButton {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+      }
+      body.indexgb-ui-locked #homeButton {
+        display: none !important;
+      }
+      body.indexgb-ui-locked #saveButton,
+      body.indexgb-ui-locked #loadButton,
+      body.indexgb-ui-locked #activeProfileIcon {
+        background: rgba(0, 0, 0, 0.58) !important;
+        color: rgba(255, 255, 255, 0.92) !important;
+        border-color: rgba(255, 255, 255, 0.18) !important;
+        opacity: 0.76 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45) !important;
+        filter: none !important;
+      }
+      body.indexgb-ui-locked #saveButton {
+        left: 5px !important;
+      }
+      body.indexgb-ui-locked #loadButton {
+        left: 48px !important;
+      }
+      body.indexgb-ui-locked #activeProfileIcon {
+        left: 91px !important;
+        padding: 2px !important;
+        border-radius: 6px !important;
+      }
+    `;
+    document.head.appendChild(uiStyle);
+
+    const homeEl = typeof homeButton !== 'undefined' ? homeButton : document.getElementById('homeButton');
+    const saveEl = typeof saveButton !== 'undefined' ? saveButton : document.getElementById('saveButton');
+    const loadEl = typeof loadButton !== 'undefined' ? loadButton : document.getElementById('loadButton');
+    const profileEl = document.getElementById('activeProfileIcon');
+    const netplayEl = document.getElementById('netplayButton');
+    const netplayStatusEl = document.getElementById('netplayStatus');
+    const guideEl = typeof guideButton !== 'undefined' ? guideButton : document.getElementById('guideButton');
+    const fullscreenEl = typeof fullscreenButton !== 'undefined' ? fullscreenButton : document.getElementById('fullscreenButton');
+    const fastEl = typeof fastForwardButton !== 'undefined' ? fastForwardButton : document.getElementById('fastForwardButton');
+
+    if (homeEl && !homeEl.id) homeEl.id = 'homeButton';
+    if (saveEl && !saveEl.id) saveEl.id = 'saveButton';
+    if (loadEl && !loadEl.id) loadEl.id = 'loadButton';
+    if (guideEl && !guideEl.id) guideEl.id = 'guideButton';
+    if (fullscreenEl && !fullscreenEl.id) fullscreenEl.id = 'fullscreenButton';
+    if (fastEl && !fastEl.id) fastEl.id = 'fastForwardButton';
+    if (netplayEl && !netplayEl.id) netplayEl.id = 'netplayButton';
+    if (netplayStatusEl && !netplayStatusEl.id) netplayStatusEl.id = 'netplayStatus';
+
+    const lockBtn = document.createElement('button');
+    lockBtn.id = 'indexGbLockBtn';
+    lockBtn.type = 'button';
+    lockBtn.setAttribute('aria-label', 'Lock interface controls');
+    lockBtn.setAttribute('title', 'Lock interface controls');
+    lockBtn.textContent = '🔓';
+
+    let locked = false;
+
+    function syncLockUI() {
+        document.body.classList.toggle('indexgb-ui-locked', locked);
+        lockBtn.classList.toggle('is-locked', locked);
+        lockBtn.textContent = locked ? '🔒' : '🔓';
+        lockBtn.setAttribute('aria-label', locked ? 'Unlock interface controls' : 'Lock interface controls');
+        lockBtn.setAttribute('title', locked ? 'Unlock interface controls' : 'Lock interface controls');
+    }
+
+    lockBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        locked = !locked;
+        syncLockUI();
+    });
+
+    document.body.appendChild(lockBtn);
+    syncLockUI();
+});
+
 // --- paste this near the top of the Netplay / WebRTC block (before any alert() calls) ---
 function ejsNotify(msg) {
   try {
@@ -1353,13 +1496,13 @@ function ejsNotify(msg) {
 
   netplayDialog.innerHTML = `
     <div style="color:#aaa;margin-bottom:12px;font-family:monospace">Choose Netplay Mode</div>
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+    <div class="netplay-mode-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
       <button id="hostBtn" style="background:#4E89AE;color:#fff;padding:8px;border-radius:4px;border:none;cursor:pointer;font-family:monospace">Host</button>
       <button id="joinBtn" style="background:#5F7D6A;color:#fff;padding:8px;border-radius:4px;border:none;cursor:pointer;font-family:monospace">Join</button>
       <button id="toggleLink" style="background:#6A5F7D;color:#fff;padding:8px;border-radius:4px;border:none;cursor:pointer;font-family:monospace">Link Trade Cable</button>
       <button id="toggleShared" style="background:#FFD700;color:#fff;padding:8px;border-radius:4px;border:none;cursor:pointer;font-family:monospace">Shared Console</button>
     </div>
-    <div style="margin-top:12px"><button id="disconnectBtn" style="background:#ff4444;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer">Disconnect</button></div>
+    <div style="margin-top:12px"><button id="disconnectBtn" hidden style="background:#ff4444;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;display:none">Disconnect</button></div>
   `;
 
   const netplayClose = makeEl('button', { innerHTML: '&times;' }, {
@@ -1416,6 +1559,17 @@ function ejsNotify(msg) {
     if (netplayMode === 'hosting') { netplayButton.innerText = 'Hosting'; netplayButton.style.background = '#4E89AE'; }
     else if (netplayMode === 'joining') { netplayButton.innerText = 'Joining'; netplayButton.style.background = '#5F7D6A'; }
     else { netplayButton.innerText = 'Netplay'; netplayButton.style.background = '#6A5F7D'; }
+
+    const disconnectBtn = netplayDialog.querySelector('#disconnectBtn');
+    const sessionActive = !!(
+      (npw && npw.dc && npw.dc.readyState === 'open') ||
+      (npw && npw._dcs && Object.values(npw._dcs).some(dc => dc && dc.readyState === 'open'))
+    );
+    if (disconnectBtn) {
+      disconnectBtn.hidden = !sessionActive;
+      disconnectBtn.style.display = sessionActive ? 'inline-block' : 'none';
+    }
+    document.body.classList.toggle('shared-console-active', sessionActive);
 
     if (netplayMode) {
       const primary = netplayMode === 'hosting' ? 'blue' : 'green';
@@ -1477,7 +1631,7 @@ netplayDialog.querySelector('#toggleLink').onclick = async () => {
     async function uploadLinkSave(sessionId, filename, dataBytes) {
         let platform = 'windows';
         try {
-            const txt = await fetch('./platform.txt', { cache: 'no-store' }).then(r => r.text());
+            const txt = await fetch('/platform.txt', { cache: 'no-store' }).then(r => r.text());
             platform = txt.trim().toLowerCase();
         } catch (e) { console.warn('Platform detection failed, defaulting to windows'); }
 
@@ -1485,14 +1639,14 @@ netplayDialog.querySelector('#toggleLink').onclick = async () => {
 
         if (platform === 'windows') {
             // Direct upload for Windows simple web server
-            const url = `${SIGNAL_ORIGIN}/netplay/${encodeURIComponent(sessionId)}/${encodeURIComponent(filename)}`;
+            const url = `${SIGNAL_ORIGIN}/emulator/netplay/${encodeURIComponent(sessionId)}/${encodeURIComponent(filename)}`;
             const res = await fetch(url, { method: 'PUT', body: blob });
             if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
         } else {
             // Android/Other API upload
             const form = new FormData();
             form.append('files[]', blob, filename);
-            const uploadPath = `/api/file/upload?path=${encodeURIComponent(`/netplay/${sessionId}/`)}`;
+            const uploadPath = `/api/file/upload?path=${encodeURIComponent(`/emulator/netplay/${sessionId}/`)}`;
             const res = await fetch(uploadPath, { method: 'PUT', body: form });
             if (!res.ok) throw new Error(`API Upload failed: ${res.status}`);
         }
@@ -1579,6 +1733,12 @@ netplayDialog.querySelector('#toggleLink').onclick = async () => {
         }
 
         // F. Redirect to Dual mGBA
+        // Store the current page so the dual page can send the user back here later.
+        try {
+          sessionStorage.setItem('mgbaDualReturnUrl', window.location.href);
+          sessionStorage.removeItem('mgbaDualLoadReferral');
+        } catch (e) {}
+
         // We pass the session tag (e.g., host-pokemonfirered-0), the rom filename, and the host IP
         const sessionTag = `${modePrefix}-${cleanBase}-${room}`;
         const hostForRedirect = (typeof SIGNAL_HOST !== 'undefined' && SIGNAL_HOST) ? SIGNAL_HOST : `${location.hostname}${location.port ? ':' + location.port : ''}`;
@@ -1694,7 +1854,7 @@ function updateNetplayPlayerLabel() {
 // ---------- PLATFORM-AWARE netplay file helpers (replace npFilePath / putJson / readJson) ----------
 /*
   Mirrors memory-card upload method: if platform.txt === 'windows'
-  we use the direct host /netplay/... URLs (existing behavior). Otherwise we
+  we use the direct host /emulator/netplay/... URLs (existing behavior). Otherwise we
   use the server upload API for writes and attempt the API download for reads,
   falling back to the direct URL when necessary.
 */
@@ -1705,7 +1865,7 @@ async function getPlatformMode() {
   if (__np_platform_cache.value !== null) return __np_platform_cache.value;
   let mode = 'windows';
   try {
-    const r = await fetch('./platform.txt', { cache: 'no-store' });
+    const r = await fetch('/platform.txt', { cache: 'no-store' });
     if (r.ok) {
       const t = (await r.text()).trim();
       if (t) mode = t;
@@ -1731,8 +1891,8 @@ async function getRefreshMode() {
  * Callers still pass npFilePath(sessionId, name) everywhere.
  */
 function npFilePath(sessionId, name) {
-  // keep the original host-style path (used as canonical representation)
-  return `http://${SIGNAL_HOST}/netplay/${encodeURIComponent(sessionId)}/${encodeURIComponent(name)}`;
+  // Keep the current page scheme so HTTPS pages do not hit mixed-content blocks.
+  return `${location.protocol}//${SIGNAL_HOST}/emulator/netplay/${encodeURIComponent(sessionId)}/${encodeURIComponent(name)}`;
 }
 
 /**
@@ -1770,11 +1930,11 @@ async function putJson(url, obj) {
         const jsonStr = JSON.stringify(obj);
         const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
         fallbackForm.append('files[]', new Blob([`[[[${b64}]]]`], { type: 'text/plain' }), 'payload.json');
-        return fetch(`/api/file/upload?path=${encodeURIComponent(`/netplay/`)}`, { method: 'PUT', body: fallbackForm });
+        return fetch(`/api/file/upload?path=${encodeURIComponent(`/emulator/netplay/`)}`, { method: 'PUT', body: fallbackForm });
       } else {
         // other non-windows platforms: upload raw json blob (existing compatibility behavior)
         fallbackForm.append('files[]', new Blob([JSON.stringify(obj)], { type: 'application/json' }), 'payload.json');
-        return fetch(`/api/file/upload?path=${encodeURIComponent(`/netplay/`)}`, { method: 'PUT', body: fallbackForm });
+        return fetch(`/api/file/upload?path=${encodeURIComponent(`/emulator/netplay/`)}`, { method: 'PUT', body: fallbackForm });
       }
     }
 
@@ -1790,14 +1950,14 @@ async function putJson(url, obj) {
       const wrapped = `[[[${b64}]]]`;
       const form = new FormData();
       form.append('files[]', new Blob([wrapped], { type: 'text/plain' }), fileName);
-      const uploadPath = `/api/file/upload?path=${encodeURIComponent(`/netplay/${sessionId}/`)}`;
+      const uploadPath = `/api/file/upload?path=${encodeURIComponent(`/emulator/netplay/${sessionId}/`)}`;
       return fetch(uploadPath, { method: 'PUT', body: form });
     } else {
       // Non-android non-windows: keep previous behavior (upload JSON blob)
       const form = new FormData();
       const blob = new Blob([JSON.stringify(obj)], { type: 'application/json' });
       form.append('files[]', blob, fileName);
-      const uploadPath = `/api/file/upload?path=${encodeURIComponent(`/netplay/${sessionId}/`)}`;
+      const uploadPath = `/api/file/upload?path=${encodeURIComponent(`/emulator/netplay/${sessionId}/`)}`;
       return fetch(uploadPath, { method: 'PUT', body: form });
     }
   } catch (e) {
@@ -1837,7 +1997,7 @@ async function readJson(url) {
     if (netIdx !== -1 && parts.length >= netIdx + 3) {
       const sessionId = parts[netIdx + 1];
       const nameParts = parts.slice(netIdx + 2);
-      const filePath = `/netplay/${sessionId}/${nameParts.join('/')}`;
+      const filePath = `/emulator/netplay/${sessionId}/${nameParts.join('/')}`;
       const apiDownload = `/api/file/download?path=${encodeURIComponent(filePath)}&ts=${Date.now()}`;
 
       // 1) Try API download endpoint
@@ -2018,6 +2178,9 @@ const lastSeqForSlot = {};
       // when joiner opens their side, count them
       dc.onopen = () => {
         console.log(`[Host] datachannel open for slot ${slotIndex} -> assigned player ${dc._assignedSlot}`);
+        try {
+          if (typeof updateNetplayVisuals === 'function') updateNetplayVisuals();
+        } catch (e) {}
         // notify joiner of their slot explicitly (redundant but useful)
         try { dc.send(JSON.stringify({ type: 'assign-slot', slot: dc._assignedSlot })); } catch(e){}
         if (!npw._slotAssigned[slotIndex]) {
@@ -2090,6 +2253,20 @@ try {
         if (npw._slotAssigned[slotIndex]) {
           npw._slotAssigned[slotIndex] = false;
           npw._connectedJoiners = Math.max(0, (npw._connectedJoiners || 0) - 1);
+        }
+
+        // If the last joiner leaves, stop shared console just like the manual disconnect button.
+        if ((npw._connectedJoiners || 0) <= 0 && sharedConsoleEnabled) {
+          try {
+            sharedConsoleEnabled = false;
+            linkTradeEnabled = false;
+            netplayMode = null;
+            stopHostWebRTC();
+            netplayDialog.style.display = 'none';
+            updateNetplayVisuals();
+          } catch (e) {
+            console.warn('Host auto-stop after last joiner disconnect failed', e);
+          }
         }
       };
 
@@ -2200,6 +2377,10 @@ window.stopHostWebRTC = function stopHostWebRTC() {
   // cleanup object
   npw.pc = null; npw.dc = null; npw._pcs = null; npw._dcs = null; npw.localStream = null; npw.videoEl = null;
   npw.role = null; npw.sessionId = null; npw._slotAssigned = null; npw._connectedJoiners = 0;
+  netplayMode = null;
+  sharedConsoleEnabled = false;
+  linkTradeEnabled = false;
+  try { if (typeof updateNetplayVisuals === 'function') updateNetplayVisuals(); } catch (e) {}
   console.log('Host stopped (all slot PCs closed).');
 };
 
@@ -2251,6 +2432,27 @@ window.joinWebRTC = async function joinWebRTC(sessionId) {
   // create PC and answer
   const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
   npw.pc = pc;
+
+  const restartAndPlayLocalEmulator = async () => {
+    try {
+      const em = window.EJS_emulator;
+      if (!em) return;
+      const gm = em.gameManager || {};
+      if (typeof gm.restart === 'function') {
+        gm.restart();
+      } else if (typeof em.restart === 'function') {
+        em.restart();
+      }
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      if (typeof gm.play === 'function') {
+        gm.play();
+      } else if (typeof em.play === 'function') {
+        em.play();
+      }
+    } catch (err) {
+      console.warn('joiner restart/play failed', err);
+    }
+  };
 
  // ontrack -> show host video
 pc.ontrack = (ev) => {
@@ -2377,7 +2579,7 @@ overlay.addEventListener('dblclick', async (ev) => {
       const unmuteBtn = makeEl('button',
         { id: 'netplayUnmuteBtn', innerText: 'Unmute' },
         {
-          position: 'fixed', right: '12px', top: '12px', zIndex: 100003, padding: '8px 10px',
+          position: 'fixed', right: '12px', top: '48px', zIndex: 100003, padding: '8px 10px',
           borderRadius: '6px', border: 'none', background: 'rgba(0,0,0,0.6)', color: '#fff',
           fontSize: '14px', cursor: 'pointer', pointerEvents: 'auto'
         }
@@ -2403,6 +2605,35 @@ overlay.addEventListener('dblclick', async (ev) => {
       window.addEventListener('keydown', doUnmute, { once: true });
 
       unmuteBtn.addEventListener('click', doUnmute);
+
+      if (npw.role === 'joiner' && !document.getElementById('netplayJoinerDisconnectBtn')) {
+        const joinerDisconnectBtn = makeEl('button',
+          { id: 'netplayJoinerDisconnectBtn', innerHTML: '&times;' },
+          {
+            position: 'fixed', right: '12px', top: '12px', zIndex: 100004,
+            width: '26px', height: '26px', padding: '0',
+            borderRadius: '3px', border: '1px solid rgba(255,255,255,0.28)',
+            background: 'rgba(0,0,0,0.05)', color: '#fff',
+            fontSize: '18px', lineHeight: '1', cursor: 'pointer',
+            pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }
+        );
+        joinerDisconnectBtn.setAttribute('aria-label', 'Disconnect from shared console');
+        joinerDisconnectBtn.setAttribute('title', 'Disconnect from shared console');
+
+        joinerDisconnectBtn.addEventListener('click', async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          joinerDisconnectBtn.disabled = true;
+          try {
+            await window.leaveWebRTC();
+          } finally {
+            await restartAndPlayLocalEmulator();
+          }
+        });
+
+        document.body.appendChild(joinerDisconnectBtn);
+      }
 
       // Append elements to DOM
       document.body.appendChild(video);
@@ -2431,7 +2662,13 @@ overlay.addEventListener('dblclick', async (ev) => {
 const lastSeqForSlot = {};
 
     npw.dc = dc;
-    dc.onopen = () => { console.log('Joiner DC open (slot ' + chosenSlot + ')'); attachJoinerHandlers(); };
+    dc.onopen = () => {
+      console.log('Joiner DC open (slot ' + chosenSlot + ')');
+      try {
+        if (typeof updateNetplayVisuals === 'function') updateNetplayVisuals();
+      } catch (e) {}
+      attachJoinerHandlers();
+    };
     dc.onmessage = (ev) => {
 // robustly resolve incomingPlayer & sequence: accept numeric or numeric-string player and track lastSeq
 try {
@@ -2801,6 +3038,9 @@ window.leaveWebRTC = async function leaveWebRTC() {
       try { npw.videoEl.remove(); } catch(e){}
     }
 
+    try { const joinerBtn = document.getElementById('netplayJoinerDisconnectBtn'); if (joinerBtn) joinerBtn.remove(); } catch (e) {}
+    try { const unmuteBtn = document.getElementById('netplayUnmuteBtn'); if (unmuteBtn) unmuteBtn.remove(); } catch (e) {}
+
     removeTopLeftUIClone();
 
     if (npw.dc) try { npw.dc.close(); } catch(e){}
@@ -2809,6 +3049,10 @@ window.leaveWebRTC = async function leaveWebRTC() {
 
   npw.pc = npw.dc = npw.videoEl = null;
   npw.role = null; npw.sessionId = null; npw._joinHandlers = null;
+  netplayMode = null;
+  sharedConsoleEnabled = false;
+  linkTradeEnabled = false;
+  try { if (typeof updateNetplayVisuals === 'function') updateNetplayVisuals(); } catch (e) {}
   console.log('Left session.');
 };
 
@@ -2976,10 +3220,8 @@ guideButton.addEventListener("click", (e) => {
     e.preventDefault();
     const rom = romParam.split('?')[0];
     const base = rom.split('.')[0];
-const url = `${serverOrigin}/reader.html?lib=guidebooks&Guidebook=${base}Guidebook`;
-    const iframe = document.getElementById("guideIframe");
-    iframe.src = url;
-    document.getElementById("guideContainer").style.display = "block";
+    const url = `${serverOrigin}/emulator/reader.html?lib=guidebooks&Guidebook=${base}Guidebook`;
+    openGuideUrl(url);
 });
 document.body.appendChild(guideButton);
 
@@ -2996,7 +3238,7 @@ Object.assign(guideContainer.style, {
     background: "rgba(0,0,0,0.8)",
     zIndex: "10001"
 });
-const guideIframe = document.createElement("iframe");
+let guideIframe = document.createElement("iframe");
 guideIframe.id = "guideIframe";
 Object.assign(guideIframe.style, {
     width: "100%",
@@ -3004,7 +3246,7 @@ Object.assign(guideIframe.style, {
     border: "none",
     borderRadius: "8px"
 });
-// ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Guidebook ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+// Guidebook
 guideContainer.appendChild(guideIframe);
 
 // 1) Make the container transparent
@@ -3013,6 +3255,85 @@ guideContainer.style.background = "transparent";
 // 2) Allow the iframe to render with a transparent background
 guideIframe.style.background = "transparent";
 guideIframe.setAttribute("allowTransparency", "true");
+
+function mountFreshGuideIframe() {
+    const fresh = document.createElement("iframe");
+    fresh.id = "guideIframe";
+    Object.assign(fresh.style, {
+        width: "100%",
+        height: "100%",
+        border: "none",
+        borderRadius: "8px",
+        background: "transparent"
+    });
+    fresh.setAttribute("allowTransparency", "true");
+    fresh.setAttribute("loading", "eager");
+    if (guideIframe && guideIframe.parentNode) {
+        guideIframe.parentNode.replaceChild(fresh, guideIframe);
+    } else {
+        guideContainer.insertBefore(fresh, closeGuide);
+    }
+    guideIframe = fresh;
+    return fresh;
+}
+
+function pauseEmulatorForOverlay() {
+  try {
+    const em = window.EJS_emulator;
+    if (!em) return;
+    const gm = em.gameManager || {};
+    window.__guideOverlayPausedEmulator = true;
+
+    if (typeof em.pause === 'function') {
+      try { em.pause(true); return; } catch (e) {}
+    }
+    if (typeof gm.pause === 'function') {
+      try { gm.pause(true); return; } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('pauseEmulatorForOverlay failed:', e);
+  }
+}
+
+function resumeEmulatorFromOverlay() {
+  try {
+    if (!window.__guideOverlayPausedEmulator) return;
+    const em = window.EJS_emulator;
+    if (!em) return;
+    const gm = em.gameManager || {};
+
+    if (typeof gm.play === 'function') {
+      try { gm.play(); window.__guideOverlayPausedEmulator = false; return; } catch (e) {}
+    }
+    if (typeof em.play === 'function') {
+      try { em.play(); window.__guideOverlayPausedEmulator = false; return; } catch (e) {}
+    }
+    if (typeof em.resume === 'function') {
+      try { em.resume(); window.__guideOverlayPausedEmulator = false; return; } catch (e) {}
+    }
+    if (typeof em.pause === 'function') {
+      try { em.pause(false); window.__guideOverlayPausedEmulator = false; return; } catch (e) {}
+    }
+    if (typeof gm.resume === 'function') {
+      try { gm.resume(); window.__guideOverlayPausedEmulator = false; return; } catch (e) {}
+    }
+    if (typeof gm.pause === 'function') {
+      try { gm.pause(false); window.__guideOverlayPausedEmulator = false; return; } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('resumeEmulatorFromOverlay failed:', e);
+  }
+}
+
+function openGuideUrl(url) {
+    const frame = mountFreshGuideIframe();
+    pauseEmulatorForOverlay();
+    guideContainer.style.display = "block";
+    requestAnimationFrame(() => {
+        frame.src = url;
+    });
+}
+
 
 const closeGuide = document.createElement("button");
 closeGuide.textContent = "";
@@ -3036,7 +3357,8 @@ Object.assign(closeGuide.style, {
 
 function closeGuideOverlay() {
   guideContainer.style.display = "none";
-  guideIframe.src = "";
+  try { guideIframe.src = "about:blank"; } catch {}
+  resumeEmulatorFromOverlay();
 }
 
 closeGuide.addEventListener("click", closeGuideOverlay);
@@ -3044,6 +3366,15 @@ closeGuide.addEventListener("click", closeGuideOverlay);
 window.addEventListener("message", (event) => {
   const data = event && event.data;
   if (!data || typeof data !== "object") return;
+
+  if (data.type === "open-booklib-flow") {
+    const url = typeof data.url === "string" && data.url.trim()
+      ? data.url.trim()
+      : `${serverOrigin}/emulator/booklib.html?flow=1&step=2&Guidebook=${encodeURIComponent(String(data.guidebook || ""))}`;
+    openGuideUrl(url);
+    return;
+  }
+
   if (data.type !== "lib-flow-close" && data.type !== "lib-flow-complete") return;
   closeGuideOverlay();
 });
@@ -3235,13 +3566,49 @@ try {
 
   if (window.__NETPLAY_SHIM_VERBOSE) console.log('[netplay-shim] installed netplayInject helper. Use window.netplayInject(playerIndex, keyOrButton, pressed) to inject input.');
 })();
+// --- Auto-open Link Cable Save when returning from a dual session that wrote saves ---
+(function installLoadLinkCableReferral() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const referral = params.get('referral') || sessionStorage.getItem('mgbaDualLoadReferral');
+    if (referral !== 'loadLinkCable') return;
+
+    // Keep the intent if the page reloads before the loader finishes.
+    sessionStorage.setItem('mgbaDualLoadReferral', 'loadLinkCable');
+
+    // Clean the URL so the user does not keep re-triggering on refresh.
+    try {
+      params.delete('referral');
+      const qs = params.toString();
+      const cleanUrl = `${location.pathname}${qs ? `?${qs}` : ''}${location.hash || ''}`;
+      history.replaceState(null, '', cleanUrl);
+    } catch (e) {}
+
+    const started = Date.now();
+    const tick = () => {
+      const btn = document.getElementById('loadLinkCable');
+      const emulator = window.EJS_emulator || (typeof window.EJS_getInstance === 'function' ? window.EJS_getInstance(0) : null);
+      const romBaseReady = !!(emulator && typeof emulator.getBaseFileName === 'function' && String(emulator.getBaseFileName() || '').trim());
+      if (btn && romBaseReady) {
+        try { sessionStorage.removeItem('mgbaDualLoadReferral'); } catch (e) {}
+        btn.click();
+        return;
+      }
+      if (Date.now() - started < 15000) setTimeout(tick, 250);
+    };
+    tick();
+  } catch (e) {
+    console.warn('Referral auto-load failed:', e);
+  }
+})();
+
 // --- Hide Link-Cable UI for unsupported cores ---
 // run once after dialogs are in the DOM
 // --- Toggle Link-Trade UI via window.linkTradeCableButtons (robust, reversible) ---
 (function manageLinkTradeUI(){
   // 1) Inject CSS to hide/show and center console when disabled
   const css = `
-    /* hide the two known buttons (and any future hook) when body has class */
+    /* hide the link-trade button when disabled */
     body.link-trade-disabled #toggleLink,
     body.link-trade-disabled #loadLinkCable,
     body.link-trade-disabled [data-ejs-link-cable],
@@ -3251,15 +3618,10 @@ try {
       pointer-events: none !important;
     }
 
-    /* try to center common shared-console selectors when link-trade hidden */
-    body.link-trade-disabled .netplay-shared-console,
-    body.link-trade-disabled .shared-console,
-    body.link-trade-disabled #sharedConsole,
-    body.link-trade-disabled .sharedConsole {
-      margin-left: auto !important;
-      margin-right: auto !important;
-      text-align: center !important;
-      display: block !important;
+    /* keep shared console centered in the row without changing the rest of the dialog */
+    body.link-trade-disabled #toggleShared {
+      grid-column: 1 / -1 !important;
+      justify-self: center !important;
     }
   `;
   const style = document.createElement('style');
@@ -3278,21 +3640,6 @@ try {
       console.info('Link-Trade UI: ENABLED');
     }
 
-    // Try to center any netplay dialog console flex container (best-effort)
-    try {
-      const netplayDialog = document.querySelector('#netplayDialog, .netplay-dialog, [data-netplay-dialog]');
-      if (netplayDialog) {
-        // If dialog uses flex, center children horizontally
-        const cs = window.getComputedStyle(netplayDialog);
-        if (cs && cs.display && cs.display.indexOf('flex') === 0) {
-          if (disabled) {
-            netplayDialog.style.justifyContent = 'center';
-          } else {
-            netplayDialog.style.justifyContent = ''; // restore default
-          }
-        }
-      }
-    } catch (e) { /* silent best-effort */ }
   }
 
   // 3) Safe setter/getter so toggling later works
@@ -3322,7 +3669,7 @@ try {
     });
   })();
 
-  // 4) MutationObserver to re-apply centering / ensure style affects dynamically created UI
+  // 4) MutationObserver to re-apply the visibility rules to dynamically created UI
   const mo = new MutationObserver(() => {
     // apply class-based hiding/centering to newly added nodes (no-op if class exists)
     updateUI(Boolean(window.linkTradeCableButtons));

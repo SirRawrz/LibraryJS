@@ -32,21 +32,12 @@
       font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     }
     .wrap{max-width:1700px;margin:0 auto;padding:16px}
-    .hero,.panel,.card{
+    .panel,.card{
       border:1px solid var(--line);
       border-radius:var(--radius);
       background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
       box-shadow:var(--shadow);
     }
-    .hero{
-      display:flex; flex-wrap:wrap; gap:14px;
-      align-items:flex-start; justify-content:space-between;
-      padding:16px;
-      margin-bottom:16px;
-    }
-    .hero h1{margin:0;font-size:26px;letter-spacing:-.04em}
-    .hero .sub{margin-top:7px;color:var(--muted);max-width:1020px;line-height:1.45;font-size:13px}
-    .hero .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;align-items:center;flex:1 1 560px}
     input[type="text"], input[type="file"], select, textarea{
       background:var(--panel2); color:var(--text);
       border:1px solid var(--line); border-radius:12px;
@@ -77,6 +68,12 @@
     .panelBody{padding:16px}
 
     .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+    .toolbar input[type="text"]{
+      min-width:240px; flex:1 1 280px;
+      background:var(--panel2); color:var(--text);
+      border:1px solid var(--line); border-radius:12px;
+      padding:11px 12px; font:inherit; outline:none;
+    }
     .toolbar .spacer{flex:1 1 auto}
     .small{font-size:12px;color:var(--muted);line-height:1.45}
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
@@ -109,6 +106,7 @@
     .contentBox .txt{font-size:12px;line-height:1.35}
     .contentBox .txt strong{display:block;font-size:12px;color:var(--text)}
     .contentBox .txt span{display:block;color:var(--muted);margin-top:3px}
+    .flowMode #buildBtn{display:none!important;}
 
     .statGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
     .stat{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:16px;padding:12px}
@@ -127,32 +125,12 @@
       .profilesGrid{grid-template-columns:1fr}
       .contentGrid{grid-template-columns:1fr}
       .statGrid{grid-template-columns:1fr 1fr}
-      .hero,.panel{padding-left:0;padding-right:0}
-      .hero{padding:14px}
       .panelBody{padding:14px}
-      .hero .actions{justify-content:flex-start}
-      .hero input[type="text"], .hero select{min-width:100%}
     }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="hero">
-    <div>
-      <h1>Server Profiles Backup</h1>
-      <div class="sub">
-        Pick one or more profiles, then choose which profile-scoped content should be captured into a single backup zip.
-        This page keeps the same “server-aware” style as the existing backup tools, but it is narrowed to the profile side of the project: album folders and album metadata, emulator memory-card saves, bookmarks, favorites, music lists, and the profile entry in <span class="mono">profiles.js</span>.
-      </div>
-    </div>
-    <div class="actions">
-      <input id="searchBox" type="text" placeholder="Filter profiles or contents" />
-      <button id="selectAllProfilesBtn">Select all profiles</button>
-      <button id="clearAllBtn">Clear</button>
-      <button id="buildBtn" class="primary">Build backup zip</button>
-    </div>
-  </div>
-
   <div class="main">
     <div class="panel">
       <div class="panelHead">
@@ -164,10 +142,11 @@
       </div>
       <div class="panelBody">
         <div class="toolbar">
-          <div class="small">Default selection is everything checked. Use the search box to trim the list.</div>
+          <input id="searchBox" type="text" placeholder="Filter profiles or contents" />
+          <button id="selectAllProfilesBtn">Select all profiles</button>
+          <button id="clearAllBtn">Clear</button>
           <div class="spacer"></div>
-          <button id="selectVisibleBtn" class="ghost">Select visible</button>
-          <button id="clearVisibleBtn" class="ghost">Clear visible</button>
+          <button id="buildBtn" class="primary">Build backup zip</button>
         </div>
         <div class="profilesGrid" id="profilesGrid"></div>
       </div>
@@ -217,8 +196,6 @@
     profilesMeta: document.getElementById('profilesMeta'),
     selectAllProfilesBtn: document.getElementById('selectAllProfilesBtn'),
     clearAllBtn: document.getElementById('clearAllBtn'),
-    selectVisibleBtn: document.getElementById('selectVisibleBtn'),
-    clearVisibleBtn: document.getElementById('clearVisibleBtn'),
     buildBtn: document.getElementById('buildBtn'),
     selectedProfilesCount: document.getElementById('selectedProfilesCount'),
     selectedItemsCount: document.getElementById('selectedItemsCount'),
@@ -251,6 +228,10 @@
     builtZipBytes: null,
   };
 
+  const flowMode = new URLSearchParams(location.search).has('flow');
+  if (flowMode) document.body.classList.add("flowMode");
+  const flowTargetOrigin = location.origin === 'null' ? '*' : location.origin;
+
   function log(msg, reset = false) {
     const text = String(msg || '').trim();
     if (reset) state.logLines = [];
@@ -276,6 +257,24 @@
     let idx = 0;
     while (v >= 1024 && idx < units.length - 1) { v /= 1024; idx++; }
     return `${v.toFixed(v >= 100 || idx === 0 ? 0 : 1)} ${units[idx]}`;
+  }
+
+  function serializeFlowFiles(files) {
+    const payload = [];
+    const transfer = [];
+    for (const file of files) {
+      const raw = file.bytes instanceof Uint8Array
+        ? file.bytes
+        : file.bytes instanceof ArrayBuffer
+          ? new Uint8Array(file.bytes)
+          : encodeUtf8(String(file.content || ''));
+      const owned = raw.byteOffset === 0 && raw.byteLength === raw.buffer.byteLength
+        ? raw.buffer
+        : raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
+      payload.push({ name: file.name, bytes: owned });
+      transfer.push(owned);
+    }
+    return { payload, transfer };
   }
 
   function normalizePath(value) {
@@ -624,7 +623,41 @@
       bgColors: Array.isArray(p.bgColors) ? p.bgColors.slice(0, 10) : []
     }));
     const titleString = serverTitle ? String(serverTitle) : '';
-    return `/* Generated by server-profiles-backup.html */\n\nwindow.profiles = ${JSON.stringify(safeProfiles, null, 2)};\n// Example: window._customServerTitle = \"Family Media Library\";\nwindow._customServerTitle = ${JSON.stringify(titleString)};\n`;
+    return `/* Generated by server-profiles-backup.html */
+
+window.profiles = ${JSON.stringify(safeProfiles, null, 2)};
+// Example: window._customServerTitle = "Family Media Library";
+window._customServerTitle = ${JSON.stringify(titleString)};
+`;
+  }
+
+  function extractCustomTitle(txt) {
+    const m = String(txt || '').match(/window\._customServerTitle\s*=\s*([\s\S]*?);/m);
+    if (!m) return '';
+    try {
+      const value = new Function(`return (${m[1]});`)();
+      return typeof value === 'string' ? value.trim() : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  async function resolveServerTitle() {
+    const candidates = ['profiles.js', './profiles.js', 'Profiles/profiles.js'];
+    for (const path of candidates) {
+      const txt = await fetchText(path).catch(() => null);
+      const title = extractCustomTitle(txt);
+      if (title) return title;
+    }
+    if (typeof window._customServerTitle === 'string' && window._customServerTitle.trim()) {
+      return window._customServerTitle.trim();
+    }
+    try {
+      const title = document.title || '';
+      return title.trim();
+    } catch (e) {
+      return '';
+    }
   }
 
   async function collectProfileFiles(profileName, flags) {
@@ -844,7 +877,7 @@
       setProgress(progressIndex, selected.length, `Collected ${profile}`);
     }
 
-    const serverTitle = (typeof window._customServerTitle === 'string') ? window._customServerTitle : '';
+    const serverTitle = await resolveServerTitle();
     const profilesJsText = buildProfilesJs(selectedEntries, serverTitle);
     pushFile('profiles.js', encodeUtf8(profilesJsText));
     pushFile('manifest.json', encodeUtf8(JSON.stringify(manifest, null, 2)));
@@ -866,6 +899,20 @@
       el.filesFoundCount.textContent = String(files.length);
 
       const title = `server-profiles-backup_${new Date().toISOString().replace(/[:.]/g, '-').slice(0,19)}.zip`;
+      if (flowMode && window.parent && window.parent !== window) {
+        const { payload, transfer } = serializeFlowFiles(files);
+        window.parent.postMessage({
+          type: 'libraryjs-flow-result',
+          flow: 'backup',
+          lane: 'profile',
+          page: 'server-profile-backup',
+          filename: title,
+          files: payload
+        }, flowTargetOrigin, transfer);
+        log(`Backup ready for flow: ${title}`);
+        return;
+      }
+
       const blob = new Blob([zipBytes], { type: 'application/zip' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -923,9 +970,7 @@
   el.searchBox.addEventListener('input', applyFilter);
   el.selectAllProfilesBtn.addEventListener('click', () => { setAllProfiles(true); });
   el.clearAllBtn.addEventListener('click', () => { setAllProfiles(false); setVisibleItemChecks(false); });
-  el.selectVisibleBtn.addEventListener('click', () => { setAllVisible(true); setVisibleItemChecks(true); });
-  el.clearVisibleBtn.addEventListener('click', () => { setAllVisible(false); setVisibleItemChecks(false); });
-  el.buildBtn.addEventListener('click', downloadBackup);
+el.buildBtn.addEventListener('click', downloadBackup);
 
   renderProfiles();
   updateCounts();

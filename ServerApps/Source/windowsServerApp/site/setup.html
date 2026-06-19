@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LibraryJS Setup</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0d10;
+        --panel: #121725;
+        --panel-2: #0d1220;
+        --border: #263146;
+        --text: #eef3fb;
+        --muted: #9aa8bd;
+        --accent: #7aa7ff;
+        --accent-2: #89dfb4;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: radial-gradient(circle at top, rgba(30, 41, 59, 0.85) 0, rgba(11, 13, 16, 1) 55%), var(--bg);
+        color: var(--text);
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        min-height: 100dvh;
+        padding: clamp(12px, 2vw, 32px);
+      }
+
+      .wrap {
+        max-width: 1040px;
+        margin: 0 auto;
+      }
+
+      .hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: end;
+        margin-bottom: 24px;
+      }
+
+      h1 { margin: 0; font-size: clamp(1.8rem, 3vw, 2.4rem); }
+      p { margin: 6px 0 0; color: var(--muted); line-height: 1.5; }
+
+      .card {
+        background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent), var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: clamp(18px, 2vw, 26px);
+        box-shadow: 0 18px 50px rgba(0,0,0,0.28);
+        max-height: calc(100dvh - 64px);
+        overflow: auto;
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+      }
+
+      .mini-card {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: rgba(9, 13, 20, 0.56);
+        padding: clamp(16px, 2vw, 20px);
+        min-width: 0;
+      }
+
+      .mini-card h2 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+      }
+
+      .row { margin-bottom: 18px; }
+
+      label {
+        display: block;
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 16px 16px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: var(--panel-2);
+        color: var(--text);
+        font-size: 15px;
+      }
+
+      .hint { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+
+      .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+
+      button {
+        border: 0;
+        border-radius: 14px;
+        padding: 12px 16px;
+        background: var(--accent);
+        color: #07111f;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .status { margin-top: 20px; min-height: 22px; color: var(--muted); }
+      .status.ok { color: var(--accent-2); }
+      .status.err { color: #ff9b9b; }
+      .small { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+
+      @media (max-width: 900px) {
+        .hero {
+          display: flex;
+          align-items: start;
+          flex-direction: column;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <script defer src="./setup.js"></script>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="hero">
+        <div>
+          <h1>Connection setup</h1>
+          <p>Enter the storage server and proxy server you want the extension to use. These values are saved and used for the next pages the extension opens.</p>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="grid">
+          <div class="mini-card">
+            <h2>Library location</h2>
+            <div class="row">
+              <label for="musicStorageUrl">Music library storage URL</label>
+              <input id="musicStorageUrl" placeholder="http://192.168.254.16:8077/" />
+              <div class="hint">Use the full http or https URL, including the port.</div>
+            </div>
+
+            <div class="row">
+              <label for="musicProxyUrl">Music proxy URL</label>
+              <input id="musicProxyUrl" placeholder="http://192.168.254.16:8086/" />
+              <div class="hint">Use the proxy host with http or https.</div>
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <h2>Proxy port</h2>
+            <div class="row">
+              <label for="musicProxyPort">Music proxy port</label>
+              <input id="musicProxyPort" inputmode="numeric" placeholder="auto" />
+            </div>
+
+            <div class="actions">
+              <button id="saveBtn" type="button">Save settings</button>
+            </div>
+
+            <div id="status" class="status">Waiting for values…</div>
+            <div class="small">After saving, click the extension again to open the normal page with these settings.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+

@@ -68,7 +68,7 @@
       height: 36px;
       border-radius: 8px;
       background: rgba(255,255,255,0.04);
-      display:flex;
+      display:none;
       align-items:center;
       justify-content:center;
       cursor:pointer;
@@ -512,6 +512,82 @@
       }
     }
   </style>
+
+<script>
+(function(){
+  const KID_KEY = 'kidsMode'; // values: 'l' = kids, 'I' = adult
+
+  function readQuery() {
+    try {
+      const p = new URLSearchParams(window.location.search || '');
+      if (p.has('l')) return 'l';
+      if (p.has('I')) return 'I';
+    } catch(e) { /* ignore */ }
+    return null;
+  }
+
+  function setStore(val) {
+    try {
+      if (val === 'l' || val === 'I') localStorage.setItem(KID_KEY, val);
+      else localStorage.removeItem(KID_KEY);
+    } catch(e) {
+      console.warn('kidsMode setStore error', e);
+    }
+  }
+
+  window.setKidsModeFromQuery = function(){
+    const q = readQuery();
+
+    if (q) {
+      setStore(q);
+      return;
+    }
+
+    try {
+      const existing = localStorage.getItem(KID_KEY);
+      if (existing !== 'l' && existing !== 'I') {
+        localStorage.setItem(KID_KEY, 'l');
+      }
+    } catch(e) {
+      console.warn('kidsMode default init error', e);
+    }
+  };
+
+  window.isKidsModeActive = function(){
+    const q = readQuery();
+    if (q) return q === 'l';
+    try {
+      return localStorage.getItem(KID_KEY) === 'l';
+    } catch(e) {
+      return false;
+    }
+  };
+
+  window.updateProfileSettingsVisibility = function(){
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (!settingsBtn) return;
+
+    const kidsMode = !!(window.isKidsModeActive && window.isKidsModeActive());
+    settingsBtn.style.display = kidsMode ? 'none' : 'flex';
+    settingsBtn.setAttribute('aria-hidden', kidsMode ? 'true' : 'false');
+  };
+
+  try { window.setKidsModeFromQuery(); } catch(e) {}
+
+  const refreshProfileUI = function(){
+    try { window.updateProfileSettingsVisibility(); } catch(e) {}
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', refreshProfileUI, { once: true });
+  } else {
+    refreshProfileUI();
+  }
+
+  window.addEventListener('load', refreshProfileUI, { once: true });
+})();
+</script>
+
 </head>
 <body>
   <header>

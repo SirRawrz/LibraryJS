@@ -289,6 +289,12 @@
   body.flow-managed .flow-progress-overlay {
     display: none !important;
   }
+  body.flow-managed #flowUseAudioBtn,
+  body.flow-managed #flowUseImageBtn,
+  body.flow-managed #flowClearFilesBtn,
+  body.flow-managed #addAndNextBtn {
+    display: none !important;
+  }
   body.flow-mode .body {
     padding: 14px;
   }
@@ -586,7 +592,7 @@ Stressed Out - Twenty One Pilots$A
 
   const flowParams = new URLSearchParams(window.location.search || '');
   const EXTENSION_FLOW_MODE = flowParams.has('flow');
-  const MANAGED_FLOW_MODE = flowParams.has('mflow');
+  const MANAGED_FLOW_MODE = flowParams.has('mflow') || flowParams.get('embed') === '1' || (window.parent && window.parent !== window);
   const FLOW_MODE = EXTENSION_FLOW_MODE || MANAGED_FLOW_MODE;
   let flowMode = String(flowParams.get('mode') || '').toLowerCase() === 'audiobook' ? 'audiobook' : 'music';
   document.body.classList.toggle('flow-mode', FLOW_MODE);
@@ -733,6 +739,31 @@ Stressed Out - Twenty One Pilots$A
     el.innerHTML = message;
   }
 
+
+  function getManagedFlowHostDocument() {
+    try {
+      return MANAGED_FLOW_MODE && window.parent && window.parent !== window ? window.parent.document : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function syncManagedFlowControls() {
+    if (!MANAGED_FLOW_MODE) return;
+    const hostDoc = getManagedFlowHostDocument();
+    if (!hostDoc) return;
+    const slot = hostDoc.getElementById('addContentModalActions');
+    if (!slot) return;
+
+    const modeLabel = flowMode === 'audiobook' ? 'Audiobook' : 'Music';
+    const primaryLabel = flowMode === 'audiobook' ? 'Upload audiobook to server' : 'Add song & update server';
+
+    slot.innerHTML = `
+      <span class="embed-flow-meta" title="${escapeHtml(modeLabel)} quick add">${escapeHtml(modeLabel)} quick add</span>
+      <button type="button" class="embed-flow-btn secondary" data-embed-control="clear">Clear</button>
+      <button type="button" class="embed-flow-btn" data-embed-control="action">${primaryLabel}</button>
+    `;
+  }
 
   function setPreviewImage(src, alt = 'Artist preview') {
     const img = $('artistPreviewImg');
@@ -1365,6 +1396,8 @@ Stressed Out - Twenty One Pilots$A
     } catch {
       // ignore URL updates that fail
     }
+
+    syncManagedFlowControls();
 
     if (flowMode === 'audiobook') {
       loadAudiobookLibrary().catch((err) => {
@@ -2190,6 +2223,30 @@ Stressed Out - Twenty One Pilots$A
     });
   }
 
+  window.__lmFlowApi = {
+    back: () => clearFlowFiles(),
+    clear: () => clearFlowFiles(),
+    save: async () => {
+      if (flowMode === 'audiobook') {
+        const btn = $('updatedMusicLibraryBtn');
+        if (btn) btn.click();
+        return;
+      }
+      const btn = $('addAndNextBtn');
+      if (btn) btn.click();
+    },
+    next: async () => {
+      const btn = $('addAndNextBtn');
+      if (btn) btn.click();
+    },
+    action: async () => {
+      const btn = $('addAndNextBtn');
+      if (btn) btn.click();
+    },
+    refreshControls: syncManagedFlowControls,
+    currentStepKey: () => (flowMode === 'audiobook' ? 'audiobook' : 'music')
+  };
+
   async function init() {
     if (await redirectToServerIpIfNeeded()) return;
     fillGenreSelect();
@@ -2199,6 +2256,7 @@ Stressed Out - Twenty One Pilots$A
     if (FLOW_MODE) {
       initFlowMode();
       setFlowMode(flowMode);
+      syncManagedFlowControls();
       if (flowMode === 'audiobook') {
         await loadAudiobookLibrary().catch(() => {});
       }

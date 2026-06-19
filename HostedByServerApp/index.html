@@ -657,10 +657,15 @@ window.setKidsModeFromQuery = function(){
     const kidsQRBtn = document.getElementById('kidsQRBtn');
 
     if (originalQRBtn) {
-      originalQRBtn.style.display = kidsMode ? 'none' : '';
+      const showOriginal = !kidsMode;
+      originalQRBtn.hidden = !showOriginal;
+      originalQRBtn.style.display = showOriginal ? '' : 'none';
+      originalQRBtn.setAttribute('aria-hidden', showOriginal ? 'false' : 'true');
     }
     if (kidsQRBtn) {
+      kidsQRBtn.hidden = false;
       kidsQRBtn.style.display = '';
+      kidsQRBtn.setAttribute('aria-hidden', 'false');
     }
   };
 
@@ -1278,12 +1283,12 @@ function normalizeSeasonsArrayInPlace(arr) {
 <div class="qr-buttons-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
   <div style="display: flex; gap: 6px; align-items: center; justify-content: flex-end;">
     <!-- Give each button an id so we can toggle visibility in JS -->
-    <button id="originalQRBtn" class="qr-button" style="background-color: #00B4D8;" onclick="openQR('lightblue')">
+    <button id="originalQRBtn" class="qr-button" hidden aria-hidden="true" style="display:none; background-color: #00B4D8;" onclick="openQR('lightblue')">
       <span class="full-text">Original QR</span>
       <span class="short-text" aria-hidden="true">QR</span>
     </button>
 
-    <button id="kidsQRBtn" class="qr-button" style="background-color: #FF8C00;" onclick="openQR('orange')">
+    <button id="kidsQRBtn" class="qr-button" hidden aria-hidden="true" style="display:none; background-color: #FF8C00;" onclick="openQR('orange')">
       <span class="full-text">Kid Safe QR</span>
       <span class="short-text" aria-hidden="true">Kids</span>
     </button>
@@ -2201,7 +2206,8 @@ function normalizeSeasonsArrayInPlace(arr) {
 <script src="./loadmainfolders.js"></script>
 <script src="./library.js"></script>
 <script src="./loadseasonfunctions.js"></script>
-<script src="./screensaver.js"></script>
+    <script src="./loadgames.js"></script>
+    <script src="./screensaver.js"></script>
 
     <script>
 // --- Kids-mode normalization for the global "folders" array ---
@@ -3885,17 +3891,16 @@ function renderResults(matches, rawQuery, options = {}){
     }
 
     div.addEventListener('click', () => {
-      try {
-        if (m && m.source === 'library' && m.lib) {
-          const guidebookParam = buildGuidebookParam(m);
-          if (!guidebookParam) {
-            console.warn('guidebook click missing ROM-safe base', m);
+        try {
+          if (m && m.source === 'library' && m.lib) {
+            const url = buildLibraryOpenUrl(m);
+            if (!url) {
+              console.warn('library click missing open target', m);
+              return;
+            }
+            window.location.href = url;
             return;
           }
-          const url = `./reader.html?lib=${encodeURIComponent(m.lib || 'books')}&Guidebook=${encodeURIComponent(guidebookParam)}`;
-          window.location.href = url;
-          return;
-        }
 
         if (typeof window.openFolderByName === 'function') {
           window.openFolderByName(m.title);
@@ -4133,6 +4138,20 @@ function renderResults(matches, rawQuery, options = {}){
     return /Guidebook$/i.test(base) ? base : `${base}Guidebook`;
   }
 
+
+  function buildLibraryOpenUrl(item) {
+    const lib = String(item?.lib || 'books').trim().toLowerCase() || 'books';
+    const title = String(item?.displayTitle || item?.title || '').trim();
+    if (!title) return '';
+
+    if (lib === 'guidebooks') {
+      const guidebookParam = buildGuidebookParam(item);
+      if (!guidebookParam) return '';
+      return `./reader.html?lib=${encodeURIComponent(lib)}&Guidebook=${encodeURIComponent(guidebookParam)}`;
+    }
+
+    return `./reader.html?lib=${encodeURIComponent(lib)}&Book=${encodeURIComponent(title)}`;
+  }
   function flattenLibraryItems(items, meta, parentTitle = null) {
     const out = [];
     const list = Array.isArray(items) ? items : [];
@@ -4322,12 +4341,11 @@ return window.libraryData;`)(sandbox);
 
         div.addEventListener('click', () => {
           try {
-            const guidebookParam = buildGuidebookParam(m);
-            if (!guidebookParam) {
-              console.warn('guidebook click missing ROM-safe base', m);
+            const url = buildLibraryOpenUrl(m);
+            if (!url) {
+              console.warn('library click missing open target', m);
               return;
             }
-            const url = `./reader.html?lib=${encodeURIComponent(m.lib || 'books')}&Guidebook=${encodeURIComponent(guidebookParam)}`;
             window.location.href = url;
           } catch(e){ console.error('library tile click', e); }
         });
@@ -5088,11 +5106,72 @@ function getNestedContentForFolder(folderName) {
             return episodes[folderName] || null;
     }
 }
-// Helper: safely encode '#' in file paths
+// Helper: safely encode '#' in file paths and resolve fallback hosts
 function safeFileUrl(raw) {
-    // Only target '#' that appears in the path; does not affect query/hash (none in your URLs)
-    return raw.replace(/#/g, '%23');
+    return String(raw || '').replace(/#/g, '%23');
 }
+
+function buildMediaFallbackCandidates(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return [];
+
+  const encoded = value.replace(/#/g, '%23');
+
+  if (/^(?:blob:|data:)/i.test(encoded)) {
+    return [encoded];
+  }
+
+  if (!/^https?:\/\//i.test(encoded)) {
+    return [encoded];
+  }
+
+  const candidates = [encoded];
+
+  try {
+    const parsed = new URL(encoded);
+    const fallbackHost = window.location.hostname || parsed.hostname;
+    const fallbackPort = parsed.port || window.location.port || '';
+    const fallbackUrl = `${parsed.protocol}//${fallbackHost}${fallbackPort ? `:${fallbackPort}` : ''}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    if (fallbackUrl && fallbackUrl !== parsed.href) candidates.push(fallbackUrl);
+  } catch (e) {
+    // ignore URL parsing failures and keep the original candidate only
+  }
+
+  return [...new Set(candidates)];
+}
+
+async function probeMediaUrl(url, timeoutMs = 900) {
+  if (!url) return false;
+  if (!/^https?:\/\//i.test(url)) return true;
+
+  const hasAbort = typeof AbortController !== 'undefined';
+  const controller = hasAbort ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { Range: 'bytes=0-0' },
+      signal: controller ? controller.signal : undefined
+    });
+    return res.ok || res.status === 206 || res.status === 200;
+  } catch (e) {
+    return false;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function resolveMediaUrl(raw) {
+  const candidates = buildMediaFallbackCandidates(raw);
+  for (const candidate of candidates) {
+    if (await probeMediaUrl(candidate)) return candidate;
+  }
+  return candidates[0] || '';
+}
+
 // Function to play the current episode
 function playEpisode(folderName = currentFolder, episodeIndex = currentEpisodeIndex, startTime = 0) {
   const episodeList = episodes[folderName];
@@ -5138,8 +5217,13 @@ try { updateEpisodeListHighlight(); } catch (e) {}
 
   // Encoded file path (replaces # with %23)
   const safeSrc = safeFileUrl(episode.file);
-  video.src = safeSrc;
-  setSubtitleWithFetch(safeSrc);
+  const mediaLoadToken = (window.__mediaLoadToken = (window.__mediaLoadToken || 0) + 1);
+  (async () => {
+    const resolvedSrc = await resolveMediaUrl(safeSrc);
+    if (window.__mediaLoadToken !== mediaLoadToken) return;
+    video.src = resolvedSrc;
+    setSubtitleWithFetch(resolvedSrc);
+  })();
 
   // Load video and apply resume time if any
   video.onloadedmetadata = function () {
@@ -8828,364 +8912,6 @@ window.loadFavorites = loadFavorites;
   <script src="./games.js"></script>
 <script>
 (function () {
-  /* =========================================================
-     Games favorites overlay for index(2).html
-     - Keeps a separate per-profile games favorite list
-     - Stores to localStorage + server using the same helper style
-     - Renders favorite games at the top of the Games tab
-     - Leaves the main Favorites system untouched
-     ========================================================= */
-
-  function _gamesFavoritesKeyForProfile(profile) {
-    profile = profile || (localStorage.getItem('activeProfile') || 'Guest');
-    return `gamesFavorites-${profile}`;
-  }
-
-  function normalizeGameFavoriteList(arr) {
-    if (!Array.isArray(arr)) return [];
-    const out = [];
-    const seen = new Set();
-
-    for (const item of arr) {
-      const name = String(item || '').trim();
-      if (!name) continue;
-      const key = name.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(name);
-    }
-
-    return out;
-  }
-
-  function getStoredGameFavorites() {
-    try {
-      const profile = localStorage.getItem('activeProfile') || 'Guest';
-      const key = _gamesFavoritesKeyForProfile(profile);
-      const perRaw = localStorage.getItem(key);
-      if (perRaw) {
-        try {
-          return normalizeGameFavoriteList(JSON.parse(perRaw));
-        } catch (e) {
-          console.warn('[games favorites] parse failed', e);
-          return [];
-        }
-      }
-
-      const legacyRaw = localStorage.getItem('gamesFavorites') || localStorage.getItem('gameFavorites');
-      if (legacyRaw) {
-        try {
-          const normalized = normalizeGameFavoriteList(JSON.parse(legacyRaw));
-          try { localStorage.setItem(key, JSON.stringify(normalized)); } catch (e) {}
-          return normalized;
-        } catch (e) {
-          console.warn('[games favorites] legacy parse failed', e);
-        }
-      }
-
-      return [];
-    } catch (e) {
-      console.warn('[games favorites] getStoredGameFavorites failed', e);
-      return [];
-    }
-  }
-
-  function setStoredGameFavorites(arr) {
-    try {
-      const profile = localStorage.getItem('activeProfile') || 'Guest';
-      const key = _gamesFavoritesKeyForProfile(profile);
-      localStorage.setItem(key, JSON.stringify(normalizeGameFavoriteList(arr)));
-    } catch (e) {
-      console.warn('[games favorites] setStoredGameFavorites failed', e);
-    }
-  }
-
-  async function saveGameFavoritesToServer(arr) {
-    const profile = localStorage.getItem('activeProfile') || 'Guest';
-    const slug = 'gamesFavorites';
-
-    if (typeof window.savePlaylistFileToServer === 'function') {
-      try {
-        await window.savePlaylistFileToServer(profile, slug, arr);
-        return true;
-      } catch (e) {
-        console.warn('[games favorites] savePlaylistFileToServer failed', e);
-      }
-    }
-
-    try {
-      const fileName = `${profile}-${slug}.txt`;
-      const payloadText = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
-      if (typeof pocketReplace === 'function') {
-        const ok = await pocketReplace(fileName, null, payloadText).catch(() => false);
-        if (ok) return true;
-      }
-    } catch (e) {
-      console.warn('[games favorites] pocketReplace failed', e);
-    }
-
-    try {
-      const nameNoExt = `${profile}-${slug}`;
-      const url = `/Profiles/${encodeURIComponent(nameNoExt)}.txt`;
-      const payloadText = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
-      const maxAttempts = 3;
-      const baseDelay = 250;
-
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-          const r = await fetch(url + `?_=${Date.now()}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'text/plain' },
-            body: payloadText,
-            credentials: 'include'
-          });
-          if (r.ok) return true;
-        } catch (e) {
-          console.warn('[games favorites] PUT attempt error', e);
-        }
-        await new Promise(res => setTimeout(res, baseDelay * Math.pow(2, attempt)));
-      }
-    } catch (e) {
-      console.warn('[games favorites] fallback failed', e);
-    }
-
-    return false;
-  }
-
-  async function loadGameFavoritesFromServer() {
-    const profile = localStorage.getItem('activeProfile') || 'Guest';
-    const slug = 'gamesFavorites';
-    const fileName = `${profile}-${slug}.txt`;
-    const perKey = _gamesFavoritesKeyForProfile(profile);
-
-    if (typeof fetchAndParseJsonArray === 'function') {
-      try {
-        const arr = await fetchAndParseJsonArray(`/Profiles/${encodeURIComponent(fileName)}`);
-        if (Array.isArray(arr)) {
-          const normalized = normalizeGameFavoriteList(arr);
-          try { localStorage.setItem(perKey, JSON.stringify(normalized)); } catch (e) {}
-          return normalized;
-        }
-      } catch (e) {
-        console.warn('[games favorites] fetchAndParseJsonArray failed', e);
-      }
-    }
-
-    try {
-      const r = await fetch(`/Profiles/${encodeURIComponent(fileName)}?_=${Date.now()}`, {
-        cache: 'no-store',
-        credentials: 'include'
-      });
-
-      let text = null;
-      if (r && r.ok) {
-        text = await r.text();
-      } else {
-        const alt = `/Profiles/${encodeURIComponent(fileName.replace(/\.txt$/, ''))}?_=${Date.now()}`;
-        const r2 = await fetch(alt, { cache: 'no-store', credentials: 'include' });
-        if (r2 && r2.ok) text = await r2.text();
-        else {
-          try { localStorage.removeItem(perKey); } catch (e) {}
-          return [];
-        }
-      }
-
-      try {
-        const m = text.match(/\[\[\[\s*([\s\S]*?)\s*\]\]\]/);
-        const arr = (m && m[1]) ? JSON.parse(m[1]) : JSON.parse(text);
-        if (Array.isArray(arr)) {
-          const normalized = normalizeGameFavoriteList(arr);
-          try { localStorage.setItem(perKey, JSON.stringify(normalized)); } catch (e) {}
-          return normalized;
-        }
-        try { localStorage.removeItem(perKey); } catch (e) {}
-        return [];
-      } catch (e) {
-        console.warn('[games favorites] parse error', e);
-        try { localStorage.removeItem(perKey); } catch (e) {}
-        return [];
-      }
-    } catch (e) {
-      console.warn('[games favorites] fetch failed', e);
-      try { localStorage.removeItem(perKey); } catch (e) {}
-      return [];
-    }
-  }
-
-  function isGameFavorited(gameName) {
-    const favs = getStoredGameFavorites();
-    const key = String(gameName || '').trim().toLowerCase();
-    return favs.some(n => String(n).trim().toLowerCase() === key);
-  }
-
-  function toggleGameFavoriteByName(gameName) {
-    const name = String(gameName || '').trim();
-    if (!name) return;
-
-    const favs = getStoredGameFavorites();
-    const idx = favs.findIndex(n => String(n).trim().toLowerCase() === name.toLowerCase());
-    if (idx === -1) favs.push(name);
-    else favs.splice(idx, 1);
-
-    setStoredGameFavorites(favs);
-    try { saveGameFavoritesToServer(favs).catch(() => {}); } catch (e) {}
-  }
-
-  function attachGameFavoriteStar(tile, gameName) {
-    if (!tile || !gameName) return;
-
-    const starBtn = document.createElement('button');
-    starBtn.className = 'tile-fav-star';
-    starBtn.type = 'button';
-    starBtn.title = 'Favorite';
-    starBtn.tabIndex = 0;
-    starBtn.setAttribute('aria-label', `Toggle favorite for ${gameName}`);
-
-    const glyph = document.createElement('span');
-    glyph.className = 'tile-fav-glyph';
-    glyph.textContent = '☆';
-    starBtn.appendChild(glyph);
-
-    function refreshStarVisual() {
-      const fav = isGameFavorited(gameName);
-      if (fav) {
-        starBtn.classList.add('favorited');
-        glyph.textContent = '★';
-      } else {
-        starBtn.classList.remove('favorited');
-        glyph.textContent = '☆';
-      }
-    }
-
-    starBtn.addEventListener('click', function (e) {
-      e.stopPropagation(); // IMPORTANT: prevents tile open
-      toggleGameFavoriteByName(gameName);
-      refreshStarVisual();
-    });
-
-    starBtn.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 32) {
-        e.preventDefault();
-        e.stopPropagation();
-        starBtn.click();
-        return;
-      }
-      e.stopPropagation();
-    });
-
-    // Optional: keyboard shortcut when tile focused (press F)
-    tile.addEventListener('keydown', function (e) {
-      if (e.key === 'f' || e.key === 'F') {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleGameFavoriteByName(gameName);
-        refreshStarVisual();
-      }
-    });
-
-    tile.style.position = tile.style.position || 'relative';
-    tile.appendChild(starBtn);
-    refreshStarVisual();
-  }
-
-  function openGameEntry(game) {
-    if (!game) return;
-    if (game.specialSet === 'multidisk' && Array.isArray(game.disks)) {
-      displayDisks(game);
-      return;
-    }
-    if (game.link) window.location.href = game.link;
-  }
-
-  function createGameTile(container, game, onclickFunction) {
-    const gameTile = document.createElement('div');
-    gameTile.classList.add('folder');
-    gameTile.innerHTML = `
-      <img src="${game.img}" alt="${game.name}">
-      <p>${game.name}</p>
-    `;
-
-    gameTile.onclick = onclickFunction || (() => openGameEntry(game));
-    attachGameFavoriteStar(gameTile, game.name);
-    container.appendChild(gameTile);
-  }
-
-  function createBackTitleTile(container) {
-    const backButton = document.createElement('button');
-    backButton.className = 'return-button';
-    backButton.innerText = 'Back to Title Selection';
-    backButton.onclick = () => {
-      folderContainer.innerHTML = '';
-      loadMainFolders();
-    };
-    container.appendChild(backButton);
-  }
-
-  async function displayGames() {
-    const container = document.getElementById('folderContainer');
-    if (!container) return;
-    container.innerHTML = '';
-
-    try { await loadGameFavoritesFromServer().catch(() => {}); } catch (e) {}
-
-    const favNames = getStoredGameFavorites();
-    const favSet = new Set(favNames.map(n => String(n).trim().toLowerCase()));
-    const favoriteGames = (window.games || []).filter(g => favSet.has(String(g.name || '').trim().toLowerCase()));
-    const otherGames = (window.games || []).filter(g => !favSet.has(String(g.name || '').trim().toLowerCase()));
-
-    const orderedGames = [...favoriteGames, ...otherGames];
-    const grid = document.createElement('div');
-    grid.className = 'container';
-
-    // Keep the back control as a full-size folder tile in the same row as games.
-    createBackTitleTile(grid);
-    orderedGames.forEach(game => createGameTile(grid, game, () => openGameEntry(game)));
-
-    container.appendChild(grid);
-  }
-
-  function displayDisks(gameOrName, disksOverride) {
-    const game = typeof gameOrName === 'object' && gameOrName ? gameOrName : {
-      baseName: String(gameOrName || ''),
-      disks: Array.isArray(disksOverride) ? disksOverride : []
-    };
-    const disks = Array.isArray(game.disks) ? game.disks : (Array.isArray(disksOverride) ? disksOverride : []);
-    const gameName = game.baseName || game.name || '';
-    const container = document.getElementById('folderContainer');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const topBack = document.createElement('button');
-    topBack.className = 'return-button';
-    topBack.innerText = 'Back to Games';
-    topBack.onclick = displayGames;
-    container.appendChild(topBack);
-
-    disks.forEach(disk => {
-      const diskTile = document.createElement('div');
-      diskTile.classList.add('folder');
-      const image = disk.img || `./Images/${gameName.toLowerCase().replace(/ /g, '')}-${disk.disk}.jpg`;
-      diskTile.innerHTML = `
-        <img src="${image}" alt="${gameName} - Disk ${disk.disk}">
-        <p>${gameName} - Disk ${disk.disk}</p>
-      `;
-      diskTile.onclick = () => window.location.href = disk.link;
-      container.appendChild(diskTile);
-    });
-
-    const backButton = document.createElement('button');
-    backButton.className = 'return-button';
-    backButton.innerText = 'Back to Games';
-    backButton.onclick = displayGames;
-    container.appendChild(backButton);
-  }
-
-  window.getStoredGameFavorites = getStoredGameFavorites;
-  window.toggleGameFavoriteByName = toggleGameFavoriteByName;
-  window.loadGameFavoritesFromServer = loadGameFavoritesFromServer;
-  window.displayGames = displayGames;
-  window.createGameTile = createGameTile;
-  window.displayDisks = displayDisks;
 
   // if the Games tab is already open, re-render it with the new layout
   try {
@@ -9310,7 +9036,15 @@ window._customServerTitle = "Our LibraryJS Server";
     }
     const data = event.data || {};
     if (data.type === 'setup-finished') {
-      closeSetupOverlay(true);
+      closeSetupOverlay(false);
+      try {
+        const url = new URL(window.location.href);
+        url.pathname = url.pathname.replace(/[^/]*$/, 'index.html');
+        url.search = '?I';
+        window.location.replace(url.toString());
+      } catch (e) {
+        try { window.location.href = './index.html?I'; } catch (err) {}
+      }
       return;
     }
     if (data.type === 'repair-complete') {

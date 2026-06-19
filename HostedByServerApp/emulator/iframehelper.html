@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Iframe Helper for adding Guidebooks</title>
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #0f1115;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #shellFrame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #111;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="shellFrame" title="Library flow shell" allow="clipboard-read; clipboard-write"></iframe>
+  <script>
+    (function () {
+      const frame = document.getElementById('shellFrame');
+      const shellParams = new URLSearchParams(location.search);
+
+      function cloneParams(source) {
+        const out = new URLSearchParams();
+        for (const [key, value] of source.entries()) {
+          if (key === 'Guidebook') continue;
+          out.set(key, value);
+        }
+        return out;
+      }
+
+      function readerUrl() {
+        const params = cloneParams(shellParams);
+        const query = params.toString();
+        return query ? `reader.html?${query}` : 'reader.html';
+      }
+
+      function booklibUrl(guidebook) {
+        const params = new URLSearchParams();
+        params.set('flow', '1');
+        params.set('step', '2');
+        if (guidebook) params.set('Guidebook', guidebook);
+        return `booklib.html?${params.toString()}`;
+      }
+
+      function showReader() {
+        frame.src = readerUrl();
+      }
+
+      function showBooklib(guidebook) {
+        frame.src = booklibUrl(guidebook || shellParams.get('Guidebook') || '');
+      }
+
+      function clearFrame() {
+        frame.src = 'about:blank';
+      }
+
+      window.addEventListener('message', (event) => {
+        if (event.source !== frame.contentWindow) return;
+        const data = event.data || {};
+        if (data.type === 'open-booklib-flow') {
+          clearFrame();
+          showBooklib(data.guidebook || shellParams.get('Guidebook') || '');
+          return;
+        }
+        if (data.type === 'lib-flow-close' || data.type === 'lib-flow-complete') {
+          clearFrame();
+          try {
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage(data, '*');
+            }
+          } catch {}
+          try {
+            if (window.top && window.top !== window && window.top !== window.parent) {
+              window.top.postMessage(data, '*');
+            }
+          } catch {}
+        }
+      });
+
+      if (shellParams.has('Guidebook')) {
+        showBooklib(shellParams.get('Guidebook'));
+      } else {
+        showReader();
+      }
+    })();
+  </script>
+</body>
+</html>

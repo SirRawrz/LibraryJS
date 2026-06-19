@@ -428,7 +428,7 @@ window.uploadSaveToNetplay = async function(uint8array, romBase, profile, hostPa
         : `${window.location.protocol}//${hostParam}`;
 
     const fileName = forcedFilename || `${profile}-${romBase}.srm`;
-    const putUrl = `${hostOrigin.replace(/\/+$/,'')}/netplay/${encodeURIComponent(fileName)}`;
+    const putUrl = `${hostOrigin.replace(/\/+$/,'')}/emulator/netplay/${encodeURIComponent(fileName)}`;
 
     try {
         const res = await fetch(putUrl, {
@@ -447,7 +447,7 @@ window.uploadSaveToNetplay = async function(uint8array, romBase, profile, hostPa
         try {
             const form = new FormData();
             form.append('files[]', new Blob([uint8array]), fileName);
-            const apiUrl = `${hostOrigin.replace(/\/+$/,'')}/api/file/upload?path=${encodeURIComponent('/netplay/')}`;
+            const apiUrl = `${hostOrigin.replace(/\/+$/,'')}/api/file/upload?path=${encodeURIComponent('/emulator/netplay/')}`;
 
             let r = await fetch(apiUrl, { method: 'POST', body: form, mode: 'cors', cache: 'no-store' });
             if (!r.ok) r = await fetch(apiUrl, { method: 'PUT', body: form, mode: 'cors', cache: 'no-store' });
@@ -1459,7 +1459,7 @@ async function uploadSaveToNetplay(uint8array, romBase, profile, hostParam, room
         : `${window.location.protocol}//${hostParam}`;
 
     const fileName = forcedFilename || `${profile}-${romBase}.srm`;
-    const putUrl = `${hostOrigin.replace(/\/+$/,'')}/netplay/${encodeURIComponent(fileName)}`;
+    const putUrl = `${hostOrigin.replace(/\/+$/,'')}/emulator/netplay/${encodeURIComponent(fileName)}`;
 
     try {
         const res = await fetch(putUrl, { method: 'PUT', body: new Blob([uint8array]), mode: 'cors', cache: 'no-store' });
@@ -1472,7 +1472,7 @@ async function uploadSaveToNetplay(uint8array, romBase, profile, hostParam, room
         try {
             const form = new FormData();
             form.append('files[]', new Blob([uint8array]), fileName);
-            const apiUrl = `${hostOrigin.replace(/\/+$/,'')}/api/file/upload?path=${encodeURIComponent('/netplay/')}`;
+            const apiUrl = `${hostOrigin.replace(/\/+$/,'')}/api/file/upload?path=${encodeURIComponent('/emulator/netplay/')}`;
             let r = await fetch(apiUrl, { method: 'POST', body: form, mode: 'cors', cache: 'no-store' });
             if (!r.ok) r = await fetch(apiUrl, { method: 'PUT', body: form, mode: 'cors', cache: 'no-store' });
             if (!r.ok) throw new Error('API upload failed ' + r.status);
@@ -1747,10 +1747,40 @@ function showNetplayOverlay(role) {
             zIndex: '2147483647', pointerEvents: 'none', overflow: 'hidden'
         });
 
+        // Transparent glass layer: only dead space should hit fullscreen.
+        const fullscreenGlass = document.createElement('div');
+        fullscreenGlass.id = 'mgbaFullscreenGlass';
+        Object.assign(fullscreenGlass.style, {
+            position: 'fixed',
+            inset: '0',
+            zIndex: '0',
+            pointerEvents: 'auto',
+            background: 'transparent',
+            touchAction: 'manipulation',
+            userSelect: 'none',
+            WebkitUserSelect: 'none'
+        });
+        overlay.appendChild(fullscreenGlass);
+
+        // --- 0. Return path + referral state ---
+        // Store where the user came from so disconnect can return them to the right page.
+        window.__mgbaDualReturnUrl = sessionStorage.getItem('mgbaDualReturnUrl') || document.referrer || '../indexgba.html';
+        window.__mgbaDualLoadReferral = sessionStorage.getItem('mgbaDualLoadReferral') === 'loadLinkCable';
+
+        // A successful save should cause the next return to auto-open Link Cable Save on indexgba.html.
+        window.addEventListener('save:done', (ev) => {
+            try {
+                if (ev && ev.detail && ev.detail.success) {
+                    window.__mgbaDualLoadReferral = true;
+                    sessionStorage.setItem('mgbaDualLoadReferral', 'loadLinkCable');
+                }
+            } catch (e) {}
+        });
+
         // --- 1. TOP LEFT (Menu / Disconnect) ---
         const tl = document.createElement('div');
         Object.assign(tl.style, {
-            position: 'fixed', left: '10px', top: '10px', display: 'flex', gap: '10px', alignItems: 'center', pointerEvents: 'auto'
+            position: 'fixed', left: '10px', top: '10px', display: 'flex', gap: '10px', alignItems: 'center', pointerEvents: 'auto', zIndex: '1'
         });
 
         const disconnectBtn = document.createElement('button');
@@ -1763,7 +1793,18 @@ function showNetplayOverlay(role) {
             if (confirm("Disconnect session?")) {
                 try { if (window.stopHostWebRTC) window.stopHostWebRTC(); } catch(e){}
                 try { if (window.leaveWebRTC) window.leaveWebRTC(); } catch(e){}
-                history.back();
+
+                const wantsReferral = !!(window.__mgbaDualLoadReferral || sessionStorage.getItem('mgbaDualLoadReferral') === 'loadLinkCable');
+                const returnTarget = window.__mgbaDualReturnUrl || sessionStorage.getItem('mgbaDualReturnUrl') || '../indexgba.html';
+
+                try { sessionStorage.removeItem('mgbaDualLoadReferral'); } catch(e){}
+                try {
+                    const backUrl = new URL(returnTarget, window.location.href);
+                    if (wantsReferral) backUrl.searchParams.set('referral', 'loadLinkCable');
+                    window.location.href = backUrl.toString();
+                } catch (navErr) {
+                    window.location.href = wantsReferral ? '../indexgba.html?referral=loadLinkCable' : '../indexgba.html';
+                }
             }
         };
         tl.appendChild(disconnectBtn);
@@ -1877,7 +1918,7 @@ overlay.appendChild(tl);
 // make the top-right area slightly tighter to the corner
 const tr = document.createElement('div');
 Object.assign(tr.style, {
-    position: 'fixed', right: '8px', top: '8px', display: 'flex', gap: '8px', pointerEvents: 'auto', alignItems: 'flex-start'
+    position: 'fixed', right: '8px', top: '8px', display: 'flex', gap: '8px', pointerEvents: 'auto', alignItems: 'flex-start', zIndex: '1'
 });
 
 // Save button + spinner + label (with visual feedback)
@@ -2017,7 +2058,7 @@ const attachBtn = (el, idx) => {
         // ===============================================
         const leftZone = document.createElement('div');
         Object.assign(leftZone.style, {
-            position: 'fixed', bottom: '20px', left: '20px', display: 'flex', flexDirection: 'column', gap: '20px', pointerEvents: 'auto'
+            position: 'fixed', bottom: '20px', left: '20px', display: 'flex', flexDirection: 'column', gap: '20px', pointerEvents: 'auto', zIndex: '1'
         });
 
         // -- Select / Start (Row) --
@@ -2115,7 +2156,7 @@ dpad.appendChild(center);
         // ===============================================
         const rightZone = document.createElement('div');
         Object.assign(rightZone.style, {
-            position: 'fixed', bottom: '30px', right: '20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '30px', pointerEvents: 'auto'
+            position: 'fixed', bottom: '30px', right: '20px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '30px', pointerEvents: 'auto', zIndex: '1'
         });
 
         // -- TIER 1: Extra Buttons (Shrunk & Pushed Up) --
@@ -2215,6 +2256,7 @@ const romBase = session.slice(firstHy+1, lastHy); // 'pokemonfirered'
             // Define protocol and base URL once for the entire flow (FIXES redeclaration error)
             const protocol = window.location.protocol;
             const baseNetplayUrl = `${protocol}//${hostParam}/netplay/${encodeURIComponent(room)}/`;
+            const baseSaveUrl = `${protocol}//${hostParam}/emulator/netplay/${encodeURIComponent(room)}/`;
 
             // --- JOINER FLOW ---
             if (role === 'join') {
@@ -2235,7 +2277,10 @@ const romBase = session.slice(firstHy+1, lastHy); // 'pokemonfirered'
     video.muted = false; // Start unmuted (browser might block)
     Object.assign(video.style, {
         position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
-        background: '#000', zIndex: '999999', objectFit: 'fill'
+        background: '#000', zIndex: '999999', objectFit: 'fill',
+        pointerEvents: 'none',
+        userSelect: 'none',
+        touchAction: 'none'
     });
     document.body.appendChild(video);
 
@@ -2475,7 +2520,7 @@ try {
 
             // 3. Fetch Host Save (Immediate)
             const hostSaveName = `host-${romBase}-${room}.srm`;
-            const hostSaveUrl = baseNetplayUrl + encodeURIComponent(hostSaveName);
+            const hostSaveUrl = baseSaveUrl + encodeURIComponent(hostSaveName);
             log(`Fetching Host Save: ${hostSaveName}`);
             
             let hostSaveBuf = await fetchArrayBuffer(hostSaveUrl);
@@ -2572,7 +2617,7 @@ if (candidate && candidate.type === 'offer' && candidate.sdp) {
             let joinSaveBuf = null;
             if (joinOffer) {
                  log(`Looking for Joiner Save: ${joinSaveName}`);
-                 const saveUrl = baseNetplayUrl + encodeURIComponent(joinSaveName) + `?ts=${Date.now()}`;
+                 const saveUrl = baseSaveUrl + encodeURIComponent(joinSaveName) + `?ts=${Date.now()}`;
                  joinSaveBuf = await fetchArrayBuffer(saveUrl);
                  if (joinSaveBuf) log("✅ Joiner save found.");
                  else log("⚠️ Joiner save not found (using empty).");
@@ -2817,6 +2862,290 @@ if (msg.type === 'control' && msg.subtype === 'turn') {
     } catch(e){ console.warn('save:done broadcast handler error', e); }
   });
 
+})();
+</script>
+
+
+<script>
+(function installMgbaFullscreenAndLayoutFixes() {
+  const STYLE_ID = 'mgba-fullscreen-layout-fixes';
+  if (!document.getElementById(STYLE_ID)) {
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = `
+      html.mgba-app-fullscreen,
+      body.mgba-app-fullscreen {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+      body.mgba-stream-active > h1,
+      body.mgba-stream-active > .controls {
+        display: none !important;
+      }
+      #mgbaHostViewport {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        background: #000;
+        z-index: 0;
+      }
+      #mgbaHostViewport canvas {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100vw !important;
+        height: 200vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        z-index: 0 !important;
+        background: #000 !important;
+        image-rendering: pixelated;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function isTextOrControlTarget(node) {
+    for (let el = node; el && el !== document.body; el = el.parentElement) {
+      const tag = (el.tagName || '').toUpperCase();
+      if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'OPTION' || tag === 'LABEL' || tag === 'A' || tag === 'VIDEO') {
+        return true;
+      }
+      if (el.isContentEditable) return true;
+      if (el.classList && (
+        el.classList.contains('v-btn') ||
+        el.classList.contains('v-dpad-btn') ||
+        el.classList.contains('v-pill') ||
+        el.classList.contains('mgba-save-btn') ||
+        el.classList.contains('mgba-save-wrap') ||
+        el.classList.contains('turn-dot')
+      )) {
+        return true;
+      }
+      if (el.id === 'mgbaFullscreenGlass') {
+        return false;
+      }
+      if (el.id === 'mgbaNetplayOverlay') {
+        if (tag === 'BUTTON' || (el.closest && el.closest('button, input, textarea, select, a, video'))) return true;
+      }
+    }
+    return false;
+  }
+
+  function findCanvas() {
+    return document.getElementById('canvas') || document.querySelector('canvas');
+  }
+
+  function ensureHostViewport() {
+    const canvas = findCanvas();
+    if (!canvas) return null;
+
+    let viewport = document.getElementById('mgbaHostViewport');
+    if (!viewport) {
+      viewport = document.createElement('div');
+      viewport.id = 'mgbaHostViewport';
+
+      if (canvas.parentElement) {
+        canvas._mgbaOriginalParent = canvas.parentElement;
+        canvas._mgbaOriginalNextSibling = canvas.nextSibling;
+        canvas.parentElement.insertBefore(viewport, canvas);
+      } else {
+        document.body.appendChild(viewport);
+      }
+      viewport.appendChild(canvas);
+    } else if (canvas.parentElement !== viewport) {
+      viewport.appendChild(canvas);
+    }
+
+    Object.assign(canvas.style, {
+      display: 'block',
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      width: '100vw',
+      height: '200vh',
+      margin: '0',
+      padding: '0',
+      border: 'none',
+      background: '#000',
+      zIndex: '0',
+      imageRendering: 'pixelated'
+    });
+
+    return viewport;
+  }
+
+  function restoreCanvasLayout() {
+    const canvas = findCanvas();
+    const viewport = document.getElementById('mgbaHostViewport');
+
+    if (canvas && canvas._mgbaOriginalParent) {
+      try {
+        if (canvas._mgbaOriginalNextSibling) {
+          canvas._mgbaOriginalParent.insertBefore(canvas, canvas._mgbaOriginalNextSibling);
+        } else {
+          canvas._mgbaOriginalParent.appendChild(canvas);
+        }
+      } catch (e) {}
+      delete canvas._mgbaOriginalParent;
+      delete canvas._mgbaOriginalNextSibling;
+    }
+
+    if (viewport && viewport.parentElement) {
+      try { viewport.remove(); } catch (e) {}
+    }
+
+    if (canvas) {
+      canvas.style.display = '';
+      canvas.style.position = '';
+      canvas.style.left = '';
+      canvas.style.top = '';
+      canvas.style.width = '';
+      canvas.style.height = '';
+      canvas.style.margin = '';
+      canvas.style.padding = '';
+      canvas.style.border = '';
+      canvas.style.background = '';
+      canvas.style.zIndex = '';
+      canvas.style.imageRendering = '';
+    }
+
+    document.body.classList.remove('mgba-stream-active');
+  }
+
+  function shouldApplyStreamLayout() {
+    return !!(window.role === 'host' || window.role === 'join' || window.isHost === true || document.getElementById('mgbaNetplayOverlay'));
+  }
+
+  window.fullscreenCanvasOnly = function fullscreenCanvasOnly() {
+    if (!shouldApplyStreamLayout()) return true;
+    document.body.classList.add('mgba-stream-active');
+    const viewport = ensureHostViewport();
+    if (!viewport) return false;
+    return true;
+  };
+
+  window.restorePageFromFullscreen = function restorePageFromFullscreen() {
+    restoreCanvasLayout();
+    const exitFull = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    try { if (exitFull) exitFull.call(document).catch(() => {}); } catch (e) {}
+  };
+
+  async function requestPageFullscreen() {
+    const root = document.documentElement || document.body;
+    const req = root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
+    if (!req) return false;
+    try {
+      const result = req.call(root);
+      if (result && typeof result.then === 'function') await result.catch(() => {});
+      document.body.classList.add('mgba-app-fullscreen');
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function exitPageFullscreen() {
+    const exitFull = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    try {
+      if (exitFull) {
+        const result = exitFull.call(document);
+        if (result && typeof result.then === 'function') await result.catch(() => {});
+      }
+    } catch (e) {}
+    document.body.classList.remove('mgba-app-fullscreen');
+  }
+
+  window.toggleMgbaPageFullscreen = async function toggleMgbaPageFullscreen() {
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+      await exitPageFullscreen();
+    } else {
+      await requestPageFullscreen();
+    }
+  };
+
+  function installGestureHandlers() {
+    if (window.__mgbaFullscreenGesturesInstalled) return;
+    window.__mgbaFullscreenGesturesInstalled = true;
+
+    let lastTapTs = 0;
+    let tapTimer = null;
+
+    const onTapLike = (ev) => {
+      const target = ev && ev.target;
+      if (isTextOrControlTarget(target)) return;
+
+      const now = Date.now();
+      const delta = now - lastTapTs;
+      lastTapTs = now;
+
+      if (tapTimer) {
+        clearTimeout(tapTimer);
+        tapTimer = null;
+      }
+
+      if (delta > 20 && delta < 320) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        window.toggleMgbaPageFullscreen().catch(() => {});
+        lastTapTs = 0;
+        return;
+      }
+
+      tapTimer = setTimeout(() => {
+        tapTimer = null;
+        lastTapTs = 0;
+      }, 340);
+    };
+
+    document.addEventListener('dblclick', onTapLike, true);
+    document.addEventListener('touchend', onTapLike, { capture: true, passive: false });
+    document.addEventListener('pointerup', onTapLike, true);
+  }
+
+  function wrapExistingHelpers() {
+    if (typeof window.showNetplayOverlay === 'function' && !window.showNetplayOverlay.__mgbaWrapped) {
+      const originalShow = window.showNetplayOverlay;
+      const wrappedShow = function(role) {
+        const out = originalShow.apply(this, arguments);
+        try { document.body.classList.add('mgba-stream-active'); } catch (e) {}
+        try { ensureHostViewport(); } catch (e) {}
+        return out;
+      };
+      wrappedShow.__mgbaWrapped = true;
+      window.showNetplayOverlay = wrappedShow;
+    }
+
+    if (typeof window.removeNetplayOverlay === 'function' && !window.removeNetplayOverlay.__mgbaWrapped) {
+      const originalRemove = window.removeNetplayOverlay;
+      const wrappedRemove = function() {
+        try { restoreCanvasLayout(); } catch (e) {}
+        return originalRemove.apply(this, arguments);
+      };
+      wrappedRemove.__mgbaWrapped = true;
+      window.removeNetplayOverlay = wrappedRemove;
+    }
+  }
+
+  installGestureHandlers();
+  wrapExistingHelpers();
+
+  // Keep applying the original crop whenever the stream mode is active.
+  const layoutPoll = setInterval(() => {
+    try {
+      if (shouldApplyStreamLayout()) {
+        window.fullscreenCanvasOnly();
+      }
+      wrapExistingHelpers();
+    } catch (e) {}
+  }, 1000);
+
+  window.addEventListener('beforeunload', () => clearInterval(layoutPoll));
 })();
 </script>
 

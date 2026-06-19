@@ -1,0 +1,23 @@
+Android ffmpeg speed patch v2
+
+What changed:
+- Removed the recursive staged-tree copy path from FfmpegRepairManager.prepareSource().
+- Removed the cleanup branch that deleted the staged tree after processing.
+- Kept only the single-file SAF-to-cache staging copy for local Android sources.
+- Increased the buffered copy size to 4 MiB to reduce stream overhead.
+
+What remains:
+- Local Android sources still need one cache copy because ffmpeg cannot read SAF content URIs directly.
+- Final local targets still require a copy back into DocumentFile storage.
+- Remote targets still upload the ffmpeg output temp file.
+
+
+Cleanup follow-up:
+- Fixed the ffmpeg repair cleanup root to match .libraryjs-temp-upload (the actual session root used by the upload pipeline).
+- Kept legacy libraryjs-upload-temp names as fallback for compatibility.
+- Raised the Android upload queue limit to 10.
+
+2026-06-10 follow-up:
+- The browser now sends the ffmpeg staging folder along with the repair request.
+- The Android server now owns deleting the staged upload folder after the remux succeeds, instead of leaving that responsibility in the extension.
+- Local SAF inputs still use the small app-private cache copy, because ffmpeg cannot reliably read Android content URIs directly.

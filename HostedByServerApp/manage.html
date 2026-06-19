@@ -514,6 +514,66 @@
       flex-wrap: wrap;
     }
     .modal-header h3 { font-size: 18px; font-weight: 600; flex: 0 0 auto; }
+    .modal-header-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex: 1 1 auto;
+      min-width: 0;
+      margin-left: auto;
+      flex-wrap: wrap;
+    }
+    #addContentModalActions {
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    #addContentModalActions .embed-flow-meta {
+      margin-right: auto;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: min(42vw, 420px);
+    }
+    #addContentModalActions .embed-flow-btn {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(145deg, rgba(96,165,250,0.14), rgba(15,23,42,0.95));
+      color: var(--text);
+      padding: 8px 13px;
+      border-radius: 8px;
+      font-weight: 650;
+      font-size: 13px;
+      cursor: pointer;
+      transition: transform 0.15s, filter 0.15s, border-color 0.15s, background 0.15s, opacity 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      white-space: nowrap;
+    }
+    #addContentModalActions .embed-flow-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.12);
+      border-color: rgba(96,165,250,0.55);
+    }
+    #addContentModalActions .embed-flow-btn.secondary {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.08);
+      box-shadow: none;
+    }
+    #addContentModalActions .embed-flow-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+      filter: none;
+    }
  .repair-modal-meta {
    display: inline-flex;
    align-items: center;
@@ -568,13 +628,6 @@
       display: block;
       background: var(--panel);
     }
-    .repair-note {
-      color: var(--muted);
-      font-size: 12px;
-      padding: 10px 22px 14px;
-      border-top: 1px solid var(--line);
-      background: rgba(255,255,255,0.01);
-    }
     .add-modal {
       max-width: 1180px;
       width: 96%;
@@ -585,9 +638,6 @@
       border: 0;
       display: block;
       background: var(--panel);
-    }
-    .add-note {
-      white-space: normal;
     }
     .modal-body {
       padding: 18px 22px 22px;
@@ -759,7 +809,7 @@
 
   <div class="stats-grid">
     <div class="stat-card">
-      <div class="stat-label">Total episodes</div>
+      <div class="stat-label" id="totalEpisodesLabel">Total episodes</div>
       <div class="stat-value" id="totalEpisodes">—</div>
     </div>
     <div class="stat-card clickable" id="missingVideosCard">
@@ -814,7 +864,6 @@
       <button class="modal-close" id="closeRepairModalBtn">&times;</button>
     </div>
     <iframe id="repairFrame" class="repair-frame" src="about:blank" title="ffmpeg repair"></iframe>
-    <div class="repair-note" id="repairModalNote">This opens the ffmpeg repair page for the selected episode and uploads the repaired output back to the same server path.</div>
   </div>
 </div>
 
@@ -824,10 +873,10 @@
   <div class="modal add-modal">
     <div class="modal-header">
       <h3 id="addContentModalTitle">Add Content</h3>
+      <div class="modal-header-actions" id="addContentModalActions"></div>
       <button class="modal-close" id="closeAddContentModalBtn">&times;</button>
     </div>
     <iframe id="addContentFrame" class="add-frame" src="about:blank" title="content flow"></iframe>
-    <div class="repair-note add-note">This opens the selected library in flow mode inside an iframe so you can add content without leaving the manager.</div>
   </div>
 </div>
 
@@ -837,6 +886,7 @@
 (function(){
   const els = {
     total: document.getElementById('totalEpisodes'),
+    totalLabel: document.getElementById('totalEpisodesLabel'),
     missingPrimary: document.getElementById('missingVideos'),
     missingSecondary: document.getElementById('missingSubtitles'),
     progress: document.getElementById('scanProgress'),
@@ -873,6 +923,7 @@
     closeRepairModalBtn: document.getElementById('closeRepairModalBtn'),
     addContentModal: document.getElementById('addContentModal'),
     addContentModalTitle: document.getElementById('addContentModalTitle'),
+    addContentModalActions: document.getElementById('addContentModalActions'),
     addContentFrame: document.getElementById('addContentFrame'),
     closeAddContentModalBtn: document.getElementById('closeAddContentModalBtn'),
     headerTitleText: document.getElementById('libraryTitleText'),
@@ -882,6 +933,11 @@
     librarySwitcher: document.getElementById('librarySwitcher'),
     footnote: document.querySelector('.footnote')
   };
+
+  els.addContentFrame?.addEventListener('load', () => {
+    wireAddContentModalActions();
+    try { window.__lmEmbedBridge?.refreshControls?.(); } catch (_) {}
+  });
 
   const STATUS = {
     UNCHECKED: 'unchecked',
@@ -904,6 +960,7 @@
       key: 'video',
       label: 'Video',
       icon: '📺',
+      totalLabel: 'Total episodes',
       file: './library.js',
       primaryLabel: 'Videos',
       secondaryLabel: 'Subtitles',
@@ -923,6 +980,7 @@
       key: 'music',
       label: 'Music',
       icon: '🎵',
+      totalLabel: 'Total songs',
       file: './musiclibrary.js',
       primaryLabel: 'Tracks',
       secondaryLabel: 'Artwork',
@@ -944,6 +1002,7 @@
       key: 'games',
       label: 'Games',
       icon: '🎮',
+      totalLabel: 'Total games',
       file: './games.js',
       primaryLabel: 'ROMs',
       secondaryLabel: 'Icons',
@@ -963,6 +1022,7 @@
       key: 'books',
       label: 'Books & Manga',
       icon: '📚',
+      totalLabel: 'Reading Content',
       files: ['./books.js', './manga.js', './guidebooks.js'],
       primaryLabel: 'Files',
       secondaryLabel: 'Images',
@@ -1197,8 +1257,19 @@
     els.libraryHub.textContent = activeConfig.icon;
     els.headerTitleText.textContent = `${activeConfig.label} Library Manager`;
     els.headerSubtitle.textContent = `${activeConfig.primaryLabel}${activeConfig.secondaryLabel ? ' • ' + activeConfig.secondaryLabel : ''}`;
+    if (els.totalLabel) els.totalLabel.textContent = activeConfig.totalLabel || 'Total episodes';
     els.scanPrimaryBtn.textContent = activeConfig.primaryButton;
     els.scanSecondaryBtn.textContent = activeConfig.secondaryButton;
+    const totalLabel = els.total?.closest('.stat-card')?.querySelector('.stat-label');
+    if (totalLabel) {
+      const totalLabelMap = {
+        video: 'Total episodes',
+        music: 'Songs',
+        games: 'Games',
+        books: 'Reading Content'
+      };
+      totalLabel.textContent = totalLabelMap[activeKey] || 'Total items';
+    }
     if (els.genreContentBtn || els.addContentBtn || els.nestCollectionBtn) {
       const hasFlowPage = !!activeConfig.flowPage;
       const showNest = activeKey === 'video' && hasFlowPage;
@@ -2825,6 +2896,7 @@ function showMissingModal(which) {
     }
   });
 
+  wireAddContentModalActions();
   function buildContentFlowUrl(mode = 'add') {
     const page = activeConfig.flowPage || '';
     if (!page) return '';
@@ -2837,6 +2909,7 @@ function showMissingModal(which) {
   }
 
   function openAddContentModal(mode = 'add') {
+    wireAddContentModalActions();
     const url = buildContentFlowUrl(mode);
     if (!url) {
       setStatus('❌ This library does not have an add-content flow.');
@@ -2845,6 +2918,7 @@ function showMissingModal(which) {
     els.addContentModalTitle.textContent = mode === 'nest' ? '🧺 Nest Collection' : `➕ Add ${activeConfig.label} content`;
     els.addContentFrame.src = url;
     els.addContentModal.style.display = 'flex';
+    wireAddContentModalActions();
   }
 
   function openGenreEditorModal() {
@@ -2855,8 +2929,71 @@ function showMissingModal(which) {
     els.addContentModalTitle.textContent = '🎨 Genres';
     els.addContentFrame.src = url.href;
     els.addContentModal.style.display = 'flex';
+    wireAddContentModalActions();
   }
 
+
+
+
+  function getEmbeddedFlowApi() {
+    try {
+      return els.addContentFrame?.contentWindow?.__lmFlowApi || window.__lmEmbedBridge || null;
+    } catch (_) {
+      return window.__lmEmbedBridge || null;
+    }
+  }
+
+  function wireAddContentModalActions() {
+    const slot = els.addContentModalActions;
+    if (!slot || slot.dataset.flowWired === '1') return;
+    slot.dataset.flowWired = '1';
+    slot.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-embed-control]');
+      if (!btn) return;
+      const api = getEmbeddedFlowApi();
+      if (!api) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const control = btn.dataset.embedControl;
+      if (control === 'back') {
+        api.back?.();
+        return;
+      }
+      if (control === 'clear') {
+        api.clear?.();
+        return;
+      }
+      if (control === 'save') {
+        api.save?.();
+        return;
+      }
+      if (control === 'action') {
+        const currentStep = api.currentStepKey?.() || '';
+        if (currentStep === 'output') {
+          api.applyAll?.();
+        } else {
+          api.next?.();
+        }
+        return;
+      }
+      if (control === 'addGenre') {
+        api.addGenre?.();
+        return;
+      }
+      if (control === 'refresh') {
+        api.refresh?.();
+        return;
+      }
+      if (control === 'download') {
+        api.download?.();
+        return;
+      }
+      if (control === 'publish') {
+        api.save?.();
+        return;
+      }
+    }, true);
+  }
 
 function isRepairableLeaf(node) {
   return !!(node && node.type === 'leaf' && node.repairable && activeConfig.showRepair);

@@ -305,6 +305,7 @@
   .import-drop .dropzone { min-height: 86px; }
   body.flow-mode header { display: none; }
   body.flow-mode .flow-nav { display: flex; }
+  body.flow-managed .flow-nav .row { display: none; }
   body.flow-mode .app {
     grid-template-columns: 1fr;
     max-width: 1160px;
@@ -481,7 +482,7 @@
   <section class="panel" data-flow-step="export">
     <div class="head">
       <h2>Code preview / update</h2>
-      <p>Review the generated JavaScript, then update the matching file on the server or download it locally.</p>
+      <p>Review the generated JavaScript, then update the matching file on the server.</p>
     </div>
     <div class="body">
       <div class="output-tabs">
@@ -492,7 +493,6 @@
       <div class="footer-note" id="summaryBox"></div>
       <div class="row" style="margin-top:10px;">
         <button id="saveServerBtn" type="button">Update on server</button>
-        <button id="downloadBtn" class="secondary" type="button">Download file</button>
         <button id="copyBtn" class="secondary" type="button">Copy output</button>
         <button id="doneBtn" class="warn hidden" type="button" aria-hidden="true" tabindex="-1">Finish</button>
       </div>
@@ -517,7 +517,9 @@
 (() => {
   const FLOW_PARAMS = new URLSearchParams(window.location.search || '');
   const FLOW_MODE = FLOW_PARAMS.has('embed') || FLOW_PARAMS.has('bflow') || FLOW_PARAMS.has('flow');
+  const MANAGED_FLOW_MODE = FLOW_MODE && (FLOW_PARAMS.get('embed') === '1' || FLOW_PARAMS.has('managed') || (window.parent && window.parent !== window));
   document.body.classList.toggle('flow-mode', FLOW_MODE);
+  document.body.classList.toggle('flow-managed', MANAGED_FLOW_MODE);
 
   const REQUESTED_STEP = Number(FLOW_PARAMS.get('step') || '');
   const REQUESTED_GUIDEBOOK = FLOW_PARAMS.get('Guidebook') || '';
@@ -1118,6 +1120,35 @@
     renderFlowState();
   }
 
+  function getManagedFlowHostDocument() {
+    try {
+      return MANAGED_FLOW_MODE && window.parent && window.parent !== window ? window.parent.document : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function syncManagedFlowControls() {
+    if (!MANAGED_FLOW_MODE) return;
+    const hostDoc = getManagedFlowHostDocument();
+    if (!hostDoc) return;
+    const slot = hostDoc.getElementById('addContentModalActions');
+    if (!slot) return;
+
+    const steps = flowSteps();
+    let idx = currentFlowIndex();
+    if (idx < 0) idx = 0;
+    const current = steps[idx] || steps[0];
+    const stepLabel = current?.main || 'Working';
+    const actionLabel = idx >= steps.length - 1 ? 'Update on server' : 'Next';
+
+    slot.innerHTML = `
+      <span class="embed-flow-meta" title="${escapeHtml(stepLabel)}">Step ${idx + 1} of ${steps.length} • ${escapeHtml(stepLabel)}</span>
+      <button type="button" class="embed-flow-btn secondary" data-embed-control="back"${idx === 0 ? ' disabled' : ''}>Back</button>
+      <button type="button" class="embed-flow-btn" data-embed-control="action">${actionLabel}</button>
+    `;
+  }
+
   function renderFlowState() {
     const steps = flowSteps();
     let idx = Math.max(0, steps.findIndex(step => step.key === state.flowStep));
@@ -1166,6 +1197,7 @@
       doneBtn.setAttribute('aria-hidden', showDone ? 'false' : 'true');
       doneBtn.tabIndex = showDone ? 0 : -1;
     }
+    syncManagedFlowControls();
   }
 
   function suggestPathFromFile(file, field, item) {
@@ -2094,9 +2126,43 @@
     } else if (FLOW_MODE && REQUESTED_STEP === 2) {
       setFlowStep('entries');
     }
+    syncManagedFlowControls();
     if (state.kind === 'guidebooks') {
       loadGameCatalog().catch(() => {});
     }
+
+  window.__lmFlowApi = {
+    currentStepKey: () => state.flowStep,
+    back: () => {
+      const steps = flowSteps();
+      const idx = currentFlowIndex();
+      if (idx > 0) setFlowStep(steps[idx - 1].key);
+    },
+    next: async () => {
+      const steps = flowSteps();
+      const idx = currentFlowIndex();
+      if (idx < steps.length - 1) {
+        const next = steps[idx + 1];
+        if (steps[idx] && steps[idx].key === 'kind') {
+          try {
+            setStatus(`Loading ${currentConfig().targetFile.replace('./', '')}…`, 'warn');
+            await ensureBaseLibrary(state.kind);
+            setStatus(`Loaded ${currentConfig().targetFile.replace('./', '')}.`, 'good');
+          } catch (err) {
+            setStatus(`Could not load ${currentConfig().targetFile.replace('./', '')}: ${err.message}`, 'bad');
+            return;
+          }
+        }
+        setFlowStep(next.key);
+      } else {
+        await finishFlow();
+      }
+    },
+    refreshControls: syncManagedFlowControls,
+    currentStepKey: () => state.flowStep,
+    getStepIndex: currentFlowIndex,
+    finish: finishFlow
+  };
     try {
       setStatus(`Loading ${currentConfig().targetFile.replace('./', '')}…`, 'warn');
       await ensureBaseLibrary(state.kind);

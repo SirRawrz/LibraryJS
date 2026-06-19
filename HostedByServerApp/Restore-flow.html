@@ -13,88 +13,1025 @@
       --text:#ffffff;
       --muted:#9fb3c8;
       --accent:#2f8cff;
-      --radius:14px;
-      --shadow:0 20px 60px rgba(0,0,0,.6);
+      --ok:#79e3c5;
+      --warn:#ffd08a;
+      --radius:16px;
+      --shadow:0 20px 60px rgba(0,0,0,.55);
     }
     *{box-sizing:border-box}
     html,body{min-height:100%}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:Arial, Helvetica, sans-serif;
+    }
+    a{color:inherit;text-decoration:none}
     .wrap{max-width:1280px;margin:0 auto;padding:16px}
-    .topbar{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;background:rgba(0,0,0,0.2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
-    h1{margin:0;font-size:24px}
-    .sub{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.45;max-width:980px}
+    .topbar{
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr) auto;
+      gap:14px;
+      align-items:center;
+      background:rgba(0,0,0,.2);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+      margin-bottom:14px;
+    }
+    .topbarLeft,.topbarCenter,.topbarRight{display:flex;align-items:center;gap:10px;min-width:0}
+    .topbarCenter{justify-content:center;text-align:center}
+    .topbarCenter h1{width:100%}
+    .topbarRight{justify-content:flex-end;flex-wrap:wrap}
+    h1{margin:0;font-size:24px;letter-spacing:-.02em}
+    .sub{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.45;max-width:960px}
     .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
-    .btn, a.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:5px;padding:8px 12px;font:inherit;font-weight:700;cursor:pointer;background:rgba(128,128,128,0.7);color:#fff;text-decoration:none;transition:background-color .2s ease, transform .12s ease}
-    .btn:hover, a.btn:hover{transform:translateY(-1px);background:rgba(160,160,160,0.7)}
+    .btn,
+    button.btn,
+    a.btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      border:1px solid transparent;border-radius:10px;padding:10px 14px;
+      font:inherit;font-weight:700;cursor:pointer;background:rgba(128,128,128,.7);
+      color:#fff;text-decoration:none;transition:transform .12s ease, background-color .2s ease, border-color .2s ease;
+    }
+    .btn:hover{transform:translateY(-1px)}
     .primary{background:#2f8cff;color:#fff}
     .primary:hover{background:#4b9dff}
-    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
-    .panel{grid-column:span 12;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
-    .panelHead{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02)}
+    .ghost{background:rgba(255,255,255,.06);border-color:var(--line)}
+    .ghost:hover{background:rgba(255,255,255,.1)}
+    .navLocked{opacity:.48;cursor:not-allowed !important;filter:saturate(.45) grayscale(.15)}
+    .navLocked::after{content:' 🚫';font-size:.95em;line-height:1}
+    .stack{display:grid;gap:14px}
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+      border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;
+    }
+    .panelHead{
+      padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    }
     .panelHead h2{margin:0;font-size:16px}
+    .panelHead .meta{color:var(--muted);font-size:12px}
     .panelBody{padding:16px}
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-    .card{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;min-height:180px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-    .card h3{margin:0 0 6px 0;font-size:18px}
-    .card p{margin:0;color:var(--muted);line-height:1.45;font-size:13px}
-    .meta{font-size:12px;color:#cfe6ff;opacity:.9}
-    .stepbox{margin-top:16px;display:grid;gap:12px}
-    .step{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px}
-    .num{width:32px;height:32px;border-radius:999px;background:rgba(47,140,255,0.18);color:#79b7ff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
-    .mini{font-size:12px;color:#9fb3c8;line-height:1.45}
-    @media (max-width: 720px){.actions{justify-content:flex-start} h1{font-size:22px}}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .field{
+      padding:14px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.03);
+    }
+    .field .label{color:var(--muted);font-size:12px;margin-bottom:8px}
+    .field input[type="text"],
+    .field input[type="file"]{
+      width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+      background:var(--panel2);color:var(--text);font:inherit
+    }
+    .choiceRow{display:flex;flex-wrap:wrap;gap:10px}
+    .choice{
+      display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:999px;border:1px solid var(--line);
+      background:rgba(255,255,255,.04);cursor:pointer;user-select:none;
+    }
+    .choice input{margin:0;accent-color:var(--ok)}
+    .choice.active{border-color:rgba(121,227,197,.35);background:rgba(121,227,197,.07)}
+    .choice .small{color:var(--muted);font-size:12px}
+    .laneGrid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+    }
+    .laneCard{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:14px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:rgba(255,255,255,.03);
+    }
+    .laneHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .laneHead .label{color:var(--muted);font-size:12px}
+    .laneCard .choiceRow{padding-top:0}
+    .laneCard .choice{width:auto}
+    .modeWarning{
+      display:none;
+      padding:10px 12px;border-radius:12px;border:1px solid rgba(255,104,104,.35);
+      background:rgba(255,104,104,.12);color:#ffe4e4;font-size:12px;line-height:1.45;font-weight:800;
+      letter-spacing:.01em;
+    }
+    .modeWarning.show{display:block}
+    .stepCard{display:flex;flex-direction:column;gap:12px}
+    .seq{display:flex;flex-wrap:wrap;gap:10px}
+    .chip{
+      display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;
+      border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);font-size:12px;font-weight:700;
+    }
+    .chip.on{color:#e9fff8;border-color:rgba(121,227,197,.35);background:rgba(121,227,197,.08)}
+    .chip .dot{width:8px;height:8px;border-radius:999px;background:currentColor;opacity:.85}
+    .heroNote{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;line-height:1.45}
+    .heroNote b{color:var(--text)}
+    .frameShell{overflow:hidden;padding:0}
+    .frameTop{display:none}
+    .statusLine{display:none}
+    .iframeWrap{position:relative;min-height:74vh;background:rgba(255,255,255,.02)}
+    iframe{width:100%;height:74vh;border:0;display:block;background:#111}
+    .overlayMsg{
+      position:absolute;left:16px;top:16px;z-index:3;max-width:min(640px,calc(100% - 32px));
+      padding:10px 12px;border-radius:12px;background:rgba(15,23,32,.86);border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(10px);font-size:13px;line-height:1.45;
+    }
+    .overlayMsg strong{display:block;margin-bottom:4px;color:#fff}
+    .frameShell.compactMode .frameTop{
+      padding:10px 12px;
+      justify-content:flex-end;
+    }
+    .frameShell.compactMode .frameTop .left{display:none}
+    .frameShell.compactMode .overlayMsg{display:none!important}
+    .frameShell.compactMode .iframeWrap{min-height:calc(100vh - 136px)}
+    .frameShell.compactMode iframe{height:calc(100vh - 136px)}
+    .compactBoard{
+      display:none;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+      padding:14px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.015);
+    }
+    .compactBoard.show{display:grid}
+    .taskCard{
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.025));
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      box-shadow:0 10px 25px rgba(0,0,0,.18);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-height:100%;
+    }
+    .taskCard .taskTop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .taskCard .taskName{font-weight:800;font-size:15px;letter-spacing:-.01em}
+    .taskCard .taskMeta{color:var(--muted);font-size:12px;line-height:1.4}
+    .taskCard .taskState{color:var(--muted);font-size:12px;line-height:1.45;min-height:2.7em}
+    .taskBar{width:100%;height:12px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06)}
+    .taskBar > span{display:block;width:0%;height:100%;border-radius:inherit;background:linear-gradient(90deg, rgba(121,227,197,1), rgba(47,140,255,1));transition:width .18s ease}
+    .taskCard.done{border-color:rgba(121,227,197,.28);background:rgba(121,227,197,.07)}
+    .frameShell.compactMode .iframeWrap{display:none}
+    .frameShell.compactMode .panelBody{padding:0}
+    .frameShell.compactMode .compactBoard{display:grid}
+    .progressOuter{width:100%;height:12px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06)}
+    .progressInner{width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg, rgba(121,227,197,1), rgba(47,140,255,1));transition:width .18s ease}
+    .small{color:var(--muted);font-size:12px;line-height:1.45}
+    @media (max-width: 860px){
+      .grid{grid-template-columns:1fr}
+      .laneGrid{grid-template-columns:1fr}
+      iframe{height:70vh}
+      .iframeWrap{min-height:70vh}
+    }
+    @media (max-width: 640px){
+      .actions{justify-content:flex-start}
+      h1{font-size:22px}
+      .topbar{padding:14px}
+      .panelBody{padding:14px}
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div>
-        <h1>Restore Flow</h1>
-        <div class="sub">Choose the restore lane first, then open the detailed restore screens. The idea is to keep the decision tree visual instead of exposing everything at once.</div>
+      <div class="topbarLeft">
+        <a class="btn ghost" id="homeBtn" href="./index.html">Home</a>
+        <button class="btn ghost" id="backBtn" type="button">Back</button>
       </div>
-      <div class="actions">
-        <a class="btn" href="./profile.html">Back to Profiles</a>
-        <a class="btn primary" href="./Backup-flow.html">Backup Flow</a>
+      <div class="topbarCenter">
+        <h1>Restore Flow</h1>
+      </div>
+      <div class="topbarRight">
+        <label class="choice" id="choiceAuto" style="width:fit-content;">
+          <input id="autoMode" type="checkbox" checked />
+          <span>Automatic Mode</span>
+        </label>
+        <button class="btn primary" id="continueBtn">Begin Restore</button>
       </div>
     </div>
 
-    <div class="grid">
+    <div class="stack" id="chooserView">
       <section class="panel">
-        <div class="panelHead"><h2>Pick a restore branch</h2></div>
-        <div class="panelBody">
-          <div class="cards">
-            <div class="card">
-              <div>
-                <h3>Restore server content</h3>
-                <p>Bring back the hosted library files and content-side pieces from a saved package.</p>
-                <div class="meta">server-content-backup.html</div>
-              </div>
-              <a class="btn primary" href="./server-content-backup.html">Open content restore</a>
-            </div>
-            <div class="card">
-              <div>
-                <h3>Restore profiles</h3>
-                <p>Bring back profile identities and the data that travels with those selections.</p>
-                <div class="meta">transfer-profile-backup.html</div>
-              </div>
-              <a class="btn primary" href="./transfer-profile-backup.html">Open profile restore</a>
-            </div>
-            <div class="card">
-              <div>
-                <h3>Restore from transfer</h3>
-                <p>Use a packaged transfer backup when the safest route is to restore the whole portable bundle.</p>
-                <div class="meta">transfer-backup.html</div>
-              </div>
-              <a class="btn primary" href="./transfer-backup.html">Open transfer restore</a>
-            </div>
+        <div class="panelHead">
+          <div>
+            <h2>Restore bundle and destination</h2>
+            <div class="meta">Load the zip once here, then push it into the detailed restore page.</div>
           </div>
-          <div class="stepbox">
-            <div class="step"><div class="num">1</div><div><strong>Choose the restore family.</strong><div class="mini">Profiles, content, or a portable bundle first.</div></div></div>
-            <div class="step"><div class="num">2</div><div><strong>Open the detailed restore screen.</strong><div class="mini">The detailed page can then handle the actual import or merge action.</div></div></div>
+          <div class="meta" id="choiceMeta">Nothing loaded yet</div>
+        </div>
+        <div class="panelBody stepCard">
+          <div class="grid">
+            <label class="field">
+              <div class="label">Restore bundle</div>
+              <input id="bundleFile" type="file" accept=".zip,application/zip" />
+            </label>
+            <label class="field">
+              <div class="label">Destination</div>
+              <input id="destBase" type="text" placeholder="https://192.168.254.16:8083" />
+              <div class="small" style="margin-top:8px;">This gets copied into the restore workspace so the detailed page can use it directly.</div>
+            </label>
+            <div class="field" style="grid-column:1 / -1;">
+              <div class="label">What are we restoring?</div>
+              <div class="small" style="margin-bottom:10px;">Select one or both. When both are on, the flow runs profile first, then content.</div>
+
+              <div class="laneGrid">
+                <div class="laneCard">
+                  <div class="laneHead">
+                    <label class="choice active" id="choiceProfile">
+                      <input id="profileCheck" type="checkbox" checked />
+                      <span>Profile Data</span>
+                    </label>
+                    <div class="label">Profile restore mode</div>
+                  </div>
+                  <div class="choiceRow" data-mode-group="profile">
+                    <label class="choice active">
+                      <input type="radio" name="profileMode" value="merge" checked />
+                      <span>Merge</span>
+                    </label>
+                    <label class="choice">
+                      <input type="radio" name="profileMode" value="replace" />
+                      <span>Replace</span>
+                    </label>
+                  </div>
+                  <div class="modeWarning" data-warning-for="profile">WARNING - PROFILE DATA WILL BE OVERWRITTEN. BE SURE THIS ISN'T A MISTAKE.</div>
+                </div>
+
+                <div class="laneCard">
+                  <div class="laneHead">
+                    <label class="choice" id="choiceContent">
+                      <input id="contentCheck" type="checkbox" />
+                      <span>Server Content</span>
+                    </label>
+                    <div class="label">Server content mode</div>
+                  </div>
+                  <div class="choiceRow" data-mode-group="content">
+                    <label class="choice active">
+                      <input type="radio" name="contentMode" value="merge" checked />
+                      <span>Merge</span>
+                    </label>
+                    <label class="choice">
+                      <input type="radio" name="contentMode" value="replace" />
+                      <span>Replace</span>
+                    </label>
+                  </div>
+                  <div class="modeWarning" data-warning-for="content">WARNING - CONTENT DATA WILL BE OVERWRITTEN. BE SURE THIS ISN'T A MISTAKE.</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
     </div>
+
+<section class="stack" id="workView" style="display:none;">
+      <div class="panel frameShell">
+        <div class="panelBody" style="padding:0;">
+          <div class="compactBoard" id="compactBoard" hidden></div>
+          <div class="iframeWrap" id="iframeWrap">
+            <div class="overlayMsg" id="overlayMsg">
+              <strong>Workspace</strong>
+              The detailed restore page lives inside the frame. The flow will inject the chosen bundle and destination, then move to the next lane when the current one finishes.
+            </div>
+            <iframe id="frame" title="Restore workspace"></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
+
+  
+  <script>
+  (() => {
+    const params = new URLSearchParams(location.search);
+    const flowMode = params.has('flow');
+
+    function selectedScope() {
+      const scope = [];
+      if (el.profileCheck.checked) scope.push('profile');
+      if (el.contentCheck.checked) scope.push('content');
+      return scope.join(',') || 'content';
+    }
+
+    function setChoiceState(profileOn, contentOn, labelText = '') {
+      el.profileCheck.checked = !!profileOn;
+      el.contentCheck.checked = !!contentOn;
+      updateChoiceStyles();
+      if (labelText) el.choiceMeta.textContent = labelText;
+    }
+
+    function selectedRestoreMode(lane) {
+      return (document.querySelector(`input[name="${lane}Mode"]:checked`) || {}).value || 'merge';
+    }
+
+    function syncModeWarnings() {
+      for (const lane of ['profile', 'content']) {
+        const value = selectedRestoreMode(lane);
+        const modeChoices = document.querySelectorAll(`[data-mode-group="${lane}"] .choice`);
+        modeChoices.forEach(choice => {
+          const input = choice.querySelector('input');
+          choice.classList.toggle('active', input && input.value === value);
+        });
+        const warning = document.querySelector(`.modeWarning[data-warning-for="${lane}"]`);
+        if (warning) warning.classList.toggle('show', value === 'replace');
+      }
+    }
+
+    async function listZipEntryNames(file) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      const eocdSig = [0x50, 0x4b, 0x05, 0x06];
+      const minPos = Math.max(0, bytes.length - 22 - 0xffff);
+      let eocd = -1;
+      for (let i = bytes.length - 22; i >= minPos; i--) {
+        if (bytes[i] === eocdSig[0] && bytes[i + 1] === eocdSig[1] && bytes[i + 2] === eocdSig[2] && bytes[i + 3] === eocdSig[3]) {
+          eocd = i;
+          break;
+        }
+      }
+      if (eocd < 0) throw new Error('ZIP footer not found.');
+      const totalEntries = dv.getUint16(eocd + 10, true);
+      const cdOffset = dv.getUint32(eocd + 16, true);
+      const names = [];
+      let p = cdOffset;
+      const dec = new TextDecoder('utf-8');
+      for (let n = 0; n < totalEntries && p + 46 <= bytes.length; n++) {
+        if (dv.getUint32(p, true) !== 0x02014b50) break;
+        const nameLen = dv.getUint16(p + 28, true);
+        const extraLen = dv.getUint16(p + 30, true);
+        const commentLen = dv.getUint16(p + 32, true);
+        const name = dec.decode(bytes.slice(p + 46, p + 46 + nameLen));
+        names.push(name);
+        p += 46 + nameLen + extraLen + commentLen;
+      }
+      return names;
+    }
+
+    function inferRestoreScope(names, fileName = '') {
+      const all = [String(fileName || '').toLowerCase(), ...(names || []).map(n => String(n || '').replace(/\\/g, '/').toLowerCase())];
+      const hasProfile = all.some(n =>
+        n === 'profiles.js' ||
+        n.endsWith('/profiles.js') ||
+        n.includes('/profiles/') ||
+        n.startsWith('profiles/') ||
+        n.includes('/profiles.') ||
+        n === 'profiles.json'
+      );
+      const hasContent = all.some(n =>
+        n === 'mainfolders.js' ||
+        n === 'library.js' ||
+        n === 'loadseasonfunctions.js' ||
+        n === 'musiclibrary.js' ||
+        n === 'games.js' ||
+        n === 'books.js' ||
+        n === 'guidebooks.js' ||
+        n === 'manga.js' ||
+        /^video\//.test(n) ||
+        /^music\//.test(n) ||
+        /^games\//.test(n) ||
+        /^books\//.test(n) ||
+        /^manga\//.test(n)
+      );
+      return {
+        profile: hasProfile || (!hasProfile && !hasContent),
+        content: hasContent || (!hasProfile && !hasContent)
+      };
+    }
+
+    async function autoDetectScopeFromFile(file) {
+      if (!file) return;
+      try {
+        const names = await listZipEntryNames(file);
+        const scope = inferRestoreScope(names, file.name);
+        setChoiceState(scope.profile, scope.content, scope.profile && scope.content ? 'Auto-detected profile + content' : scope.profile ? 'Auto-detected profile backup' : 'Auto-detected content backup');
+      } catch (err) {
+        console.warn(err);
+        updateChoiceStyles();
+      }
+    }
+
+    function buildChildUrl() {
+      const scope = selectedScope();
+      const autoSuffix = el.autoMode.checked ? '&auto=1' : '';
+      const profileMode = `&profileMode=${encodeURIComponent(selectedRestoreMode('profile'))}`;
+      const contentMode = `&contentMode=${encodeURIComponent(selectedRestoreMode('content'))}`;
+      if (scope === 'profile') {
+        return `./transfer-profile-backup.html?flow=1${autoSuffix}${profileMode}`;
+      }
+      return `./transfer-backup.html?flow=1&scope=${encodeURIComponent(scope)}${autoSuffix}${profileMode}${contentMode}`;
+    }
+
+    const el = {
+      chooserView: document.getElementById('chooserView'),
+      workView: document.getElementById('workView'),
+      bundleFile: document.getElementById('bundleFile'),
+      destBase: document.getElementById('destBase'),
+      profileCheck: document.getElementById('profileCheck'),
+      contentCheck: document.getElementById('contentCheck'),
+      choiceProfile: document.getElementById('choiceProfile'),
+      choiceContent: document.getElementById('choiceContent'),
+      choiceMeta: document.getElementById('choiceMeta'),
+      homeBtn: document.getElementById('homeBtn'),
+      continueBtn: document.getElementById('continueBtn'),
+      backBtn: document.getElementById('backBtn'),
+      autoMode: document.getElementById('autoMode'),
+      choiceAuto: document.getElementById('choiceAuto'),
+      frame: document.getElementById('frame'),
+      iframeWrap: document.getElementById('iframeWrap'),
+      compactBoard: document.getElementById('compactBoard'),
+      overlayMsg: document.getElementById('overlayMsg')
+    };
+
+    const CURRENT_BACKUP_STORAGE_KEY = 'libraryjs.currentBackupBundle';
+
+    const state = {
+      lanes: [],
+      laneIndex: 0,
+      activeLane: '',
+      watcher: null,
+      finished: false,
+      failed: false,
+      running: false,
+      file: null,
+      autoLaunched: false,
+      lastText: '',
+      laneState: {
+        profile: { done: 0, total: 0, label: 'Waiting for profile restore…', status: 'Waiting for profile restore…', complete: false },
+        content: { done: 0, total: 0, label: 'Waiting for content restore…', status: 'Waiting for content restore…', complete: false }
+      }
+    };
+
+    function base64ToBytes(base64) {
+      const clean = String(base64 || '').replace(/\s+/g, '');
+      if (!clean) return new Uint8Array();
+      const binary = atob(clean);
+      const out = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+      return out;
+    }
+
+    function readCurrentBackupPayload() {
+      try {
+        const raw = localStorage.getItem(CURRENT_BACKUP_STORAGE_KEY);
+        if (!raw) return null;
+        const payload = JSON.parse(raw);
+        if (!payload || !payload.data) return null;
+        return payload;
+      } catch (err) {
+        console.warn('Could not read cached backup:', err);
+        return null;
+      }
+    }
+
+    function createFileFromCachedBackup() {
+      const payload = readCurrentBackupPayload();
+      if (!payload) return null;
+      try {
+        const bytes = base64ToBytes(payload.data);
+        return new File([bytes], String(payload.name || 'current-backup.zip'), {
+          type: String(payload.type || 'application/zip'),
+          lastModified: Date.now()
+        });
+      } catch (err) {
+        console.warn('Could not rebuild cached backup file:', err);
+        return null;
+      }
+    }
+
+    function setBundleFileInput(file) {
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        el.bundleFile.files = dt.files;
+        el.bundleFile.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      } catch (err) {
+        console.warn('Could not set bundle input:', err);
+        return false;
+      }
+    }
+
+    function setContinueState() {
+      const count = [el.profileCheck.checked, el.contentCheck.checked].filter(Boolean).length;
+      if (state.running) {
+        el.continueBtn.textContent = 'Restoring...';
+        el.continueBtn.disabled = true;
+        el.choiceAuto.style.display = 'none';
+      } else if (state.finished) {
+        el.continueBtn.textContent = 'Manage';
+        el.continueBtn.disabled = false;
+        el.choiceAuto.style.display = 'none';
+      } else if (state.failed) {
+        el.continueBtn.textContent = 'Retry Restore';
+        el.continueBtn.disabled = count === 0 || !state.file;
+        el.choiceAuto.style.display = '';
+      } else {
+        el.continueBtn.textContent = 'Begin Restore';
+        el.continueBtn.disabled = count === 0 || !state.file;
+        el.choiceAuto.style.display = '';
+      }
+    }
+
+    function lockNavigation(locked) {
+      const blocked = !!locked;
+      if (el.homeBtn) {
+        el.homeBtn.classList.toggle('navLocked', blocked);
+        el.homeBtn.setAttribute('aria-disabled', blocked ? 'true' : 'false');
+      }
+      if (el.backBtn) {
+        el.backBtn.classList.toggle('navLocked', blocked);
+        el.backBtn.disabled = blocked;
+        el.backBtn.setAttribute('aria-disabled', blocked ? 'true' : 'false');
+      }
+    }
+
+    function resetResultState() {
+      state.running = false;
+      state.finished = false;
+      state.failed = false;
+      lockNavigation(false);
+      setContinueState();
+    }
+
+    function updateChoiceStyles() {
+      el.choiceProfile.classList.toggle('active', el.profileCheck.checked);
+      el.choiceContent.classList.toggle('active', el.contentCheck.checked);
+      if (el.choiceAuto) el.choiceAuto.classList.toggle('active', el.autoMode.checked);
+      const count = [el.profileCheck.checked, el.contentCheck.checked].filter(Boolean).length;
+      el.choiceMeta.textContent = count === 0 ? 'Nothing selected yet' : count === 1 ? '1 lane selected' : '2 lanes selected';
+      syncModeWarnings();
+      setContinueState();
+    }
+
+    function maybeAutoLaunch() {
+      if (state.autoLaunched || state.running || state.finished) return;
+      if (!el.autoMode.checked) return;
+      if (!state.file) return;
+      if (![el.profileCheck.checked, el.contentCheck.checked].some(Boolean)) return;
+      if (!el.destBase.value.trim()) return;
+      state.autoLaunched = true;
+      setTimeout(() => {
+        if (!state.running && !state.finished) {
+          el.continueBtn.click();
+        }
+      }, 50);
+    }
+
+    function selectedLaneNames() {
+      const lanes = [];
+      if (el.profileCheck.checked) lanes.push('profile');
+      if (el.contentCheck.checked) lanes.push('content');
+      return lanes;
+    }
+
+    function selectedLanes() {
+      return [selectedScope()];
+    }
+
+    function setUiForRunning() {
+      state.running = true;
+      state.failed = false;
+      state.finished = false;
+      el.chooserView.style.display = 'none';
+      el.workView.style.display = 'grid';
+      el.workView.classList.toggle('compactMode', el.autoMode.checked);
+      el.overlayMsg.style.display = 'none';
+      lockNavigation(true);
+      setContinueState();
+      syncCompactBoard(true);
+      el.frame.src = 'about:blank';
+    }
+
+    function updatePrimaryActionLabel() {
+      setContinueState();
+    }
+
+    function triggerCurrentRestoreAction() {
+      return;
+    }
+
+    function goBack() {
+      if (state.running) return;
+      if (el.workView.style.display === 'grid') {
+        clearWatcher();
+        state.activeLane = '';
+        state.running = false;
+        el.frame.src = 'about:blank';
+        el.workView.style.display = 'none';
+        el.chooserView.style.display = 'grid';
+        el.choiceAuto.style.display = '';
+        resetResultState();
+        return;
+      }
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = './index.html';
+      }
+    }
+
+    function setStatus(text) {
+      if (text) state.lastText = text;
+    }
+
+    function laneTitle(lane) {
+      return lane === 'profile' ? 'Profile restore' : 'Content restore';
+    }
+
+    function laneDefaultStatus(lane) {
+      return lane === 'profile' ? 'Waiting for profile restore…' : 'Waiting for content restore…';
+    }
+
+    function laneProgressText(done, total, label) {
+      const base = label ? String(label).trim() : '';
+      const tail = Number.isFinite(done) && Number.isFinite(total) ? ` (${done}/${total})` : '';
+      return `${base}${tail}`.trim() || 'Working…';
+    }
+
+    function allSelectedLanesComplete() {
+      const lanes = selectedLaneNames();
+      return lanes.length > 0 && lanes.every(lane => state.laneState[lane] && state.laneState[lane].complete);
+    }
+
+    function pendingLaneLabel() {
+      const lanes = selectedLaneNames().filter(lane => !state.laneState[lane]?.complete);
+      if (!lanes.length) return '';
+      if (lanes.length === 1) return laneTitle(lanes[0]);
+      return lanes.map(laneTitle).join(' and ');
+    }
+
+    function ensureCompactBoard() {
+      if (!el.compactBoard) return;
+      const lanes = selectedScope().includes('profile') && selectedScope().includes('content')
+        ? ['profile', 'content']
+        : selectedScope().includes('profile')
+          ? ['profile']
+          : ['content'];
+      el.compactBoard.innerHTML = '';
+      for (const lane of lanes) {
+        const card = document.createElement('div');
+        card.className = 'taskCard';
+        card.dataset.lane = lane;
+        card.innerHTML = `
+          <div class="taskTop">
+            <div>
+              <div class="taskName">${laneTitle(lane)}</div>
+              <div class="taskMeta" data-role="meta">${lane === 'profile' ? 'Restoring profile data first.' : 'Restoring server content.'}</div>
+            </div>
+            <div class="taskMeta" data-role="percent">0%</div>
+          </div>
+          <div class="taskBar"><span data-role="bar"></span></div>
+          <div class="taskState" data-role="state">${laneDefaultStatus(lane)}</div>
+        `;
+        el.compactBoard.appendChild(card);
+      }
+    }
+
+    function updateCompactLane(lane, payload = {}) {
+      const laneState = state.laneState[lane];
+      if (!laneState || !el.compactBoard) return;
+      const hasComplete = Object.prototype.hasOwnProperty.call(payload, 'complete');
+      const nextDone = Number.isFinite(payload.done) ? payload.done : laneState.done;
+      const nextTotal = Number.isFinite(payload.total) ? payload.total : laneState.total;
+      const nextLabel = payload.label ? String(payload.label).trim() : laneState.label;
+      const nextStatus = payload.status ? String(payload.status).trim() : laneState.status;
+      const nextComplete = hasComplete ? !!payload.complete : (Number.isFinite(nextTotal) && nextTotal > 0 && nextDone >= nextTotal);
+      state.laneState[lane] = {
+        done: nextDone,
+        total: nextTotal,
+        label: nextLabel || laneDefaultStatus(lane),
+        status: nextStatus || laneDefaultStatus(lane),
+        complete: nextComplete
+      };
+      const card = el.compactBoard.querySelector(`.taskCard[data-lane="${lane}"]`);
+      if (!card) return;
+      const pct = nextTotal ? Math.max(0, Math.min(100, (nextDone / nextTotal) * 100)) : 0;
+      card.classList.toggle('done', nextComplete);
+      const bar = card.querySelector('[data-role="bar"]');
+      const percent = card.querySelector('[data-role="percent"]');
+      const stateEl = card.querySelector('[data-role="state"]');
+      const meta = card.querySelector('[data-role="meta"]');
+      if (bar) bar.style.width = `${pct}%`;
+      if (percent) percent.textContent = `${Math.round(pct)}%`;
+      if (stateEl) stateEl.textContent = nextStatus || laneProgressText(nextDone, nextTotal, nextLabel);
+      if (meta) meta.textContent = nextComplete
+        ? 'Completed.'
+        : lane === 'profile'
+          ? 'Restoring profile data first.'
+          : 'Restoring server content.';
+    }
+
+    function syncCompactBoard(reset = false) {
+      if (!el.compactBoard) return;
+      if (reset || !el.compactBoard.childElementCount) ensureCompactBoard();
+      el.compactBoard.hidden = !el.autoMode.checked;
+      el.compactBoard.classList.toggle('show', el.autoMode.checked);
+      if (el.autoMode.checked) {
+        el.iframeWrap.style.display = 'none';
+      } else {
+        el.iframeWrap.style.display = '';
+      }
+      if (reset) {
+        for (const lane of Object.keys(state.laneState)) {
+          updateCompactLane(lane, {
+            done: 0,
+            total: 0,
+            label: laneDefaultStatus(lane),
+            status: laneDefaultStatus(lane),
+            complete: false
+          });
+        }
+      }
+    }
+
+    function childText() {
+      try {
+        const doc = el.frame.contentDocument;
+        if (!doc) return '';
+        const log = doc.getElementById('log')?.textContent || '';
+        const prog = doc.getElementById('progressText')?.textContent || '';
+        const archiveMeta = doc.getElementById('archiveMeta')?.textContent || '';
+        const platformInfo = doc.getElementById('platformInfo')?.textContent || '';
+        return [log, prog, archiveMeta, platformInfo].filter(Boolean).join('\n');
+      } catch {
+        return '';
+      }
+    }
+
+    function looksLikeComplete(text) {
+      const t = String(text || '').toLowerCase();
+      return (
+        t.includes('restore complete') ||
+        t.includes('restore completed') ||
+        t.includes('transfer complete') ||
+        t.includes('done. downloaded') ||
+        (t.includes('complete') && (t.includes('restore') || t.includes('transfer') || t.includes('done')))
+      );
+    }
+
+    function isVttRelatedFailure(text) {
+      const t = String(text || '').toLowerCase();
+      return t.includes('.vtt') || t.includes('vtt') || t.includes('subtitle');
+    }
+
+    function setChildFileInput(file) {
+      try {
+        const doc = el.frame.contentDocument;
+        if (!doc) return false;
+        const input = doc.getElementById('zipFile');
+        if (!input) return false;
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function applyChildSettings() {
+      try {
+        const doc = el.frame.contentDocument;
+        if (!doc || !doc.head) return;
+        let style = doc.getElementById('restoreFlowTweakStyle');
+        if (!style) {
+          style = doc.createElement('style');
+          style.id = 'restoreFlowTweakStyle';
+          doc.head.appendChild(style);
+        }
+        style.textContent = `
+          body.flowCompact .topbar{display:none!important;}
+          body.flowCompact .panelHead{display:none!important;}
+          body.flowCompact .sub{display:none!important;}
+          body.flowCompact .controls{display:none!important;}
+          body.flowCompact #zipFile{display:none!important;}
+          body.flowCompact #scanBtn{display:none!important;}
+          body.flowCompact #restoreBtn{display:none!important;}
+          body.flowCompact #searchBox{display:none!important;}
+          body.flowCompact #selectAllProfilesBtn{display:none!important;}
+          body.flowCompact #clearAllBtn{display:none!important;}
+          body.flowCompact #probeBtn{display:none!important;}
+          body.flowCompact .panelBody{padding-top:12px!important;}
+        `;
+        const dest = doc.getElementById('destBase');
+        if (dest) {
+          dest.value = el.destBase.value.trim();
+          dest.dispatchEvent(new Event('input', { bubbles: true }));
+          dest.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        const sourceBase = doc.getElementById('sourceBase');
+        if (sourceBase && !sourceBase.value.trim()) {
+          sourceBase.value = location.origin;
+          sourceBase.dispatchEvent(new Event('input', { bubbles: true }));
+          sourceBase.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (state.file) {
+          setChildFileInput(state.file);
+        }
+        const scanBtn = doc.getElementById('scanBtn');
+        if (scanBtn) setTimeout(() => scanBtn.click(), 50);
+      } catch {}
+    }
+
+    function clearWatcher() {
+      if (state.watcher) {
+        clearInterval(state.watcher);
+        state.watcher = null;
+      }
+    }
+
+    function watchChild() {
+      clearWatcher();
+      state.lastText = '';
+      state.watcher = setInterval(() => {
+        if (state.finished) return;
+        const text = childText();
+        if (text && text !== state.lastText) {
+          state.lastText = text;
+          setStatus(text.split(/\n+/).filter(Boolean).slice(-2).join(' • '));
+        }
+      }, 450);
+    }
+
+    function loadLane(lane) {
+      state.activeLane = lane;
+      el.frame.src = buildChildUrl();
+      setStatus('Opening workspace…');
+    }
+
+    function handleLaneComplete(lane, messageText) {
+      const scope = selectedScope();
+      const doneText = scope.includes('profile') && scope.includes('content')
+        ? 'Restore finished.'
+        : scope.includes('profile')
+          ? 'Profile restore finished.'
+          : 'Content restore finished.';
+      const finalMessage = messageText || doneText;
+      updateCompactLane(lane, { complete: true, status: finalMessage });
+
+      if (allSelectedLanesComplete()) {
+        setStatus(finalMessage);
+        state.failed = false;
+        state.finished = true;
+        state.running = false;
+        lockNavigation(false);
+        setContinueState();
+        el.frame.src = 'about:blank';
+        return;
+      }
+
+      const remaining = pendingLaneLabel();
+      setStatus(remaining ? `${finalMessage} Waiting for ${remaining.toLowerCase()}…` : finalMessage);
+    }
+
+    function handleFailure(messageText = 'Restore failed.') {
+      state.failed = true;
+      state.running = false;
+      state.finished = false;
+      lockNavigation(false);
+      setStatus(messageText);
+      setContinueState();
+    }
+
+    function onFlowMessage(event) {
+      if (event.source !== el.frame.contentWindow) return;
+      if (event.origin !== location.origin && event.origin !== 'null') return;
+      const data = event.data || {};
+      if (!data || data.flow !== 'restore') return;
+      const lane = data.lane === 'profile' ? 'profile' : 'content';
+      const scope = selectedScope();
+
+      if (data.type === 'libraryjs-flow-progress') {
+        const phase = String(data.phase || data.stage || '').toLowerCase();
+        const progressStatus = data.status || data.message || laneProgressText(Number(data.done), Number(data.total), data.label || data.status || data.message || '');
+        if (phase === 'scan' && lane === 'content') {
+          if (scope.includes(lane)) updateCompactLane(lane, {
+            status: progressStatus,
+            complete: false
+          });
+          setStatus(progressStatus);
+          return;
+        }
+        if (scope.includes(lane)) updateCompactLane(lane, {
+          done: Number(data.done),
+          total: Number(data.total),
+          label: data.label || data.status || data.message || '',
+          status: progressStatus,
+          phase
+        });
+        setStatus(progressStatus);
+        if (/\bfailed\b|\berror\b/i.test(progressStatus) && !looksLikeComplete(progressStatus) && !isVttRelatedFailure(progressStatus)) {
+          handleFailure(progressStatus);
+        }
+        return;
+      }
+
+      if (data.type === 'libraryjs-flow-status') {
+        const status = data.status || data.message || data.label || '';
+        if (scope.includes(lane)) updateCompactLane(lane, {
+          status
+        });
+        setStatus(status);
+        if (/\bfailed\b|\berror\b/i.test(status) && !looksLikeComplete(status) && !isVttRelatedFailure(status)) {
+          handleFailure(status);
+        }
+        return;
+      }
+
+      if (data.type === 'libraryjs-flow-complete') {
+        if (scope.includes(lane)) {
+          state.failed = false;
+          handleLaneComplete(lane, data.message || data.status || '');
+        }
+        return;
+      }
+    }
+
+    el.homeBtn.addEventListener('click', (event) => {
+      if (state.running) event.preventDefault();
+    });
+
+    el.profileCheck.addEventListener('change', () => { updateChoiceStyles(); });
+    el.contentCheck.addEventListener('change', () => { updateChoiceStyles(); });
+    document.querySelectorAll('input[name="profileMode"], input[name="contentMode"]').forEach(input => {
+      input.addEventListener('change', () => { syncModeWarnings(); });
+    });
+    el.autoMode.addEventListener('change', () => { updateChoiceStyles(); });
+    el.destBase.addEventListener('input', () => { updateChoiceStyles(); });
+    el.bundleFile.addEventListener('change', async () => {
+      state.file = el.bundleFile.files && el.bundleFile.files[0] ? el.bundleFile.files[0] : null;
+      el.choiceMeta.textContent = state.file ? state.file.name : 'Nothing loaded yet';
+      if (state.file) {
+        await autoDetectScopeFromFile(state.file);
+      } else {
+        updateChoiceStyles();
+      }
+      // no auto-launch on file selection; Begin Restore starts the flow.
+    });
+
+    el.backBtn.addEventListener('click', goBack);
+
+    el.continueBtn.addEventListener('click', () => {
+      if (state.running) return;
+      if (state.finished) {
+        window.location.href = './manage.html';
+        return;
+      }
+      state.lanes = ['restore'];
+      state.laneIndex = 0;
+      state.finished = false;
+      state.failed = false;
+      state.autoLaunched = true;
+      if (![el.profileCheck.checked, el.contentCheck.checked].some(Boolean)) {
+        setStatus('Pick at least one restore lane first.');
+        return;
+      }
+      if (!state.file) {
+        setStatus('Choose a restore bundle first.');
+        return;
+      }
+      setUiForRunning();
+      loadLane('restore');
+    });
+
+    window.addEventListener('message', onFlowMessage);
+
+    el.frame.addEventListener('load', () => {
+      const lane = state.activeLane;
+      if (!lane) return;
+      applyChildSettings();
+      watchChild();
+      setTimeout(() => {
+        if (!state.finished) {
+          const text = childText();
+          if (text) setStatus(text.split(/\n+/).filter(Boolean).slice(-2).join(' • '));
+        }
+      }, 400);
+    });
+
+    if (el.destBase.value.trim() === '') {
+      el.destBase.value = location.origin.replace(/\/$/, '');
+    }
+    updateChoiceStyles();
+    syncModeWarnings();
+    updatePrimaryActionLabel();
+
+    if (new URLSearchParams(location.search).has('currentBackup')) {
+      const cached = createFileFromCachedBackup();
+      if (cached) {
+        setBundleFileInput(cached);
+      }
+    }
+  })();
+  </script>
+
 </body>
 </html>

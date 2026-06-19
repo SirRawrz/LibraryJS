@@ -56,6 +56,15 @@
     .progressInner{width:0%;height:100%;background:linear-gradient(90deg, rgba(126,224,196,1), rgba(130,170,255,1));transition:width .2s ease}
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
     .small{font-size:12px;color:var(--muted)}
+    body.flowCompact .topbar{display:none!important}
+    body.flowCompact .panelHead{display:none!important}
+    body.flowCompact .sub{display:none!important}
+    body.flowCompact .controls{display:none!important}
+    body.flowCompact .wrap{max-width:1600px;padding:10px}
+    body.flowCompact .main{grid-template-columns:minmax(0,1fr)!important}
+    body.flowCompact .profilesGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+    body.flowCompact .preview{min-height:180px}
+    body.flowCompact .panelBody{padding:12px}
     .pill{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.04);cursor:pointer;user-select:none}
     .radioGroup{display:flex;flex-wrap:wrap;gap:10px;padding:10px 0 0}
     .preview{width:100%;min-height:240px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:16px;padding:12px;overflow:auto;font-size:12px;line-height:1.45;white-space:pre-wrap}
@@ -74,6 +83,8 @@
       min-height:100%;
     }
     .profileCard.active{outline:2px solid rgba(126,224,196,.22);border-color:rgba(126,224,196,.24)}
+    .modeWarning{display:none;margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,104,104,.35);background:rgba(255,104,104,.12);color:#ffe4e4;font-size:12px;line-height:1.45;font-weight:800;letter-spacing:.01em}
+    .modeWarning.show{display:block}
     .profileTop{display:flex;align-items:flex-start;gap:12px}
     .avatar{width:58px;height:58px;border-radius:16px;object-fit:cover;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);flex:0 0 auto}
     .profileMeta{flex:1 1 auto;min-width:0}
@@ -135,10 +146,11 @@
           </div>
           <div>
             <div class="label">Archive mode</div>
-            <div class="radioGroup">
+            <div class="radioGroup" id="restoreModeGroup">
               <label class="pill"><input type="radio" name="restoreMode" value="merge" checked> Merge <span class="small">(profiles.js)</span></label>
               <label class="pill"><input type="radio" name="restoreMode" value="replace"> Replace <span class="small">(profiles.js)</span></label>
             </div>
+            <div class="modeWarning" id="profileModeWarning">WARNING - PROFILE DATA WILL BE OVERWRITTEN. BE SURE THIS ISN'T A MISTAKE.</div>
           </div>
         </div>
 
@@ -246,6 +258,13 @@
     progressText: document.getElementById('progressText'),
   };
 
+  const params = new URLSearchParams(location.search);
+  const flowMode = params.has('flow');
+  const flowAuto = flowMode && params.has('auto');
+  const initialProfileMode = (params.get('profileMode') || params.get('mode') || 'merge').toLowerCase() === 'replace' ? 'replace' : 'merge';
+
+  const flowTargetOrigin = location.origin === 'null' ? '*' : location.origin;
+
   const enc = new TextEncoder();
   const dec = new TextDecoder();
 
@@ -259,10 +278,19 @@
     destBase: location.origin.endsWith('/') ? location.origin.slice(0, -1) : location.origin,
     platform: 'windows',
     busy: false,
-    restoreMode: 'merge',
+    restoreMode: initialProfileMode,
   };
 
   if (!el.destBase.value) el.destBase.value = state.destBase;
+  const initialProfileModeInput = document.querySelector(`input[name="restoreMode"][value="${initialProfileMode}"]`);
+  if (initialProfileModeInput) initialProfileModeInput.checked = true;
+
+  function syncProfileModeWarning() {
+    const mode = (document.querySelector('input[name="restoreMode"]:checked') || {}).value || 'merge';
+    const warning = document.getElementById('profileModeWarning');
+    if (warning) warning.classList.toggle('show', mode === 'replace');
+  }
+
 
   function log(msg, reset = false) {
     const text = String(msg || '').trim();
@@ -272,14 +300,35 @@
       state.logLines.push(`[${stamp}] ${text}`);
       if (state.logLines.length > 240) state.logLines.splice(0, state.logLines.length - 240);
     }
-    el.log.textContent = state.logLines.join('\n') || 'Idle.';
+    const rendered = state.logLines.join('\n') || 'Idle.';
+    el.log.textContent = rendered;
     el.log.scrollTop = el.log.scrollHeight;
+    if (text) postFlowMessage('libraryjs-flow-status', { status: text, message: text });
+  }
+
+  function postFlowMessage(type, payload = {}) {
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type,
+          flow: 'restore',
+          lane: 'profile',
+          ...payload
+        }, flowTargetOrigin);
+      }
+    } catch {}
   }
 
   function setProgress(done, total, label = '') {
     const pct = total ? Math.max(0, Math.min(100, (done / total) * 100)) : 0;
     el.progressInner.style.width = `${pct}%`;
     el.progressText.textContent = label ? `${label} (${done}/${total})` : `${done}/${total}`;
+    postFlowMessage('libraryjs-flow-progress', {
+      done,
+      total,
+      label,
+      status: el.progressText.textContent
+    });
   }
 
   function humanBytes(bytes) {
@@ -413,7 +462,7 @@
       bgColors: Array.isArray(p.bgColors) ? p.bgColors.slice(0, 10) : []
     }));
     const titleString = serverTitle ? String(serverTitle) : '';
-    return "/* Generated by server-profiles-backup.html */\n\nwindow.profiles = " + JSON.stringify(safeProfiles, null, 2) + ";\n// Example: window._customServerTitle = \"Family Media Library\";\nwindow._customServerTitle = " + JSON.stringify(titleString) + ";\n";
+    return "/* Generated by setup.html */\n\nwindow.profiles = " + JSON.stringify(safeProfiles, null, 2) + ";\nwindow._customServerTitle = " + JSON.stringify(titleString) + ";\n\n(function setServerTitle(){\n  const el = document.getElementById('siteTitle');\n  if (!el) return;\n  const img = el.querySelector('img');\n  const imgHtml = img ? img.outerHTML : '';\n  const safeTitle = (typeof window._customServerTitle === 'string' && window._customServerTitle.length)\n    ? window._customServerTitle\n    : '';\n  el.innerHTML = safeTitle + ' ' + imgHtml;\n  try { document.title = safeTitle; } catch(e){}\n})();\n";
   }
 
   function parseProfilesJsText(txt) {
@@ -427,14 +476,21 @@
   }
 
   function extractCustomTitle(txt) {
-    const m = String(txt || '').match(/window\._customServerTitle\s*=\s*([\s\S]*?);/m);
-    if (!m) return '';
-    try {
-      const value = new Function(`return (${m[1]});`)();
-      return typeof value === 'string' ? value : '';
-    } catch (e) {
-      return '';
+    const lines = String(txt || '').replace(/\r\n?/g, '\n').split('\n');
+    const candidates = [];
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('//')) continue;
+      const m = line.match(/^window\._customServerTitle\s*=\s*([^;]+);\s*$/);
+      if (m) candidates.push(m[1]);
     }
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      try {
+        const value = new Function(`return (${candidates[i]});`)();
+        if (typeof value === 'string' && value.length) return value;
+      } catch (e) {}
+    }
+    return '';
   }
 
   function normalizeProfileEntry(item) {
@@ -455,7 +511,9 @@
     for (const p of currentProfiles) map.set(String(p.name || '').toLowerCase(), p);
     for (const p of incomingProfiles) map.set(String(p.name || '').toLowerCase(), p);
     const merged = [...map.values()];
-    const title = extractCustomTitle(backupText) || extractCustomTitle(currentText) || '';
+    const currentTitle = extractCustomTitle(currentText);
+    const backupTitle = extractCustomTitle(backupText);
+    const title = currentTitle || backupTitle || '';
     return buildProfilesJsContent(merged, title);
   }
 
@@ -870,6 +928,11 @@ async function uploadPath(destBase, targetPath, bytes) {
     scanArchiveView();
     log(`Loaded ${file.name} (${map.size} files).`, true);
     updatePlatformText();
+    if (flowMode && flowAuto) {
+      setTimeout(() => {
+        try { el.restoreBtn.click(); } catch {}
+      }, 80);
+    }
   }
 
   function selectedArchiveEntries() {
@@ -917,7 +980,7 @@ async function uploadPath(destBase, targetPath, bytes) {
       const backupProfilesText = getArchiveProfilesText();
       if (selectedManifestEntries.length) {
         const currentProfilesText = await fetchCurrentText(state.destBase, ['profiles.js', './profiles.js', 'Profiles/profiles.js']);
-        const filteredBackupText = buildProfilesJsContent(selectedManifestEntries, extractCustomTitle(backupProfilesText) || '');
+        const filteredBackupText = buildProfilesJsContent(selectedManifestEntries, extractCustomTitle(currentProfilesText) || extractCustomTitle(backupProfilesText) || '');
         const finalProfilesText = replaceProfiles
           ? filteredBackupText
           : mergeProfilesText(currentProfilesText, filteredBackupText, false);
@@ -948,12 +1011,19 @@ async function uploadPath(destBase, targetPath, bytes) {
       });
 
       const totalProcessed = (selectedManifestEntries.length ? 1 : 0) + fileTasks.length;
-      if (failures.length) {
-        log(`Restore completed with ${failures.length} issue(s).`);
-      } else {
-        log(`Restore complete. ${totalProcessed} file(s) processed.`);
-      }
+      const completionMessage = failures.length
+        ? `Restore completed with ${failures.length} issue(s).`
+        : `Restore complete. ${totalProcessed} file(s) processed.`;
+      log(completionMessage);
       renderRestoreList(totalProcessed, totalProcessed, failures.length ? `${failures.length} issue(s) found` : 'All files processed', failures.length === 0);
+      if (flowMode && window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'libraryjs-flow-complete',
+          flow: 'restore',
+          lane: 'profile',
+          message: completionMessage
+        }, flowTargetOrigin);
+      }
     } finally {
       state.busy = false;
       el.restoreBtn.disabled = false;
@@ -976,6 +1046,40 @@ async function uploadPath(destBase, targetPath, bytes) {
     const rows = Array.from(el.restoreList.children);
     while (rows.length > 120) { rows.pop().remove(); }
   }
+
+  let autoScanTimer = null;
+
+  async function scheduleAutoScan() {
+    if (!flowMode) return;
+    const file = el.zipFile.files && el.zipFile.files[0];
+    if (!file) return;
+    if (state.busy) {
+      if (autoScanTimer) clearTimeout(autoScanTimer);
+      autoScanTimer = setTimeout(scheduleAutoScan, 120);
+      return;
+    }
+    if (state.archiveFile && state.archiveFile.name === file.name && state.archiveFile.size === file.size && state.archiveFile.lastModified === file.lastModified) {
+      return;
+    }
+    if (autoScanTimer) clearTimeout(autoScanTimer);
+    autoScanTimer = setTimeout(async () => {
+      try {
+        await scanZip();
+      } catch (err) {
+        console.error(err);
+        log(`Scan failed: ${err && err.message ? err.message : String(err)}`);
+      }
+    }, 0);
+  }
+
+  el.zipFile.addEventListener('change', () => {
+    if (flowMode) scheduleAutoScan();
+  });
+
+  syncProfileModeWarning();
+  document.querySelectorAll('input[name="restoreMode"]').forEach(input => {
+    input.addEventListener('change', syncProfileModeWarning);
+  });
 
   el.scanBtn.addEventListener('click', async () => {
     try {

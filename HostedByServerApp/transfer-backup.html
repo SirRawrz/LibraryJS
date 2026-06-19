@@ -103,6 +103,8 @@
     .panelHead h2{margin:0;font-size:16px}
     .panelHead .meta{color:var(--muted);font-size:12px}
     .panelBody{padding:16px}
+    .modeWarning{display:none;margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,104,104,.35);background:rgba(255,104,104,.12);color:#ffe4e4;font-size:12px;line-height:1.45;font-weight:800;letter-spacing:.01em}
+    .modeWarning.show{display:block}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .stack{display:flex;flex-direction:column;gap:12px}
     .radioGroup{
@@ -181,6 +183,21 @@
     }
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
     .small{font-size:12px;color:var(--muted)}
+    .flowPanel{margin-bottom:16px}
+    .flowFrame{width:100%;height:92vh;min-height:980px;border:0;display:block;background:#111}
+    .flowStatus{color:var(--muted);font-size:12px;line-height:1.45}
+    body.flowCompact .topbar{display:none!important}
+    body.flowCompact .panelHead{display:none!important}
+    body.flowCompact .sub{display:none!important}
+    body.flowCompact .controls{display:none!important}
+    body.flowCompact .wrap{max-width:1600px;padding:10px}
+    body.flowCompact .main{grid-template-columns:minmax(0,1fr)!important}
+    body.flowCompact .flowPanel{margin-bottom:10px}
+    body.flowCompact .flowFrame{height:88vh;min-height:88vh}
+    body.flowCompact .panelBody{padding:12px}
+    .flowSummary{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+    .flowSummary .chip{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--muted);font-size:12px;font-weight:700}
+    .flowSummary .chip strong{color:var(--text)}
     .preview{
       width:100%;
       min-height:240px;
@@ -219,6 +236,29 @@
       <input id="zipFile" type="file" accept=".zip,application/zip" />
       <button id="scanBtn" class="primary">Scan backup</button>
       <button id="startBtn">Start transfer</button>
+    </div>
+  </div>
+
+  <div class="panel flowPanel" id="profileFlowPanel" style="display:none;">
+    <div class="panelHead">
+      <div>
+        <h2>Profile restore</h2>
+        <div class="meta">Selected profiles from the archive are handled here first.</div>
+      </div>
+      <div class="flowStatus" id="profileFlowStatus">Waiting for the profile workspace to load.</div>
+    </div>
+    <div class="panelBody" id="profileFlowCompact" style="padding:14px;display:none;">
+      <div class="flowSummary">
+        <div class="chip"><strong>Profile</strong></div>
+        <div class="chip"><strong id="profileFlowCompactText">Waiting…</strong></div>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="progressOuter"><div id="profileFlowCompactBar" class="progressInner"></div></div>
+      </div>
+      <div class="small" id="profileFlowCompactDetail" style="margin-top:8px;">Waiting for the profile workspace to load.</div>
+    </div>
+    <div class="panelBody" style="padding:0;">
+      <iframe id="profileFrame" class="flowFrame" title="Profile restore workspace"></iframe>
     </div>
   </div>
 
@@ -276,14 +316,24 @@
 
         <div class="row">
           <div>
-            <div class="label">Setup merge behavior</div>
-            <label class="pill" style="display:flex; gap:10px; align-items:flex-start; padding:12px 14px; line-height:1.35;">
-              <input id="preserveSetupFiles" type="checkbox" checked style="margin-top:2px;" />
-              <span>
-                Preserve Old Library JS setup Files, merging into existing when available
-                <div class="small" style="margin-top:4px;">When enabled, the destination's existing <span class="mono">mainfolders.js</span>, <span class="mono">library.js</span>, and <span class="mono">loadseasonfunctions.js</span> are fetched first and merged with the backup instead of being overwritten. Section backups such as <span class="mono">musiclibrary.js</span>, <span class="mono">games.js</span>, <span class="mono">books.js</span>, <span class="mono">guidebooks.js</span>, and <span class="mono">manga.js</span> are restored whenever they are present in the zip.</div>
-              </span>
-            </label>
+            <div class="label">Server content mode</div>
+            <div class="radioGroup">
+              <label class="pill" style="display:flex; gap:10px; align-items:flex-start; padding:12px 14px; line-height:1.35;">
+                <input id="preserveSetupFiles" type="radio" name="setupMode" value="merge" checked style="margin-top:2px;" />
+                <span>
+                  Merge
+                  <div class="small" style="margin-top:4px;">The destination's existing <span class="mono">mainfolders.js</span>, <span class="mono">library.js</span>, and <span class="mono">loadseasonfunctions.js</span> are fetched first and merged with the backup instead of being overwritten.</div>
+                </span>
+              </label>
+              <label class="pill" style="display:flex; gap:10px; align-items:flex-start; padding:12px 14px; line-height:1.35;">
+                <input id="replaceSetupFiles" type="radio" name="setupMode" value="replace" style="margin-top:2px;" />
+                <span>
+                  Replace
+                  <div class="small" style="margin-top:4px;">The archive's setup files overwrite the destination copies.</div>
+                </span>
+              </label>
+            </div>
+            <div class="modeWarning" id="setupModeWarning">WARNING - CONTENT DATA WILL BE OVERWRITTEN. BE SURE THIS ISN'T A MISTAKE.</div>
           </div>
           <div>
             <div class="label">Destination platform.txt</div>
@@ -360,6 +410,15 @@
 
 <script>
 (() => {
+  const params = new URLSearchParams(location.search);
+  const flowMode = params.has('flow');
+  const flowAuto = flowMode && params.has('auto');
+  const initialSetupMode = (params.get('contentMode') || params.get('setupMode') || 'merge').toLowerCase() === 'replace' ? 'replace' : 'merge';
+  if (flowMode) document.body.classList.add('flowCompact');
+  const flowScope = new Set((params.get('scope') || 'content').split(',').map(s => s.trim()).filter(Boolean));
+  const flowHasProfile = flowMode && flowScope.has('profile');
+  const flowHasContent = flowMode ? (flowScope.has('content') || !flowHasProfile) : false;
+
   const el = {
     zipFile: document.getElementById('zipFile'),
     scanBtn: document.getElementById('scanBtn'),
@@ -381,8 +440,27 @@
     progressText: document.getElementById('progressText'),
     strategyText: document.getElementById('strategyText'),
     preserveSetupFiles: document.getElementById('preserveSetupFiles'),
-    musicBatchSize: document.getElementById('musicBatchSize')
+    musicBatchSize: document.getElementById('musicBatchSize'),
+    profileFlowPanel: document.getElementById('profileFlowPanel'),
+    profileFrame: document.getElementById('profileFrame'),
+    profileFlowStatus: document.getElementById('profileFlowStatus'),
+    profileFlowCompact: document.getElementById('profileFlowCompact'),
+    profileFlowCompactText: document.getElementById('profileFlowCompactText'),
+    profileFlowCompactDetail: document.getElementById('profileFlowCompactDetail'),
+    profileFlowCompactBar: document.getElementById('profileFlowCompactBar'),
+    setupModeWarning: document.getElementById('setupModeWarning')
   };
+
+  const initialSetupModeInput = document.querySelector(`input[name="setupMode"][value="${initialSetupMode}"]`);
+  if (initialSetupModeInput) initialSetupModeInput.checked = true;
+
+  function syncSetupModeWarning() {
+    const mode = (document.querySelector('input[name="setupMode"]:checked') || {}).value || 'merge';
+    const warning = document.getElementById('setupModeWarning');
+    if (warning) warning.classList.toggle('show', mode === 'replace');
+  }
+
+  const flowTargetOrigin = location.origin === 'null' ? '*' : location.origin;
 
   const state = {
     archiveFile: null,
@@ -405,12 +483,26 @@
     busy: false,
     logLines: [],
     pendingArtworkTasks: [],
-    transferRun: null
+    transferRun: null,
+    autoContentQueued: false
   };
 
   if (!el.sourceBase.value) el.sourceBase.value = state.sourceBase;
   state.sourceBase = el.sourceBase.value.trim();
   state.destination.base = el.destBase.value.trim();
+
+  function postFlowMessage(type, payload = {}) {
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type,
+          flow: 'restore',
+          lane: 'content',
+          ...payload
+        }, flowTargetOrigin);
+      }
+    } catch {}
+  }
 
   function log(msg, opts = {}) {
     const text = String(msg || '').trim();
@@ -424,12 +516,36 @@
     if (state.logLines.length > 180) state.logLines.splice(0, state.logLines.length - 180);
     el.log.textContent = state.logLines.join('\n');
     el.log.scrollTop = el.log.scrollHeight;
+    postFlowMessage('libraryjs-flow-status', { status: text, message: text });
   }
 
-  function setProgress(done, total, label='') {
+  function setProgress(done, total, label='', options = {}) {
     const pct = total ? Math.max(0, Math.min(100, (done / total) * 100)) : 0;
     el.progressInner.style.width = `${pct}%`;
     el.progressText.textContent = label ? `${label} (${done}/${total})` : `${done}/${total}`;
+    if (options.post === false) return;
+    postFlowMessage('libraryjs-flow-progress', {
+      done,
+      total,
+      label,
+      status: el.progressText.textContent,
+      phase: options.phase || '',
+      stage: options.phase || '',
+      complete: options.complete
+    });
+  }
+
+  function updateProfileCompact(payload = {}) {
+    if (!el.profileFlowCompact) return;
+    const done = Number.isFinite(payload.done) ? payload.done : 0;
+    const total = Number.isFinite(payload.total) ? payload.total : 0;
+    const label = String(payload.label || payload.status || payload.message || 'Working…').trim();
+    const pct = total ? Math.max(0, Math.min(100, (done / total) * 100)) : 0;
+    if (el.profileFlowCompactText) el.profileFlowCompactText.textContent = label || `${done}/${total}`;
+    if (el.profileFlowCompactBar) el.profileFlowCompactBar.style.width = `${pct}%`;
+    if (el.profileFlowCompactDetail) el.profileFlowCompactDetail.textContent = payload.status || payload.message || label || 'Working…';
+    el.profileFlowCompact.style.display = 'block';
+    if (el.profileFrame) el.profileFrame.style.display = 'none';
   }
 
   function getMusicPreference() {
@@ -938,6 +1054,7 @@ if (item.kind === 'audiobook') {
       if (item.kind === 'mainfolders') mergedText = mergeMainfoldersText(existingText, generatedText, state.mandatedMainFolderTitles || []);
       else if (item.kind === 'library') mergedText = mergeLibraryFile(existingText, generatedText);
       else if (item.kind === 'loadseason') mergedText = mergeLoadSeasonFunctionsText(existingText, generatedText);
+      else if (item.kind === 'musiclibrary') mergedText = mergeMusicLibraryText(existingText, generatedText);
 
       payload = new Blob([mergedText], { type: 'text/javascript' });
       log(`Merged destination setup into ${label}.`);
@@ -1181,9 +1298,9 @@ if (item.kind === 'audiobook') {
     const currentSplit = splitLibraryFooter(current);
     const generatedBlocks = parseLibraryBlocks(generated).filter(block => !removeSet.has(normalizeLookupKey(block.key)));
     if (!generatedBlocks.length) {
-      const trimmedBody = currentSplit.body.replace(/[\t ]+$/g, '').replace(/\n+$/g, '');
+      const trimmedBody = currentSplit.body.replace(/[\t ]+$/g, '');
       const footer = currentSplit.footer || '};';
-      return `${trimmedBody}\n${footer}`;
+      return stripLooseLeadingEpisodesComma(`${trimmedBody}\n${footer}`);
     }
 
     const existingBlocks = parseLibraryBlocks(currentSplit.body).filter(block => !removeSet.has(normalizeLookupKey(block.key)));
@@ -1207,19 +1324,36 @@ if (item.kind === 'audiobook') {
     mergedBody += currentSplit.body.slice(cursor).replace(/[\t ]+$/g, '');
 
     const appended = generatedBlocks.map(block => block.text.trimEnd()).filter(Boolean).join('\n\n');
-    const bodyClean = mergedBody.replace(/[\t ]+$/g, '').replace(/\n+$/g, '');
+    const bodyClean = mergedBody.replace(/[\t ]+$/g, '');
     const footer = currentSplit.footer || '};';
 
     if (!appended) {
-      return `${bodyClean}\n${footer}`;
+      return stripLooseLeadingEpisodesComma(`${bodyClean}\n${footer}`);
     }
 
     const needsComma = bodyClean && !/,\s*$/.test(bodyClean);
     const separator = bodyClean ? (needsComma ? ',\n\n' : '\n\n') : '';
-    return `${bodyClean}${separator}${appended}\n${footer}`;
+    return stripLooseLeadingEpisodesComma(`${bodyClean}${separator}${appended}\n${footer}`);
+  }
+
+  function stripLooseLeadingEpisodesComma(text) {
+    const source = String(text ?? '');
+    const marker = 'const episodes = {';
+    const start = source.indexOf(marker);
+    if (start === -1) return source;
+
+    let i = start + marker.length;
+    while (i < source.length && /[\t\r\n ]/.test(source[i])) i++;
+    if (source[i] !== ',') return source;
+
+    const before = source.slice(0, i).replace(/[\t ]+$/g, '');
+    let after = source.slice(i + 1);
+    after = after.replace(/^[\t\r\n ]+/, '');
+    return `${before}\n  ${after}`;
   }
 
   function mergeLibrarySetupText(currentText, generatedText) {
+
     return mergeLibraryFile(currentText, generatedText);
   }
 
@@ -2121,6 +2255,13 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     return items.map(safeText).filter(Boolean);
   }
 
+  function compareSeasonTitles(a, b) {
+    const ak = normalizeLookupKey(String(a || '').replace(/\*/g, '').replace(/^the\s+/i, ''));
+    const bk = normalizeLookupKey(String(b || '').replace(/\*/g, '').replace(/^the\s+/i, ''));
+    if (ak !== bk) return ak.localeCompare(bk, undefined, { sensitivity: 'base' });
+    return String(a || '').localeCompare(String(b || ''), undefined, { sensitivity: 'base' });
+  }
+
   function mergeSeasonTitlesPreferAdult(currentTitles, incomingTitles) {
     const merged = new Map();
 
@@ -2145,7 +2286,9 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     ensureArray(currentTitles).forEach(upsert);
     ensureArray(incomingTitles).forEach(upsert);
 
-    return Array.from(merged.values()).map(entry => entry.title);
+    return Array.from(merged.values())
+      .map(entry => entry.title)
+      .sort(compareSeasonTitles);
   }
 
   function splitLoadSeasonArrayBlock(block) {
@@ -2599,11 +2742,21 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     return renderMainfoldersText(mergedList, header);
   }
 
-  async function buildMainfoldersUploadBlob(destBase, sourceMainfoldersText, mandatedTitles = []) {
+  async function buildMainfoldersUploadBlob(destBase, sourceMainfoldersText, mandatedTitles = [], preserveSetup = false) {
     const mandated = uniqueTitles(mandatedTitles).filter(Boolean);
     const generated = sourceMainfoldersText
       ? rewriteMainfoldersText(sourceMainfoldersText)
       : renderMainfoldersText(mandated);
+
+    // Replace mode should still preserve the archive's full folder list.
+    // The required folders are added on top, but we do not collapse the
+    // upload back down to the mandated defaults only.
+    if (!preserveSetup) {
+      const header = extractMainfoldersHeader(generated) || '/* Generated by transfer-backup.html */';
+      const generatedList = parseMainfoldersList(generated);
+      const mergedList = mergeMainFolderTitlesPreferAdult(generatedList, mandated);
+      return new Blob([renderMainfoldersText(mergedList, header)], { type: 'text/javascript' });
+    }
 
     let currentText = '';
     if (destBase) {
@@ -2714,6 +2867,148 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     return renderGamesText(mergedGames, header);
   }
 
+  function parseMusicLibraryList(source) {
+    const list = parseJsValue(source, 'musicLibrary') || parseJsValue(source, 'window.musicLibrary') || [];
+    return Array.isArray(list) ? list.filter(item => typeof item === 'string' || item instanceof String).map(item => safeText(item)).filter(Boolean) : [];
+  }
+
+  function parseMusicGenreMap(source) {
+    const map = parseJsValue(source, 'musicLibraryGenreMap') || parseJsValue(source, 'window.musicLibraryGenreMap') || {};
+    return map && typeof map === 'object' ? { ...map } : {};
+  }
+
+  function normalizeMusicKey(rawEntry) {
+    const line = safeText(rawEntry);
+    if (!line) return '';
+    const dollarIndex = line.lastIndexOf('$');
+    const code = dollarIndex >= 0 ? line.slice(dollarIndex + 1).trim() : '';
+    const body = dollarIndex >= 0 ? line.slice(0, dollarIndex).trim() : line;
+    const parts = parseMusicTrackTitleParts(body);
+    const title = safeText(parts.title || body);
+    const artist = safeText(parts.artist || '');
+    return [
+      normalizeLookupKey(collapseTrailingAdultMarks(title) || title),
+      normalizeLookupKey(collapseTrailingAdultMarks(artist) || artist),
+      normalizeLookupKey(code)
+    ].join('|');
+  }
+
+  function parseMusicListEntries(source) {
+    const items = [];
+    for (const raw of parseMusicLibraryList(source)) {
+      const line = safeText(raw);
+      if (!line) continue;
+      const dollarIndex = line.lastIndexOf('$');
+      const code = dollarIndex >= 0 ? line.slice(dollarIndex + 1).trim() : '';
+      const body = dollarIndex >= 0 ? line.slice(0, dollarIndex).trim() : line;
+      const parts = parseMusicTrackTitleParts(body);
+      const title = safeText(parts.title || body);
+      const artist = safeText(parts.artist || '');
+      items.push({
+        raw: line,
+        title,
+        artist,
+        code,
+        key: normalizeMusicKey(line)
+      });
+    }
+    return items;
+  }
+
+  function compareMusicEntries(a, b) {
+    const aArtist = safeText(a && a.artist ? a.artist : '');
+    const bArtist = safeText(b && b.artist ? b.artist : '');
+    const aArtistKey = aArtist ? aArtist : '\uffff';
+    const bArtistKey = bArtist ? bArtist : '\uffff';
+    const artistCmp = aArtistKey.localeCompare(bArtistKey, undefined, { sensitivity: 'base', numeric: true });
+    if (artistCmp) return artistCmp;
+
+    const aTitle = safeText(a && a.title ? a.title : '');
+    const bTitle = safeText(b && b.title ? b.title : '');
+    const titleCmp = aTitle.localeCompare(bTitle, undefined, { sensitivity: 'base', numeric: true });
+    if (titleCmp) return titleCmp;
+
+    const aCode = safeText(a && a.code ? a.code : '');
+    const bCode = safeText(b && b.code ? b.code : '');
+    return aCode.localeCompare(bCode, undefined, { sensitivity: 'base', numeric: true });
+  }
+
+  function mergeMusicEntries(currentItems, incomingItems) {
+    const merged = new Map();
+    let fallbackIndex = 0;
+
+    const upsert = (item, preferIncoming = false) => {
+      if (!item || typeof item !== 'object') return;
+      const key = item.key || `__music_${fallbackIndex++}`;
+      if (!merged.has(key)) {
+        merged.set(key, { ...item });
+        return;
+      }
+      if (preferIncoming) {
+        const current = merged.get(key);
+        merged.set(key, { ...current, ...item });
+      }
+    };
+
+    for (const item of ensureArray(currentItems)) upsert(item, false);
+    for (const item of ensureArray(incomingItems)) upsert(item, true);
+
+    return Array.from(merged.values()).sort(compareMusicEntries);
+  }
+
+  function mergeMusicGenreMaps(currentMap, incomingMap) {
+    const merged = {};
+    for (const [code, name] of Object.entries(currentMap || {})) {
+      const key = safeText(code);
+      if (!key) continue;
+      const value = safeText(name);
+      if (value) merged[key] = value;
+    }
+    for (const [code, name] of Object.entries(incomingMap || {})) {
+      const key = safeText(code);
+      if (!key) continue;
+      const value = safeText(name);
+      if (value && !merged[key]) {
+        merged[key] = value;
+      } else if (!merged[key] && value) {
+        merged[key] = value;
+      }
+    }
+    return merged;
+  }
+
+  function renderMusicLibraryText(values, genreMap, header = '/* Generated by transfer-backup.html */') {
+    const entries = ensureArray(values)
+      .filter(item => item && typeof item === 'object')
+      .map(item => {
+        const artist = safeText(item.artist || '');
+        const title = safeText(item.title || '');
+        const code = safeText(item.code || '');
+        const base = artist ? `${title} - ${artist}` : title;
+        return code ? `${base}$${code}` : base;
+      })
+      .filter(Boolean);
+
+    return `${header}\n\nwindow.musicLibraryGenreMap = ${JSON.stringify(genreMap || {}, null, 2)};\n\nwindow.musicLibrary = ${JSON.stringify(entries, null, 2)};\n`;
+  }
+
+  function mergeMusicLibraryText(currentText, generatedText) {
+    const current = normalizeSourceText(currentText);
+    const generated = normalizeSourceText(generatedText).trim();
+    if (!generated) return current ? `${current}\n` : '';
+
+    const currentEntries = parseMusicListEntries(current);
+    const incomingEntries = parseMusicListEntries(generated);
+    const mergedEntries = mergeMusicEntries(currentEntries, incomingEntries);
+
+    const currentMap = parseMusicGenreMap(current);
+    const incomingMap = parseMusicGenreMap(generated);
+    const mergedMap = mergeMusicGenreMaps(currentMap, incomingMap);
+
+    const header = extractGamesHeader(generated) || extractGamesHeader(current) || '/* Generated by transfer-backup.html */';
+    return renderMusicLibraryText(mergedEntries, mergedMap, header);
+  }
+
   function mergeGamesText(currentText, generatedText) {
     const current = normalizeSourceText(currentText);
     const generated = normalizeSourceText(generatedText).trim();
@@ -2724,6 +3019,148 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     const mergedGames = mergeGameLists(currentGames, generatedGames);
     const header = extractGamesHeader(generated) || extractGamesHeader(current);
     return renderGamesText(mergedGames, header);
+  }
+
+  function parseMusicLibraryList(source) {
+    const list = parseJsValue(source, 'musicLibrary') || parseJsValue(source, 'window.musicLibrary') || [];
+    return Array.isArray(list) ? list.filter(item => item != null).map(item => safeText(item)).filter(Boolean) : [];
+  }
+
+  function parseMusicGenreMap(source) {
+    const map = parseJsValue(source, 'musicLibraryGenreMap') || parseJsValue(source, 'window.musicLibraryGenreMap') || {};
+    return map && typeof map === 'object' ? { ...map } : {};
+  }
+
+  function normalizeMusicKey(rawEntry) {
+    const line = safeText(rawEntry);
+    if (!line) return '';
+    const dollarIndex = line.lastIndexOf('$');
+    const code = dollarIndex >= 0 ? line.slice(dollarIndex + 1).trim() : '';
+    const body = dollarIndex >= 0 ? line.slice(0, dollarIndex).trim() : line;
+    const parts = parseMusicTrackTitleParts(body);
+    const title = safeText(parts.title || body);
+    const artist = safeText(parts.artist || '');
+    return [
+      normalizeLookupKey(collapseTrailingAdultMarks(title) || title),
+      normalizeLookupKey(collapseTrailingAdultMarks(artist) || artist),
+      normalizeLookupKey(code)
+    ].join('|');
+  }
+
+  function parseMusicListEntries(source) {
+    const items = [];
+    for (const raw of parseMusicLibraryList(source)) {
+      const line = safeText(raw);
+      if (!line) continue;
+      const dollarIndex = line.lastIndexOf('$');
+      const code = dollarIndex >= 0 ? line.slice(dollarIndex + 1).trim() : '';
+      const body = dollarIndex >= 0 ? line.slice(0, dollarIndex).trim() : line;
+      const parts = parseMusicTrackTitleParts(body);
+      const title = safeText(parts.title || body);
+      const artist = safeText(parts.artist || '');
+      items.push({
+        raw: line,
+        title,
+        artist,
+        code,
+        key: normalizeMusicKey(line)
+      });
+    }
+    return items;
+  }
+
+  function compareMusicEntries(a, b) {
+    const aArtist = safeText(a && a.artist ? a.artist : '');
+    const bArtist = safeText(b && b.artist ? b.artist : '');
+    const aArtistKey = aArtist ? aArtist : '\uffff';
+    const bArtistKey = bArtist ? bArtist : '\uffff';
+    const artistCmp = aArtistKey.localeCompare(bArtistKey, undefined, { sensitivity: 'base', numeric: true });
+    if (artistCmp) return artistCmp;
+
+    const aTitle = safeText(a && a.title ? a.title : '');
+    const bTitle = safeText(b && b.title ? b.title : '');
+    const titleCmp = aTitle.localeCompare(bTitle, undefined, { sensitivity: 'base', numeric: true });
+    if (titleCmp) return titleCmp;
+
+    const aCode = safeText(a && a.code ? a.code : '');
+    const bCode = safeText(b && b.code ? b.code : '');
+    return aCode.localeCompare(bCode, undefined, { sensitivity: 'base', numeric: true });
+  }
+
+  function mergeMusicEntries(currentItems, incomingItems) {
+    const merged = new Map();
+    let fallbackIndex = 0;
+
+    const upsert = (item, preferIncoming = false) => {
+      if (!item || typeof item !== 'object') return;
+      const key = item.key || `__music_${fallbackIndex++}`;
+      if (!merged.has(key)) {
+        merged.set(key, { ...item });
+        return;
+      }
+      if (preferIncoming) {
+        const current = merged.get(key);
+        merged.set(key, { ...current, ...item });
+      }
+    };
+
+    for (const item of ensureArray(currentItems)) upsert(item, false);
+    for (const item of ensureArray(incomingItems)) upsert(item, true);
+
+    return Array.from(merged.values()).sort(compareMusicEntries);
+  }
+
+  function mergeMusicGenreMaps(currentMap, incomingMap) {
+    const merged = {};
+    for (const [code, name] of Object.entries(currentMap || {})) {
+      const key = safeText(code);
+      if (!key) continue;
+      const value = safeText(name);
+      if (value) merged[key] = value;
+    }
+    for (const [code, name] of Object.entries(incomingMap || {})) {
+      const key = safeText(code);
+      if (!key) continue;
+      const value = safeText(name);
+      if (value && !merged[key]) {
+        merged[key] = value;
+      } else if (!merged[key] && value) {
+        merged[key] = value;
+      }
+    }
+    return merged;
+  }
+
+  function renderMusicLibraryText(values, genreMap, header = '/* Generated by transfer-backup.html */') {
+    const entries = ensureArray(values)
+      .filter(item => item && typeof item === 'object')
+      .map(item => {
+        const artist = safeText(item.artist || '');
+        const title = safeText(item.title || '');
+        const code = safeText(item.code || '');
+        const base = artist ? `${title} - ${artist}` : title;
+        return code ? `${base}$${code}` : base;
+      })
+      .filter(Boolean);
+
+    return `${header}\n\nwindow.musicLibraryGenreMap = ${JSON.stringify(genreMap || {}, null, 2)};\n\nwindow.musicLibrary = ${JSON.stringify(entries, null, 2)};\n`;
+  }
+
+  function mergeMusicLibraryText(currentText, generatedText) {
+    const current = normalizeSourceText(currentText);
+    const generated = normalizeSourceText(generatedText).trim();
+    if (!generated) return current ? `${current}\n` : '';
+
+    const currentEntries = parseMusicListEntries(current);
+    const incomingEntries = parseMusicListEntries(generated);
+    const mergedEntries = mergeMusicEntries(currentEntries, incomingEntries);
+
+    const currentMap = parseMusicGenreMap(current);
+    const incomingMap = parseMusicGenreMap(generated);
+    const mergedMap = mergeMusicGenreMaps(currentMap, incomingMap);
+
+    const header = extractGamesHeader(generated) || extractGamesHeader(current) || '/* Generated by transfer-backup.html */';
+    return renderMusicLibraryText(mergedEntries, mergedMap, header);
   }
 
   function normalizeHttpsServerBase(text) {
@@ -3440,12 +3877,11 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     const mangaText = mangaTextBytes ? new TextDecoder().decode(mangaTextBytes) : '';
 
     const mandatedMainFolderTitles = uniqueTitles([
-      ...(libraryBytes ? ['Continue Watching', 'Favorites'] : []),
+      ...(libraryBytes ? ['Continue Watching', 'Favorites', 'Movies'] : []),
       ...(gamesTextBytes ? ['Games'] : []),
       ...(musicTextBytes ? ['Music'] : []),
       ...(booksTextBytes ? ['Books'] : []),
-      ...(mangaTextBytes ? ['Manga'] : []),
-      ...(loadersBytes ? parseLoadSeasonRootTitles(loadersText) : [])
+      ...(mangaTextBytes ? ['Manga'] : [])
     ]);
     state.mandatedMainFolderTitles = mandatedMainFolderTitles;
 
@@ -3543,6 +3979,11 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     const queueCounts = summarizeQueue(plan.transferQueue);
     log(`Archive scanned. ${plan.transferList.length} media item(s) are ready to move.`);
     log(`Queue preview: ${queueCounts.artwork} artwork, ${queueCounts.media} media, ${queueCounts.subtitle} subtitles, ${queueCounts.audiobook} audiobooks.`);
+    if (flowMode && flowHasProfile) {
+      setTimeout(() => injectProfileFrame(), 0);
+    } else if (flowMode && flowAuto) {
+      setTimeout(() => el.startBtn.click(), 0);
+    }
   }
 
   async function transferArchive() {
@@ -3634,7 +4075,7 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     };
     el.modeText.textContent = state.destination.method;
 
-    const preserveSetup = !!el.preserveSetupFiles.checked;
+    const preserveSetup = (document.querySelector('input[name="setupMode"]:checked') || {}).value !== 'replace';
     const strategyLabel = [
       `Destination: ${state.destination.resolvedBase || dest}`,
       platform && platform.platform ? `Platform: ${platform.platform}` : 'Platform: unknown',
@@ -3667,7 +4108,7 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     const manifestFiles = (plan.manifestFiles || []).filter(item => !sectionFileNames.has(normalizeLookupKey(item.path)));
 
     const support = [
-      { path: 'mainfolders.js', blob: await buildMainfoldersUploadBlob(state.destination.resolvedBase || dest, plan.rewrittenMainfoldersText, plan.mandatedMainFolderTitles || []), kind: 'mainfolders' },
+      { path: 'mainfolders.js', blob: await buildMainfoldersUploadBlob(state.destination.resolvedBase || dest, plan.rewrittenMainfoldersText, plan.mandatedMainFolderTitles || [], preserveSetup), kind: 'mainfolders' },
       ...(plan.rewrittenLibraryText ? [{ path: 'library.js', blob: new Blob([plan.rewrittenLibraryText], { type: 'text/javascript' }), kind: 'library' }] : []),
       ...(plan.gamesText ? [{ path: 'games.js', blob: await buildGamesUploadBlob(state.destination.resolvedBase || dest, plan.gamesText, preserveSetup, destinationHttpsBase || state.destination.httpsBase || ''), kind: 'games' }] : []),
       ...(plan.guidebooksText ? [{ path: 'guidebooks.js', blob: await buildSectionUploadBlob(state.destination.resolvedBase || dest, 'guidebooks.js', plan.guidebooksText, preserveSetup), kind: 'guidebooks' }] : []),
@@ -3784,22 +4225,169 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
       }
     }
 
-    if (state.transferRun.failures.length) {
-      const sample = state.transferRun.failures.slice(0, 5).map(f => `• ${f.path}: ${f.error}`).join('\n');
-      log(`Transfer completed with ${state.transferRun.failures.length} failure(s).\n${sample}`);
-      setProgress(state.transferRun.done, state.transferRun.total, `Completed with ${state.transferRun.failures.length} issue(s)`);
-    } else {
-      log(`Transfer complete. ${queue.length} file(s) moved to the destination server.`);
-      setProgress(queue.length, queue.length, 'Transfer complete');
+    const completionMessage = state.transferRun.failures.length
+      ? (() => {
+          const sample = state.transferRun.failures.slice(0, 5).map(f => `• ${f.path}: ${f.error}`).join('\n');
+          return `Transfer completed with ${state.transferRun.failures.length} failure(s).\n${sample}`;
+        })()
+      : `Transfer complete. ${queue.length} file(s) moved to the destination server.`;
+    log(completionMessage);
+    setProgress(state.transferRun.failures.length ? state.transferRun.done : queue.length, queue.length, state.transferRun.failures.length ? `Completed with ${state.transferRun.failures.length} issue(s)` : 'Transfer complete', { phase: 'transfer', complete: true });
+    if (flowMode && window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'libraryjs-flow-complete',
+        flow: 'restore',
+        lane: 'content',
+        message: completionMessage,
+        phase: 'transfer'
+      }, flowTargetOrigin);
     }
   }
 
+
+  function setFrameFileInput(frameEl, file) {
+    try {
+      const doc = frameEl && frameEl.contentDocument;
+      if (!doc) return false;
+      const input = doc.getElementById('zipFile');
+      if (!input || !file) return false;
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function injectProfileFrame(retryCount = 0) {
+    if (!flowMode || !flowHasProfile || !el.profileFrame) return;
+    const file = state.archiveFile || (el.zipFile.files && el.zipFile.files[0]) || null;
+    if (!file) {
+      el.profileFlowStatus.textContent = 'Choose a backup zip first.';
+      return;
+    }
+
+    const doc = el.profileFrame.contentDocument;
+    const docReady = !!(doc && doc.getElementById('zipFile'));
+    if (!docReady) {
+      if (retryCount < 30) {
+        setTimeout(() => injectProfileFrame(retryCount + 1), 100);
+      }
+      return;
+    }
+
+    try {
+      const dest = doc.getElementById('destBase');
+      if (dest) {
+        dest.value = el.destBase.value.trim();
+        dest.dispatchEvent(new Event('input', { bubbles: true }));
+        dest.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const sourceBase = doc.getElementById('sourceBase');
+      if (sourceBase && !sourceBase.value.trim()) {
+        sourceBase.value = state.sourceBase || location.origin;
+        sourceBase.dispatchEvent(new Event('input', { bubbles: true }));
+        sourceBase.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (setFrameFileInput(el.profileFrame, file)) {
+        el.profileFlowStatus.textContent = `Loaded ${file.name} into profile restore.`;
+        const scanBtn = doc.getElementById('scanBtn');
+        if (scanBtn) setTimeout(() => scanBtn.click(), 50);
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+
+  function handleProfileFlowMessage(event) {
+    if (!flowMode || !flowHasProfile || !el.profileFrame) return;
+    if (event.source !== el.profileFrame.contentWindow) return;
+    if (event.origin !== location.origin && event.origin !== 'null') return;
+    const data = event.data || {};
+    if (data.flow !== 'restore' || data.lane !== 'profile') return;
+
+    if (data.type === 'libraryjs-flow-progress' || data.type === 'libraryjs-flow-status') {
+      const status = data.status || data.message || data.label || 'Working…';
+      el.profileFlowStatus.textContent = status;
+      updateProfileCompact({
+        done: Number(data.done),
+        total: Number(data.total),
+        label: data.label || status,
+        status
+      });
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          ...data,
+          flow: 'restore',
+          lane: 'profile'
+        }, flowTargetOrigin);
+      }
+      return;
+    }
+
+    if (data.type !== 'libraryjs-flow-complete') return;
+    const message = data.message || data.status || 'Profile restore finished.';
+    el.profileFlowStatus.textContent = message;
+    updateProfileCompact({
+      done: Number(data.done),
+      total: Number(data.total),
+      label: message,
+      status: message
+    });
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'libraryjs-flow-complete',
+        flow: 'restore',
+        lane: 'profile',
+        message,
+        status: message
+      }, flowTargetOrigin);
+    }
+
+    if (flowAuto && flowHasContent && !state.autoContentQueued) {
+      state.autoContentQueued = true;
+      el.profileFlowStatus.textContent = 'Profile restore finished. Starting content transfer…';
+      updateProfileCompact({
+        done: Number(data.done),
+        total: Number(data.total),
+        label: 'Starting content transfer…',
+        status: 'Profile restore finished. Starting content transfer…'
+      });
+      setTimeout(() => {
+        if (!state.busy && el.startBtn) el.startBtn.click();
+      }, 50);
+    }
+  }
+
+  if (flowMode && flowHasProfile && el.profileFrame) {
+    el.profileFlowPanel.style.display = '';
+    if (flowAuto && el.profileFlowCompact) {
+      el.profileFlowCompact.style.display = 'block';
+      el.profileFrame.style.display = 'none';
+    }
+    el.profileFrame.src = `./transfer-profile-backup.html?flow=1${flowAuto ? '&auto=1' : ''}&profileMode=${encodeURIComponent(params.get('profileMode') || 'merge')}`;
+    el.profileFrame.addEventListener('load', () => injectProfileFrame());
+    window.addEventListener('message', handleProfileFlowMessage);
+  }
 
   el.scanBtn.addEventListener('click', async () => {
     try {
       setProgress(0, 1, 'Scanning archive');
       await scanArchive();
-      setProgress(1, 1, 'Scan complete');
+      setProgress(1, 1, 'Scan complete', { post: false });
+      if (flowMode && window.parent && window.parent !== window) {
+        postFlowMessage('libraryjs-flow-status', {
+          status: flowHasProfile
+            ? 'Scan complete. Waiting for profile restore to finish.'
+            : 'Scan complete. Ready to apply the transfer.',
+          message: flowHasProfile
+            ? 'Scan complete. Waiting for profile restore to finish.'
+            : 'Scan complete. Ready to apply the transfer.',
+          phase: 'scan'
+        });
+      }
     } catch (e) {
       console.error(e);
       log(`Scan failed: ${e.message || e}`);
@@ -3918,15 +4506,10 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     });
   }
 
-  if (el.preserveSetupFiles) {
-    el.preserveSetupFiles.addEventListener('change', () => {
-      state.preserveSetupFiles = !!el.preserveSetupFiles.checked;
-    });
-  }
-
-  if (el.preserveSetupFiles) {
-    state.preserveSetupFiles = !!el.preserveSetupFiles.checked;
-  }
+  syncSetupModeWarning();
+  document.querySelectorAll('input[name="setupMode"]').forEach(input => {
+    input.addEventListener('change', syncSetupModeWarning);
+  });
 
   state.musicPreference = getMusicPreference();
   state.musicBatchSize = getMusicBatchSize();

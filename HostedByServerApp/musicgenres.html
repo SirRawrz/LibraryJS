@@ -28,6 +28,9 @@
       padding: 18px;
     }
     body.embedded { padding: 12px; background: var(--bg); }
+    body.embedded #generatedPreviewPanel,
+    body.embedded #downloadBtn { display: none; }
+    body.embedded .top-actions { display: none; }
     .shell { max-width: 1200px; margin: 0 auto; }
     header, .panel {
       background: rgba(23, 27, 36, 0.92);
@@ -109,7 +112,6 @@
       <div class="top-actions">
         <button id="addGenreBtn" type="button">Add genre</button>
         <button id="updateBtn" type="button">Update on server</button>
-        <button id="downloadBtn" class="secondary" type="button">Download file</button>
       </div>
     </header>
 
@@ -123,7 +125,7 @@
       <div class="status" id="status">Ready.</div>
     </section>
 
-    <section class="panel">
+    <section class="panel generated-panel" id="generatedPreviewPanel">
       <h2>Generated musiclibrary.js</h2>
       <p>This preview keeps the existing song list and rewrites only the genre map when you publish.</p>
       <textarea id="outputText" class="codebox" spellcheck="false"></textarea>
@@ -136,6 +138,10 @@
     const $ = (id) => document.getElementById(id);
     const EMBED = new URLSearchParams(window.location.search || '').has('embed') || window.self !== window.top;
     document.body.classList.toggle('embedded', EMBED);
+    if (EMBED) {
+      const downloadBtn = $('downloadBtn');
+      if (downloadBtn) downloadBtn.hidden = true;
+    }
 
     const DEFAULT_IMAGE = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">
@@ -527,15 +533,48 @@
       });
     }
 
+    function addGenreRow() {
+      const row = createRow('', '');
+      document.getElementById('genreList').appendChild(row);
+      refreshOutput();
+      filterRows();
+      syncManagedFlowControls();
+      return row;
+    }
+
+    function getManagedFlowHostDocument() {
+      try {
+        return window.parent && window.parent !== window ? window.parent.document : null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function syncManagedFlowControls() {
+      if (!EMBED || window.parent === window) return;
+      const hostDoc = getManagedFlowHostDocument();
+      if (!hostDoc) return;
+      const slot = hostDoc.getElementById('addContentModalActions');
+      if (!slot) return;
+
+      slot.innerHTML = `
+        <span class="embed-flow-meta" title="Genres editor">Genres editor</span>
+        <button type="button" class="embed-flow-btn secondary" data-embed-control="addGenre">Add genre</button>
+        <button type="button" class="embed-flow-btn secondary" data-embed-control="refresh">Refresh previews</button>
+        <button type="button" class="embed-flow-btn" data-embed-control="publish">Update on server</button>
+      `;
+    }
+
+    function downloadOutput() {
+      downloadFile();
+    }
+
     function bindEvents() {
-      $('addGenreBtn').addEventListener('click', () => {
-        const row = createRow('', '');
-        document.getElementById('genreList').appendChild(row);
-        refreshOutput();
-      });
+      $('addGenreBtn').addEventListener('click', () => addGenreRow());
       $('updateBtn').addEventListener('click', () => saveToServer().catch(err => setStatus(err.message, 'bad')));
-      $('downloadBtn').addEventListener('click', downloadFile);
-      $('refreshBtn').addEventListener('click', () => { refreshPreviewImages(); refreshOutput(); });
+      const downloadBtn = $('downloadBtn');
+      if (downloadBtn) downloadBtn.style.display = 'none';
+      $('refreshBtn').addEventListener('click', () => { refreshPreviewImages(); refreshOutput(); syncManagedFlowControls(); });
       $('searchInput').addEventListener('input', () => filterRows());
     }
 
@@ -550,6 +589,15 @@
       });
     }
 
+    window.__lmFlowApi = {
+      addGenre: () => addGenreRow(),
+      refresh: () => { refreshPreviewImages(); refreshOutput(); syncManagedFlowControls(); },
+      save: () => saveToServer(),
+      download: () => downloadOutput(),
+      currentStepKey: () => 'genres',
+      refreshControls: syncManagedFlowControls
+    };
+
     function init() {
       const list = $('genreList');
       list.innerHTML = '';
@@ -562,6 +610,7 @@
       bindEvents();
       refreshOutput();
       filterRows();
+      syncManagedFlowControls();
     }
 
     init();

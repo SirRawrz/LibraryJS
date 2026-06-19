@@ -153,8 +153,8 @@ html, body {
 
 <style>
   /* Kids/adult QR gating for tvd.html is controlled by JS via the shared kidsMode key.
-     The Original QR starts visible unless kids mode ('l') is active. */
-  [data-qr-kind] { display: ''; }
+     Buttons start hidden in the markup and are only revealed after the mode is known. */
+  [data-qr-kind][hidden] { display: none !important; }
 </style>
 
 <script>
@@ -213,10 +213,13 @@ html, body {
     const kidsBtns = document.querySelectorAll('[data-qr-kind="kids"]');
 
     originals.forEach(btn => {
-      btn.style.display = kidsMode ? 'none' : '';
-      btn.setAttribute('aria-hidden', kidsMode ? 'true' : 'false');
+      const showOriginal = !kidsMode;
+      btn.hidden = !showOriginal;
+      btn.style.display = showOriginal ? '' : 'none';
+      btn.setAttribute('aria-hidden', showOriginal ? 'false' : 'true');
     });
     kidsBtns.forEach(btn => {
+      btn.hidden = false;
       btn.style.display = '';
       btn.setAttribute('aria-hidden', 'false');
     });
@@ -317,13 +320,13 @@ html, body {
       </button>
 
       <!-- Original QR (matches index.html styles) -->
-      <button class="qr-button" data-qr-kind="original" style="padding:6px 10px; border:none; border-radius:3px; color:white; font-size:16px; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.2); background:#00B4D8;"
+      <button class="qr-button" data-qr-kind="original" hidden aria-hidden="true" style="padding:6px 10px; border:none; border-radius:3px; color:white; font-size:16px; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.2); background:#00B4D8;"
               onclick="openQR('lightblue')">
         Original QR
       </button>
 
       <!-- Kid Safe QR -->
-      <button class="qr-button" data-qr-kind="kids" style="padding:6px 10px; border:none; border-radius:3px; color:white; font-size:16px; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.2); background:#FF8C00;"
+      <button class="qr-button" data-qr-kind="kids" hidden aria-hidden="true" style="padding:6px 10px; border:none; border-radius:3px; color:white; font-size:16px; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.2); background:#FF8C00;"
               onclick="openQR('orange')">
         Kid Safe QR
       </button>
@@ -1369,11 +1372,73 @@ async function setSubtitleWithFetch(episodeFile, folderName, episodeIndex) {
     setTimeout(applyPref, 200);
   }
 }
-// Helper: safely encode '#' in file paths
+// Helper: safely encode '#' in file paths and resolve fallback hosts
 function safeFileUrl(raw) {
-    // Only target '#' that appears in the path; does not affect query/hash (none in your URLs)
     return String(raw || '').replace(/#/g, '%23');
-}async function playEpisode(folderName, epIndex = 0, startTime = 0, options = {}) {
+}
+
+function buildMediaFallbackCandidates(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return [];
+
+  const encoded = value.replace(/#/g, '%23');
+
+  if (/^(?:blob:|data:)/i.test(encoded)) {
+    return [encoded];
+  }
+
+  if (!/^https?:\/\//i.test(encoded)) {
+    return [encoded];
+  }
+
+  const candidates = [encoded];
+
+  try {
+    const parsed = new URL(encoded);
+    const fallbackHost = window.location.hostname || parsed.hostname;
+    const fallbackPort = parsed.port || window.location.port || '';
+    const fallbackUrl = `${parsed.protocol}//${fallbackHost}${fallbackPort ? `:${fallbackPort}` : ''}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    if (fallbackUrl && fallbackUrl !== parsed.href) candidates.push(fallbackUrl);
+  } catch (e) {
+    // ignore URL parsing failures and keep the original candidate only
+  }
+
+  return [...new Set(candidates)];
+}
+
+async function probeMediaUrl(url, timeoutMs = 900) {
+  if (!url) return false;
+  if (!/^https?:\/\//i.test(url)) return true;
+
+  const hasAbort = typeof AbortController !== 'undefined';
+  const controller = hasAbort ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { Range: 'bytes=0-0' },
+      signal: controller ? controller.signal : undefined
+    });
+    return res.ok || res.status === 206 || res.status === 200;
+  } catch (e) {
+    return false;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function resolveMediaUrl(raw) {
+  const candidates = buildMediaFallbackCandidates(raw);
+  for (const candidate of candidates) {
+    if (await probeMediaUrl(candidate)) return candidate;
+  }
+  return candidates[0] || '';
+}
+
+async function playEpisode(folderName, epIndex = 0, startTime = 0, options = {}) {
   currentFolder = folderName;
   currentEpisodeIndex = epIndex;
   // ensure the episode grid (dialog) shows the correct highlight
@@ -1403,16 +1468,21 @@ function safeFileUrl(raw) {
     ? ((typeof window.addCacheBust === 'function') ? window.addCacheBust(sourceFile) : sourceFile)
     : sourceFile;
   const safeSrc = safeFileUrl(cacheBustedSource);
-  videoEl.src = safeSrc;
+  const mediaLoadToken = (window.__mediaLoadToken = (window.__mediaLoadToken || 0) + 1);
+  (async () => {
+    const resolvedSrc = await resolveMediaUrl(safeSrc);
+    if (window.__mediaLoadToken !== mediaLoadToken) return;
+    videoEl.src = resolvedSrc;
 
-  // prefer the shared fetch-and-validate helper when present
-  if (typeof setSubtitleWithFetch === 'function') {
-    setSubtitleWithFetch((options && options.subtitleFile) ? options.subtitleFile : sourceFile, folderName, epIndex);
-  } else {
-    // fallback (old behavior) if helper not present
-    const st = document.getElementById('subtitleTrack');
-    if (st) st.src = safeSrc.replace(/\.\w+$/, '.vtt');
-  }
+    // prefer the shared fetch-and-validate helper when present
+    if (typeof setSubtitleWithFetch === 'function') {
+      setSubtitleWithFetch(resolvedSrc, folderName, epIndex);
+    } else {
+      // fallback (old behavior) if helper not present
+      const st = document.getElementById('subtitleTrack');
+      if (st) st.src = resolvedSrc.replace(/\.\w+$/, '.vtt');
+    }
+  })();
 
   videoEl.onloadedmetadata = () => {
    if (startTime && startTime < videoEl.duration) {
