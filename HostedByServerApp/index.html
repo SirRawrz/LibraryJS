@@ -2617,6 +2617,24 @@ async function getSeasonLoaderTitleMap() {
           const fnMatch = block.match(/\b(load[A-Za-z0-9_]+)\s*\(/);
           if (title && fnMatch) map.set(fnMatch[1], title);
         }
+
+        const funcRe = /function\s+(load[A-Za-z0-9_]+Seasons)\s*\(/g;
+        const funcStarts = [];
+        let fm;
+        while ((fm = funcRe.exec(txt)) !== null) {
+          funcStarts.push({ fn: fm[1], index: fm.index });
+        }
+        for (let i = 0; i < funcStarts.length; i++) {
+          const current = funcStarts[i];
+          const next = funcStarts[i + 1];
+          const block = txt.slice(current.index, next ? next.index : txt.length);
+          const titleMatch =
+            block.match(/createSeasonButtons\s*\(\s*seasons\s*,\s*(["'])(.*?)\1\s*\)/) ||
+            block.match(/episodes\s*\[\s*(["'])(.*?)\1\s*\]\s*=\s*seasons\s*;/);
+          const title = String((titleMatch && titleMatch[2]) || '').trim();
+          if (current.fn && title) map.set(current.fn, title);
+        }
+
         SEASON_LOADER_TITLE_CACHE.map = map;
         return map;
       })
