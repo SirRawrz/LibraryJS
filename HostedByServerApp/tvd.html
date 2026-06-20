@@ -1391,19 +1391,92 @@ function buildMediaFallbackCandidates(raw) {
     return [encoded];
   }
 
-  const candidates = [encoded];
+  const pushUnique = (arr, item) => {
+    if (!item) return;
+    if (!arr.includes(item)) arr.push(item);
+  };
 
+  const candidates = [];
+  let parsed = null;
+  let pageUrl = null;
   try {
-    const parsed = new URL(encoded);
-    const fallbackHost = window.location.hostname || parsed.hostname;
-    const fallbackPort = parsed.port || window.location.port || '';
-    const fallbackUrl = `${parsed.protocol}//${fallbackHost}${fallbackPort ? `:${fallbackPort}` : ''}${parsed.pathname}${parsed.search}${parsed.hash}`;
-    if (fallbackUrl && fallbackUrl !== parsed.href) candidates.push(fallbackUrl);
+    parsed = new URL(encoded, window.location.href);
   } catch (e) {
-    // ignore URL parsing failures and keep the original candidate only
+    return [encoded];
   }
 
-  return [...new Set(candidates)];
+  try {
+    pageUrl = new URL(window.location.href);
+  } catch (e) {
+    pageUrl = null;
+  }
+
+  const isNumericIPv4Host = (host) => /^\d{1,3}(?:\.\d{1,3}){3}$/.test(String(host || '').trim());
+
+  const currentHost = pageUrl ? pageUrl.hostname : window.location.hostname;
+  const currentProtocol = pageUrl ? pageUrl.protocol : (parsed.protocol || 'http:');
+
+  const currentOriginWithParsedPort = parsed.port
+    ? `${currentProtocol}//${currentHost}${parsed.port ? `:${parsed.port}` : ''}${parsed.pathname}${parsed.search}${parsed.hash}`
+    : '';
+
+  const rawIsNumericHost = isNumericIPv4Host(parsed.hostname);
+  const rawHasPort = !!parsed.port;
+
+  const getTailscaleOrigin8079 = (() => {
+    let promise = null;
+    return async function () {
+      if (promise) return promise;
+      promise = (async () => {
+        try {
+          const r = await fetch('./tailscaleip.txt', { cache: 'no-store' });
+          if (!r || !r.ok) return '';
+          let text = (await r.text() || '').trim();
+          if (!text) return '';
+          if (!/^https?:\/\//i.test(text)) text = `http://${text}`;
+          const u = new URL(text, window.location.href);
+          u.port = '8079';
+          u.pathname = '';
+          u.search = '';
+          u.hash = '';
+          return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+        } catch (e) {
+          return '';
+        }
+      })();
+      return promise;
+    };
+  })();
+
+  const addDefaultCandidates = async () => {
+    if (rawIsNumericHost && rawHasPort) {
+      pushUnique(candidates, currentOriginWithParsedPort);
+
+      const tailscaleOrigin = await getTailscaleOrigin8079();
+      if (tailscaleOrigin) {
+        pushUnique(candidates, `${tailscaleOrigin}${parsed.pathname}${parsed.search}${parsed.hash}`);
+      }
+
+      pushUnique(candidates, encoded);
+      return;
+    }
+
+    pushUnique(candidates, encoded);
+
+    if (rawHasPort) {
+      pushUnique(candidates, currentOriginWithParsedPort);
+    }
+
+    const tailscaleOrigin = await getTailscaleOrigin8079();
+    if (tailscaleOrigin) {
+      pushUnique(candidates, `${tailscaleOrigin}${parsed.pathname}${parsed.search}${parsed.hash}`);
+    }
+  };
+
+  return (async () => {
+    await addDefaultCandidates();
+    return [...new Set(candidates)];
+  })();
 }
 
 async function probeMediaUrl(url, timeoutMs = 900) {
@@ -1431,7 +1504,7 @@ async function probeMediaUrl(url, timeoutMs = 900) {
 }
 
 async function resolveMediaUrl(raw) {
-  const candidates = buildMediaFallbackCandidates(raw);
+  const candidates = await buildMediaFallbackCandidates(raw);
   for (const candidate of candidates) {
     if (await probeMediaUrl(candidate)) return candidate;
   }
