@@ -1,6 +1,4 @@
-WARNING - Recently made public but not fully functional. At the stage of changing the android and windows app so that they download our first release and unpack them. https://github.com/SirRawrz/LibraryJS/releases/download/V1.0/HostedByServerApp.zip
-
-Will remove this part of the Readme when that part is finished and the System is fully functional! We're almost there after 1.5 years!
+Now in a shareable test phase! Before wider release! Next step will be continueing to fix odds and ends and creating a more human readme and visual video guides for how to use its base features!
 
 ## README-HostedBundle.md
 Project documentation / readme
