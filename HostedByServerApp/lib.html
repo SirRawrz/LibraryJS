@@ -160,7 +160,7 @@
     text-align: center;
     padding: 10px;
   }
-  .folder-tile .name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .folder-tile .name { font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
   .folder-tile .kind { font-size: 12px; color: var(--muted); }
   .folder-tile.active { border-color: rgba(126,231,183,.8); box-shadow: 0 0 0 1px rgba(126,231,183,.18) inset; }
   .chipbar { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -362,6 +362,22 @@
   body.flow-mode [data-flow-step].flow-active { display: block !important; }
   body.flow-mode #outputPanel { display: none !important; }
   body.flow-mode #flowDock.flow-active { display: block !important; }
+  body.embed-mode .head { display: none !important; }
+  body.embed-mode .app {
+    padding-top: 8px;
+  }
+  body.embed-mode .panel {
+    max-width: 100%;
+  }
+  body.embed-mode .flow-step,
+  body.embed-mode .flow-sub,
+  body.embed-mode .scoop-field {
+    display: none !important;
+  }
+  .panel > .panel-body.hidden,
+  .flow-card > .panel-body.hidden {
+    display: none !important;
+  }
 
   .flow-stack { display: grid; gap: 12px; }
   .flow-card {
@@ -521,6 +537,7 @@
     font-size: 13px;
     font-weight: 800;
     line-height: 1.15;
+    color: var(--text);
   }
   .loader-chip.active {
     border-color: rgba(126,224,196,.8);
@@ -688,12 +705,11 @@
         </div>
       </div>
     </div>
-    <div class="body">
+    <div class="panel-body">
       <div class="flow-stack">
         <div id="flowTypeCard" class="flow-card" data-flow-step="type">
           <div class="flow-step">Step 1</div>
           <h3 class="flow-title">What are we adding?</h3>
-          <p class="flow-sub">Choose one tile. This sets the entire output flow.</p>
           <div class="flow-tiles three">
             <button class="flow-tile" data-flow-type-tile type="button" onclick="document.getElementById('type').value='movies'; document.getElementById('type').dispatchEvent(new Event('change')); ">
               <span class="kicker">Movie</span>
@@ -719,7 +735,7 @@
             <label for="title">Title</label>
             <input id="title" type="text" placeholder="Maze Runner Collection" />
           </div>
-          <div class="field">
+          <div class="field scoop-field">
             <label for="librarySourceTitle">Existing library title to scoop</label>
             <input id="librarySourceTitle" type="text" list="libraryTitleList" placeholder="Type the old library title to scoop" />
             <datalist id="libraryTitleList"></datalist>
@@ -872,7 +888,7 @@
       <h2>Tile and episode editor</h2>
       <p>Edit the root tile, seasons, and movie tiles from one place. The output updates live so you can copy the correct replacement block before wiring file writes into the system.</p>
     </div>
-    <div class="body">
+    <div class="panel-body">
       <div id="editorArea"></div>
     </div>
   </section>
@@ -882,7 +898,7 @@
       <h2>Review artwork uploads</h2>
       <p>Review the selected images and their server targets, then confirm upload before moving to the final code blocks.</p>
     </div>
-    <div class="body">
+    <div class="panel-body">
       <div class="meta-card">
         <div class="mini-title">Selected artwork</div>
         <div class="mini-note">These files upload to the paths shown below. The step stays separate from the final code replacement action.</div>
@@ -897,7 +913,7 @@
       <h2>Generated replacement blocks</h2>
       <p>Review the blocks, then apply them to the matching server files. The LLM prompt and importer live here too, so the whole workflow stays in one place.</p>
     </div>
-    <div class="body">
+    <div class="panel-body">
       <div class="output-tabs">
         <button class="active" data-out="mainfolders" type="button">Main folders</button>
         <button data-out="seasonloader" type="button">Season loader</button>
@@ -989,7 +1005,7 @@
     <h2>Final code blocks</h2>
     <p>Replace the matching file for each block in order. The flow only shows the outputs that belong to the path you chose.</p>
   </div>
-  <div class="body">
+  <div class="panel-body">
     <div id="flowOutputBlocks" class="flow-output-blocks"></div>
     <div class="row" style="margin-top:12px;">
       <button id="flowApplyAllBtn" type="button">Apply all replacements</button>
@@ -1051,7 +1067,224 @@
   const urlParams = new URLSearchParams(window.location.search || '');
   const NEST_MODE = urlParams.has('NestCollection');
   const FLOW_MODE = urlParams.has('flow') || NEST_MODE;
+  const EMBED_MODE = urlParams.get('embed') === '1' || (window.parent && window.parent !== window);
   document.body.classList.toggle('flow-mode', FLOW_MODE);
+  document.body.classList.toggle('embed-mode', EMBED_MODE);
+
+  const EMBED_CONTROL_SLOT_ID = 'addContentModalActions';
+
+  function getEmbedHostDocument() {
+    try {
+      if (!EMBED_MODE || !window.parent || window.parent === window) return null;
+      return window.parent.document;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function installEmbedBridge() {
+    if (!EMBED_MODE || !window.parent || window.parent === window) return;
+    try {
+      window.parent.__lmEmbedBridge = {
+        back: () => window.__lmFlowApi?.back?.(),
+        next: () => window.__lmFlowApi?.next?.(),
+        applyAll: () => window.__lmFlowApi?.applyAll?.(),
+        refreshControls: () => window.__lmFlowApi?.refreshControls?.(),
+        currentStepKey: () => window.__lmFlowApi?.currentStepKey?.(),
+        getStepIndex: () => window.__lmFlowApi?.getStepIndex?.()
+      };
+    } catch (_) {
+      // ignore cross-document bridge failures
+    }
+  }
+
+  function getFlowCurrentStepKey() {
+    const steps = getFlowSteps();
+    const idx = getFlowStepIndex();
+    return (steps[idx] || steps[0] || {}).key || '';
+  }
+
+  async function handleFlowNextAction() {
+    const steps = getFlowSteps();
+    const idx = getFlowStepIndex();
+    const current = steps[idx] || steps[0];
+    const pendingArtwork = !state.artworkUploaded && collectArtworkUploads().length > 0;
+    const artIndex = steps.findIndex(step => step.key === 'art');
+
+    if (current.key === 'title') {
+      const titleValue = safeText(document.getElementById('title')?.value || state.title || '');
+      const scoopValue = safeText(document.getElementById('librarySourceTitle')?.value || state.librarySourceTitle || '');
+      if (titleValue) {
+        state.title = titleValue;
+      }
+      syncPromptBoxes();
+      renderOutputs();
+      if (scoopValue) {
+        const existing = libraryCatalogState.source ? extractLibraryBlockRecords(libraryCatalogState.source, scoopValue) : [];
+        if (existing.length) {
+          state.librarySourceTitle = scoopValue;
+          const sourceInput = document.getElementById('librarySourceTitle');
+          if (sourceInput) sourceInput.value = scoopValue;
+          applyScoopedLibraryDefaults(scoopValue, { force: true });
+          render();
+        }
+      }
+      flowNext();
+      return true;
+    }
+
+    if (current.key === 'llm') {
+      const hasText = safeText(document.getElementById('flowLlmInput')?.value || '');
+      if (hasText) {
+        const ok = parseFlowLlmInput(true);
+        if (!ok) return false;
+        return true;
+      }
+    }
+
+    if (current.key === 'output') {
+      try {
+        await replaceAllChangedOutputsOnServer();
+      } catch (err) {
+        console.error(err);
+        setOutputStatus(`Could not replace files: ${err.message}`, false);
+      }
+      return true;
+    }
+
+    if (pendingArtwork && current.key === 'editor' && artIndex > idx) {
+      flowState.stepKey = 'art';
+      syncFlowMode();
+      return true;
+    }
+    if (pendingArtwork && current.key === 'art') {
+      try {
+        const ok = await confirmArtworkUpload(true);
+        if (!ok) return false;
+      } catch (err) {
+        console.error(err);
+        setUploadStatus(`Upload failed: ${err.message}`, false);
+      }
+      return true;
+    }
+
+    flowNext();
+    return true;
+  }
+
+  function handleFlowBackAction() {
+    flowBack();
+    return true;
+  }
+
+  function handleFlowApplyAction() {
+    return replaceAllChangedOutputsOnServer();
+  }
+
+  window.__lmFlowApi = {
+    back: handleFlowBackAction,
+    next: handleFlowNextAction,
+    applyAll: handleFlowApplyAction,
+    refreshControls: scheduleEmbedHostControls,
+    currentStepKey: getFlowCurrentStepKey,
+    getStepIndex: getFlowStepIndex
+  };
+
+
+  let embedSyncRaf = 0;
+
+  function syncEmbedHostControls() {
+    if (!EMBED_MODE) return;
+    installEmbedBridge();
+    const hostDoc = getEmbedHostDocument();
+    if (!hostDoc) return;
+    const slot = hostDoc.getElementById(EMBED_CONTROL_SLOT_ID);
+    if (!slot) return;
+
+    const steps = getFlowSteps();
+    let idx = getFlowStepIndex();
+    if (idx < 0) idx = 0;
+    const current = steps[idx] || steps[0];
+    const pendingArtwork = !state.artworkUploaded && collectArtworkUploads().length > 0;
+    const atArtStep = current?.key === 'art';
+    const atOutputStep = current?.key === 'output';
+    const stepLabel = current?.label || 'Working';
+    const nextLabel = atOutputStep
+      ? 'Apply all replacements'
+      : ((atArtStep || (current?.key === 'editor' && pendingArtwork))
+        ? 'Confirm Art'
+        : (idx === steps.length - 1 ? 'Done' : 'Next'));
+
+    slot.innerHTML = `
+      <span class="embed-flow-meta" title="${escapeHtml(stepLabel)}">Step ${idx + 1} of ${steps.length} • ${escapeHtml(stepLabel)}</span>
+      <button type="button" class="embed-flow-btn secondary" data-embed-control="back"${idx === 0 ? ' disabled' : ''}>Back</button>
+      <button type="button" class="embed-flow-btn" data-embed-control="action">${nextLabel}</button>
+    `;
+
+    const backBtn = slot.querySelector('[data-embed-control="back"]');
+    if (backBtn) backBtn.onclick = () => window.__lmEmbedBridge?.back?.();
+
+    const actionBtn = slot.querySelector('[data-embed-control="action"]');
+    if (actionBtn) {
+      actionBtn.onclick = () => {
+        if (atOutputStep) {
+          window.__lmEmbedBridge?.applyAll?.();
+        } else {
+          window.__lmEmbedBridge?.next?.();
+        }
+      };
+    }
+  }
+
+  function collapseEmptyFlowBodies() {
+    const isMeaningfulNode = (node) => {
+      if (!node) return false;
+      if (node.nodeType === Node.TEXT_NODE) {
+        return (node.textContent || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim().length > 0;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return false;
+      const el = /** @type {HTMLElement} */ (node);
+      if (el.hidden || el.classList.contains('hidden')) return false;
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'br' || tag === 'hr') return false;
+
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+        return safeText(el.value || el.getAttribute('value') || '') !== '';
+      }
+      if (tag === 'button') {
+        return safeText(el.textContent || el.value || '') !== '';
+      }
+      if (safeText(el.textContent || '') !== '') {
+        return true;
+      }
+      return Array.from(el.children).some(child => isMeaningfulNode(child));
+    };
+
+    document.querySelectorAll('.panel > .panel-body, .flow-card > .panel-body').forEach(body => {
+      if (!body) return;
+      const hasMeaningfulContent = Array.from(body.childNodes).some(child => isMeaningfulNode(child));
+      body.classList.toggle('hidden', !hasMeaningfulContent);
+    });
+  }
+
+  function scheduleEmbedHostControls() {
+    if (!EMBED_MODE) return;
+    if (embedSyncRaf) cancelAnimationFrame(embedSyncRaf);
+    embedSyncRaf = requestAnimationFrame(() => {
+      embedSyncRaf = 0;
+      syncEmbedHostControls();
+    });
+  }
+
+  if (EMBED_MODE) {
+    ['input', 'change', 'click'].forEach(evt => {
+      document.addEventListener(evt, scheduleEmbedHostControls, true);
+    });
+    window.addEventListener('resize', scheduleEmbedHostControls);
+  }
 
   if (NEST_MODE) {
     state.type = 'movies';
@@ -1063,6 +1296,10 @@
     state.movieItems = [blankMovieItem()];
     state.nestSourceFilter = '';
     flowState.stepKey = 'source';
+  }
+
+if (EMBED_MODE) {
+    scheduleEmbedHostControls();
   }
 
 function safeText(value) { return String(value ?? '').trim(); }
@@ -1567,7 +1804,7 @@ function applyScoopedLibraryDefaults(sourceTitle, { force = false } = {}) {
   }
 
   function getPromptText() {
-    const clean = getDisplayTitle() || 'Your Title Here';
+    const clean = getDisplayTitle() || safeText(document.getElementById('librarySourceTitle')?.value || '') || 'Your Title Here';
     const rootLabel = getRootLabel() || clean;
     const promptMode = getPromptMode();
     const currentMode = promptMode.label;
@@ -2335,6 +2572,10 @@ function buildPreview() {
     const host = document.getElementById('flowOutputBlocks');
     if (!host) return;
     const blocks = getFlowOutputPlan();
+    if (!blocks.length) {
+      host.innerHTML = '<div class="mini">No final replacement blocks are ready yet.</div>';
+      return;
+    }
     host.innerHTML = blocks.map((block) => `
       <div class="flow-output-card" data-flow-output-block="${block.key}">
         <h3>${escapeHtml(block.title)}</h3>
@@ -2376,6 +2617,9 @@ function buildPreview() {
     const pendingArtwork = !state.artworkUploaded && collectArtworkUploads().length > 0;
     const atArtStep = current.key === 'art';
     const atOutputStep = current.key === 'output';
+    const shelllessSteps = new Set(['llm', 'editor', 'art', 'output']);
+    document.body.classList.toggle('flow-shellless', shelllessSteps.has(current.key));
+
 
     if (nextBtn) {
       if (atOutputStep) {
@@ -2449,6 +2693,8 @@ function buildPreview() {
 
     renderFlowArtStep();
     renderFlowOutputBlocks();
+    collapseEmptyFlowBodies();
+    scheduleEmbedHostControls();
   }
 
   function clearFlowStateFromStep(stepKey) {
@@ -2891,6 +3137,25 @@ function loaderFunctionName(title) {
       .trim();
   }
 
+  function loaderDisplayTitle(entry) {
+    const rawTitle = safeText(entry?.title || '').trim();
+    const fnTitle = titleFromFnName(entry?.fnName || '');
+    const cleanedRaw = rawTitle
+      .replace(/^([A-Z])(?=[A-Z][a-z])/, '$1 ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (cleanedRaw && cleanedRaw !== rawTitle) {
+      return cleanedRaw;
+    }
+
+    if (rawTitle) {
+      return rawTitle;
+    }
+
+    return fnTitle || '';
+  }
+
   function normalizeLookupKey(value) {
     return sanitizeSegment(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -3300,7 +3565,7 @@ function getScoopEpisodeRecords(title) {
         const key = `${braceIndex}:${fnName}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        entries.push({ title, fnName, block, lookupKey, items });
+        entries.push({ title, fnName, displayTitle: loaderDisplayTitle({ title, fnName }), block, lookupKey, items });
       }
     }
 
@@ -3312,7 +3577,7 @@ function getScoopEpisodeRecords(title) {
     if (!grid) return;
     const movieTargetInput = getVisibleMovieTargetInput();
     const filter = normalizeLookupKey(movieTargetInput?.value || '');
-    const titles = sortedUniqueTitles(loaderCatalogState.entries.map(entry => entry.title));
+    const titles = sortedUniqueTitles(loaderCatalogState.entries.map(entry => entry.displayTitle || entry.title));
     const pinned = ['Animated Movies', 'Movies'];
     const ordered = [...new Set([...pinned, ...titles])];
     const visible = filter
@@ -3321,14 +3586,12 @@ function getScoopEpisodeRecords(title) {
 
     grid.innerHTML = visible.map(title => {
       const entry = resolveCatalogEntry(title);
-      const active = normalizeLookupKey(movieTargetInput?.value || '') === normalizeLookupKey(title);
-      const sub = entry?.fnName || loaderFunctionName(title);
-      const artPath = getRootArtworkTargetPathForTitle(title);
-      return `<button type="button" class="loader-chip${active ? ' active' : ''}" data-loader-title="${escapeHtml(title)}">
-        <div class="loader-chip-art">${artworkImgHtml(artPath, title, '', 'loader-thumb')}</div>
-        <span class="kicker">Loader</span>
-        <span class="main">${escapeHtml(title)}</span>
-        <span class="datalist-note" style="margin-top:4px;">${escapeHtml(sub)}</span>
+      const displayTitle = entry?.displayTitle || title;
+      const active = normalizeLookupKey(movieTargetInput?.value || '') === normalizeLookupKey(displayTitle);
+      const artPath = getRootArtworkTargetPathForTitle(displayTitle);
+      return `<button type="button" class="loader-chip${active ? ' active' : ''}" data-loader-title="${escapeHtml(displayTitle)}">
+        <div class="loader-chip-art">${artworkImgHtml(artPath, displayTitle, '', 'loader-thumb')}</div>
+        <span class="main">${escapeHtml(displayTitle)}</span>
       </button>`;
     }).join('');
 
@@ -3343,7 +3606,7 @@ function getScoopEpisodeRecords(title) {
   function renderLoaderDatalist() {
     const list = document.getElementById('targetCollectionList');
     if (!list) return;
-    const titles = sortedUniqueTitles(loaderCatalogState.entries.map(entry => entry.title));
+    const titles = sortedUniqueTitles(loaderCatalogState.entries.map(entry => entry.displayTitle || entry.title));
     const pinned = ['Animated Movies', 'Movies'];
     const ordered = [...new Set([...pinned, ...titles])];
     list.innerHTML = ordered.map(title => `<option value="${escapeHtml(title)}"></option>`).join('');
@@ -3401,7 +3664,6 @@ function getScoopEpisodeRecords(title) {
         <button type="button" class="folder-tile${active ? ' active' : ''}" data-nest-source-title="${escapeHtml(title)}">
           ${artworkImgHtml(artPath, title, '', '')}
           <div class="name">${escapeHtml(title)}</div>
-          <div class="kind">Source title</div>
         </button>
       `;
           }).join('')
@@ -3554,7 +3816,8 @@ function getScoopEpisodeRecords(title) {
     const matches = loaderCatalogState.entries.filter(entry => (
       entry.lookupKey === key ||
       normalizeLookupKey(entry.fnName) === key ||
-      normalizeLookupKey(entry.title) === key
+      normalizeLookupKey(entry.title) === key ||
+      normalizeLookupKey(entry.displayTitle) === key
     ));
 
     if (!matches.length) return null;
@@ -4919,49 +5182,15 @@ function getReplacementTargets() {
   document.getElementById('generateBtn').onclick = async () => { try { if (state.outputMode === 'mainfolders') await refreshMainFoldersCatalog(true); renderOutputs(); setStatus('Outputs regenerated.'); } catch (err) { setStatus(`Could not regenerate outputs: ${err.message}`, false); } };
   document.getElementById('copyOutputBtn').onclick = async () => { await replaceCurrentOutputOnServer(); };
   document.getElementById('copyAllBtn').onclick = async () => { try { await refreshMainFoldersCatalog(true).catch(() => {}); await replaceAllChangedOutputsOnServer(); } catch (err) { setOutputStatus(`Could not replace files: ${err.message}`, false); } };
-  document.getElementById('flowBackBtn')?.addEventListener('click', flowBack);
+
+  document.getElementById('flowBackBtn')?.addEventListener('click', () => { handleFlowBackAction(); });
   document.getElementById('flowNextBtn')?.addEventListener('click', async () => {
-    const steps = getFlowSteps();
-    const idx = getFlowStepIndex();
-    const current = steps[idx] || steps[0];
-    const pendingArtwork = !state.artworkUploaded && collectArtworkUploads().length > 0;
-    const artIndex = steps.findIndex(step => step.key === 'art');
-
-    if (current.key === 'llm') {
-      const hasText = safeText(document.getElementById('flowLlmInput')?.value || '');
-      if (hasText) {
-        const ok = parseFlowLlmInput(true);
-        if (!ok) return;
-        return;
-      }
+    try {
+      await handleFlowNextAction();
+    } catch (err) {
+      console.error(err);
+      setUploadStatus(`Upload failed: ${err.message}`, false);
     }
-
-    if (current.key === 'output') {
-      try {
-        await replaceAllChangedOutputsOnServer();
-      } catch (err) {
-        console.error(err);
-        setOutputStatus(`Could not replace files: ${err.message}`, false);
-      }
-      return;
-    }
-
-    if (pendingArtwork && current.key === 'editor' && artIndex > idx) {
-      flowState.stepKey = 'art';
-      syncFlowMode();
-      return;
-    }
-    if (pendingArtwork && current.key === 'art') {
-      try {
-        const ok = await confirmArtworkUpload(true);
-        if (!ok) return;
-      } catch (err) {
-        console.error(err);
-        setUploadStatus(`Upload failed: ${err.message}`, false);
-      }
-      return;
-    }
-    flowNext();
   });
   document.getElementById('flowConfirmArtBtn')?.addEventListener('click', async () => {
     const current = getFlowSteps()[getFlowStepIndex()] || null;
@@ -5027,18 +5256,11 @@ function getReplacementTargets() {
 
   document.getElementById('title').oninput = () => {
     state.title = document.getElementById('title').value;
-    const existing = state.title ? extractLibraryBlockRecords(libraryCatalogState.source, state.title) : [];
-    if (existing.length) {
-      state.librarySourceTitle = state.title;
-      const sourceInput = document.getElementById('librarySourceTitle');
-      if (sourceInput) sourceInput.value = state.title;
-      applyScoopedLibraryDefaults(state.title, { force: true });
-    }
     if (state.type === 'movies' && state.movieStructure === 'single' && state.movieItems.length && !safeText(state.movieItems[0].name)) state.movieItems[0].name = state.title;
     if (state.type === 'movies' && state.movieOperation === 'add' && state.movieItems.length && !safeText(state.movieItems[0].name)) state.movieItems[0].name = state.title;
     if (state.movieOperation === 'move' && state.type === 'movies' && !safeText(state.collectionTitle)) state.collectionTitle = `${safeText(state.title || '')} Collection`;
-    markArtworkDirty();
-    render();
+    syncPromptBoxes();
+    renderOutputs();
   };
   const librarySourceTitleInput = document.getElementById('librarySourceTitle');
   function applyScoopedTitleIfNeeded(sourceTitle) {
@@ -5054,20 +5276,15 @@ function getReplacementTargets() {
   if (librarySourceTitleInput) {
     librarySourceTitleInput.oninput = () => {
       state.librarySourceTitle = librarySourceTitleInput.value;
-      const cleanSource = safeText(state.librarySourceTitle);
-      if (cleanSource && extractLibraryBlockRecords(libraryCatalogState.source, cleanSource).length) {
-        applyScoopedLibraryDefaults(cleanSource, { force: true });
-      }
+      applyScoopedTitleIfNeeded(librarySourceTitleInput.value);
+      syncPromptBoxes();
       renderOutputs();
-      buildPreview();
     };
     librarySourceTitleInput.onchange = () => {
       state.librarySourceTitle = librarySourceTitleInput.value;
-      const cleanSource = safeText(state.librarySourceTitle);
-      if (cleanSource) {
-        applyScoopedLibraryDefaults(cleanSource, { force: true });
-      }
-      render();
+      applyScoopedTitleIfNeeded(librarySourceTitleInput.value);
+      syncPromptBoxes();
+      renderOutputs();
     };
   }
   document.getElementById('adultMark').onchange = () => { state.adult = document.getElementById('adultMark').checked; markArtworkDirty(); render(); };
