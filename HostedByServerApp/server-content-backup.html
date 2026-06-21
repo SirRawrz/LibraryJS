@@ -327,22 +327,6 @@
     .check input{width:18px;height:18px;margin:0;cursor:pointer}
     .tile.selected{outline:2px solid rgba(121,227,197,.55); border-color:rgba(121,227,197,.32)}
     .tile.partial{outline:2px solid rgba(255,190,106,.45); border-color:rgba(255,190,106,.24)}
-    .tile .pkg{
-      position:absolute; top:8px; left:8px;
-      width:26px; height:26px;
-      padding:0;
-      border-radius:8px;
-      background:rgba(10,14,22,.82);
-      border:1px solid rgba(255,255,255,.12);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      z-index:3;
-      backdrop-filter:blur(8px);
-      font-size:14px;
-      line-height:1;
-    }
-    .tile .pkg:hover{border-color:rgba(121,227,197,.3)}
     .tile .openHint{
       position:absolute; bottom:10px; right:10px;
       padding:4px 7px;
@@ -3307,20 +3291,6 @@ async function buildPackageFiles(mode) {
     void doBackup(mode, rootTitle);
   }
 
-  function makePackageButton(node) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "pkg";
-    btn.title = "Package this root";
-    btn.textContent = "📦";
-    btn.addEventListener("click", ev => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      startPackageForRoot(node);
-    });
-    return btn;
-  }
-
   function renderGrid() {
     const nodes = visibleNodes();
     el.grid.innerHTML = "";
@@ -3448,7 +3418,6 @@ async function buildPackageFiles(mode) {
         body.appendChild(foot);
 
         tile.appendChild(check);
-        if (node.root) tile.appendChild(makePackageButton(node));
         tile.appendChild(art);
         tile.appendChild(body);
 
@@ -3556,7 +3525,6 @@ async function buildPackageFiles(mode) {
       body.appendChild(foot);
 
       tile.appendChild(check);
-        if (node.root) tile.appendChild(makePackageButton(node));
         tile.appendChild(art);
       tile.appendChild(body);
 
