@@ -91,7 +91,8 @@
     }
     .choice input{margin:0;accent-color:var(--ok)}
     .choice.active{border-color:rgba(121,227,197,.35);background:rgba(121,227,197,.07)}
-    .choice .small{color:var(--muted);font-size:12px}
+    .choice.blocked{opacity:.48;filter:saturate(.55);background:rgba(255,255,255,.02);cursor:not-allowed}
+    .choice .small{color:var(--muted);font-size:12px}    .choice .small{color:var(--muted);font-size:12px}
     .laneGrid{
       display:grid;
       grid-template-columns:repeat(2,minmax(0,1fr));
@@ -161,6 +162,7 @@
       background:rgba(255,255,255,.015);
     }
     .compactBoard.show{display:grid}
+    .compactBoard.singleLane{grid-template-columns:minmax(0,1fr)}
     .taskCard{
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.025));
       border:1px solid var(--line);
@@ -314,6 +316,7 @@
     const flowMode = params.has('flow');
 
     function selectedScope() {
+      if (state.isShellBundle) return 'content';
       const scope = [];
       if (el.profileCheck.checked) scope.push('profile');
       if (el.contentCheck.checked) scope.push('content');
@@ -321,7 +324,13 @@
     }
 
     function setChoiceState(profileOn, contentOn, labelText = '') {
-      el.profileCheck.checked = !!profileOn;
+      if (state.isShellBundle) {
+        el.profileCheck.checked = false;
+        el.profileCheck.disabled = true;
+      } else {
+        el.profileCheck.disabled = false;
+        el.profileCheck.checked = !!profileOn;
+      }
       el.contentCheck.checked = !!contentOn;
       updateChoiceStyles();
       if (labelText) el.choiceMeta.textContent = labelText;
@@ -376,6 +385,7 @@
 
     function inferRestoreScope(names, fileName = '') {
       const all = [String(fileName || '').toLowerCase(), ...(names || []).map(n => String(n || '').replace(/\\/g, '/').toLowerCase())];
+      const hasShellManifest = all.some(n => n === 'shell-manifest.json' || n.endsWith('/shell-manifest.json'));
       const hasProfile = all.some(n =>
         n === 'profiles.js' ||
         n.endsWith('/profiles.js') ||
@@ -399,9 +409,13 @@
         /^books\//.test(n) ||
         /^manga\//.test(n)
       );
+      if (hasShellManifest) {
+        return { profile: false, content: true, shell: true };
+      }
       return {
         profile: hasProfile || (!hasProfile && !hasContent),
-        content: hasContent || (!hasProfile && !hasContent)
+        content: hasContent || (!hasProfile && !hasContent),
+        shell: false
       };
     }
 
@@ -410,7 +424,18 @@
       try {
         const names = await listZipEntryNames(file);
         const scope = inferRestoreScope(names, file.name);
-        setChoiceState(scope.profile, scope.content, scope.profile && scope.content ? 'Auto-detected profile + content' : scope.profile ? 'Auto-detected profile backup' : 'Auto-detected content backup');
+        state.isShellBundle = !!scope.shell;
+        setChoiceState(
+          scope.profile,
+          scope.content,
+          state.isShellBundle
+            ? 'Auto-detected shell package (content restore only)'
+            : scope.profile && scope.content
+              ? 'Auto-detected profile + content'
+              : scope.profile
+                ? 'Auto-detected profile backup'
+                : 'Auto-detected content backup'
+        );
       } catch (err) {
         console.warn(err);
         updateChoiceStyles();
@@ -422,6 +447,9 @@
       const autoSuffix = el.autoMode.checked ? '&auto=1' : '';
       const profileMode = `&profileMode=${encodeURIComponent(selectedRestoreMode('profile'))}`;
       const contentMode = `&contentMode=${encodeURIComponent(selectedRestoreMode('content'))}`;
+      if (state.isShellBundle) {
+        return `./shell-restore.html?flow=1${autoSuffix}${contentMode}`;
+      }
       if (scope === 'profile') {
         return `./transfer-profile-backup.html?flow=1${autoSuffix}${profileMode}`;
       }
@@ -461,6 +489,8 @@
       running: false,
       file: null,
       autoLaunched: false,
+      isShellBundle: false,
+      lastText: '',
       lastText: '',
       laneState: {
         profile: { done: 0, total: 0, label: 'Waiting for profile restore…', status: 'Waiting for profile restore…', complete: false },
@@ -561,11 +591,20 @@
     }
 
     function updateChoiceStyles() {
+      if (state.isShellBundle) {
+        el.profileCheck.checked = false;
+        el.profileCheck.disabled = true;
+      } else {
+        el.profileCheck.disabled = false;
+      }
       el.choiceProfile.classList.toggle('active', el.profileCheck.checked);
+      el.choiceProfile.classList.toggle('blocked', state.isShellBundle);
       el.choiceContent.classList.toggle('active', el.contentCheck.checked);
       if (el.choiceAuto) el.choiceAuto.classList.toggle('active', el.autoMode.checked);
       const count = [el.profileCheck.checked, el.contentCheck.checked].filter(Boolean).length;
-      el.choiceMeta.textContent = count === 0 ? 'Nothing selected yet' : count === 1 ? '1 lane selected' : '2 lanes selected';
+      el.choiceMeta.textContent = state.isShellBundle
+        ? 'Shell zip loaded — profile restore disabled'
+        : count === 0 ? 'Nothing selected yet' : count === 1 ? '1 lane selected' : '2 lanes selected';
       syncModeWarnings();
       setContinueState();
     }
@@ -599,6 +638,11 @@
       state.running = true;
       state.failed = false;
       state.finished = false;
+      if (state.isShellBundle) {
+        el.profileCheck.checked = false;
+        el.profileCheck.disabled = true;
+        el.contentCheck.checked = true;
+      }
       el.chooserView.style.display = 'none';
       el.workView.style.display = 'grid';
       el.workView.classList.toggle('compactMode', el.autoMode.checked);
@@ -642,11 +686,13 @@
     }
 
     function laneTitle(lane) {
-      return lane === 'profile' ? 'Profile restore' : 'Content restore';
+      if (lane === 'profile') return 'Profile restore';
+      return state.isShellBundle ? 'Shell restore' : 'Content restore';
     }
 
     function laneDefaultStatus(lane) {
-      return lane === 'profile' ? 'Waiting for profile restore…' : 'Waiting for content restore…';
+      if (lane === 'profile') return 'Waiting for profile restore…';
+      return state.isShellBundle ? 'Waiting for shell restore…' : 'Waiting for content restore…';
     }
 
     function laneProgressText(done, total, label) {
@@ -674,6 +720,7 @@
         : selectedScope().includes('profile')
           ? ['profile']
           : ['content'];
+      el.compactBoard.classList.toggle('singleLane', lanes.length === 1);
       el.compactBoard.innerHTML = '';
       for (const lane of lanes) {
         const card = document.createElement('div');
@@ -731,8 +778,9 @@
     function syncCompactBoard(reset = false) {
       if (!el.compactBoard) return;
       if (reset || !el.compactBoard.childElementCount) ensureCompactBoard();
-      el.compactBoard.hidden = !el.autoMode.checked;
-      el.compactBoard.classList.toggle('show', el.autoMode.checked);
+      const showCompact = el.autoMode.checked;
+      el.compactBoard.hidden = !showCompact;
+      el.compactBoard.classList.toggle('show', showCompact);
       if (el.autoMode.checked) {
         el.iframeWrap.style.display = 'none';
       } else {
@@ -762,6 +810,69 @@
         return [log, prog, archiveMeta, platformInfo].filter(Boolean).join('\n');
       } catch {
         return '';
+      }
+    }
+
+    function parseProgressSnapshot(text) {
+      const raw = String(text || '').trim();
+      if (!raw) return null;
+      const pair = raw.match(/(\d+)\s*\/\s*(\d+)/);
+      if (pair) {
+        const done = Number(pair[1]);
+        const total = Number(pair[2]);
+        return { done, total, pct: total ? (done / total) * 100 : 0, label: raw };
+      }
+      const pct = raw.match(/(\d+(?:\.\d+)?)\s*%/);
+      if (pct) {
+        const value = Number(pct[1]);
+        return { done: value, total: 100, pct: value, label: raw };
+      }
+      return null;
+    }
+
+    function syncChildProgressFromDom() {
+      try {
+        const lane = state.activeLane;
+        if (!lane) return false;
+        const doc = el.frame.contentDocument;
+        if (!doc) return false;
+        const progressInner = doc.getElementById('progressInner');
+        const progressTextEl = doc.getElementById('progressText');
+        if (!progressInner && !progressTextEl) return false;
+        const text = String(progressTextEl?.textContent || '').trim();
+        const widthText = String(progressInner?.style?.width || progressInner?.getAttribute?.('style') || '').trim();
+        if (!text && !widthText) return false;
+
+        let snapshot = parseProgressSnapshot(text);
+        let pct = snapshot ? snapshot.pct : NaN;
+        if (!Number.isFinite(pct)) {
+          const widthMatch = widthText.match(/(\d+(?:\.\d+)?)\s*%/);
+          if (widthMatch) pct = Number(widthMatch[1]);
+        }
+        if (!snapshot) {
+          if (!Number.isFinite(pct)) return false;
+          snapshot = { done: pct, total: 100, pct, label: text || `${Math.round(pct)}%` };
+        }
+
+        const laneState = state.laneState[lane] || { done: 0, total: 0, label: laneDefaultStatus(lane), status: laneDefaultStatus(lane), complete: false };
+        const done = Number.isFinite(snapshot.done) ? snapshot.done : laneState.done;
+        const total = Number.isFinite(snapshot.total) ? snapshot.total : laneState.total;
+        const label = snapshot.label || text || laneState.label;
+        const status = label || laneProgressText(done, total, laneState.label);
+        const complete = /complete(?:d)?/i.test(text) || (Number.isFinite(pct) && pct >= 99.5);
+
+        if (selectedScope().includes(lane)) {
+          updateCompactLane(lane, {
+            done: Number.isFinite(done) ? done : 0,
+            total: Number.isFinite(total) && total > 0 ? total : 100,
+            label,
+            status,
+            complete
+          });
+        }
+        return true;
+      } catch {
+        return false;
       }
     }
 
@@ -858,24 +969,28 @@
           state.lastText = text;
           setStatus(text.split(/\n+/).filter(Boolean).slice(-2).join(' • '));
         }
-      }, 450);
+        syncChildProgressFromDom();
+      }, 250);
     }
 
     function loadLane(lane) {
       state.activeLane = lane;
       el.frame.src = buildChildUrl();
       setStatus('Opening workspace…');
+      syncCompactBoard(false);
     }
 
     function handleLaneComplete(lane, messageText) {
       const scope = selectedScope();
-      const doneText = scope.includes('profile') && scope.includes('content')
-        ? 'Restore finished.'
-        : scope.includes('profile')
-          ? 'Profile restore finished.'
-          : 'Content restore finished.';
+      const doneText = state.isShellBundle
+        ? 'Shell restore finished.'
+        : scope.includes('profile') && scope.includes('content')
+          ? 'Restore finished.'
+          : scope.includes('profile')
+            ? 'Profile restore finished.'
+            : 'Content restore finished.';
       const finalMessage = messageText || doneText;
-      updateCompactLane(lane, { complete: true, status: finalMessage });
+            updateCompactLane(lane, { done: 100, total: 100, complete: true, status: finalMessage });
 
       if (allSelectedLanesComplete()) {
         setStatus(finalMessage);
@@ -968,6 +1083,7 @@
     el.destBase.addEventListener('input', () => { updateChoiceStyles(); });
     el.bundleFile.addEventListener('change', async () => {
       state.file = el.bundleFile.files && el.bundleFile.files[0] ? el.bundleFile.files[0] : null;
+      state.isShellBundle = false;
       el.choiceMeta.textContent = state.file ? state.file.name : 'Nothing loaded yet';
       if (state.file) {
         await autoDetectScopeFromFile(state.file);
@@ -1013,8 +1129,9 @@
         if (!state.finished) {
           const text = childText();
           if (text) setStatus(text.split(/\n+/).filter(Boolean).slice(-2).join(' • '));
+          syncChildProgressFromDom();
         }
-      }, 400);
+      }, 150);
     });
 
     if (el.destBase.value.trim() === '') {

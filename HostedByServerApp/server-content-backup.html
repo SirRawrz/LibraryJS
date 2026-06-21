@@ -88,6 +88,51 @@
     button.ghost{background:rgba(255,255,255,.04)}
     button:disabled{opacity:.45;cursor:not-allowed;transform:none}
     .flowMode #backupBtn{display:none!important;}
+.zipDock{
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.zipDock .zipIconBtn{
+  min-width:48px;
+  padding-inline:0;
+  font-size:18px;
+}
+.zipDock .zipMeta{
+  min-width:0;
+  display:grid;
+  gap:3px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.3;
+}
+.zipDock .zipMeta strong{
+  color:var(--text);
+  font-size:13px;
+}
+.zipMenu{
+  display:none;
+  margin-top:10px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:rgba(9,15,24,.96);
+  box-shadow:var(--shadow);
+  gap:8px;
+  flex-wrap:wrap;
+}
+.zipMenu.show{display:flex}
+.zipMenu button{
+  flex:1 1 220px;
+  text-align:left;
+}
+.zipMenu .active{
+  border-color:rgba(121,227,197,.35);
+  background:rgba(121,227,197,.08);
+  color:#d9fff3;
+}
 
     .rail{
       display:grid;
@@ -282,6 +327,22 @@
     .check input{width:18px;height:18px;margin:0;cursor:pointer}
     .tile.selected{outline:2px solid rgba(121,227,197,.55); border-color:rgba(121,227,197,.32)}
     .tile.partial{outline:2px solid rgba(255,190,106,.45); border-color:rgba(255,190,106,.24)}
+    .tile .pkg{
+      position:absolute; top:8px; left:8px;
+      width:26px; height:26px;
+      padding:0;
+      border-radius:8px;
+      background:rgba(10,14,22,.82);
+      border:1px solid rgba(255,255,255,.12);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:3;
+      backdrop-filter:blur(8px);
+      font-size:14px;
+      line-height:1;
+    }
+    .tile .pkg:hover{border-color:rgba(121,227,197,.3)}
     .tile .openHint{
       position:absolute; bottom:10px; right:10px;
       padding:4px 7px;
@@ -478,11 +539,23 @@
             <div class="k">Selected paths</div>
             <div class="selList" id="selectedList" style="margin-top:10px;"></div>
           </div>
-          <div class="card">
-            <div class="k">Status</div>
-            <div class="log" id="log">Waiting for source files…</div>
-          </div>
-        </div>
+  <div class="card">
+    <div class="k">Status</div>
+    <div class="log" id="log">Waiting for source files…</div>
+  </div>
+
+  <div class="zipDock">
+    <button id="packageBtn" class="ghost zipIconBtn" type="button" title="Choose a self-contained zip mode">📦</button>
+    <div class="zipMeta">
+      <strong>Self-contained export</strong>
+      <span id="packageModeLabel">Live transfer via Backup selected</span>
+    </div>
+  </div>
+  <div id="packageMenu" class="zipMenu" aria-label="Self-contained zip modes">
+    <button type="button" data-package-mode="zip-full">Self-contained Zip (with content)</button>
+    <button type="button" data-package-mode="zip-structure">Self-contained Zip (no content)</button>
+  </div>
+</div>
       </div>
     </div>
   </div>
@@ -554,7 +627,10 @@
     subtreeCache: new Map(),
     nodeStateCache: new Map(),
     sourceBase: "",
-    selectionVersion: 0
+    selectionVersion: 0,
+    backupMode: "live",
+    packageScopeRoot: "",
+    packageScopeSection: ""
   };
 
   const flowMode = new URLSearchParams(location.search).has('flow');
@@ -579,6 +655,9 @@
     selectAllBtn: document.getElementById("selectAllBtn"),
     clearViewBtn: document.getElementById("clearViewBtn"),
     backupBtn: document.getElementById("backupBtn"),
+    packageBtn: document.getElementById("packageBtn"),
+    packageMenu: document.getElementById("packageMenu"),
+    packageModeLabel: document.getElementById("packageModeLabel"),
     videoCard: document.getElementById("videoCard"),
     videoCardCheck: document.getElementById("videoCardCheck"),
     videoCount: document.getElementById("videoCount"),
@@ -616,6 +695,283 @@
   };
 
   const enc = new TextEncoder();
+const CONTENT_FILE_EXTENSIONS = new Set([
+  'mp4', 'm4v', 'mov', 'mkv', 'webm', 'avi', 'ts', 'mp3', 'm4a', 'wav',
+  'flac', 'aac', 'ogg', 'opus', 'pdf', 'epub', 'cbz', 'cbr', 'zip', 'rar',
+  '7z', 'iso', 'bin', 'img', 'dmg', 'exe', 'apk', 'jar', 'psd'
+]);
+
+const ASSET_TEXT_EXTENSIONS = new Set([
+  'js', 'json', 'txt', 'xml', 'csv', 'vtt', 'srt', 'm3u8', 'ass', 'ssa', 'md'
+]);
+
+function toZipBytes(value) {
+  if (value instanceof Uint8Array) return value;
+  if (ArrayBuffer.isView(value)) {
+    return new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
+  }
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (typeof value === 'string') return enc.encode(value);
+  if (value == null) return enc.encode('');
+  return enc.encode(String(value));
+}
+
+function fileExtensionFromName(name) {
+  const base = String(name || '').split(/[?#]/)[0].split('/').filter(Boolean).pop() || '';
+  const idx = base.lastIndexOf('.');
+  return idx >= 0 ? base.slice(idx + 1).toLowerCase() : '';
+}
+
+function isLikelyContentFile(name) {
+  return CONTENT_FILE_EXTENSIONS.has(fileExtensionFromName(name));
+}
+
+function canonicalZipPath(raw) {
+  const str = String(raw || '').trim();
+  if (!str) return '';
+  try {
+    const url = new URL(str, new URL('./', window.location.href));
+    const pathname = decodeURIComponent(url.pathname || '').replace(/^\/+/, '');
+    return pathname || decodeURIComponent(str).replace(/^\.\/+/, '').replace(/^\/+/, '');
+  } catch {
+    return decodeURIComponent(str).replace(/^\.\/+/, '').replace(/^\/+/, '');
+  }
+}
+
+async function fetchBinaryResource(file) {
+  const urls = [new URL(String(file || '').replace(/^\.\//, ''), new URL('./', window.location.href)).href];
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return { bytes: new Uint8Array(await res.arrayBuffer()), source: url };
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError || new Error(`${file} not found`);
+}
+
+function rootNodesForSection(section) {
+  if (section === 'music') {
+    return (state.musicGenres || []).map((g, idx) => ({
+      kind: 'branch',
+      title: cleanTitle(g.title || g.name || ''),
+      path: [cleanTitle(g.title || g.name || '')],
+      ancestry: [cleanTitle(g.title || g.name || '')],
+      hasChildren: true,
+      root: true,
+      order: idx
+    })).filter(n => n.title);
+  }
+
+  if (section === 'games') {
+    return (state.games || []).map((game, idx) => {
+      const title = normalizeGameTitle(game, idx);
+      return {
+        kind: 'leaf',
+        title,
+        item: game,
+        path: [title],
+        ancestry: [title],
+        hasChildren: false,
+        root: true,
+        order: idx
+      };
+    }).filter(n => n.title);
+  }
+
+  if (section === 'books') {
+    return sectionRootTitles('books').map((raw, idx) => {
+      const item = findLibraryItemByTitle('books', raw);
+      return {
+        kind: item && item.group ? 'branch' : 'leaf',
+        title: String(raw),
+        item,
+        path: [String(raw)],
+        ancestry: [String(raw)],
+        hasChildren: !!getSourceArrayForTitle(raw),
+        root: true,
+        order: idx
+      };
+    }).filter(n => n.title);
+  }
+
+  if (section === 'manga') {
+    return sectionRootTitles('manga').map((raw, idx) => {
+      const item = findLibraryItemByTitle('manga', raw);
+      return {
+        kind: item && item.group ? 'branch' : 'leaf',
+        title: String(raw),
+        item,
+        path: [String(raw)],
+        ancestry: [String(raw)],
+        hasChildren: !!getSourceArrayForTitle(raw),
+        root: true,
+        order: idx
+      };
+    }).filter(n => n.title);
+  }
+
+  return sectionRootTitles('video').map((raw, idx) => ({
+    kind: 'branch',
+    title: String(raw),
+    path: [String(raw)],
+    ancestry: [String(raw)],
+    hasChildren: !!getSourceArrayForTitle(raw),
+    root: true,
+    order: idx
+  })).filter(n => n.title);
+}
+
+function addUniqueCandidate(list, seen, raw, section = state.currentSection, mode = 'live') {
+  if (!raw) return;
+  const source = String(raw).trim();
+  if (!source) return;
+  const name = canonicalZipPath(source);
+  if (!name) return;
+  if (mode !== 'live' && mode !== 'zip-full' && mode !== 'zip-structure') return;
+  if (mode === 'zip-structure' && isLikelyContentFile(name)) return;
+  const key = name.toLowerCase();
+  if (seen.has(key)) return;
+  seen.add(key);
+  list.push(source);
+}
+
+function gatherNodeAssetCandidates(node, section, mode) {
+  const list = [];
+  const seen = new Set();
+  const add = value => addUniqueCandidate(list, seen, value, section, mode);
+
+  const item = node && node.item && typeof node.item === 'object' ? node.item : null;
+  if (item) {
+    for (const key of ['img', 'image', 'cover', 'thumb', 'poster', 'background', 'bg', 'art', 'thumbnail', 'icon', 'banner', 'file', 'src', 'url', 'link', 'path', 'media', 'video', 'audio', 'subtitle', 'subtitles', 'vtt']) {
+      add(item[key]);
+    }
+    if (section === 'books' && item.file && mode === 'zip-full') {
+      for (const c of buildAudiobookCandidates(item.file)) add(c);
+    }
+    if (section === 'games') {
+      if (item.file && mode === 'zip-full') add(item.file);
+      if (item.rom && mode === 'zip-full') add(item.rom);
+    }
+    if (section === 'music') {
+      for (const c of buildMusicGenreImageCandidates(node.title)) add(c);
+    }
+  }
+
+  for (const c of buildImageCandidates(node)) add(c);
+
+  if (section === 'music' && node && node.path && node.path.length <= 1) {
+    for (const c of buildMusicGenreImageCandidates(node.title)) add(c);
+  }
+
+  return list;
+}
+
+async function collectPackageAssetFiles(sections, mode) {
+  const files = [];
+  const seen = new Set();
+  const reserved = new Set([
+    'mainfolders.js',
+    'library.js',
+    'loadseasonfunctions.js',
+    'musiclibrary.js',
+    'games.js',
+    'guidebooks.js',
+    'books.js',
+    'manga.js',
+    'libraryjs-selfcontained-manifest.json'
+  ]);
+
+  const collectSectionCandidates = (section) => {
+    const roots = selectedRootsForOutput(section).map(r => cleanTitle(r)).filter(Boolean);
+    if (!roots.length) return [];
+
+    const nodes = collectSubtreeNodesForSection(section, roots);
+    const candidates = [];
+    const candidateSeen = new Set();
+
+    for (const node of nodes) {
+      for (const cand of gatherNodeAssetCandidates(node, section, mode)) {
+        const name = canonicalZipPath(cand);
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (candidateSeen.has(key)) continue;
+        if (mode === 'zip-structure' && isLikelyContentFile(name)) continue;
+        candidateSeen.add(key);
+        candidates.push(cand);
+      }
+    }
+
+    return candidates;
+  };
+
+  for (const section of sections) {
+    const candidates = collectSectionCandidates(section);
+    for (const raw of candidates) {
+      const name = canonicalZipPath(raw);
+      if (!name) continue;
+      const lower = name.toLowerCase();
+      const base = name.split('/').pop() || '';
+      if (seen.has(lower) || reserved.has(base)) continue;
+      seen.add(lower);
+      try {
+        const { bytes } = await fetchBinaryResource(raw);
+        files.push({ name, bytes });
+      } catch (e) {
+        console.warn('Skipping asset', raw, e);
+      }
+    }
+  }
+
+  return files;
+}
+
+function buildSelfContainedManifest(mode, sections, assetFiles, baseFiles) {
+  return {
+    kind: mode === 'zip-full' ? 'self-contained-full' : 'self-contained-structure',
+    selectedSections: sections,
+    generatedAt: new Date().toISOString(),
+    baseFileCount: Array.isArray(baseFiles) ? baseFiles.length : 0,
+    assetFileCount: Array.isArray(assetFiles) ? assetFiles.length : 0
+  };
+}
+
+function collectSubtreeNodesForSection(section, rootTitles) {
+  const roots = rootTitles
+    .map(title => cleanTitle(title))
+    .filter(Boolean);
+
+  if (!roots.length) return [];
+
+  return withSection(section, () => {
+    const rootSet = new Set(roots.map(title => compareKey(title)));
+    const seen = new Set();
+    const collected = [];
+
+    const walk = (node) => {
+      if (!node || !node.title) return;
+      const key = pathKey(node.path || [node.title]);
+      if (seen.has(key)) return;
+      seen.add(key);
+      collected.push(node);
+
+      if (node.kind === 'leaf') return;
+      const children = getNodeChildren(node.title, node.path, node.ancestry);
+      for (const child of children || []) walk(child);
+    };
+
+    for (const root of rootNodesForSection(section)) {
+      const title = cleanTitle(root.title || '');
+      if (!title || !rootSet.has(compareKey(title))) continue;
+      walk(root);
+    }
+
+    return collected;
+  });
+}
 
   function log(msg) { el.log.textContent = String(msg || ""); }
   function cleanTitle(raw) { return String(raw || "").replace(/\*/g, "").trim(); }
@@ -1785,6 +2141,12 @@ window.libraryData = ${JSON.stringify({ title: "Manga Library", items }, null, 2
   function pathIntersectsExportSelection(path) {
     const probe = Array.isArray(path) ? path : [];
     if (!probe.length) return false;
+
+    if (state.packageScopeRoot && state.packageScopeSection && state.currentSection === state.packageScopeSection) {
+      const scopePath = [state.packageScopeRoot];
+      if (pathStartsWith(probe, scopePath) || pathStartsWith(scopePath, probe)) return true;
+    }
+
     const selected = getDeepSelectedPaths();
     for (const sel of selected) {
       if (pathEquals(probe, sel) || pathStartsWith(sel, probe) || pathStartsWith(probe, sel)) return true;
@@ -1792,7 +2154,7 @@ window.libraryData = ${JSON.stringify({ title: "Manga Library", items }, null, 2
     return false;
   }
 
-    function getNodeChildren(title, pathParts, ancestry) {
+  function getNodeChildren(title, pathParts, ancestry) {
     const key = pathKey(pathParts);
     if (state.childCache.has(key)) return state.childCache.get(key);
 
@@ -2249,6 +2611,10 @@ window.libraryData = ${JSON.stringify({ title: "Manga Library", items }, null, 2
 
   function selectedRootsForOutput(section = state.currentSection) {
     return withSection(section, () => {
+      if (state.packageScopeRoot && state.packageScopeSection && section === state.packageScopeSection) {
+        return [state.packageScopeRoot];
+      }
+
       const deepSelected = getDeepSelectedPaths();
       const roots = [];
       const seen = new Set();
@@ -2566,7 +2932,7 @@ function crc32(bytes) {
 
     for (const file of files) {
       const nameBytes = enc.encode(file.name);
-      const dataBytes = enc.encode(file.content);
+      const dataBytes = toZipBytes(file.bytes ?? file.content);
       const crc = crc32(dataBytes);
 
       const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
@@ -2644,34 +3010,57 @@ function crc32(bytes) {
     return { payload, transfer };
   }
 
-  async function downloadZip(filename, files) {
-    const zipBytes = makeZip(files);
-    if (flowMode && window.parent && window.parent !== window) {
-      const { payload, transfer } = serializeFlowFiles(files);
-      window.parent.postMessage({
-        type: 'libraryjs-flow-result',
-        flow: 'backup',
-        lane: 'content',
-        page: 'server-content-backup',
-        filename,
-        files: payload
-      }, flowTargetOrigin, transfer);
-      log(`Backup ready for flow: ${filename}`);
-      return { sentToFlow: true, zipBytes };
-    }
-    const blob = new Blob([zipBytes], { type: "application/zip" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-      a.remove();
-    }, 1500);
-    return { sentToFlow: false, zipBytes };
+async function downloadZip(filename, files) {
+  const zipBytes = makeZip(files);
+  if (flowMode && window.parent && window.parent !== window) {
+    const { payload, transfer } = serializeFlowFiles(files);
+    window.parent.postMessage({
+      type: 'libraryjs-flow-result',
+      flow: 'backup',
+      lane: 'content',
+      page: 'server-content-backup',
+      filename,
+      files: payload
+    }, flowTargetOrigin, transfer);
+    log(`Backup ready for flow: ${filename}`);
+    return { sentToFlow: true, zipBytes };
   }
+  const blob = new Blob([zipBytes], { type: "application/zip" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 1500);
+  return { sentToFlow: false, zipBytes };
+}
+
+async function buildPackageFiles(mode) {
+  const sections = selectedSectionsForOutput();
+  if (!sections.length) return { sections: [], files: [], assetFiles: [] };
+
+  const baseFiles = [];
+  for (const section of sections) {
+    const sectionFiles = buildFilesForSection(section);
+    baseFiles.push(...sectionFiles);
+  }
+
+  const assetFiles = mode === 'live'
+    ? []
+    : await collectPackageAssetFiles(sections, mode);
+
+  const manifest = buildSelfContainedManifest(mode, sections, assetFiles, baseFiles);
+  const packaged = [
+    ...baseFiles,
+    ...(mode === 'live' ? [] : [{ name: 'libraryjs-selfcontained-manifest.json', content: JSON.stringify(manifest, null, 2) }]),
+    ...assetFiles
+  ];
+  return { sections, files: packaged, assetFiles, baseFiles, manifest };
+}
 
 
   function buildImageCandidates(nodeOrTitle) {
@@ -2871,13 +3260,15 @@ function crc32(bytes) {
     const clean = sanitizeMusicGenreImageName(genreName);
     if (!clean) return [];
     const encoded = encodeURIComponent(clean);
-    const variants = [
-      `./Music/Images/${encoded}.jpg`,
-      `Music/Images/${encoded}.jpg`,
-    ];
-    for (const ext of MUSIC_GENRE_IMAGE_EXTENSIONS) {
-      variants.push(`./Music/Images/${encoded}.${ext}`);
-      variants.push(`Music/Images/${encoded}.${ext}`);
+    const folders = ['Music/Images', 'Music/Images/Artists'];
+    const variants = [];
+    for (const folder of folders) {
+      variants.push(`./${folder}/${encoded}.jpg`);
+      variants.push(`${folder}/${encoded}.jpg`);
+      for (const ext of MUSIC_GENRE_IMAGE_EXTENSIONS) {
+        variants.push(`./${folder}/${encoded}.${ext}`);
+        variants.push(`${folder}/${encoded}.${ext}`);
+      }
     }
     return [...new Set(variants)];
   }
@@ -2905,6 +3296,29 @@ function crc32(bytes) {
     state.selectionVersion += 1;
     state.subtreeCache.clear();
     state.nodeStateCache.clear();
+  }
+
+  function startPackageForRoot(node) {
+    if (!node || !node.title) return;
+    const rootTitle = cleanTitle(node.title);
+    if (!rootTitle) return;
+    const full = window.confirm(`Package "${rootTitle}" as Full Content?\n\nOK = Full Content\nCancel = Just Structure`);
+    const mode = full ? 'zip-full' : 'zip-structure';
+    void doBackup(mode, rootTitle);
+  }
+
+  function makePackageButton(node) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pkg";
+    btn.title = "Package this root";
+    btn.textContent = "📦";
+    btn.addEventListener("click", ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      startPackageForRoot(node);
+    });
+    return btn;
   }
 
   function renderGrid() {
@@ -3034,6 +3448,7 @@ function crc32(bytes) {
         body.appendChild(foot);
 
         tile.appendChild(check);
+        if (node.root) tile.appendChild(makePackageButton(node));
         tile.appendChild(art);
         tile.appendChild(body);
 
@@ -3141,7 +3556,8 @@ function crc32(bytes) {
       body.appendChild(foot);
 
       tile.appendChild(check);
-      tile.appendChild(art);
+        if (node.root) tile.appendChild(makePackageButton(node));
+        tile.appendChild(art);
       tile.appendChild(body);
 
       if (state.currentSection === "books" && node.kind === "leaf") {
@@ -3305,63 +3721,57 @@ function crc32(bytes) {
     render();
   }
 
-  async function doBackup() {
-    const selectedSections = selectedSectionsForOutput();
-    if (!selectedSections.length) {
-      const scopeRoot = getBackupScopeRoot();
-      log(scopeRoot
-        ? `No selected content found inside the current branch root: ${scopeRoot}.`
-        : "No branch is open and nothing selected yet.");
+async function doBackup(mode = 'live', scopeRoot = '') {
+  const prevPackageScopeRoot = state.packageScopeRoot;
+  const prevPackageScopeSection = state.packageScopeSection;
+  state.packageScopeRoot = scopeRoot ? String(scopeRoot) : "";
+  state.packageScopeSection = scopeRoot ? state.currentSection : "";
+
+  const selectedSections = selectedSectionsForOutput();
+  if (!selectedSections.length) {
+    const scopeLabel = scopeRoot || getBackupScopeRoot();
+    log(scopeLabel
+      ? `No selected content found inside the current branch root: ${scopeLabel}.`
+      : 'No branch is open and nothing selected yet.');
+    state.packageScopeRoot = prevPackageScopeRoot;
+    state.packageScopeSection = prevPackageScopeSection;
+    return;
+  }
+
+  el.backupBtn.disabled = true;
+  el.backupBtn.textContent = mode === 'live' ? 'Building…' : 'Packaging…';
+  try {
+    const built = await buildPackageFiles(mode);
+    const files = built.files || [];
+    if (!files.length) {
+      log('Nothing could be built from the selected sections.');
       return;
     }
 
-    el.backupBtn.disabled = true;
-    el.backupBtn.textContent = "Building…";
-    try {
-      let files = [];
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const zipName = mode === 'live'
+      ? `server-content-backup_${stamp}.zip`
+      : `server-content-backup_${stamp}_${mode === 'zip-full' ? 'selfcontained-full' : 'selfcontained-structure'}.zip`;
 
-      for (const section of selectedSections) {
-        const sectionRoots = selectedRootsForOutput(section);
-        if (!sectionRoots.length) continue;
+    log(mode === 'live'
+      ? `Zipping ${files.length} file(s)…`
+      : `Packaging ${built.assetFiles.length} asset file(s) plus ${built.baseFiles.length} structure file(s)…`);
 
-        if (section === "music") {
-          log("Building mini musiclibrary.js…");
-        } else if (section === "games") {
-          log("Building mini games.js and guidebooks.js…");
-        } else if (section === "books") {
-          log("Checking audiobook availability…");
-          await withSection(section, () => primeBookAudiobookAvailability(sectionRoots));
-          log("Building mini books.js…");
-        } else if (section === "manga") {
-          log("Building mini manga.js…");
-        } else {
-          log("Building mini mainfolders.js, library.js, and loaders…");
-        }
-
-        const built = buildFilesForSection(section);
-        files.push(...built);
-      }
-
-      if (!files.length) {
-        log("Nothing could be built from the selected sections.");
-        return;
-      }
-
-      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const zipName = `server-content-backup_${stamp}.zip`;
-      log(`Zipping ${files.length} file(s)…`);
-      const downloadResult = await downloadZip(zipName, files);
-      if (!(downloadResult && downloadResult.sentToFlow)) {
-        log(`Done. Downloaded ${zipName}`);
-      }
-    } catch (e) {
-      console.error(e);
-      log(`Backup failed: ${e && e.message ? e.message : e}`);
-    } finally {
-      el.backupBtn.disabled = false;
-      el.backupBtn.textContent = "Backup selected";
+    const downloadResult = await downloadZip(zipName, files);
+    if (!(downloadResult && downloadResult.sentToFlow)) {
+      log(`Done. Downloaded ${zipName}`);
     }
+  } catch (e) {
+    console.error(e);
+    log(`Backup failed: ${e && e.message ? e.message : e}`);
+  } finally {
+    state.packageScopeRoot = prevPackageScopeRoot;
+    state.packageScopeSection = prevPackageScopeSection;
+    el.backupBtn.disabled = false;
+    el.backupBtn.textContent = 'Backup selected';
   }
+}
+
 
   async function init() {
     try {
@@ -3418,8 +3828,48 @@ function crc32(bytes) {
   el.upBtn.addEventListener("click", upOne);
   el.selectAllBtn.addEventListener("click", () => selectView(true));
   el.clearViewBtn.addEventListener("click", () => selectView(false));
-  if (flowMode && el.backupBtn) el.backupBtn.style.display = "none";
-  el.backupBtn.addEventListener("click", doBackup);
+if (flowMode && el.backupBtn) el.backupBtn.style.display = "none";
+el.backupBtn.addEventListener("click", () => doBackup('live'));
+if (el.packageBtn && el.packageMenu) {
+  const setPackageMode = (mode) => {
+    state.backupMode = mode;
+    if (el.packageModeLabel) {
+      el.packageModeLabel.textContent = mode === 'zip-full'
+        ? 'Full content zip selected'
+        : mode === 'zip-structure'
+          ? 'Structure-only zip selected'
+          : 'Live transfer via Backup selected';
+    }
+    for (const btn of el.packageMenu.querySelectorAll('button[data-package-mode]')) {
+      btn.classList.toggle('active', btn.getAttribute('data-package-mode') === mode);
+    }
+  };
+
+  const hidePackageMenu = () => el.packageMenu.classList.remove('show');
+  const togglePackageMenu = () => el.packageMenu.classList.toggle('show');
+
+  el.packageBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    togglePackageMenu();
+  });
+
+  el.packageMenu.addEventListener('click', async (ev) => {
+    const btn = ev.target && ev.target.closest ? ev.target.closest('button[data-package-mode]') : null;
+    if (!btn) return;
+    const mode = btn.getAttribute('data-package-mode') || 'zip-structure';
+    setPackageMode(mode);
+    hidePackageMenu();
+    await doBackup(mode);
+  });
+
+  document.addEventListener('click', (ev) => {
+    if (!el.packageMenu.classList.contains('show')) return;
+    if (el.packageMenu.contains(ev.target) || el.packageBtn.contains(ev.target)) return;
+    hidePackageMenu();
+  });
+
+  setPackageMode('live');
+}
   el.videoCard.addEventListener("click", (ev) => {
     if (ev.target && ev.target.tagName === "INPUT") return;
     setCurrentSection("video");

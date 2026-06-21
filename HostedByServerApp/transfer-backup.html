@@ -1289,7 +1289,16 @@ if (item.kind === 'audiobook') {
     return { text: txt, rewriteCount };
   }
 
-  function mergeLibraryFile(currentText, generatedText, removeKeys = []) {
+  
+    function normalizeLibraryEpisodesText(text) {
+    let out = String(text ?? '').replace(/\r\n?/g, '\n');
+    out = out.replace(/(const\s+episodes\s*=\s*\{)(?:\s*,\s*)+(?=\n\s*["'])/s, '$1');
+    out = out.replace(/(\n\s*[\]\}])(?:\s*,\s*){2,}(?=\n\s*["'])/g, '$1,');
+    out = out.replace(/(\n\s*[\]\}])(?:\s*,\s*)+(?=\n\s*\}\s*;{1,2}\s*$)/g, '$1');
+    return out;
+  }
+
+function mergeLibraryFile(currentText, generatedText, removeKeys = []) {
     const current = String(currentText ?? '').replace(/\r\n?/g, '\n');
     const generated = String(generatedText ?? '').replace(/\r\n?/g, '\n').trim();
     if (!generated) return current;
@@ -1300,7 +1309,7 @@ if (item.kind === 'audiobook') {
     if (!generatedBlocks.length) {
       const trimmedBody = currentSplit.body.replace(/[\t ]+$/g, '');
       const footer = currentSplit.footer || '};';
-      return stripLooseLeadingEpisodesComma(`${trimmedBody}\n${footer}`);
+      return normalizeLibraryEpisodesText(stripLooseLeadingEpisodesComma(`${trimmedBody}\n${footer}`));
     }
 
     const existingBlocks = parseLibraryBlocks(currentSplit.body).filter(block => !removeSet.has(normalizeLookupKey(block.key)));
@@ -1328,12 +1337,12 @@ if (item.kind === 'audiobook') {
     const footer = currentSplit.footer || '};';
 
     if (!appended) {
-      return stripLooseLeadingEpisodesComma(`${bodyClean}\n${footer}`);
+      return normalizeLibraryEpisodesText(stripLooseLeadingEpisodesComma(`${bodyClean}\n${footer}`));
     }
 
     const needsComma = bodyClean && !/,\s*$/.test(bodyClean);
     const separator = bodyClean ? (needsComma ? ',\n\n' : '\n\n') : '';
-    return stripLooseLeadingEpisodesComma(`${bodyClean}${separator}${appended}\n${footer}`);
+    return normalizeLibraryEpisodesText(stripLooseLeadingEpisodesComma(`${bodyClean}${separator}${appended}\n${footer}`));
   }
 
   function stripLooseLeadingEpisodesComma(text) {

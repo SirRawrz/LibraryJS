@@ -1,0 +1,1435 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shell Transfer</title>
+  <style>
+:root{
+  --bg:#0b1018;
+  --panel:#111827;
+  --panel2:#0d1420;
+  --line:rgba(255,255,255,.08);
+  --text:#edf4ff;
+  --muted:#93a2be;
+  --accent:#79e3c5;
+  --accent2:#86aafc;
+  --danger:#ff8591;
+  --warn:#ffbe6a;
+  --radius:22px;
+  --shadow:0 22px 60px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at top left, rgba(121,227,197,.09), transparent 26%),
+    radial-gradient(circle at right top, rgba(134,170,252,.08), transparent 24%),
+    linear-gradient(180deg, #09111b 0%, #0b1018 100%);
+  color:var(--text);
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
+.wrap{max-width:1600px;margin:0 auto;padding:16px}
+.hero,.panel,.tile,.sectionCard{
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+  box-shadow:var(--shadow);
+}
+.hero{
+  display:flex; flex-wrap:wrap; gap:14px;
+  align-items:flex-start; justify-content:space-between;
+  padding:16px;
+  margin-bottom:12px;
+}
+.hero h1{margin:0;font-size:26px;letter-spacing:-.04em}
+.hero .sub{margin-top:7px;color:var(--muted);max-width:980px;line-height:1.45;font-size:13px}
+.hero .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;align-items:center;flex:1 1 560px}
+.hero input[type="text"]{
+  min-width:240px; flex:1 1 280px;
+  background:var(--panel2); color:var(--text);
+  border:1px solid var(--line); border-radius:12px;
+  padding:11px 12px; font:inherit; outline:none;
+}
+button{
+  border:0; border-radius:12px;
+  padding:11px 14px;
+  font:inherit; font-weight:750;
+  cursor:pointer;
+  background:rgba(255,255,255,.08);
+  color:var(--text);
+  border:1px solid var(--line);
+  transition:transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+}
+button:hover{border-color:rgba(134,170,252,.22)}
+button:active{transform:translateY(1px)}
+button.primary{
+  background:linear-gradient(180deg, rgba(121,227,197,1), rgba(92,202,168,1));
+  color:#07120f;
+  border-color:transparent;
+}
+button.danger{
+  background:rgba(255,133,145,.12);
+  color:#ffc5cb;
+  border-color:rgba(255,133,145,.18);
+}
+button.ghost{background:rgba(255,255,255,.04)}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.sectionCard{
+  padding:10px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-width:180px;
+  cursor:pointer;
+}
+.sectionCard.active{
+  outline:2px solid rgba(121,227,197,.28);
+  border-color:rgba(121,227,197,.22);
+}
+.sectionCard .name{font-size:13px;font-weight:800}
+.sectionCard .meta{color:var(--muted);font-size:11px}
+.main{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 360px;
+  gap:16px;
+  align-items:start;
+}
+.panel{overflow:hidden}
+.panelHead{
+  padding:14px 16px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.02);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.panelHead h2{margin:0;font-size:16px}
+.panelHead .meta{color:var(--muted);font-size:12px}
+.panelBody{padding:16px}
+.breadcrumb{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  margin-bottom:14px;color:var(--muted);font-size:13px;
+}
+.crumbSep{opacity:.55}
+.crumb{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 10px;border-radius:999px;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--line);
+  color:var(--text);
+  cursor:pointer;user-select:none;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:14px;
+}
+.tile{
+  position:relative;
+  overflow:hidden;
+  cursor:pointer;
+  min-height:150px;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  gap:8px;
+  transition:transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.tile:hover{transform:translateY(-2px); border-color:rgba(134,170,252,.25); box-shadow:0 16px 30px rgba(0,0,0,.28)}
+.tile.selected{outline:2px solid rgba(121,227,197,.55); border-color:rgba(121,227,197,.32)}
+.tile .title{font-size:14px;font-weight:800;line-height:1.2}
+.tile .meta{font-size:12px;color:var(--muted)}
+.tile .foot{font-size:11px;color:var(--muted)}
+.tile .pkg{
+  position:absolute;top:8px;right:8px;
+  width:28px;height:28px;padding:0;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(10,14,22,.75);
+  border:1px solid rgba(255,255,255,.12);
+  z-index:2;
+}
+.tile .chk{
+  position:absolute;top:8px;left:8px;
+  width:28px;height:28px;padding:0;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(10,14,22,.75);
+  border:1px solid rgba(255,255,255,.12);
+  z-index:2;
+}
+.tile .chk input{width:18px;height:18px;margin:0;cursor:pointer}
+.side{position:sticky;top:16px}
+.card{
+  background:rgba(255,255,255,.03);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px;
+  margin-bottom:12px;
+}
+.k{color:var(--muted);font-size:12px}
+.v{margin-top:6px;font-size:18px;font-weight:800}
+.selList{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;padding-right:4px}
+.selItem{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:9px 10px;border-radius:12px;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.06);
+  font-size:12px;
+}
+.selItem .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.selItem .x{color:var(--muted);flex:0 0 auto;cursor:pointer;font-size:13px}
+.log{white-space:pre-wrap;color:var(--muted);font-size:12px;line-height:1.45;min-height:72px}
+.fileRow{
+  display:flex;justify-content:space-between;gap:10px;
+  padding:8px 10px;border-radius:12px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+  margin-bottom:8px;font-size:12px;
+}
+.fileName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fileKind{color:var(--muted)}
+textarea.mono{
+  width:100%;
+  min-height:220px;
+  resize:vertical;
+  background:var(--panel2);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px;
+  font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (max-width: 1080px){
+  .main{grid-template-columns:1fr}
+  .side{position:static}
+}
+@media (max-width: 640px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .hero input[type="text"]{min-width:100%}
+  .hero .actions{justify-content:flex-start}
+}
+body.embedded-transfer .wrap{display:none!important}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>Shell Transfer</h1>
+        <div class="sub">This page turns a single-root shell package into a self-contained zip. It keeps the shell data at the zip root and includes the folder art and other restored files that belong inside the selected root.</div>
+      </div>
+      <div class="actions">
+        <input id="search" type="text" placeholder="Package token / summary" disabled />
+        <button id="refreshBtn">Reload</button>
+        <button id="buildBtn" class="primary">Build zip</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="panel">
+        <div class="panelHead">
+          <div>
+            <h2 id="title">Loading…</h2>
+            <div class="meta" id="summary">Reading the selected package payload.</div>
+          </div>
+          <div class="meta" id="status"></div>
+        </div>
+        <div class="panelBody">
+          <div class="breadcrumb">
+            <span class="crumb">Token:</span>
+            <span id="token" class="crumb">(none)</span>
+          </div>
+          <div class="card">
+            <div class="k">Planned files</div>
+            <div class="fileList" id="fileList"></div>
+          </div>
+          <div class="card">
+            <div class="k">Manifest</div>
+            <textarea id="manifest" class="mono" readonly></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel side">
+        <div class="panelHead">
+          <div>
+            <h2>Output</h2>
+            <div class="meta">What will be downloaded</div>
+          </div>
+        </div>
+        <div class="panelBody">
+          <div class="card">
+            <div class="k">File count</div>
+            <div class="v" id="count">0</div>
+          </div>
+          <div class="card">
+            <div class="k">Status</div>
+            <div class="log" id="log">Waiting for a payload.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+
+const SOURCE_FILES = {
+  folders: 'mainfolders.js',
+  episodes: 'library.js',
+  loaders: 'loadseasonfunctions.js',
+  music: 'musiclibrary.js'
+};
+
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function safeDecodeText(raw) {
+  const text = String(raw || '').replace(/\+/g, ' ');
+  try { return decodeURIComponent(text); } catch { return text; }
+}
+
+function cleanTitle(raw) {
+  return safeDecodeText(String(raw || '').replace(/\*/g, '').trim());
+}
+
+function compareKey(s) {
+  return String(s || '')
+    .replace(/&amp;/gi, 'and')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, '');
+}
+
+function strictKey(s) {
+  return String(s || '')
+    .replace(/&amp;/gi, 'and')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function looseKey(s) {
+  return String(s || '')
+    .replace(/&amp;/gi, 'and')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function pathKey(path) {
+  return JSON.stringify(Array.isArray(path) ? path : []);
+}
+
+function pathFromKey(key) {
+  try {
+    const parsed = JSON.parse(key);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function pathEquals(a, b) {
+  const left = Array.isArray(a) ? a : [];
+  const right = Array.isArray(b) ? b : [];
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    if (String(left[i]) !== String(right[i])) return false;
+  }
+  return true;
+}
+
+function pathStartsWith(path, prefix) {
+  const full = Array.isArray(path) ? path : [];
+  const head = Array.isArray(prefix) ? prefix : [];
+  if (head.length > full.length) return false;
+  for (let i = 0; i < head.length; i++) {
+    if (String(full[i]) !== String(head[i])) return false;
+  }
+  return true;
+}
+
+function pathIntersectsSelection(path, selectedPaths) {
+  const probe = Array.isArray(path) ? path : [];
+  for (const sel of selectedPaths || []) {
+    if (pathEquals(probe, sel) || pathStartsWith(sel, probe) || pathStartsWith(probe, sel)) return true;
+  }
+  return false;
+}
+
+function unique(arr) {
+  return [...new Set((arr || []).filter(Boolean))];
+}
+
+
+function libStyleSegment(value) {
+  return String(value || '')
+    .replace(/[’']/g, '')
+    .replace(/[*]/g, '')
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pushLibStyleArtworkCandidates(push, rootName, leafName = rootName) {
+  const canonicalRoot = libStyleSegment(rootName);
+  const canonicalLeaf = libStyleSegment(leafName);
+  if (!canonicalRoot) return;
+
+  const exts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+  const add = (prefix, folder, file) => {
+    if (!folder || !file) return;
+    for (const ext of exts) {
+      push(`${prefix}${folder}/${file}.${ext}`);
+    }
+  };
+
+  add('./', canonicalRoot, canonicalRoot);
+  add('./Movies/', canonicalRoot, canonicalRoot);
+
+  for (const ext of exts) {
+    push(`./${canonicalRoot}.${ext}`);
+  }
+
+  if (canonicalLeaf && canonicalLeaf !== canonicalRoot) {
+    add('./', canonicalRoot, canonicalLeaf);
+    add('./Movies/', canonicalRoot, canonicalLeaf);
+    add('./', canonicalLeaf, canonicalLeaf);
+    add('./Movies/', canonicalLeaf, canonicalLeaf);
+    for (const ext of exts) {
+      push(`./${canonicalRoot}/${canonicalLeaf}.${ext}`);
+      push(`./${canonicalLeaf}/${canonicalLeaf}.${ext}`);
+    }
+  }
+}
+
+function encodePathForFetch(path) {
+  const raw = String(path || '').replace(/^\.\//, '');
+  const [pre, query] = raw.split('?');
+  const encoded = pre.split('/').map(seg => encodeURIComponent(seg)).join('/');
+  return query ? `${encoded}?${query}` : encoded;
+}
+
+function resourceCandidates(file) {
+  const raw = String(file || '').replace(/^\.\//, '');
+  return [new URL(encodePathForFetch(raw), new URL('./', window.location.href)).href];
+}
+
+async function fetchTextResource(file) {
+  const urls = resourceCandidates(file);
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return { text: await res.text(), source: url };
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError || new Error(`${file} not found`);
+}
+
+async function fetchBinaryResource(path) {
+  const urls = resourceCandidates(path);
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buf = await res.arrayBuffer();
+      return { bytes: new Uint8Array(buf), source: url };
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError || new Error(`${path} not found`);
+}
+
+function evalVariableSource(txt, varName) {
+  try {
+    const fn = new Function(`${txt}\nreturn (typeof ${varName} !== 'undefined') ? ${varName} : null;`);
+    return fn();
+  } catch (e) {
+    console.warn(`Failed to evaluate ${varName}`, e);
+    return null;
+  }
+}
+
+function getBalancedBlock(text, openIndex) {
+  let depth = 0;
+  let state = 'code';
+  let escaped = false;
+  let regexClass = false;
+  let prevSig = '';
+  const regexStarters = new Set(['(', '[', '{', '=', ':', ';', ',', '!', '?', '+', '-', '*', '%', '&', '|', '^', '~', '<', '>', '\n']);
+
+  for (let i = openIndex; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+
+    if (state === 'lineComment') {
+      if (ch === '\n') state = 'code';
+      continue;
+    }
+    if (state === 'blockComment') {
+      if (ch === '*' && next === '/') {
+        state = 'code';
+        i++;
+      }
+      continue;
+    }
+    if (state === 'singleQuote') {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === "'") state = 'code';
+      continue;
+    }
+    if (state === 'doubleQuote') {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') state = 'code';
+      continue;
+    }
+    if (state === 'template') {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '`') state = 'code';
+      continue;
+    }
+    if (state === 'regex') {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '[') regexClass = true;
+      else if (ch === ']' && regexClass) regexClass = false;
+      else if (ch === '/' && !regexClass) state = 'code';
+      continue;
+    }
+
+    if (ch === '/' && next === '/') { state = 'lineComment'; i++; continue; }
+    if (ch === '/' && next === '*') { state = 'blockComment'; i++; continue; }
+    if (ch === "'") { state = 'singleQuote'; escaped = false; continue; }
+    if (ch === '"') { state = 'doubleQuote'; escaped = false; continue; }
+    if (ch === '`') { state = 'template'; escaped = false; continue; }
+    if (ch === '/' && regexStarters.has(prevSig)) { state = 'regex'; escaped = false; regexClass = false; continue; }
+
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
+
+    if (!/\s/.test(ch)) prevSig = ch;
+  }
+  return -1;
+}
+
+function extractFunctionBlock(text, fnName) {
+  const idx = text.search(new RegExp(`function\\s+${fnName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`));
+  if (idx < 0) return null;
+  const open = text.indexOf('{', idx);
+  if (open < 0) return null;
+  const close = getBalancedBlock(text, open);
+  if (close < 0) return null;
+  return text.slice(idx, close + 1);
+}
+
+function crc32(bytes) {
+  let crc = ~0 >>> 0;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i];
+    for (let k = 0; k < 8; k++) {
+      crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+    }
+  }
+  return (~crc) >>> 0;
+}
+
+function concatBytes(parts) {
+  const arrays = parts.map(p => p instanceof Uint8Array ? p : new Uint8Array(p));
+  const total = arrays.reduce((n, arr) => n + arr.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const arr of arrays) {
+    out.set(arr, offset);
+    offset += arr.length;
+  }
+  return out;
+}
+
+function makeZip(files) {
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (const file of files) {
+    const nameBytes = enc.encode(String(file.name || ''));
+    const raw = file.bytes instanceof Uint8Array
+      ? file.bytes
+      : file.bytes instanceof ArrayBuffer
+        ? new Uint8Array(file.bytes)
+        : enc.encode(String(file.content ?? ''));
+    const dataBytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+    const crc = crc32(dataBytes);
+
+    const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
+    const ldv = new DataView(local.buffer);
+    ldv.setUint32(0, 0x04034b50, true);
+    ldv.setUint16(4, 20, true);
+    ldv.setUint16(6, 0x0800, true);
+    ldv.setUint16(8, 0, true);
+    ldv.setUint16(10, 0, true);
+    ldv.setUint16(12, 0, true);
+    ldv.setUint32(14, crc, true);
+    ldv.setUint32(18, dataBytes.length, true);
+    ldv.setUint32(22, dataBytes.length, true);
+    ldv.setUint16(26, nameBytes.length, true);
+    ldv.setUint16(28, 0, true);
+    local.set(nameBytes, 30);
+    local.set(dataBytes, 30 + nameBytes.length);
+    localParts.push(local);
+
+    const central = new Uint8Array(46 + nameBytes.length);
+    const cdv = new DataView(central.buffer);
+    cdv.setUint32(0, 0x02014b50, true);
+    cdv.setUint16(4, 20, true);
+    cdv.setUint16(6, 20, true);
+    cdv.setUint16(8, 0x0800, true);
+    cdv.setUint16(10, 0, true);
+    cdv.setUint16(12, 0, true);
+    cdv.setUint16(14, 0, true);
+    cdv.setUint32(16, crc, true);
+    cdv.setUint32(20, dataBytes.length, true);
+    cdv.setUint32(24, dataBytes.length, true);
+    cdv.setUint16(28, nameBytes.length, true);
+    cdv.setUint16(30, 0, true);
+    cdv.setUint16(32, 0, true);
+    cdv.setUint16(34, 0, true);
+    cdv.setUint16(36, 0, true);
+    cdv.setUint32(38, 0, true);
+    cdv.setUint32(42, offset, true);
+    central.set(nameBytes, 46);
+    centralParts.push(central);
+
+    offset += local.length;
+  }
+
+  const centralBytes = concatBytes(centralParts);
+  const end = new Uint8Array(22);
+  const edv = new DataView(end.buffer);
+  edv.setUint32(0, 0x06054b50, true);
+  edv.setUint16(4, 0, true);
+  edv.setUint16(6, 0, true);
+  edv.setUint16(8, files.length, true);
+  edv.setUint16(10, files.length, true);
+  edv.setUint32(12, centralBytes.length, true);
+  edv.setUint32(16, offset, true);
+  edv.setUint16(20, 0, true);
+
+  return concatBytes([...localParts, centralBytes, end]);
+}
+
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 1500);
+}
+
+function parseMusicSource(txt) {
+  const genreMap = evalVariableSource(txt, 'musicLibraryGenreMap') || {};
+  const raw = evalVariableSource(txt, 'musicLibrary') || [];
+  const entries = [];
+  for (const line of Array.isArray(raw) ? raw : []) {
+    const s = String(line || '').trim();
+    if (!s) continue;
+    const dollar = s.lastIndexOf('$');
+    const code = dollar >= 0 ? s.slice(dollar + 1).trim() : '';
+    const body = dollar >= 0 ? s.slice(0, dollar).trim() : s;
+    const dash = body.lastIndexOf(' - ');
+    const song = dash >= 0 ? body.slice(0, dash).trim() : body;
+    const artist = dash >= 0 ? body.slice(dash + 3).trim() : 'Unknown Artist';
+    const genreName = String(genreMap[code] || code || 'Unsorted').trim() || 'Unsorted';
+    entries.push({
+      raw: s,
+      song,
+      artist,
+      code,
+      genreName,
+      genreKey: compareKey(genreName),
+      artistKey: compareKey(artist),
+      songKey: compareKey(song)
+    });
+  }
+  const genres = [];
+  const byGenre = new Map();
+  for (const entry of entries) {
+    if (!byGenre.has(entry.genreKey)) {
+      byGenre.set(entry.genreKey, { name: entry.genreName, code: entry.code, artists: new Map(), songs: [] });
+    }
+    const genre = byGenre.get(entry.genreKey);
+    genre.songs.push(entry);
+    if (!genre.artists.has(entry.artistKey)) {
+      genre.artists.set(entry.artistKey, { name: entry.artist, songs: [] });
+    }
+    genre.artists.get(entry.artistKey).songs.push(entry);
+  }
+  for (const g of byGenre.values()) {
+    const artists = [...g.artists.values()].map(a => ({
+      name: a.name,
+      songs: a.songs.slice().sort((x, y) => x.song.localeCompare(y.song, undefined, { numeric: true, sensitivity: 'base' }))
+    })).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+    genres.push({
+      name: g.name,
+      code: g.code,
+      artists,
+      songs: g.songs.slice().sort((x, y) => x.song.localeCompare(y.song, undefined, { numeric: true, sensitivity: 'base' }))
+    });
+  }
+  genres.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  return { genreMap, raw: entries, genres };
+}
+
+
+function loaderDisplayName(fnName) {
+  const raw = String(fnName || '').trim();
+  const cleaned = raw.replace(/^load/i, '').replace(/seasons?$/i, '');
+  return cleaned
+    .replace(/ApOsTrOpHe/g, "'")
+    .replace(/AmPeRsAnD/g, '&')
+    .replace(/PeRiOd/g, '.')
+    .replace(/CoMmA/g, ',')
+    .replace(/ExClAmAtIoN/g, '!')
+    .replace(/HyPhEn/g, '-')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function loaderStrictKey(raw) {
+  return String(raw || '')
+    .replace(/&amp;/gi, 'and')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function tokenParts(raw) {
+  return String(raw || '')
+    .replace(/&amp;/gi, ' and ')
+    .replace(/&/g, ' and ')
+    .replace(/[_/\-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function parseLoaders(txt) {
+  const out = [];
+  const re = /function\s+(load[A-Za-z0-9_]+seasons?)\s*\(\)\s*\{/gi;
+  let m;
+  while ((m = re.exec(txt)) !== null) {
+    const fnName = m[1];
+    const block = extractFunctionBlock(txt, fnName);
+    if (!block) continue;
+    const seasonsMatch = block.match(/const\s+seasons\s*=\s*\[([\s\S]*?)\]\s*;/m);
+    let seasons = [];
+    if (seasonsMatch) {
+      try {
+        seasons = new Function(`return [${seasonsMatch[1]}];`)() || [];
+      } catch (e) {
+        console.warn(`Could not parse seasons for ${fnName}`, e);
+      }
+    }
+    const title = loaderDisplayName(fnName);
+    out.push({
+      fnName,
+      title,
+      key: compareKey(title),
+      strictKey: loaderStrictKey(title),
+      tokens: tokenParts(title),
+      block,
+      seasons
+    });
+  }
+  return out;
+}
+
+let shellTransferState = null;
+
+function getLoaderEntryForTitle(title) {
+  const clean = cleanTitle(title);
+  const key = compareKey(clean);
+  const sKey = strictKey(clean);
+  const loaders = shellTransferState && Array.isArray(shellTransferState.loaders) ? shellTransferState.loaders : [];
+  if (!loaders.length) return null;
+
+  const exact = loaders.find(entry => entry && (entry.key === key || entry.strictKey === sKey || strictKey(entry.title) === sKey || strictKey(entry.fnName) === sKey));
+  if (exact) return exact;
+
+  const byContainment = loaders.filter(entry => {
+    if (!entry) return false;
+    const eKey = entry.strictKey || strictKey(entry.title) || strictKey(entry.fnName);
+    return eKey && (eKey.includes(sKey) || sKey.includes(eKey));
+  }).sort((a, b) => (a.strictKey || strictKey(a.title)).length - (b.strictKey || strictKey(b.title)).length);
+  if (byContainment.length) return byContainment[0];
+
+  const titleTokens = tokenParts(clean);
+  const scored = loaders.map(entry => {
+    const eTokens = Array.isArray(entry.tokens) && entry.tokens.length ? entry.tokens : tokenParts(entry.title || entry.fnName || '');
+    let score = 0;
+    for (const token of titleTokens) if (eTokens.includes(token)) score++;
+    return { entry, score, len: (entry.strictKey || strictKey(entry.title) || '').length };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.len - b.len);
+  return scored.length ? scored[0].entry : null;
+}
+
+function collectLoaderEntriesForSelection(rootPath, selectedPaths = []) {
+  const picked = [];
+  const seen = new Set();
+  const walked = new Set();
+  const rootTitle = cleanTitle((Array.isArray(rootPath) ? rootPath[0] : rootPath) || '');
+  const paths = Array.isArray(selectedPaths) ? selectedPaths.filter(p => Array.isArray(p) && p.length) : [];
+  const payloadHints = Array.isArray(shellTransferState?.payload?.loaderTitles) ? shellTransferState.payload.loaderTitles : [];
+
+  function addEntry(entry) {
+    if (!entry) return;
+    const key = compareKey(entry.title) || compareKey(entry.fnName);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    picked.push(entry);
+  }
+
+  function walkTitle(title) {
+    const entry = getLoaderEntryForTitle(title);
+    if (!entry) return;
+    const walkKey = entry.fnName || compareKey(entry.title) || compareKey(entry.key);
+    if (walkKey && walked.has(walkKey)) return;
+    if (walkKey) walked.add(walkKey);
+    addEntry(entry);
+    for (const childRaw of Array.isArray(entry.seasons) ? entry.seasons : []) {
+      const childTitle = cleanTitle(childRaw);
+      if (!childTitle) continue;
+      if (compareKey(childTitle) === compareKey(title)) continue;
+      walkTitle(childTitle);
+    }
+  }
+
+  function addFromPath(pathParts) {
+    const titles = [];
+    for (const part of pathParts) {
+      const raw = String(part || '');
+      if (!raw) continue;
+      if (raw.startsWith('#')) break;
+      titles.push(cleanTitle(raw));
+    }
+    for (const title of titles) {
+      const entry = getLoaderEntryForTitle(title);
+      if (entry) {
+        addEntry(entry);
+        walkTitle(title);
+      }
+    }
+  }
+
+  if (payloadHints.length) {
+    for (const hint of payloadHints) walkTitle(hint);
+  }
+  if (paths.length) {
+    for (const path of paths) addFromPath(path);
+  } else if (rootTitle) {
+    walkTitle(rootTitle);
+  }
+
+  return picked;
+}
+
+function buildLoaderFile(rootPath, selectedPaths) {
+  const entries = collectLoaderEntriesForSelection(rootPath, selectedPaths);
+  if (!entries.length) return null;
+  const blocks = entries.map(entry => entry.block).join('\n\n');
+  return `/* Generated by shell-transfer.html */
+
+${blocks}
+`;
+}
+
+function pathToString(path) {
+  return Array.isArray(path) ? path.join(' / ') : String(path || '');
+}
+
+
+(() => {
+  const state = {
+    payload: null,
+    busy: false,
+    logLines: [],
+    loaders: [],
+    loaderByTitle: new Map(),
+    loaderByKey: new Map()
+  };
+
+  const pageUrl = new URL(location.href);
+  const autoBuild = ['1', 'true', 'yes', 'on'].includes(String(pageUrl.searchParams.get('auto') || pageUrl.searchParams.get('autobuild') || '').toLowerCase());
+  const embedded = ['1', 'true', 'yes', 'on'].includes(String(pageUrl.searchParams.get('embed') || '').toLowerCase());
+  if (embedded && document.body) document.body.classList.add('embedded-shell');
+
+  shellTransferState = state;
+
+  const el = {
+    token: document.getElementById('token'),
+    title: document.getElementById('title'),
+    summary: document.getElementById('summary'),
+    fileList: document.getElementById('fileList'),
+    buildBtn: document.getElementById('buildBtn'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    log: document.getElementById('log'),
+    count: document.getElementById('count'),
+    status: document.getElementById('status'),
+    manifest: document.getElementById('manifest')
+  };
+
+  function log(msg) {
+    state.logLines.push(String(msg || ''));
+    el.log.textContent = state.logLines.join('\n');
+  }
+
+  function setStatus(msg) {
+    el.status.textContent = String(msg || '');
+  }
+
+  function notifyParent(message) {
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(message, '*');
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
+  function selectedRootPath() {
+    if (!state.payload) return [];
+    return Array.isArray(state.payload.rootPath) ? state.payload.rootPath.slice() : [state.payload.rootTitle].filter(Boolean);
+  }
+
+  function selectedPaths() {
+    if (!state.payload) return [];
+    return (state.payload.selectedPaths || []).map(pathFromKey).filter(p => Array.isArray(p) && p.length);
+  }
+
+  function pathWithinRoot(path, root = selectedRootPath()) {
+    return pathStartsWith(path, root) || pathStartsWith(root, path);
+  }
+
+  function rootTitle() {
+    const p = selectedRootPath();
+    return String(p[0] || state.payload?.rootTitle || '').trim();
+  }
+
+  async function readPayload() {
+    const url = new URL(location.href);
+    const token = url.searchParams.get('token');
+    el.token.textContent = token || '(none)';
+    if (!token) return null;
+    try {
+      const raw = localStorage.getItem(token);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.warn(e);
+      return null;
+    }
+  }
+
+  function describePayload(payload) {
+    if (!payload) return 'No package payload found.';
+    const parts = [];
+    parts.push(`Section: ${payload.section || 'video'}`);
+    parts.push(`Root: ${pathToString(payload.rootPath || [payload.rootTitle])}`);
+    parts.push(`Selected nodes: ${(payload.selectedPaths || []).length}`);
+    parts.push(`Created: ${payload.createdAt || ''}`);
+    return parts.join('\n');
+  }
+
+  function summarizeFileList(files) {
+    el.fileList.innerHTML = '';
+    for (const file of files) {
+      const row = document.createElement('div');
+      row.className = 'fileRow';
+      const a = document.createElement('div');
+      a.className = 'fileName';
+      a.textContent = file.name;
+      const b = document.createElement('div');
+      b.className = 'fileKind';
+      b.textContent = file.kind || 'data';
+      row.appendChild(a);
+      row.appendChild(b);
+      el.fileList.appendChild(row);
+    }
+    el.count.textContent = String(files.length);
+  }
+
+  function buildManifest(files) {
+    return {
+      version: 1,
+      createdAt: new Date().toISOString(),
+      sourcePage: state.payload?.sourcePage || 'share-shell.html',
+      payload: state.payload,
+      files: files.map(f => ({ name: f.name, kind: f.kind || 'data' }))
+    };
+  }
+
+  function normalizeZipEntryName(name) {
+    const cleaned = String(name || '').replace(/^\/+/, '');
+    return cleaned.split('/').filter(Boolean).map(part => safeDecodeText(part)).join('/');
+  }
+
+  function addDirectoryEntries(fileMap, fileName) {
+    const parts = String(fileName || '').split('/').filter(Boolean);
+    if (!parts.length) return;
+    for (let i = 1; i < parts.length; i++) {
+      const dir = parts.slice(0, i).join('/') + '/';
+      if (!fileMap.has(dir)) fileMap.set(dir, { name: dir, content: '', kind: 'dir' });
+    }
+  }
+
+  function pushText(fileMap, name, content, kind = 'data') {
+    const cleanName = normalizeZipEntryName(name);
+    addDirectoryEntries(fileMap, cleanName);
+    fileMap.set(cleanName, { name: cleanName, content: String(content ?? ''), kind });
+  }
+
+  function pushBytes(fileMap, name, bytes, kind = 'asset') {
+    const cleanName = normalizeZipEntryName(name);
+    addDirectoryEntries(fileMap, cleanName);
+    fileMap.set(cleanName, { name: cleanName, bytes: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), kind });
+  }
+
+  async function addFileFromUrl(fileMap, targetName, sourcePath, kind = 'asset') {
+    try {
+      const { bytes } = await fetchBinaryResource(sourcePath);
+      pushBytes(fileMap, targetName, bytes, kind);
+      return true;
+    } catch (e) {
+      log(`Missing ${sourcePath}`);
+      return false;
+    }
+  }
+
+  function collectVideoOutput(rootPath, selectedPaths, sourceMap) {
+    const rootTitle = cleanTitle(rootPath[0] || '');
+    const outputFolders = [rootTitle];
+    const outputEpisodes = {};
+    const assetPaths = new Set();
+    const selected = selectedPaths.filter(p => pathWithinRoot(p, rootPath));
+    const selectAll = !selected.length;
+
+    function getSource(title) {
+      const key = cleanTitle(title);
+      const direct = sourceMap.episodes[key] || sourceMap.episodes[title] || sourceMap.episodes[compareKey(key)];
+      return Array.isArray(direct) ? direct : null;
+    }
+
+    function shouldKeep(path) {
+      if (selectAll) return true;
+      return selected.some(sel => pathIntersectsSelection(path, [sel]));
+    }
+
+    function includeNode(title, path) {
+      const src = getSource(title);
+      if (!Array.isArray(src)) return;
+
+      if (src.every(v => typeof v === 'string')) {
+        const kept = [];
+        for (const child of src) {
+          const childTitle = cleanTitle(child);
+          const childPath = path.concat([childTitle]);
+          if (shouldKeep(childPath)) {
+            kept.push(childTitle);
+            includeNode(childTitle, childPath);
+          }
+        }
+        if (path.length === 1 || kept.length || shouldKeep(path)) {
+          outputEpisodes[title] = selectAll && path.length === 1 ? src.slice() : (kept.length ? kept : src.slice());
+        }
+      } else {
+        outputEpisodes[title] = JSON.parse(JSON.stringify(src));
+      }
+    }
+
+    includeNode(rootTitle, [rootTitle]);
+
+    function gatherAssetsForTitle(title, path) {
+      const src = getSource(title);
+      const candidates = buildVideoImageCandidates({ title, path });
+      for (const c of candidates) assetPaths.add(c);
+      if (!Array.isArray(src)) return;
+      if (!src.every(v => typeof v === 'string')) return;
+      for (const child of src) {
+        const childTitle = cleanTitle(child);
+        const childPath = path.concat([childTitle]);
+        if (shouldKeep(childPath)) gatherAssetsForTitle(childTitle, childPath);
+      }
+    }
+
+    gatherAssetsForTitle(rootTitle, [rootTitle]);
+
+    return { outputFolders, outputEpisodes, assetPaths: [...assetPaths] };
+  }
+
+  function buildVideoImageCandidates(nodeOrTitle) {
+    const sourceNode = nodeOrTitle && typeof nodeOrTitle === 'object' ? nodeOrTitle : null;
+    const folderName = cleanTitle(sourceNode ? (sourceNode.title || sourceNode.name || '') : nodeOrTitle);
+    const pathParts = Array.isArray(sourceNode && sourceNode.path) ? sourceNode.path.map(cleanTitle).filter(Boolean) : [];
+    const candidates = [];
+    const push = (u) => {
+      const enc = encodeLocalPath(u);
+      if (enc && !candidates.includes(enc)) candidates.push(enc);
+    };
+
+    function variantsForName(name) {
+      const base = String(name || '').trim();
+      if (!base) return [];
+      const noApos = base.replace(/[’']/g, '');
+      const noSpace = base.replace(/\s+/g, '');
+      return unique([base, noApos, noSpace, noApos.replace(/\s+/g, '')].filter(Boolean));
+    }
+
+    const variants = variantsForName(folderName);
+    const rootName = pathParts[0] || folderName;
+    const leafName = pathParts[pathParts.length - 1] || folderName;
+    const parentName = pathParts.slice(0, -1).join('/');
+
+    if (sourceNode && sourceNode.item) {
+      push(sourceNode.item.img);
+      push(sourceNode.item.image);
+      push(sourceNode.item.cover);
+    }
+
+    pushLibStyleArtworkCandidates(push, rootName, leafName);
+
+    for (const v of variants) {
+      const noSpace = v.replace(/\s+/g, '');
+      push(encodeLocalPath(`./Movies/${v}/${v}.jpg`));
+      push(encodeLocalPath(`./Movies/${v}/${noSpace}.jpg`));
+      push(encodeLocalPath(`./Movies/${v}.jpg`));
+      push(encodeLocalPath(`./${v}/${v}.jpg`));
+      push(encodeLocalPath(`./${v}.jpg`));
+    }
+
+    if (rootName && leafName && rootName !== leafName) {
+      for (const rv of variantsForName(rootName)) {
+        for (const lv of variantsForName(leafName)) {
+          const lvNoSpace = lv.replace(/\s+/g, '');
+          push(`./Movies/${rv}/${lv}.jpg`);
+          push(`./Movies/${rv}/${lvNoSpace}.jpg`);
+          push(`./Movies/${rv}/${lv}/${lv}.jpg`);
+          push(`./Movies/${rv}/${lv}/${lvNoSpace}.jpg`);
+          push(`./Movies/${rv}.jpg`);
+          push(`./${rv}/${lv}.jpg`);
+          push(`./${rv}/${lv}/${lv}.jpg`);
+        }
+      }
+    }
+
+    if (parentName && leafName) {
+      for (const lv of variantsForName(leafName)) {
+        const lvNoSpace = lv.replace(/\s+/g, '');
+        push(`./Movies/${parentName}/${lv}.jpg`);
+        push(`./Movies/${parentName}/${lvNoSpace}.jpg`);
+        push(`./Movies/${parentName}/${lv}/${lv}.jpg`);
+        push(`./Movies/${parentName}/${lv}/${lvNoSpace}.jpg`);
+        push(`./${parentName}/${lv}.jpg`);
+        push(`./${parentName}/${lv}/${lv}.jpg`);
+        push(`./${parentName}/${lv}/${lvNoSpace}.jpg`);
+      }
+    }
+
+    return candidates;
+  }
+
+  function collectMusicOutput(rootPath, selectedPaths, source) {
+    const rootTitle = cleanTitle(rootPath[0] || '');
+    const rootKey = compareKey(rootTitle);
+    const selected = selectedPaths.filter(p => pathWithinRoot(p, rootPath));
+    const includeAll = !selected.length;
+    const outEntries = [];
+    const usedCodes = new Set();
+    const usedArtists = new Set();
+
+    for (const genre of source.genres) {
+      if (compareKey(genre.name) !== rootKey) continue;
+      for (const artist of genre.artists) {
+        for (const song of artist.songs) {
+          const songPath = [genre.name, artist.name, song.song];
+          const artistPath = [genre.name, artist.name];
+          const genrePath = [genre.name];
+          const keep = includeAll || selected.some(sel => pathIntersectsSelection(songPath, [sel]) || pathIntersectsSelection(artistPath, [sel]) || pathIntersectsSelection(genrePath, [sel]));
+          if (!keep) continue;
+          outEntries.push(`${song.song} - ${song.artist}$${song.code || genre.code || ''}`);
+          if (song.code) usedCodes.add(String(song.code).trim());
+          usedArtists.add(song.artist);
+        }
+      }
+    }
+
+    const genreMapOut = {};
+    for (const code of usedCodes) {
+      if (Object.prototype.hasOwnProperty.call(source.genreMap, code)) genreMapOut[code] = source.genreMap[code];
+    }
+    if (!Object.keys(genreMapOut).length) {
+      for (const [k, v] of Object.entries(source.genreMap || {})) genreMapOut[k] = v;
+    }
+
+    return { genreMapOut, outEntries, usedArtists: [...usedArtists] };
+  }
+
+  function encodeLocalPath(path) {
+    return String(path || '')
+      .split('/')
+      .map(part => {
+        if (!part || part === '.' || part === '..') return part;
+        return encodeURIComponent(part);
+      })
+      .join('/');
+  }
+
+  function musicImageCandidates(artist) {
+    const variants = unique([
+      artist,
+      artist.replace(/[’']/g, ''),
+      artist.replace(/\s+/g, ''),
+      artist.replace(/[’']/g, '').replace(/\s+/g, '')
+    ].map(v => String(v || '').trim()).filter(Boolean));
+    const out = [];
+    for (const v of variants) {
+      out.push(encodeLocalPath(`./Music/${v}.jpg`));
+      out.push(encodeLocalPath(`./Music/${v}.png`));
+      out.push(encodeLocalPath(`./Music/${v}.webp`));
+      out.push(encodeLocalPath(`./Music/Images/${v}.jpg`));
+      out.push(encodeLocalPath(`./Music/Images/${v}.png`));
+    }
+    return unique(out);
+  }
+
+  function buildManifest(files) {
+    return {
+      version: 1,
+      createdAt: new Date().toISOString(),
+      sourcePage: state.payload?.sourcePage || 'share-shell.html',
+      payload: state.payload,
+      files: files.map(f => ({ name: f.name, kind: f.kind || 'data' }))
+    };
+  }
+
+  function normalizeZipEntryName(name) {
+    const cleaned = String(name || '').replace(/^\/+/, '');
+    return cleaned.split('/').filter(Boolean).map(part => safeDecodeText(part)).join('/');
+  }
+
+  function addDirectoryEntries(fileMap, fileName) {
+    const parts = String(fileName || '').split('/').filter(Boolean);
+    if (!parts.length) return;
+    for (let i = 1; i < parts.length; i++) {
+      const dir = parts.slice(0, i).join('/') + '/';
+      if (!fileMap.has(dir)) fileMap.set(dir, { name: dir, content: '', kind: 'dir' });
+    }
+  }
+
+  function pushText(fileMap, name, content, kind = 'data') {
+    const cleanName = normalizeZipEntryName(name);
+    addDirectoryEntries(fileMap, cleanName);
+    fileMap.set(cleanName, { name: cleanName, content: String(content ?? ''), kind });
+  }
+
+  function pushBytes(fileMap, name, bytes, kind = 'asset') {
+    const cleanName = normalizeZipEntryName(name);
+    addDirectoryEntries(fileMap, cleanName);
+    fileMap.set(cleanName, { name: cleanName, bytes: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), kind });
+  }
+
+  function summarizeFileList(files) {
+    el.fileList.innerHTML = '';
+    for (const file of files) {
+      const row = document.createElement('div');
+      row.className = 'fileRow';
+      const a = document.createElement('div');
+      a.className = 'fileName';
+      a.textContent = file.name;
+      const b = document.createElement('div');
+      b.className = 'fileKind';
+      b.textContent = file.kind || 'data';
+      row.appendChild(a);
+      row.appendChild(b);
+      el.fileList.appendChild(row);
+    }
+    el.count.textContent = String(files.length);
+  }
+
+  async function buildPackage() {
+    if (!state.payload) throw new Error('No package payload loaded.');
+    if (state.busy) return;
+    state.busy = true;
+    el.buildBtn.disabled = true;
+    setStatus('Building package…');
+    log('Loading source files…');
+
+    try {
+      const section = String(state.payload.section || 'video');
+      const rootPath = selectedRootPath();
+      const selected = selectedPaths();
+      const [foldersTxt, episodesTxt, loadersTxt, musicTxt] = await Promise.all([
+        fetchTextResource(SOURCE_FILES.folders).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.episodes).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.loaders).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.music).then(r => r.text)
+      ]);
+
+      const videoSource = {
+        folders: Array.isArray(evalVariableSource(foldersTxt, 'folders')) ? evalVariableSource(foldersTxt, 'folders') : [],
+        episodes: evalVariableSource(episodesTxt, 'episodes') && typeof evalVariableSource(episodesTxt, 'episodes') === 'object' ? evalVariableSource(episodesTxt, 'episodes') : {}
+      };
+      const musicSource = parseMusicSource(musicTxt || '');
+      state.loaders = parseLoaders(loadersTxt || '');
+      state.loaderByTitle = new Map(state.loaders.map(entry => [compareKey(entry.title), entry]));
+      state.loaderByKey = new Map(state.loaders.map(entry => [entry.key, entry]));
+      const fileMap = new Map();
+
+      if (section === 'music') {
+        const out = collectMusicOutput(rootPath, selected, musicSource);
+        pushText(fileMap, 'mainfolders.js', `/* Generated by shell-transfer.html */\n\nconst folders = ${JSON.stringify([rootTitle()], null, 2)};\n`, 'mainfolders');
+        pushText(fileMap, 'musiclibrary.js', `/* Generated by shell-transfer.html */\n\nwindow.musicLibraryGenreMap = ${JSON.stringify(out.genreMapOut, null, 2)};\n\nwindow.musicLibrary = ${JSON.stringify(out.outEntries, null, 2)};\n`, 'music');
+
+        for (const artist of out.usedArtists) {
+          let saved = false;
+          for (const candidate of musicImageCandidates(artist)) {
+            try {
+              const { bytes } = await fetchBinaryResource(candidate);
+              pushBytes(fileMap, `Music/${artist}.jpg`, bytes, 'music-art');
+              saved = true;
+              break;
+            } catch {}
+          }
+          if (!saved) log(`Missing music art for ${artist}`);
+        }
+      } else {
+        const out = collectVideoOutput(rootPath, selected, videoSource);
+        pushText(fileMap, 'mainfolders.js', `/* Generated by shell-transfer.html */\n\nconst folders = ${JSON.stringify(out.outputFolders, null, 2)};\n`, 'mainfolders');
+        pushText(fileMap, 'library.js', `/* Generated by shell-transfer.html */\n\nconst episodes = ${JSON.stringify(out.outputEpisodes, null, 2)};\n`, 'library');
+        const loaderText = buildLoaderFile(rootPath, selected);
+        if (loaderText) {
+          pushText(fileMap, 'loadseasonfunctions.js', loaderText, 'loaders');
+        } else if (String(state.payload?.section || 'video') === 'video') {
+          pushText(fileMap, 'loadseasonfunctions.js', loadersTxt || '/* Generated by shell-transfer.html */\n\n', 'loaders');
+          log('No loader match found; included the source loadseasonfunctions.js unchanged so the package stays complete.');
+        }
+        for (const assetPath of out.assetPaths) {
+          try {
+            const { bytes } = await fetchBinaryResource(assetPath);
+            pushBytes(fileMap, assetPath.replace(/^\.\//, ''), bytes, 'asset');
+          } catch {}
+        }
+      }
+
+      const files = [...fileMap.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      const manifest = buildManifest(files);
+      pushText(fileMap, 'shell-manifest.json', JSON.stringify(manifest, null, 2), 'manifest');
+
+      const finalFiles = [...fileMap.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      summarizeFileList(finalFiles);
+      el.summary.textContent = describePayload(state.payload);
+      el.manifest.value = JSON.stringify(manifest, null, 2);
+      log(`Package built: ${finalFiles.length} file(s).`);
+
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const zipName = `shell_${section}_${rootTitle().replace(/[^a-z0-9]+/gi, '_')}_${stamp}.zip`;
+      const zipBytes = makeZip(finalFiles);
+      const blob = new Blob([zipBytes], { type: 'application/zip' });
+      downloadBlob(zipName, blob);
+      setStatus(`Downloaded ${zipName}`);
+      notifyParent({ type: 'shell-transfer-complete', ok: true, zipName, token: el.token.textContent || '' });
+    } catch (e) {
+      console.error(e);
+      setStatus('Build failed');
+      log(`Build failed: ${e && e.message ? e.message : e}`);
+      notifyParent({ type: 'shell-transfer-complete', ok: false, error: e && e.message ? e.message : String(e), token: el.token.textContent || '' });
+    } finally {
+      state.busy = false;
+      el.buildBtn.disabled = false;
+    }
+  }
+
+  async function loadPayload() {
+    const url = new URL(location.href);
+    const token = url.searchParams.get('token');
+    el.token.textContent = token || '(none)';
+    const raw = token ? localStorage.getItem(token) : null;
+    if (!raw) {
+      state.payload = null;
+      el.title.textContent = 'No package payload';
+      el.summary.textContent = 'Open this page from share-shell.html.';
+      el.buildBtn.disabled = true;
+      el.manifest.value = '{}';
+      summarizeFileList([]);
+      return;
+    }
+    try {
+      state.payload = JSON.parse(raw);
+    } catch (e) {
+      state.payload = null;
+    }
+    el.title.textContent = state.payload ? `${state.payload.section || 'video'} package` : 'Invalid package';
+    el.summary.textContent = describePayload(state.payload);
+    el.buildBtn.disabled = !state.payload;
+    el.manifest.value = state.payload ? JSON.stringify(state.payload, null, 2) : '{}';
+    summarizeFileList(state.payload && state.payload.section === 'music' ? [
+      { name: 'mainfolders.js', kind: 'mainfolders' },
+      { name: 'musiclibrary.js', kind: 'music' }
+    ] : [
+      { name: 'mainfolders.js', kind: 'mainfolders' },
+      { name: 'library.js', kind: 'library' },
+      { name: 'loadseasonfunctions.js', kind: 'loaders' }
+    ]);
+    if (state.payload) {
+      log(`Loaded package payload for ${pathToString(state.payload.rootPath || [state.payload.rootTitle])}.`);
+      notifyParent({ type: 'shell-transfer-ready', ok: true, token: el.token.textContent || '', pathText: pathToString(state.payload.rootPath || [state.payload.rootTitle]) });
+      if (autoBuild && !state.busy) {
+        queueMicrotask(() => {
+          if (!state.busy && state.payload) buildPackage();
+        });
+      }
+    }
+  }
+
+  el.buildBtn.onclick = buildPackage;
+  el.refreshBtn.onclick = loadPayload;
+
+  loadPayload();
+})();
+
+</script>
+</body>
+</html>

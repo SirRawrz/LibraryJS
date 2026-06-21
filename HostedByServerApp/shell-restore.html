@@ -1,0 +1,1289 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shell Restore</title>
+  <style>
+    :root{
+      --bg:#0d1219; --panel:#121a27; --panel2:#0f1622; --line:rgba(255,255,255,.08);
+      --text:#eef4ff; --muted:#98a6c1; --accent:#7fe0c4; --warn:#ffb36b; --danger:#ff7f8b;
+      --radius:18px; --shadow:0 22px 60px rgba(0,0,0,.34);
+    }
+    *{box-sizing:border-box}
+    body{margin:0; min-height:100vh; background:radial-gradient(circle at top left, rgba(127,224,196,.08), transparent 24%), radial-gradient(circle at top right, rgba(141,180,255,.08), transparent 24%), var(--bg); color:var(--text); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+    .wrap{max-width:1440px; margin:0 auto; padding:16px}
+    .topbar,.panel{background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.016)); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);}
+    .topbar{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; padding:16px 18px; margin-bottom:16px}
+    .titleBlock{flex:1 1 560px; min-width:280px}
+    h1{margin:0; font-size:25px; letter-spacing:-.03em}
+    .sub{margin-top:6px; color:var(--muted); font-size:13px; line-height:1.45; max-width:1080px}
+    .controls{display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end; align-items:center; flex:1 1 440px}
+    input[type="file"], button{border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.06); color:var(--text); font:inherit; padding:11px 14px}
+    input[type="file"]{padding:9px 12px; min-width:240px}
+    button{cursor:pointer; font-weight:800}
+    button.primary{background:linear-gradient(180deg, rgba(127,224,196,1), rgba(90,198,164,1)); color:#07110e; border-color:transparent}
+    button:disabled{opacity:.45; cursor:not-allowed}
+    .main{display:grid; grid-template-columns:minmax(0,1.15fr) 380px; gap:16px; align-items:start}
+    .panelHead{padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.02); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap}
+    .panelHead h2{margin:0; font-size:16px}
+    .panelHead .meta,.small,.k{color:var(--muted)}
+    .panelBody{padding:16px}
+    .drop{display:flex; align-items:center; justify-content:center; text-align:center; min-height:130px; border:1.5px dashed rgba(255,255,255,.16); border-radius:16px; background:rgba(255,255,255,.02); color:var(--muted); padding:16px}
+    .drop strong{color:var(--text)}
+    .drop.drag{border-color:rgba(127,224,196,.5); background:rgba(127,224,196,.06); color:#effff9}
+    .grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px}
+    .card{background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:16px; padding:14px}
+    .v{font-size:18px; font-weight:900; letter-spacing:-.02em}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; line-height:1.5; white-space:pre-wrap; background:var(--panel2); border:1px solid var(--line); border-radius:16px; padding:12px; max-height:420px; overflow:auto}
+    .pillRow{display:flex; flex-wrap:wrap; gap:8px}
+    .pill{display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.04); font-size:12px}
+    .pill.ok{border-color:rgba(127,224,196,.18); background:rgba(127,224,196,.08)}
+    .pill.warn{border-color:rgba(255,179,107,.18); background:rgba(255,179,107,.08)}
+    .pill.err{border-color:rgba(255,127,139,.18); background:rgba(255,127,139,.08)}
+    .files{display:grid; gap:8px; max-height:320px; overflow:auto; padding-right:4px}
+    .fileItem{display:flex; justify-content:space-between; gap:12px; align-items:center; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.03); border:1px solid var(--line); font-size:12px}
+    .fileItem .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+    .fileItem .kind{color:var(--muted); flex:0 0 auto}
+    .statusBox{margin-top:14px; padding:14px; border-radius:16px; border:1px solid rgba(127,224,196,.18); background:rgba(127,224,196,.08); color:#e8fff6; line-height:1.45; font-size:13px}
+    .statusBox.warn{border-color:rgba(255,179,107,.25); background:rgba(255,179,107,.09); color:#fff0dc}
+    .statusBox.error{border-color:rgba(255,127,139,.25); background:rgba(255,127,139,.08); color:#ffe3e7}
+    .progressOuter{width:100%; height:12px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; border:1px solid rgba(255,255,255,.06)}
+    .progressInner{width:0%; height:100%; background:linear-gradient(90deg, rgba(127,224,196,1), rgba(141,180,255,1)); transition:width .2s ease}
+
+.progressCard{margin-top:12px}
+body.autoCompact .topbar{display:none!important}
+body.autoCompact .panelHead{display:none!important}
+body.autoCompact .wrap{max-width:1600px;padding:10px}
+body.autoCompact .main{grid-template-columns:minmax(0,1fr)!important}
+body.autoCompact .panelBody{padding:12px}
+body.autoCompact .expandedOnly{display:none!important}
+body.autoCompact .archivePanel{display:none!important}
+    @media (max-width:1080px){ .main{grid-template-columns:1fr} .controls{justify-content:flex-start} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="titleBlock">
+        <h1>Shell Restore</h1>
+        <div class="sub">
+          Merge shell packages onto the current server origin. This page is shell-only: it restores <span class="mono">mainfolders.js</span>, <span class="mono">library.js</span>, <span class="mono">loadseasonfunctions.js</span>, and bundled shell assets into the same server that is serving this page.
+          The <span class="mono">auto</span> flag only means “continue after the archive has been scanned.”
+        </div>
+      </div>
+      <div class="controls">
+        <input id="zipFile" type="file" accept=".zip,application/zip" />
+        <button id="scanBtn">Scan shell zip</button>
+        <button id="startBtn" class="primary" disabled>Start shell restore</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="panel archivePanel">
+        <div class="panelHead">
+          <div>
+            <h2>Shell package</h2>
+            <div class="meta">Merge-only lane for <span class="mono">shell-manifest.json</span> archives</div>
+          </div>
+          <div class="meta" id="autoMeta">Auto: off</div>
+        </div>
+        <div class="panelBody">
+          <div id="dropZone" class="drop expandedOnly"><div><strong>Drop a shell zip here</strong><br/>or choose one with the file picker above.</div></div>
+
+          <div id="shellStatus" class="statusBox warn expandedOnly">Waiting for a shell archive.</div>
+          <div class="card" style="margin-top:12px">
+            <div class="k">Progress</div>
+            <div class="progressOuter" style="margin-top:10px"><div class="progressInner" id="progressInner"></div></div>
+            <div class="small" id="progressText" style="margin-top:8px">Idle.</div>
+          </div>
+
+          <div class="grid expandedOnly">
+            <div class="card">
+              <div class="k">Mode</div>
+              <div class="v" id="modeText">Shell</div>
+              <div class="small">Server content can restore in <span class="mono" id="modeDesc">merge</span> or <span class="mono">replace</span> mode. Profile restore is not exposed here.</div>
+            </div>
+            <div class="card">
+              <div class="k">Target</div>
+              <div class="v mono" id="targetText">current origin</div>
+              <div class="small">Uploads go back to the server currently serving this page.</div>
+            </div>
+            <div class="card">
+              <div class="k">Shell title</div>
+              <div class="v" id="titleText">—</div>
+              <div class="small">Loaded from <span class="mono">shell-manifest.json</span>.</div>
+            </div>
+            <div class="card">
+              <div class="k">Contents</div>
+              <div class="v" id="countText">0 files</div>
+              <div class="small" id="countSub">0 JS, 0 assets, 0 directories, 0 other</div>
+            </div>
+          </div>
+
+          <div class="card expandedOnly" style="margin-top:12px">
+            <div class="k">Merge plan</div>
+            <div class="small" style="margin-top:10px; line-height:1.55">
+              <div><span class="mono">mainfolders.js</span> → merge unique folders</div>
+              <div><span class="mono">library.js</span> → merge season / episode trees</div>
+              <div><span class="mono">loadseasonfunctions.js</span> → merge matching loader functions and append new ones</div>
+              <div><span class="mono">assets</span> → upload to identical paths</div>
+            </div>
+          </div>
+
+          <div class="card expandedOnly" style="margin-top:12px">
+            <div class="k">Manifest summary</div>
+            <div class="small" id="manifestText" style="margin-top:10px; line-height:1.5">Confirmation that the archive is a shell package.</div>
+          </div>
+
+          <div class="card expandedOnly" style="margin-top:12px">
+            <div class="k">Log</div>
+            <div class="log" id="log" style="margin-top:10px">Waiting for a zip archive.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panelHead">
+          <div>
+            <h2>Archive contents</h2>
+            <div class="meta">What will be merged into the current origin</div>
+          </div>
+        </div>
+        <div class="panelBody">
+          <div class="pillRow" style="margin-bottom:12px">
+            <div class="pill ok">Shell-only</div>
+            <div class="pill" id="autoPill">Auto handoff: off</div>
+          </div>
+          <div class="files" id="files"></div>
+          <div class="card" style="margin-top:12px">
+            <div class="k">Progress</div>
+            <div class="progressOuter" style="margin-top:10px"><div class="progressInner" id="progressInner"></div></div>
+            <div class="small" id="progressText" style="margin-top:8px">Idle.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  const autoHandoff = params.get('auto') === '1' || params.get('auto') === 'true' || params.has('auto');
+  const contentModeParam = String(params.get('contentMode') || params.get('mode') || 'merge').toLowerCase();
+  const restoreMode = contentModeParam === 'replace' ? 'replace' : 'merge';
+  const currentOrigin = location.origin === 'null' ? '' : location.origin.replace(/\/$/, '');
+
+  const el = {
+    zipFile: document.getElementById('zipFile'),
+    scanBtn: document.getElementById('scanBtn'),
+    startBtn: document.getElementById('startBtn'),
+    autoMeta: document.getElementById('autoMeta'),
+    autoPill: document.getElementById('autoPill'),
+    dropZone: document.getElementById('dropZone'),
+    shellStatus: document.getElementById('shellStatus'),
+    modeText: document.getElementById('modeText'),
+    targetText: document.getElementById('targetText'),
+    modeDesc: document.getElementById('modeDesc'),
+    titleText: document.getElementById('titleText'),
+    countText: document.getElementById('countText'),
+    countSub: document.getElementById('countSub'),
+    manifestText: document.getElementById('manifestText'),
+    files: document.getElementById('files'),
+    log: document.getElementById('log'),
+    progressInner: document.getElementById('progressInner'),
+    progressText: document.getElementById('progressText')
+  };
+
+  const state = {
+    file: null,
+    entries: [],
+    manifest: null,
+    archiveFiles: new Map(),
+    archiveTexts: new Map(),
+    busy: false,
+    logLines: [],
+    auto: autoHandoff
+  };
+
+  el.autoMeta.textContent = `Auto: ${state.auto ? 'on' : 'off'}`;
+  el.autoPill.textContent = `Auto handoff: ${state.auto ? 'on' : 'off'}`;
+  if (state.auto) document.body.classList.add('autoCompact');
+  el.targetText.textContent = currentOrigin || 'current origin';
+  el.modeText.textContent = restoreMode === 'replace' ? 'Replace' : 'Merge';
+  if (el.modeDesc) el.modeDesc.textContent = restoreMode;
+
+  function emitFlowMessage(type, payload = {}) {
+    try {
+      if (!window.parent || window.parent === window) return;
+      window.parent.postMessage({ flow: 'restore', lane: 'content', type, ...payload }, location.origin);
+    } catch {}
+  }
+
+  function log(msg, reset = false) {
+    const text = String(msg || '').trim();
+    if (!text) return;
+    if (reset) {
+      state.logLines = [];
+      el.log.textContent = '';
+    }
+    const stamp = new Date().toLocaleTimeString([], { hour12: false });
+    state.logLines.push(`[${stamp}] ${text}`);
+    if (state.logLines.length > 200) state.logLines.splice(0, state.logLines.length - 200);
+    el.log.textContent = state.logLines.join('\n');
+    el.log.scrollTop = el.log.scrollHeight;
+  }
+
+  function setStatus(text, kind='warn') {
+    el.shellStatus.className = `statusBox ${kind}`;
+    el.shellStatus.textContent = text;
+  }
+
+  function setProgress(done, total, label='') {
+    const pct = total ? Math.max(0, Math.min(100, (done / total) * 100)) : 0;
+    el.progressInner.style.width = `${pct}%`;
+    el.progressText.textContent = label ? `${label} (${done}/${total})` : `${done}/${total}`;
+    emitFlowMessage('libraryjs-flow-progress', {
+      status: el.progressText.textContent,
+      message: el.progressText.textContent,
+      done,
+      total,
+      label
+    });
+  }
+
+  function normalizePath(input) {
+    return String(input || '').replace(/\\/g, '/').replace(/^\.\/+/, '').replace(/^\/+/, '').split(/[?#]/)[0];
+  }
+
+  function archivePathKey(input) {
+    return normalizePath(input).toLowerCase();
+  }
+
+  function isTextLike(name) {
+    return /\.(js|json|txt|html|css|m3u8|vtt|srt|xml)$/i.test(name);
+  }
+
+  async function readArrayBuffer(file) {
+    return await file.arrayBuffer();
+  }
+
+  function readU16(view, off) { return view.getUint16(off, true); }
+  function readU32(view, off) { return view.getUint32(off, true); }
+
+  async function inflateRaw(bytes) {
+    if (typeof DecompressionStream !== 'undefined') {
+      const ds = new DecompressionStream('deflate-raw');
+      const stream = new Blob([bytes]).stream().pipeThrough(ds);
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    throw new Error('Deflate compression is not supported in this browser.');
+  }
+
+  async function parseZip(file) {
+    const buf = await readArrayBuffer(file);
+    const bytes = new Uint8Array(buf);
+    const view = new DataView(buf);
+    let eocd = -1;
+    for (let i = bytes.length - 22; i >= 0; i--) {
+      if (readU32(view, i) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('Could not find ZIP end-of-central-directory record.');
+
+    const entryCount = readU16(view, eocd + 10);
+    const centralOffset = readU32(view, eocd + 16);
+    const entries = [];
+    let ptr = centralOffset;
+
+    for (let n = 0; n < entryCount; n++) {
+      if (readU32(view, ptr) !== 0x02014b50) throw new Error('Invalid ZIP central directory signature.');
+      const method = readU16(view, ptr + 10);
+      const compressedSize = readU32(view, ptr + 20);
+      const nameLen = readU16(view, ptr + 28);
+      const extraLen = readU16(view, ptr + 30);
+      const commentLen = readU16(view, ptr + 32);
+      const localHeaderOffset = readU32(view, ptr + 42);
+      const name = new TextDecoder().decode(bytes.slice(ptr + 46, ptr + 46 + nameLen));
+      entries.push({ name, method, compressedSize, localHeaderOffset });
+      ptr += 46 + nameLen + extraLen + commentLen;
+    }
+
+    const out = new Map();
+    for (const entry of entries) {
+      const lh = entry.localHeaderOffset;
+      if (readU32(view, lh) !== 0x04034b50) throw new Error(`Invalid local header for ${entry.name}`);
+      const nameLen = readU16(view, lh + 26);
+      const extraLen = readU16(view, lh + 28);
+      const dataStart = lh + 30 + nameLen + extraLen;
+      const raw = bytes.slice(dataStart, dataStart + entry.compressedSize);
+      let fileBytes;
+      if (entry.method === 0) fileBytes = raw;
+      else if (entry.method === 8) fileBytes = await inflateRaw(raw);
+      else throw new Error(`Unsupported ZIP compression method ${entry.method} in ${entry.name}`);
+      out.set(normalizePath(entry.name), fileBytes);
+    }
+    return out;
+  }
+
+  function asText(u8) {
+    return new TextDecoder().decode(u8);
+  }
+
+  function toBlob(value, mime='application/octet-stream') {
+    if (value instanceof Blob) return value;
+    if (value instanceof Uint8Array) return new Blob([value], { type: mime });
+    if (typeof value === 'string') return new Blob([value], { type: mime });
+    return new Blob([value], { type: mime });
+  }
+
+  function safeText(value) {
+    return String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  }
+
+  function normalizeLookupKey(value) {
+    return safeText(value).replace(/\*/g, '').replace(/[\u2018\u2019\u201c\u201d]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function jsString(value) {
+    return JSON.stringify(String(value ?? ''));
+  }
+
+  function normalizeSourceText(source) {
+    let text = String(source ?? '');
+    if (text.startsWith('\ufeff')) text = text.slice(1);
+    return text.replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ');
+  }
+
+  function decodeJsStringLiteral(raw) {
+    const text = String(raw ?? '');
+    return text.replace(/\\([\\'"bfnrtv])/g, (m, esc) => {
+      switch (esc) {
+        case '\\': return '\\';
+        case "'": return "'";
+        case '"': return '"';
+        case 'b': return '\b';
+        case 'f': return '\f';
+        case 'n': return '\n';
+        case 'r': return '\r';
+        case 't': return '\t';
+        case 'v': return '\v';
+        default: return esc;
+      }
+    });
+  }
+
+  function ensureArray(value) {
+    if (Array.isArray(value)) return value;
+    if (value == null) return [];
+    return [value];
+  }
+
+  function collapseTrailingAdultMarks(value) {
+    return safeText(value).replace(/\s*\*+$/g, '').trim();
+  }
+
+  function findBalancedBlock(source, openIndex, openChar, closeChar) {
+    if (openIndex < 0 || openIndex >= source.length) return null;
+    let depth = 0;
+    let state = 'code';
+    let quote = '';
+    let escape = false;
+    let regexClass = false;
+    let expectRegex = true;
+
+    function setExpectFromChar(ch) {
+      if (/\s/.test(ch)) return;
+      if (/[\w$\]]/.test(ch) || /[)\}]/.test(ch)) { expectRegex = false; return; }
+      if (/[\(\[\{,;:\?!=<>~&|+\-*%^]/.test(ch) || ch === '.') { expectRegex = true; return; }
+      expectRegex = true;
+    }
+
+    for (let i = openIndex; i < source.length; i++) {
+      const ch = source[i];
+      const next = source[i + 1];
+
+      if (state === 'lineComment') { if (ch === '\n') state = 'code'; continue; }
+      if (state === 'blockComment') { if (ch === '*' && next === '/') { state = 'code'; i++; } continue; }
+      if (state === 'string') {
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === quote) { state = 'code'; expectRegex = false; }
+        continue;
+      }
+      if (state === 'template') {
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === '`') { state = 'code'; expectRegex = false; }
+        continue;
+      }
+      if (state === 'regex') {
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === '[') { regexClass = true; continue; }
+        if (ch === ']') { regexClass = false; continue; }
+        if (ch === '/' && !regexClass) { state = 'code'; expectRegex = false; continue; }
+        continue;
+      }
+
+      if (ch === '/' && next === '/') { state = 'lineComment'; i++; continue; }
+      if (ch === '/' && next === '*') { state = 'blockComment'; i++; continue; }
+      if (ch === '"' || ch === "'" || ch === '`') { state = ch === '`' ? 'template' : 'string'; quote = ch; continue; }
+      if (ch === '/' && expectRegex) { state = 'regex'; regexClass = false; continue; }
+
+      if (ch === openChar) { depth++; expectRegex = true; continue; }
+      if (ch === closeChar) {
+        depth--;
+        if (depth === 0) return source.slice(openIndex, i + 1);
+        expectRegex = false;
+        continue;
+      }
+      setExpectFromChar(ch);
+    }
+    return null;
+  }
+
+  function extractFunctionBody(source, functionName) {
+    const text = normalizeSourceText(source);
+    const fnRe = new RegExp(`function\\s+${functionName}\\s*\\([^)]*\\)\\s*\\{`, 'm');
+    const match = fnRe.exec(text);
+    if (!match) return '';
+    const openIndex = text.indexOf('{', match.index);
+    if (openIndex < 0) return '';
+    const block = findBalancedBlock(text, openIndex, '{', '}');
+    if (!block) return '';
+    return text.slice(openIndex + 1, openIndex + block.length - 1);
+  }
+
+  const MAIN_FOLDER_PINNED_TOP = [
+    "Continue Watching",
+    "Games",
+    "Music",
+    "Books",
+    "Manga",
+    "Animated Movies",
+    "Movies",
+    "Favorites"
+  ];
+
+  const MAIN_FOLDER_PINNED_BOTTOM = [
+    "Beanstalk Videos"
+  ];
+
+  const REQUIRED_MAIN_FOLDER_TITLES = [
+    "Continue Watching",
+    "Favorites"
+  ];
+
+  const MANDATED_SECTION_MAIN_FOLDER_TITLES = [
+    "Games",
+    "Music",
+    "Books",
+    "Manga",
+    "Animated Movies",
+    "Movies"
+  ];
+
+  function uniqueTitles(values) {
+    const merged = new Map();
+
+    for (const rawValue of ensureArray(values)) {
+      const title = safeText(rawValue);
+      if (!title) continue;
+
+      const base = collapseTrailingAdultMarks(title);
+      const key = normalizeLookupKey(base || title);
+      const hasStar = /\*$/.test(title);
+      const existing = merged.get(key);
+
+      if (!existing) {
+        merged.set(key, { title, hasStar });
+        continue;
+      }
+
+      if (hasStar && !existing.hasStar) {
+        merged.set(key, { title, hasStar: true });
+      }
+    }
+
+    return Array.from(merged.values()).map(entry => entry.title);
+  }
+
+  function normalizeMainFolderTitle(value) {
+    return safeText(value).replace(/^the\s+/i, '').trim();
+  }
+
+  function mainFolderSortCategory(value) {
+    return /^[0-9]/.test(normalizeMainFolderTitle(value)) ? 1 : 0;
+  }
+
+  function compareMainFolderTitles(a, b) {
+    const aTitle = safeText(a);
+    const bTitle = safeText(b);
+
+    const aTop = MAIN_FOLDER_PINNED_TOP.indexOf(aTitle);
+    const bTop = MAIN_FOLDER_PINNED_TOP.indexOf(bTitle);
+    if (aTop !== -1 || bTop !== -1) {
+      if (aTop === -1) return 1;
+      if (bTop === -1) return -1;
+      if (aTop !== bTop) return aTop - bTop;
+      return 0;
+    }
+
+    const aBottom = MAIN_FOLDER_PINNED_BOTTOM.indexOf(aTitle);
+    const bBottom = MAIN_FOLDER_PINNED_BOTTOM.indexOf(bTitle);
+    if (aBottom !== -1 || bBottom !== -1) {
+      if (aBottom === -1) return -1;
+      if (bBottom === -1) return 1;
+      if (aBottom !== bBottom) return aBottom - bBottom;
+      return 0;
+    }
+
+    const aCat = mainFolderSortCategory(aTitle);
+    const bCat = mainFolderSortCategory(bTitle);
+    if (aCat !== bCat) return aCat - bCat;
+
+    const ak = normalizeLookupKey(normalizeMainFolderTitle(aTitle));
+    const bk = normalizeLookupKey(normalizeMainFolderTitle(bTitle));
+    if (ak !== bk) return ak.localeCompare(bk, undefined, { sensitivity: 'base' });
+
+    return aTitle.localeCompare(bTitle, undefined, { sensitivity: 'base' });
+  }
+
+  function sortMainFolderTitles(values) {
+    return uniqueTitles(values).sort(compareMainFolderTitles);
+  }
+
+  function parseQuotedListValues(sourceText) {
+    const body = String(sourceText ?? '');
+    const items = [];
+    const re = /"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g;
+    let m;
+    while ((m = re.exec(body))) {
+      const raw = m[1] ?? m[2] ?? '';
+      const decoded = decodeJsStringLiteral(raw).trim();
+      if (decoded) items.push(decoded);
+    }
+    return items.filter(Boolean);
+  }
+
+  function parseMainfoldersList(source) {
+    const text = normalizeSourceText(source);
+    const match = text.match(/const\s+folders\s*=\s*\[((?:.|\n)*?)\]\s*;?/s);
+    if (!match) return [];
+    return sortMainFolderTitles(parseQuotedListValues(match[1]).map(collapseTrailingAdultMarks));
+  }
+
+  function extractMainfoldersHeader(source) {
+    const text = normalizeSourceText(source).trim();
+    const match = text.match(/^(.*?)(?:\n\s*const\s+folders\s*=\s*\[)/s);
+    const header = match ? match[1].trimEnd() : '';
+    return header || '/* Generated by shell-restore.html */';
+  }
+
+  function ensureRequiredMainFolderTitles(values) {
+    const merged = new Map();
+    for (const rawValue of uniqueTitles(values)) {
+      const title = safeText(rawValue);
+      if (!title) continue;
+      const key = normalizeLookupKey(collapseTrailingAdultMarks(title) || title);
+      if (!merged.has(key)) {
+        merged.set(key, title);
+      }
+    }
+
+    for (const rawTitle of REQUIRED_MAIN_FOLDER_TITLES) {
+      const title = safeText(rawTitle);
+      if (!title) continue;
+      const key = normalizeLookupKey(collapseTrailingAdultMarks(title) || title);
+      if (!merged.has(key)) {
+        merged.set(key, title);
+      }
+    }
+
+    return Array.from(merged.values()).sort(compareMainFolderTitles);
+  }
+
+  function mergeMainFolderTitlesPreferAdult(currentTitles, incomingTitles) {
+    const merged = new Map();
+
+    function upsert(rawTitle) {
+      const title = safeText(rawTitle);
+      if (!title) return;
+
+      const key = normalizeLookupKey(title.replace(/\*/g, ''));
+      const hasStar = title.includes('*');
+      const existing = merged.get(key);
+
+      if (!existing) {
+        merged.set(key, { title, hasStar });
+        return;
+      }
+
+      if (hasStar && !existing.hasStar) {
+        merged.set(key, { title, hasStar: true });
+      }
+    }
+
+    ensureArray(currentTitles).forEach(upsert);
+    ensureArray(incomingTitles).forEach(upsert);
+
+    return ensureRequiredMainFolderTitles(
+      Array.from(merged.values()).map(entry => entry.title)
+    );
+  }
+
+  function renderMainfoldersText(values, header = '/* Generated by shell-restore.html */') {
+    const folders = ensureRequiredMainFolderTitles(values);
+    return `${header}\n\nconst folders = [\n${folders.map(v => `  ${jsString(v)}`).join(',\n')}\n];\n`;
+  }
+
+  function mergeMainfoldersText(currentText, generatedText, mandatedTitles = []) {
+    const current = normalizeSourceText(currentText);
+    const generated = normalizeSourceText(generatedText).trim();
+    const mandated = uniqueTitles(mandatedTitles).filter(Boolean);
+
+    if (!generated) {
+      return renderMainfoldersText(
+        mergeMainFolderTitlesPreferAdult(parseMainfoldersList(current), mandated),
+        extractMainfoldersHeader(current)
+      );
+    }
+
+    const currentList = parseMainfoldersList(current);
+    const generatedList = parseMainfoldersList(generated);
+    const header = extractMainfoldersHeader(generated) || extractMainfoldersHeader(current);
+    return renderMainfoldersText(
+      mergeMainFolderTitlesPreferAdult(currentList, [...generatedList, ...mandated]),
+      header
+    );
+  }
+
+  function splitLibraryFooter(source) {
+    const text = String(source ?? '').replace(/\r\n?/g, '\n');
+    const footerMatch = text.match(/(?:^|\n)([ \t]*\}\s*;{1,2}[ \t]*)(?:\n\s*)*$/);
+    if (!footerMatch) return { body: text, footer: '' };
+    const footerIndex = footerMatch.index + (footerMatch[0].startsWith('\n') ? 1 : 0);
+    return { body: text.slice(0, footerIndex).replace(/[\t ]+$/g, ''), footer: footerMatch[1].trim() };
+  }
+
+  function parseLibraryBlocks(source) {
+    const text = String(source ?? '').replace(/\r\n?/g, '\n');
+    const blocks = [];
+    const re = /(?:^|\n)((?:[ \t]*\/\/[^\n]*\n)*)([ \t]*)(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)')\s*:\s*\[/g;
+    let match;
+    while ((match = re.exec(text))) {
+      const openIndex = match.index + match[0].lastIndexOf('[');
+      const openBlock = findBalancedBlock(text, openIndex, '[', ']');
+      if (!openBlock) continue;
+      let end = openIndex + openBlock.length;
+      const rest = text.slice(end);
+      const commaMatch = rest.match(/^[ \t]*,/);
+      if (commaMatch) end += commaMatch[0].length;
+      const blockText = text.slice(match.index, end).replace(/[\t ]+$/gm, '').trimEnd();
+      const keyRaw = match[3] ?? match[4] ?? '';
+      blocks.push({ key: keyRaw, start: match.index, end, text: blockText });
+      re.lastIndex = end;
+    }
+    return blocks;
+  }
+
+  function stripLooseLeadingEpisodesComma(text) {
+    const source = String(text ?? '');
+    const marker = 'const episodes = {';
+    const start = source.indexOf(marker);
+    if (start === -1) return source;
+    let i = start + marker.length;
+    while (i < source.length && /[\t\r\n ]/.test(source[i])) i++;
+    if (source[i] !== ',') return source;
+    const before = source.slice(0, i).replace(/[\t ]+$/g, '');
+    let after = source.slice(i + 1);
+    after = after.replace(/^[\t\r\n ]+/, '');
+    return `${before}\n  ${after}`;
+  }
+
+  function mergeLibraryFile(currentText, generatedText) {
+    const current = String(currentText ?? '').replace(/\r\n?/g, '\n');
+    const generated = String(generatedText ?? '').replace(/\r\n?/g, '\n').trim();
+    if (!generated) return current;
+    const currentSplit = splitLibraryFooter(current);
+    const generatedBlocks = parseLibraryBlocks(generated);
+    if (!generatedBlocks.length) {
+      const trimmedBody = currentSplit.body.replace(/[\t ]+$/g, '');
+      const footer = currentSplit.footer || '};';
+      return stripLooseLeadingEpisodesComma(`${trimmedBody}\n${footer}`);
+    }
+    const existingBlocks = parseLibraryBlocks(currentSplit.body);
+    const generatedByKey = new Map(generatedBlocks.map(block => [normalizeLookupKey(block.key), block]));
+    let mergedBody = '';
+    let cursor = 0;
+    for (const block of existingBlocks) {
+      if (block.start > cursor) mergedBody += currentSplit.body.slice(cursor, block.start);
+      if (!generatedByKey.has(normalizeLookupKey(block.key))) mergedBody += currentSplit.body.slice(block.start, block.end);
+      cursor = block.end;
+    }
+    mergedBody += currentSplit.body.slice(cursor).replace(/[\t ]+$/g, '');
+    const appended = generatedBlocks.map(block => block.text.trimEnd()).filter(Boolean).join('\n\n');
+    const bodyClean = mergedBody.replace(/[\t ]+$/g, '');
+    const footer = currentSplit.footer || '};';
+    if (!appended) return stripLooseLeadingEpisodesComma(`${bodyClean}\n${footer}`);
+    const needsComma = bodyClean && !/,\s*$/.test(bodyClean);
+    const separator = bodyClean ? (needsComma ? ',\n\n' : '\n\n') : '';
+    return stripLooseLeadingEpisodesComma(`${bodyClean}${separator}${appended}\n${footer}`);
+  }
+
+  function normalizeLoadSeasonFunctionsText(source) {
+    return String(source ?? '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function titleFromFnName(fnName) {
+    return String(fnName || '').replace(/^load/i, '').replace(/Seasons$/i, '').replace(/_/g, ' ').trim();
+  }
+
+  function loaderFunctionName(raw) {
+    const clean = safeText(raw).replace(/\*+$/g, '').trim();
+    if (!clean) return '';
+    const compact = clean.replace(/\s+/g, '');
+    return compact.startsWith('load') ? compact : `load${compact}Seasons`;
+  }
+
+  function expandRemovalKeys(keys) {
+    const out = new Set();
+    for (const key of ensureArray(keys)) {
+      const raw = safeText(key);
+      if (!raw) continue;
+      [raw, normalizeLookupKey(raw), loaderFunctionName(raw), titleFromFnName(raw), titleFromFnName(loaderFunctionName(raw))].forEach(v => {
+        const clean = normalizeLookupKey(v);
+        if (clean) out.add(clean);
+      });
+    }
+    return out;
+  }
+
+  function extractLoadSeasonFunctionBlocks(source) {
+    const text = normalizeLoadSeasonFunctionsText(source);
+    const blocks = [];
+    const re = /function\s+(load[A-Za-z0-9_$]+Seasons)\s*\(\)\s*\{/g;
+    let match;
+    while ((match = re.exec(text))) {
+      const openIndex = text.indexOf('{', match.index);
+      if (openIndex < 0) continue;
+      const block = findBalancedBlock(text, openIndex, '{', '}');
+      if (!block) continue;
+      const end = openIndex + block.length;
+      blocks.push({ name: match[1], start: match.index, end, text: text.slice(match.index, end) });
+      re.lastIndex = end;
+    }
+    return blocks;
+  }
+
+  function splitLoadSeasonArrayBlock(block) {
+    const text = normalizeLoadSeasonFunctionsText(block);
+    const match = text.match(/const\s+seasons\s*=\s*\[/);
+    if (!match) return null;
+    const openIndex = text.indexOf('[', match.index);
+    if (openIndex < 0) return null;
+    const bracketBlock = findBalancedBlock(text, openIndex, '[', ']');
+    if (!bracketBlock) return null;
+    const closeIndex = openIndex + bracketBlock.length - 1;
+    return { prefix: text.slice(0, openIndex + 1), body: text.slice(openIndex + 1, closeIndex), suffix: text.slice(closeIndex + 1) };
+  }
+
+  function extractLoadSeasonSwitchBlock(block) {
+    const text = normalizeLoadSeasonFunctionsText(block);
+    const match = text.match(/switch\s*\(\s*[^)]+\s*\)\s*\{/);
+    if (!match) return null;
+    const openIndex = text.indexOf('{', match.index);
+    if (openIndex < 0) return null;
+    const braceBlock = findBalancedBlock(text, openIndex, '{', '}');
+    if (!braceBlock) return null;
+    const closeIndex = openIndex + braceBlock.length - 1;
+    return { prefix: text.slice(0, openIndex + 1), body: text.slice(openIndex + 1, closeIndex), suffix: text.slice(closeIndex + 1) };
+  }
+
+  function extractLoadSeasonCaseBlocks(switchBody) {
+    const text = normalizeLoadSeasonFunctionsText(switchBody);
+    if (!text) return [];
+    const defaultMatch = text.match(/\n\s*default\s*:/);
+    const defaultIndex = defaultMatch ? defaultMatch.index : text.length;
+    const caseRe = /(^|\n)([ \t]*case\s+(["'])(.*?)\3\s*:\s*)/g;
+    const starts = [];
+    let match;
+    while ((match = caseRe.exec(text))) starts.push({ title: safeText(match[4]), start: match.index + match[1].length });
+    if (!starts.length) return [];
+    const blocks = [];
+    for (let i = 0; i < starts.length; i++) {
+      const current = starts[i];
+      const next = i + 1 < starts.length ? starts[i + 1].start : defaultIndex;
+      const block = text.slice(current.start, next).trimEnd();
+      if (current.title && block) blocks.push({ title: current.title, text: block });
+    }
+    return blocks;
+  }
+
+  function mergeSeasonTitlesPreferAdult(currentTitles, incomingTitles) {
+    const merged = new Map();
+    function upsert(rawTitle) {
+      const title = safeText(rawTitle);
+      if (!title) return;
+      const key = normalizeLookupKey(title.replace(/\*/g, ''));
+      const hasStar = title.includes('*');
+      const existing = merged.get(key);
+      if (!existing) { merged.set(key, { title, hasStar }); return; }
+      if (hasStar && !existing.hasStar) merged.set(key, { title, hasStar: true });
+    }
+    ensureArray(currentTitles).forEach(upsert);
+    ensureArray(incomingTitles).forEach(upsert);
+    return Array.from(merged.values()).map(entry => entry.title).sort((a,b)=>normalizeLookupKey(a).localeCompare(normalizeLookupKey(b), undefined, {sensitivity:'base'}));
+  }
+
+  function mergeLoadSeasonSwitchBody(currentBlock, generatedBlock) {
+    const currentSwitch = extractLoadSeasonSwitchBlock(currentBlock);
+    const generatedSwitch = extractLoadSeasonSwitchBlock(generatedBlock);
+    if (!currentSwitch || !generatedSwitch) return currentBlock;
+    const currentCaseKeys = new Set(extractLoadSeasonCaseBlocks(currentSwitch.body).map(block => normalizeLookupKey(block.title)));
+    const additions = extractLoadSeasonCaseBlocks(generatedSwitch.body).filter(block => {
+      const key = normalizeLookupKey(block.title);
+      if (!key || currentCaseKeys.has(key)) return false;
+      currentCaseKeys.add(key);
+      return true;
+    });
+    if (!additions.length) return currentBlock;
+    const defaultMatch = currentSwitch.body.match(/\n\s*default\s*:/);
+    if (!defaultMatch) return currentBlock;
+    const beforeDefault = currentSwitch.body.slice(0, defaultMatch.index).replace(/[ \t]+$/g, '');
+    const afterDefault = currentSwitch.body.slice(defaultMatch.index);
+    const insertion = additions.map(block => block.text.trimEnd()).join('\n\n');
+    const mergedBody = `${beforeDefault}${beforeDefault ? '\n' : ''}${insertion}${insertion ? '\n' : ''}${afterDefault.replace(/^\n+/, '\n')}`;
+    return `${currentSwitch.prefix}${mergedBody}}${currentSwitch.suffix}`;
+  }
+
+  function mergeLoadSeasonFunctionBlock(currentBlock, generatedBlock) {
+    const current = normalizeLoadSeasonFunctionsText(currentBlock);
+    const generated = normalizeLoadSeasonFunctionsText(generatedBlock);
+    if (!generated) return current;
+    if (!current) return generated;
+
+    let merged = current;
+    const currentArray = splitLoadSeasonArrayBlock(merged);
+    const generatedArray = splitLoadSeasonArrayBlock(generated);
+    if (currentArray && generatedArray) {
+      const currentItems = parseQuotedListValues(currentArray.body);
+      const generatedItems = parseQuotedListValues(generatedArray.body);
+      const combined = mergeSeasonTitlesPreferAdult(currentItems, generatedItems);
+      const replacement = `\n${combined.map(item => `        ${jsString(item)}`).join(',\n')}\n    ]`;
+      merged = `${currentArray.prefix}${replacement}${currentArray.suffix}`;
+    }
+    merged = mergeLoadSeasonSwitchBody(merged, generated);
+    return merged.replace(/\n{3,}/g, '\n\n').trimEnd();
+  }
+
+  function mergeLoadSeasonFunctionsText(currentText, generatedText, removeKeys = []) {
+    const current = normalizeLoadSeasonFunctionsText(currentText);
+    const generated = normalizeLoadSeasonFunctionsText(generatedText);
+    if (!generated) return current ? `${current}\n` : '';
+    if (!current) return `${generated}\n`;
+
+    const removeSet = expandRemovalKeys(removeKeys);
+    const currentBlocks = extractLoadSeasonFunctionBlocks(current).filter(block => !removeSet.has(normalizeLookupKey(block.name)) && !removeSet.has(normalizeLookupKey(titleFromFnName(block.name))));
+    const generatedBlocks = extractLoadSeasonFunctionBlocks(generated).filter(block => !removeSet.has(normalizeLookupKey(block.name)) && !removeSet.has(normalizeLookupKey(titleFromFnName(block.name))));
+
+    const byName = new Map(currentBlocks.map(block => [normalizeLookupKey(block.name), block]));
+    const mergedParts = [];
+    let cursor = 0;
+
+    for (const block of currentBlocks) {
+      if (block.start > cursor) mergedParts.push(current.slice(cursor, block.start).trimEnd());
+      const generatedMatch = generatedBlocks.find(item => normalizeLookupKey(item.name) === normalizeLookupKey(block.name));
+      if (generatedMatch) mergedParts.push(mergeLoadSeasonFunctionBlock(block.text, generatedMatch.text).trimEnd());
+      else mergedParts.push(block.text.trimEnd());
+      cursor = block.end;
+    }
+
+    const remainingCurrent = current.slice(cursor).trimEnd();
+    if (remainingCurrent) mergedParts.push(remainingCurrent);
+    for (const block of generatedBlocks) {
+      if (byName.has(normalizeLookupKey(block.name))) continue;
+      mergedParts.push(block.text.trimEnd());
+    }
+
+    return mergedParts.filter(Boolean).join('\n\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  }
+
+  function extractLoadSeasonRootTitles(source) {
+    const roots = new Set();
+    for (const fnName of ['loadMoviesSeasons', 'loadAnimatedMoviesSeasons']) {
+      const body = extractFunctionBody(source, fnName);
+      if (!body) continue;
+      const match = body.match(/const\s+seasons\s*=\s*\[((?:.|\n)*?)\]\s*;/s);
+      if (!match) continue;
+      for (const title of parseQuotedListValues(match[1])) {
+        const clean = collapseTrailingAdultMarks(title);
+        if (clean) roots.add(clean);
+      }
+    }
+    return [...roots];
+  }
+
+  function parseJsValue(text, expr) {
+    try {
+      const fn = new Function(`${String(text || '').replace(/\r\n?/g, '\n')}\nreturn (typeof ${expr} !== 'undefined') ? ${expr} : null;`);
+      return fn();
+    } catch {
+      return null;
+    }
+  }
+
+  function readLibraryDataFromText(text) {
+    return parseJsValue(text, 'libraryData') || parseJsValue(text, 'window.libraryData');
+  }
+
+  function readMusicLibraryFromText(text) {
+    const entries = parseJsValue(text, 'musicLibrary') || parseJsValue(text, 'window.musicLibrary') || [];
+    const genreMap = parseJsValue(text, 'musicLibraryGenreMap') || parseJsValue(text, 'window.musicLibraryGenreMap') || {};
+    return { entries: Array.isArray(entries) ? entries.slice() : [], genreMap: genreMap && typeof genreMap === 'object' ? genreMap : {} };
+  }
+
+  function readGamesFromText(text) {
+    const games = parseJsValue(text, 'games') || parseJsValue(text, 'window.games') || [];
+    return Array.isArray(games) ? games.slice() : [];
+  }
+
+  function findArchiveTextByName(name) {
+    const target = String(name || '').trim().toLowerCase();
+    if (!target) return null;
+    for (const [key, bytes] of state.archiveTexts.entries()) {
+      const normalized = String(key || '').replace(/\\/g, '/').toLowerCase();
+      if (normalized === target || normalized.endsWith('/' + target)) return bytes;
+    }
+    return null;
+  }
+
+  function findArchiveBytesByPath(pathValue) {
+    const target = normalizePath(pathValue);
+    const key = archivePathKey(target);
+    return state.archiveFiles.get(key) || null;
+  }
+
+  function updateArchiveList() {
+    el.files.innerHTML = '';
+    for (const entry of state.entries) {
+      const row = document.createElement('div');
+      row.className = 'fileItem';
+      const a = document.createElement('div');
+      a.className = 'name';
+      a.textContent = entry.name;
+      const b = document.createElement('div');
+      b.className = 'kind';
+      b.textContent = entry.kind;
+      row.appendChild(a);
+      row.appendChild(b);
+      el.files.appendChild(row);
+    }
+  }
+
+  function updateSummary() {
+    const js = state.entries.filter(x => x.kind === 'js').length;
+    const assets = state.entries.filter(x => x.kind === 'asset').length;
+    const dirs = state.entries.filter(x => x.kind === 'dir').length;
+    const other = state.entries.filter(x => x.kind === 'other').length;
+    el.countText.textContent = `${state.entries.length} files`;
+    el.countSub.textContent = `${js} JS, ${assets} assets, ${dirs} directories, ${other} other`;
+    const title = state.manifest?.payload?.rootTitle || state.manifest?.payload?.rootPath?.[0] || '—';
+    el.titleText.textContent = title;
+    const parts = [];
+    if (state.manifest?.sourcePage) parts.push(`source: ${state.manifest.sourcePage}`);
+    if (state.manifest?.payload?.section) parts.push(`section: ${state.manifest.payload.section}`);
+    if (state.manifest?.createdAt) parts.push(`created: ${state.manifest.createdAt}`);
+    el.manifestText.innerHTML = parts.length ? parts.map(v => `<div>${v}</div>`).join('') : 'Confirmation that the archive is a shell package.';
+  }
+
+  function setReady(ready) {
+    el.startBtn.disabled = !ready || state.busy;
+  }
+
+  function classifyEntry(name, bytes) {
+    if (/\/$/.test(name)) return { kind:'dir' };
+    const lower = name.toLowerCase();
+    if (lower === 'shell-manifest.json') return { kind:'manifest' };
+    if (lower.endsWith('.js')) {
+      if (lower === 'mainfolders.js') return { kind:'mainfolders' };
+      if (lower === 'library.js') return { kind:'library' };
+      if (lower === 'loadseasonfunctions.js') return { kind:'loadseasonfunctions' };
+      if (lower === 'musiclibrary.js') return { kind:'musiclibrary' };
+      return { kind:'js' };
+    }
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp') || lower.endsWith('.gif') || lower.endsWith('.avif')) return { kind:'asset' };
+    if (lower.endsWith('.txt') || lower.endsWith('.json') || lower.endsWith('.html') || lower.endsWith('.css') || lower.endsWith('.vtt') || lower.endsWith('.m3u8')) return { kind:'other' };
+    return { kind:'other' };
+  }
+
+  async function scanZip(file) {
+    if (!file) throw new Error('Choose a zip file first.');
+    log(`Scanning ${file.name}`, true);
+    setStatus('Scanning archive…', 'warn');
+    const files = await parseZip(file);
+
+    state.file = file;
+    state.entries = [];
+    state.archiveFiles.clear();
+    state.archiveTexts.clear();
+    state.manifest = null;
+
+    for (const [name, bytes] of files.entries()) {
+      const info = classifyEntry(name, bytes);
+      state.entries.push({ name, kind: info.kind, size: bytes.length });
+      if (info.kind === 'manifest') {
+        try { state.manifest = JSON.parse(asText(bytes)); } catch { state.manifest = null; }
+      }
+      if (info.kind !== 'dir') {
+        state.archiveFiles.set(archivePathKey(name), bytes);
+        if (isTextLike(name)) state.archiveTexts.set(name.toLowerCase(), asText(bytes));
+      }
+    }
+
+    const manifestOk = !!state.manifest;
+    if (!manifestOk) throw new Error('This archive is not a shell package. shell-manifest.json was not found.');
+    const isShell = String(state.manifest.sourcePage || state.manifest?.payload?.sourcePage || '').toLowerCase().includes('shell');
+    if (!isShell) throw new Error('This archive did not identify itself as a shell package.');
+
+    updateArchiveList();
+    updateSummary();
+    setReady(true);
+    setStatus('Shell package confirmed. Ready to restore onto the current origin.', 'ok');
+    emitFlowMessage('libraryjs-flow-status', {
+      status: 'Shell package confirmed. Ready to restore onto the current origin.',
+      message: 'Shell package confirmed. Ready to restore onto the current origin.',
+      done: 0,
+      total: 1,
+      label: 'Shell package confirmed'
+    });
+    log('Shell package confirmed.');
+    log(`Root title: ${state.manifest?.payload?.rootTitle || state.manifest?.payload?.rootPath?.[0] || '—'}`);
+    if (state.auto) {
+      log('Auto handoff is on; starting restore after scan.');
+      await startRestore();
+    }
+  }
+
+  async function fetchCurrentText(path) {
+    if (!currentOrigin) return '';
+    const res = await fetch(`${currentOrigin}/${normalizePath(path)}`, { cache:'no-store' });
+    if (!res.ok) return '';
+    return await res.text();
+  }
+
+  async function uploadText(path, text) {
+    const res = await fetch(`${currentOrigin}/${normalizePath(path)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: text
+    });
+    if (!res.ok) throw new Error(`PUT ${path} failed with HTTP ${res.status}`);
+  }
+
+  async function uploadBytes(path, bytes) {
+    const res = await fetch(`${currentOrigin}/${normalizePath(path)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: bytes
+    });
+    if (!res.ok) throw new Error(`PUT ${path} failed with HTTP ${res.status}`);
+  }
+
+  function manifestSummaryText() {
+    const m = state.manifest || {};
+    const p = m.payload || {};
+    return JSON.stringify({
+      version: m.version,
+      sourcePage: m.sourcePage,
+      section: p.section,
+      rootTitle: p.rootTitle,
+      selectedPaths: p.selectedPaths,
+      createdAt: m.createdAt
+    }, null, 2);
+  }
+
+  async function startRestore() {
+    if (state.busy) return;
+    if (!state.manifest) throw new Error('Scan a shell archive first.');
+    state.busy = true;
+    setReady(false);
+    try {
+      const isReplace = restoreMode === 'replace';
+      const startMessage = isReplace ? 'Starting shell replace…' : 'Starting shell merge…';
+      log(startMessage, false);
+      emitFlowMessage('libraryjs-flow-status', { status: startMessage, message: startMessage, done: 0, total: 1, label: startMessage });
+      setProgress(0, 4, 'Reading current server files');
+
+      const mainfoldersArchive = findArchiveTextByName('mainfolders.js') || '';
+      const libraryArchive = findArchiveTextByName('library.js') || '';
+      const loadseasonArchive = findArchiveTextByName('loadseasonfunctions.js') || '';
+      const musicArchive = findArchiveTextByName('musiclibrary.js') || '';
+
+      const rootTitles = extractLoadSeasonRootTitles(loadseasonArchive);
+      const mandated = rootTitles.length ? rootTitles : [state.manifest?.payload?.rootTitle || state.manifest?.payload?.rootPath?.[0] || ''];
+
+      let mergedMainfolders = mainfoldersArchive;
+      try {
+        if (isReplace) {
+          log('Replace mode selected; using shell mainfolders.js directly.');
+        } else {
+          const current = await fetchCurrentText('mainfolders.js');
+          if (current.trim()) {
+            mergedMainfolders = mergeMainfoldersText(current, mainfoldersArchive, mandated);
+            log('Merged mainfolders.js');
+          } else {
+            log('No existing mainfolders.js found; using shell version.');
+          }
+        }
+      } catch (err) {
+        log(`mainfolders.js merge warning: ${err.message || err}`);
+      }
+
+      setProgress(1, 4, isReplace ? 'Preparing library.js for replace' : 'Merging library.js');
+      let mergedLibrary = libraryArchive;
+      try {
+        if (isReplace) {
+          log('Replace mode selected; using shell library.js directly.');
+        } else {
+          const current = await fetchCurrentText('library.js');
+          if (current.trim()) {
+            mergedLibrary = mergeLibraryFile(current, libraryArchive);
+            log('Merged library.js');
+          } else {
+            log('No existing library.js found; using shell version.');
+          }
+        }
+      } catch (err) {
+        log(`library.js merge warning: ${err.message || err}`);
+      }
+
+      setProgress(2, 4, isReplace ? 'Preparing loadseasonfunctions.js for replace' : 'Merging loadseasonfunctions.js');
+      let mergedLoadSeason = loadseasonArchive;
+      try {
+        if (isReplace) {
+          log('Replace mode selected; using shell loadseasonfunctions.js directly.');
+        } else {
+          const current = await fetchCurrentText('loadseasonfunctions.js');
+          if (current.trim()) {
+            mergedLoadSeason = mergeLoadSeasonFunctionsText(current, loadseasonArchive);
+            log('Merged loadseasonfunctions.js with load-season nuance.');
+          } else {
+            log('No existing loadseasonfunctions.js found; using shell version.');
+          }
+        }
+      } catch (err) {
+        log(`loadseasonfunctions.js merge warning: ${err.message || err}`);
+      }
+
+      setProgress(3, 4, 'Uploading shell assets');
+      const assetEntries = state.entries.filter(e => e.kind === 'asset');
+      const assetCount = assetEntries.length;
+      let assetDone = 0;
+      for (const entry of assetEntries) {
+        const bytes = findArchiveBytesByPath(entry.name);
+        if (!bytes) {
+          log(`Missing asset bytes for ${entry.name}`);
+          continue;
+        }
+        await uploadBytes(entry.name, bytes);
+        assetDone++;
+        log(`Uploaded asset: ${entry.name}`);
+        setProgress(3 + (assetDone / Math.max(1, assetCount)), 4, `Uploading shell assets`);
+      }
+
+      setProgress(4, 4, isReplace ? 'Uploading replaced JS' : 'Uploading merged JS');
+      await uploadText('mainfolders.js', mergedMainfolders);
+      await uploadText('library.js', mergedLibrary);
+      await uploadText('loadseasonfunctions.js', mergedLoadSeason);
+      if (musicArchive && state.archiveTexts.has('musiclibrary.js')) {
+        try {
+          const current = await fetchCurrentText('musiclibrary.js');
+          const mergedMusic = isReplace ? musicArchive : (current.trim() ? current : musicArchive);
+          await uploadText('musiclibrary.js', mergedMusic);
+          log(isReplace ? 'Replaced musiclibrary.js.' : 'Handled musiclibrary.js.');
+        } catch (err) {
+          log(`musiclibrary.js warning: ${err.message || err}`);
+        }
+      }
+
+      log(`Shell restore complete for ${state.manifest?.payload?.rootTitle || 'archive'}.`);
+      const completeMessage = isReplace
+        ? 'Restore complete. The shell package has been replaced onto the current origin.'
+        : 'Restore complete. The shell package is now merged into the current origin.';
+      setStatus(completeMessage, 'ok');
+      setProgress(4, 4, 'Done');
+      emitFlowMessage('libraryjs-flow-complete', {
+        status: completeMessage,
+        message: completeMessage,
+        done: 1,
+        total: 1,
+        label: state.manifest?.payload?.rootTitle || 'shell restore'
+      });
+    } catch (err) {
+      const msg = err?.message || String(err);
+      log(`ERROR: ${msg}`);
+      setStatus(msg, 'error');
+      throw err;
+    } finally {
+      state.busy = false;
+      setReady(!!state.manifest);
+    }
+  }
+
+  async function handleFile(file) {
+    try {
+      await scanZip(file);
+    } catch (err) {
+      const msg = err?.message || String(err);
+      setStatus(msg, 'error');
+      log(`ERROR: ${msg}`, false);
+      setReady(false);
+      state.manifest = null;
+      updateSummary();
+      updateArchiveList();
+    }
+  }
+
+  el.scanBtn.addEventListener('click', async () => {
+    const file = el.zipFile.files && el.zipFile.files[0];
+    if (!file) return setStatus('Choose a zip file first.', 'warn');
+    await handleFile(file);
+  });
+
+  el.startBtn.addEventListener('click', async () => {
+    try { await startRestore(); } catch {}
+  });
+
+  el.zipFile.addEventListener('change', async () => {
+    const file = el.zipFile.files && el.zipFile.files[0];
+    if (file) await handleFile(file);
+  });
+
+  ['dragenter','dragover'].forEach(evt => {
+    el.dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); el.dropZone.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(evt => {
+    el.dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); el.dropZone.classList.remove('drag'); });
+  });
+  el.dropZone.addEventListener('drop', async e => {
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      el.zipFile.value = '';
+      await handleFile(file);
+    }
+  });
+
+  updateSummary();
+  updateArchiveList();
+  setReady(false);
+  if (state.auto) {
+    setStatus('Auto handoff is on. Scan a shell archive and this page will continue.', 'warn');
+  } else {
+    setStatus('Waiting for a shell archive.', 'warn');
+  }
+})();
+</script>
+</body>
+</html>

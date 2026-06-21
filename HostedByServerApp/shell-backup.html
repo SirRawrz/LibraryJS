@@ -1,0 +1,1495 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Share Shell</title>
+  <style>
+:root{
+  --bg:#0b1018;
+  --panel:#111827;
+  --panel2:#0d1420;
+  --line:rgba(255,255,255,.08);
+  --text:#edf4ff;
+  --muted:#93a2be;
+  --accent:#79e3c5;
+  --accent2:#86aafc;
+  --danger:#ff8591;
+  --warn:#ffbe6a;
+  --radius:22px;
+  --shadow:0 22px 60px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at top left, rgba(121,227,197,.09), transparent 26%),
+    radial-gradient(circle at right top, rgba(134,170,252,.08), transparent 24%),
+    linear-gradient(180deg, #09111b 0%, #0b1018 100%);
+  color:var(--text);
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
+.wrap{max-width:1600px;margin:0 auto;padding:16px}
+.hero,.panel,.tile,.sectionCard{
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+  box-shadow:var(--shadow);
+}
+.hero{
+  display:grid;
+  grid-template-columns:minmax(260px, 420px) 1fr;
+  gap:16px;
+  align-items:center;
+  padding:18px;
+  margin-bottom:12px;
+}
+.hero .titleBlock{display:flex;flex-direction:column;gap:8px}
+.hero h1{margin:0;font-size:28px;letter-spacing:-.04em;line-height:1.05}
+.hero .titleBlock .meta{color:var(--muted);font-size:13px;line-height:1.45;max-width:52ch}
+.hero .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;align-items:center}
+.hero input[type="text"]{
+  min-width:240px; flex:1 1 280px;
+  background:var(--panel2); color:var(--text);
+  border:1px solid var(--line); border-radius:12px;
+  padding:11px 12px; font:inherit; outline:none;
+}
+button{
+  border:0; border-radius:12px;
+  padding:11px 14px;
+  font:inherit; font-weight:750;
+  cursor:pointer;
+  background:rgba(255,255,255,.08);
+  color:var(--text);
+  border:1px solid var(--line);
+  transition:transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+}
+button:hover{border-color:rgba(134,170,252,.22)}
+button:active{transform:translateY(1px)}
+button.primary{
+  background:linear-gradient(180deg, rgba(121,227,197,1), rgba(92,202,168,1));
+  color:#07120f;
+  border-color:transparent;
+}
+button.danger{
+  background:rgba(255,133,145,.12);
+  color:#ffc5cb;
+  border-color:rgba(255,133,145,.18);
+}
+button.ghost{background:rgba(255,255,255,.04)}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+.sectionCard{
+  padding:10px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-width:180px;
+  cursor:pointer;
+}
+.sectionCard.active{
+  outline:2px solid rgba(121,227,197,.28);
+  border-color:rgba(121,227,197,.22);
+}
+.sectionCard .name{font-size:13px;font-weight:800}
+.sectionCard .meta{color:var(--muted);font-size:11px}
+.main{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 360px;
+  gap:16px;
+  align-items:start;
+}
+.panel{overflow:hidden}
+.panelHead{
+  padding:14px 16px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.02);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.panelHead h2{margin:0;font-size:16px}
+.panelHead .meta{color:var(--muted);font-size:12px}
+.panelBody{padding:16px}
+.breadcrumb{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  margin-bottom:14px;color:var(--muted);font-size:13px;
+}
+.crumbSep{opacity:.55}
+.crumb{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 10px;border-radius:999px;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--line);
+  color:var(--text);
+  cursor:pointer;user-select:none;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:14px;
+}
+.tile{
+  position:relative;
+  overflow:hidden;
+  cursor:pointer;
+  min-height:238px;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  transition:transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.tile:hover{transform:translateY(-2px); border-color:rgba(134,170,252,.25); box-shadow:0 16px 30px rgba(0,0,0,.28)}
+.tile.selected{outline:2px solid rgba(121,227,197,.55); border-color:rgba(121,227,197,.32)}
+.tile .art{
+  position:relative;
+  height:124px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(121,227,197,.25), transparent 30%),
+    radial-gradient(circle at 70% 80%, rgba(134,170,252,.22), transparent 26%),
+    linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.01));
+}
+.tile .art img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.tile .fallback{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:12px;
+  text-align:center;
+  font-size:18px;
+  line-height:1.05;
+  letter-spacing:-.03em;
+  font-weight:800;
+  color:#fff;
+  text-shadow:0 3px 15px rgba(0,0,0,.35);
+  background:linear-gradient(135deg, rgba(12,16,24,.15), rgba(12,16,24,.5));
+}
+.tile .body{
+  padding:10px 10px 11px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:58px;
+}
+.tile .title{font-size:14px;font-weight:800;line-height:1.2}
+.tile .meta{font-size:12px;color:var(--muted)}
+.tile .foot{font-size:11px;color:var(--muted)}
+.tile.branchOnly .meta,
+.tile.branchOnly .foot{display:none}
+.tile.branchOnly .body{min-height:34px;padding-top:12px;padding-bottom:12px}
+.tile .pkg{
+  position:absolute;top:8px;right:8px;
+  width:28px;height:28px;padding:0;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(10,14,22,.75);
+  border:1px solid rgba(255,255,255,.12);
+  z-index:2;
+}
+.tile .chk{
+  position:absolute;top:8px;left:8px;
+  width:28px;height:28px;padding:0;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(10,14,22,.75);
+  border:1px solid rgba(255,255,255,.12);
+  z-index:2;
+}
+.tile .chk input{width:18px;height:18px;margin:0;cursor:pointer}
+.side{position:sticky;top:16px}
+.card{
+  background:rgba(255,255,255,.03);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px;
+  margin-bottom:12px;
+}
+.k{color:var(--muted);font-size:12px}
+.v{margin-top:6px;font-size:18px;font-weight:800}
+.selList{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;padding-right:4px}
+.selItem{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:9px 10px;border-radius:12px;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.06);
+  font-size:12px;
+}
+.selItem .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.selItem .x{color:var(--muted);flex:0 0 auto;cursor:pointer;font-size:13px}
+.log{white-space:pre-wrap;color:var(--muted);font-size:12px;line-height:1.45;min-height:72px}
+.fileRow{
+  display:flex;justify-content:space-between;gap:10px;
+  padding:8px 10px;border-radius:12px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+  margin-bottom:8px;font-size:12px;
+}
+.fileName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fileKind{color:var(--muted)}
+textarea.mono{
+  width:100%;
+  min-height:220px;
+  resize:vertical;
+  background:var(--panel2);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:12px;
+  font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (max-width: 1080px){
+  .main{grid-template-columns:1fr}
+  .side{position:static}
+}
+@media (max-width: 640px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .hero input[type="text"]{min-width:100%}
+  .hero .actions{justify-content:flex-start}
+}
+
+body.embedded-shell .hero .titleBlock{display:none!important}
+body.embedded-shell .hero{grid-template-columns:1fr!important}
+body.embedded-shell .main{grid-template-columns:minmax(0,1fr)!important}
+body.embedded-shell .panel.side{display:none!important}
+body.embedded-shell .wrap{max-width:none}
+
+.transferModal{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.58);
+  z-index:9999;
+  padding:16px;
+}
+.transferModal.show{display:flex}
+.transferModalCard{
+  width:min(520px, 100%);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:22px;
+  background:linear-gradient(180deg, rgba(18,24,36,.98), rgba(10,14,22,.98));
+  box-shadow:0 26px 80px rgba(0,0,0,.42);
+  padding:18px;
+}
+.transferModalTop{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:12px;
+}
+.transferBadge{
+  width:40px;
+  height:40px;
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(121,227,197,.12);
+  border:1px solid rgba(121,227,197,.22);
+  font-size:20px;
+  flex:0 0 auto;
+}
+.transferModalTitle{font-size:18px;font-weight:850;line-height:1.1;margin:0}
+.transferModalMeta{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.4}
+.transferModalBtns{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+.transferModalBtns button{min-width:124px}
+.transferFrame{position:absolute;width:1px;height:1px;left:-9999px;top:-9999px;border:0;opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="titleBlock">
+        <h1>Share Shell</h1>
+        <div class="meta">Video source browser with root-package handoff. Choose a root, open its loader tiles, then use the 📦 icon to send that package to shell-transfer.html.</div>
+      </div>
+      <div class="actions">
+        <div class="tabs">
+          <div id="sectionVideo" class="sectionCard active"><div><div class="name">Video</div><div class="meta">Folders, loadseasonfunctions.js</div></div></div>
+        </div>
+        <input id="search" type="text" placeholder="Filter current view..." />
+        <button id="rootsBtn">Roots</button>
+        <button id="upBtn">Up</button>
+        <button id="selectViewBtn">Select view</button>
+        <button id="clearViewBtn" class="danger">Clear view</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="panel">
+        <div class="panelHead">
+          <div>
+            <h2 id="viewTitle">Loading…</h2>
+            <div class="meta" id="viewMeta">Fetching source files.</div>
+          </div>
+          <div class="meta" id="viewCount"></div>
+        </div>
+        <div class="panelBody">
+          <div class="breadcrumb" id="breadcrumb"></div>
+          <div class="grid" id="grid"></div>
+        </div>
+      </div>
+
+      <div class="panel side">
+        <div class="panelHead">
+          <div>
+            <h2>Selection</h2>
+            <div class="meta">Checked paths and package target</div>
+          </div>
+        </div>
+        <div class="panelBody">
+          <div class="card">
+            <div class="k">Selected nodes</div>
+            <div class="v" id="selectedCount">0</div>
+          </div>
+          <div class="card">
+            <div class="k">Selected paths</div>
+            <div class="selList" id="selectedList"></div>
+          </div>
+          <div class="card">
+            <div class="k">Status</div>
+            <div class="log" id="status">Waiting for source files…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="transferModal" class="transferModal" aria-hidden="true">
+    <div class="transferModalCard" role="dialog" aria-modal="true" aria-labelledby="transferModalTitle">
+      <div class="transferModalTop">
+        <div class="transferBadge">📦</div>
+        <div>
+          <h3 class="transferModalTitle" id="transferModalTitle">Download shell of X?</h3>
+          <div class="transferModalMeta" id="transferModalMeta">Choose Yes to build the zip, or Not, yet to go back.</div>
+        </div>
+      </div>
+      <div class="transferModalBtns">
+        <button id="transferCancelBtn" class="ghost" type="button">Not, yet</button>
+        <button id="transferStartBtn" class="primary" type="button">Yes</button>
+      </div>
+    </div>
+  </div>
+  <iframe id="transferFrame" class="transferFrame" title="Hidden shell transfer"></iframe>
+
+<script>
+
+const SOURCE_FILES = {
+  folders: 'mainfolders.js',
+  loaders: 'loadseasonfunctions.js'
+};
+
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function safeDecodeText(raw) {
+  const text = String(raw || '').replace(/\+/g, ' ');
+  try { return decodeURIComponent(text); } catch { return text; }
+}
+
+function cleanTitle(raw) {
+  return safeDecodeText(String(raw || '').replace(/\*/g, '').trim());
+}
+
+function compareKey(s) {
+  return String(s || '')
+    .replace(/&amp;/gi, 'and')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, '');
+}
+
+function looseKey(s) {
+  return String(s || '')
+    .replace(/&amp;/gi, 'and')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function encodeLocalPath(path) {
+  return String(path || '')
+    .split('/')
+    .map(part => {
+      if (!part || part === '.' || part === '..') return part;
+      return encodeURIComponent(part);
+    })
+    .join('/');
+}
+
+function unique(arr) {
+  return [...new Set((arr || []).filter(Boolean))];
+}
+
+
+function loaderDisplayName(fnName) {
+  const raw = String(fnName || '').trim();
+  const cleaned = raw.replace(/^load/i, '').replace(/seasons?$/i, '');
+  return cleaned
+    .replace(/ApOsTrOpHe/g, "'")
+    .replace(/AmPeRsAnD/g, '&')
+    .replace(/PeRiOd/g, '.')
+    .replace(/CoMmA/g, ',')
+    .replace(/ExClAmAtIoN/g, '!')
+    .replace(/HyPhEn/g, '-')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function loaderStrictKey(raw) {
+  return String(raw || '')
+    .replace(/&amp;/gi, 'and')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function tokenParts(raw) {
+  return String(raw || '')
+    .replace(/&amp;/gi, ' and ')
+    .replace(/&/g, ' and ')
+    .replace(/[_/\-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function parseLoaders(txt) {
+  const out = [];
+  const re = /function\s+(load[A-Za-z0-9_]+seasons?)\s*\(\)\s*\{/gi;
+  let m;
+  while ((m = re.exec(txt)) !== null) {
+    const fnName = m[1];
+    const block = extractFunctionBlock(txt, fnName);
+    if (!block) continue;
+    const seasonsMatch = block.match(/const\s+seasons\s*=\s*\[([\s\S]*?)\]\s*;/m);
+    let seasons = [];
+    if (seasonsMatch) {
+      try {
+        seasons = new Function(`return [${seasonsMatch[1]}];`)() || [];
+      } catch (e) {
+        console.warn(`Could not parse seasons for ${fnName}`, e);
+      }
+    }
+    const title = loaderDisplayName(fnName);
+    out.push({
+      fnName,
+      title,
+      key: compareKey(title),
+      strictKey: loaderStrictKey(title),
+      tokens: tokenParts(title),
+      block,
+      seasons
+    });
+  }
+  out.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
+  return out;
+}
+
+function getLoaderEntryForTitle(title) {
+  const clean = cleanTitle(title);
+  const key = compareKey(clean);
+  const sKey = loaderStrictKey(clean);
+  const loaders = Array.isArray(window.__shellLoaderEntries) ? window.__shellLoaderEntries : [];
+  if (!loaders.length) return null;
+
+  const exact = loaders.find(entry => entry && (
+    entry.key === key ||
+    entry.strictKey === sKey ||
+    loaderStrictKey(entry.title) === sKey ||
+    loaderStrictKey(entry.fnName) === sKey
+  ));
+  if (exact) return exact;
+
+  const byContainment = loaders.filter(entry => {
+    if (!entry) return false;
+    const eKey = entry.strictKey || loaderStrictKey(entry.title) || loaderStrictKey(entry.fnName);
+    return eKey && (eKey.includes(sKey) || sKey.includes(eKey));
+  }).sort((a, b) => (a.strictKey || loaderStrictKey(a.title)).length - (b.strictKey || loaderStrictKey(b.title)).length);
+  if (byContainment.length) return byContainment[0];
+
+  const titleTokens = tokenParts(clean);
+  const scored = loaders.map(entry => {
+    const eTokens = Array.isArray(entry.tokens) && entry.tokens.length ? entry.tokens : tokenParts(entry.title || entry.fnName || '');
+    let score = 0;
+    for (const token of titleTokens) if (eTokens.includes(token)) score++;
+    return { entry, score, len: (entry.strictKey || loaderStrictKey(entry.title) || '').length };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.len - b.len);
+  return scored.length ? scored[0].entry : null;
+}
+
+
+function libStyleSegment(value) {
+  return String(value || '')
+    .replace(/[’']/g, '')
+    .replace(/[*]/g, '')
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pushLibStyleArtworkCandidates(push, rootName, leafName = rootName) {
+  const canonicalRoot = libStyleSegment(rootName);
+  const canonicalLeaf = libStyleSegment(leafName);
+  if (!canonicalRoot) return;
+
+  const exts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+  const add = (prefix, folder, file) => {
+    if (!folder || !file) return;
+    for (const ext of exts) {
+      push(`${prefix}${folder}/${file}.${ext}`);
+    }
+  };
+
+  add('./', canonicalRoot, canonicalRoot);
+  add('./Movies/', canonicalRoot, canonicalRoot);
+
+  for (const ext of exts) {
+    push(`./${canonicalRoot}.${ext}`);
+  }
+
+  if (canonicalLeaf && canonicalLeaf !== canonicalRoot) {
+    add('./', canonicalRoot, canonicalLeaf);
+    add('./Movies/', canonicalRoot, canonicalLeaf);
+    add('./', canonicalLeaf, canonicalLeaf);
+    add('./Movies/', canonicalLeaf, canonicalLeaf);
+    for (const ext of exts) {
+      push(`./${canonicalRoot}/${canonicalLeaf}.${ext}`);
+      push(`./${canonicalLeaf}/${canonicalLeaf}.${ext}`);
+    }
+  }
+}
+
+function variantsForName(name) {
+  const base = String(name || '').trim();
+  if (!base) return [];
+  const noApos = base.replace(/[’']/g, '');
+  const noSpace = base.replace(/\s+/g, '');
+  const compact = noApos.replace(/\s+/g, '');
+  return unique([base, noApos, noSpace, compact]);
+}
+
+function buildMusicGenreImageCandidates(genreName) {
+  const clean = String(genreName == null ? '' : genreName).trim().replace(/[\\/]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean) return [];
+  const encoded = encodeURIComponent(clean);
+  const out = [];
+  for (const ext of ['jpg', 'jpeg', 'png', 'webp', 'gif']) {
+    out.push(encodeLocalPath(`./Music/Images/${encoded}.${ext}`));
+    out.push(encodeLocalPath(`Music/Images/${encoded}.${ext}`));
+  }
+  out.push(encodeLocalPath(`./Music/${encoded}.jpg`));
+  out.push(encodeLocalPath(`./Music/${encoded}.png`));
+  out.push(encodeLocalPath(`./Music/${encoded}.webp`));
+  return unique(out);
+}
+
+function buildImageCandidates(nodeOrTitle) {
+  const sourceNode = nodeOrTitle && typeof nodeOrTitle === 'object' ? nodeOrTitle : null;
+  const folderName = cleanTitle(sourceNode ? (sourceNode.title || sourceNode.name || '') : nodeOrTitle);
+  const pathParts = Array.isArray(sourceNode && sourceNode.path) ? sourceNode.path.map(cleanTitle).filter(Boolean) : [];
+  const candidates = [];
+  const push = (u) => {
+    const enc = encodeLocalPath(u);
+    if (enc && !candidates.includes(enc)) candidates.push(enc);
+  };
+
+  if (sourceNode && sourceNode.item) {
+    push(sourceNode.item.img);
+    push(sourceNode.item.image);
+    push(sourceNode.item.cover);
+  }
+
+  const variants = variantsForName(folderName);
+  const rootName = pathParts[0] || folderName;
+  const leafName = pathParts[pathParts.length - 1] || folderName;
+  const parentName = pathParts.slice(0, -1).join('/');
+
+  pushLibStyleArtworkCandidates(push, rootName, leafName);
+
+  for (const v of variants) {
+    const noSpace = v.replace(/\s+/g, '');
+    push(`./Movies/${v}/${v}.jpg`);
+    push(`./Movies/${v}/${noSpace}.jpg`);
+    push(`./Movies/${v}.jpg`);
+    push(`./${v}/${v}.jpg`);
+    push(`./${v}/${noSpace}.jpg`);
+    push(`./${v}.jpg`);
+  }
+
+  if (rootName && leafName && rootName !== leafName) {
+    for (const rv of variantsForName(rootName)) {
+      for (const lv of variantsForName(leafName)) {
+        const lvNoSpace = lv.replace(/\s+/g, '');
+        push(`./Movies/${rv}/${lv}.jpg`);
+        push(`./Movies/${rv}/${lvNoSpace}.jpg`);
+        push(`./Movies/${rv}/${lv}/${lv}.jpg`);
+        push(`./Movies/${rv}/${lv}/${lvNoSpace}.jpg`);
+        push(`./Movies/${rv}.jpg`);
+        push(`./${rv}/${lv}.jpg`);
+        push(`./${rv}/${lv}/${lv}.jpg`);
+        push(`./${rv}/${lv}/${lvNoSpace}.jpg`);
+        push(`./${rv}/${lv}.jpg`);
+      }
+    }
+  }
+
+  if (parentName && leafName) {
+    for (const lv of variantsForName(leafName)) {
+      const lvNoSpace = lv.replace(/\s+/g, '');
+      push(`./Movies/${parentName}/${lv}.jpg`);
+      push(`./Movies/${parentName}/${lvNoSpace}.jpg`);
+      push(`./Movies/${parentName}/${lv}/${lv}.jpg`);
+      push(`./Movies/${parentName}/${lv}/${lvNoSpace}.jpg`);
+      push(`./${parentName}/${lv}.jpg`);
+      push(`./${parentName}/${lv}/${lv}.jpg`);
+      push(`./${parentName}/${lv}/${lvNoSpace}.jpg`);
+    }
+  }
+
+  return unique(candidates);
+}
+
+function pathKey(path) {
+  return JSON.stringify(Array.isArray(path) ? path : []);
+}
+
+function pathFromKey(key) {
+  try {
+    const parsed = JSON.parse(key);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function pathEquals(a, b) {
+  const left = Array.isArray(a) ? a : [];
+  const right = Array.isArray(b) ? b : [];
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    if (String(left[i]) !== String(right[i])) return false;
+  }
+  return true;
+}
+
+function pathStartsWith(path, prefix) {
+  const full = Array.isArray(path) ? path : [];
+  const head = Array.isArray(prefix) ? prefix : [];
+  if (head.length > full.length) return false;
+  for (let i = 0; i < head.length; i++) {
+    if (String(full[i]) !== String(head[i])) return false;
+  }
+  return true;
+}
+
+function pathIntersectsSelection(path, selectedPaths) {
+  const probe = Array.isArray(path) ? path : [];
+  for (const sel of selectedPaths || []) {
+    if (pathEquals(probe, sel) || pathStartsWith(sel, probe) || pathStartsWith(probe, sel)) return true;
+  }
+  return false;
+}
+
+function unique(arr) {
+  return [...new Set((arr || []).filter(Boolean))];
+}
+
+function encodePathForFetch(path) {
+  const raw = String(path || '').replace(/^\.\//, '');
+  const [pre, query] = raw.split('?');
+  const encoded = pre.split('/').map(seg => encodeURIComponent(seg)).join('/');
+  return query ? `${encoded}?${query}` : encoded;
+}
+
+function resourceCandidates(file) {
+  const raw = String(file || '').replace(/^\.\//, '');
+  return [new URL(encodePathForFetch(raw), new URL('./', window.location.href)).href];
+}
+
+async function fetchTextResource(file) {
+  const urls = resourceCandidates(file);
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return { text: await res.text(), source: url };
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError || new Error(`${file} not found`);
+}
+
+async function fetchBinaryResource(path) {
+  const urls = resourceCandidates(path);
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buf = await res.arrayBuffer();
+      return { bytes: new Uint8Array(buf), source: url };
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError || new Error(`${path} not found`);
+}
+
+function evalVariableSource(txt, varName) {
+  try {
+    const fn = new Function(`${txt}\nreturn (typeof ${varName} !== 'undefined') ? ${varName} : null;`);
+    return fn();
+  } catch (e) {
+    console.warn(`Failed to evaluate ${varName}`, e);
+    return null;
+  }
+}
+
+function getBalancedBlock(text, openIndex) {
+  let depth = 0;
+  let state = 'code';
+  let escaped = false;
+  let regexClass = false;
+  let prevSig = '';
+  const regexStarters = new Set(['(', '[', '{', '=', ':', ';', ',', '!', '?', '+', '-', '*', '%', '&', '|', '^', '~', '<', '>', '\n']);
+
+  for (let i = openIndex; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+
+    if (state === 'lineComment') {
+      if (ch === '\n') state = 'code';
+      continue;
+    }
+    if (state === 'blockComment') {
+      if (ch === '*' && next === '/') {
+        state = 'code';
+        i++;
+      }
+      continue;
+    }
+    if (state === 'singleQuote') {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === "'") state = 'code';
+      continue;
+    }
+    if (state === 'doubleQuote') {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') state = 'code';
+      continue;
+    }
+    if (state === 'template') {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '`') state = 'code';
+      continue;
+    }
+    if (state === 'regex') {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '[') regexClass = true;
+      else if (ch === ']' && regexClass) regexClass = false;
+      else if (ch === '/' && !regexClass) state = 'code';
+      continue;
+    }
+
+    if (ch === '/' && next === '/') { state = 'lineComment'; i++; continue; }
+    if (ch === '/' && next === '*') { state = 'blockComment'; i++; continue; }
+    if (ch === "'") { state = 'singleQuote'; escaped = false; continue; }
+    if (ch === '"') { state = 'doubleQuote'; escaped = false; continue; }
+    if (ch === '`') { state = 'template'; escaped = false; continue; }
+    if (ch === '/' && regexStarters.has(prevSig)) { state = 'regex'; escaped = false; regexClass = false; continue; }
+
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
+
+    if (!/\s/.test(ch)) prevSig = ch;
+  }
+  return -1;
+}
+
+function extractFunctionBlock(text, fnName) {
+  const idx = text.search(new RegExp(`function\\s+${fnName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`));
+  if (idx < 0) return null;
+  const open = text.indexOf('{', idx);
+  if (open < 0) return null;
+  const close = getBalancedBlock(text, open);
+  if (close < 0) return null;
+  return text.slice(idx, close + 1);
+}
+
+function crc32(bytes) {
+  let crc = ~0 >>> 0;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i];
+    for (let k = 0; k < 8; k++) {
+      crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+    }
+  }
+  return (~crc) >>> 0;
+}
+
+function concatBytes(parts) {
+  const arrays = parts.map(p => p instanceof Uint8Array ? p : new Uint8Array(p));
+  const total = arrays.reduce((n, arr) => n + arr.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const arr of arrays) {
+    out.set(arr, offset);
+    offset += arr.length;
+  }
+  return out;
+}
+
+function makeZip(files) {
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (const file of files) {
+    const nameBytes = enc.encode(String(file.name || ''));
+    const raw = file.bytes instanceof Uint8Array
+      ? file.bytes
+      : file.bytes instanceof ArrayBuffer
+        ? new Uint8Array(file.bytes)
+        : enc.encode(String(file.content ?? ''));
+    const dataBytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+    const crc = crc32(dataBytes);
+
+    const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
+    const ldv = new DataView(local.buffer);
+    ldv.setUint32(0, 0x04034b50, true);
+    ldv.setUint16(4, 20, true);
+    ldv.setUint16(6, 0x0800, true);
+    ldv.setUint16(8, 0, true);
+    ldv.setUint16(10, 0, true);
+    ldv.setUint16(12, 0, true);
+    ldv.setUint32(14, crc, true);
+    ldv.setUint32(18, dataBytes.length, true);
+    ldv.setUint32(22, dataBytes.length, true);
+    ldv.setUint16(26, nameBytes.length, true);
+    ldv.setUint16(28, 0, true);
+    local.set(nameBytes, 30);
+    local.set(dataBytes, 30 + nameBytes.length);
+    localParts.push(local);
+
+    const central = new Uint8Array(46 + nameBytes.length);
+    const cdv = new DataView(central.buffer);
+    cdv.setUint32(0, 0x02014b50, true);
+    cdv.setUint16(4, 20, true);
+    cdv.setUint16(6, 20, true);
+    cdv.setUint16(8, 0x0800, true);
+    cdv.setUint16(10, 0, true);
+    cdv.setUint16(12, 0, true);
+    cdv.setUint16(14, 0, true);
+    cdv.setUint32(16, crc, true);
+    cdv.setUint32(20, dataBytes.length, true);
+    cdv.setUint32(24, dataBytes.length, true);
+    cdv.setUint16(28, nameBytes.length, true);
+    cdv.setUint16(30, 0, true);
+    cdv.setUint16(32, 0, true);
+    cdv.setUint16(34, 0, true);
+    cdv.setUint16(36, 0, true);
+    cdv.setUint32(38, 0, true);
+    cdv.setUint32(42, offset, true);
+    central.set(nameBytes, 46);
+    centralParts.push(central);
+
+    offset += local.length;
+  }
+
+  const centralBytes = concatBytes(centralParts);
+  const end = new Uint8Array(22);
+  const edv = new DataView(end.buffer);
+  edv.setUint32(0, 0x06054b50, true);
+  edv.setUint16(4, 0, true);
+  edv.setUint16(6, 0, true);
+  edv.setUint16(8, files.length, true);
+  edv.setUint16(10, files.length, true);
+  edv.setUint32(12, centralBytes.length, true);
+  edv.setUint32(16, offset, true);
+  edv.setUint16(20, 0, true);
+
+  return concatBytes([...localParts, centralBytes, end]);
+}
+
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 1500);
+}
+
+function parseMusicSource(txt) {
+  const genreMap = evalVariableSource(txt, 'musicLibraryGenreMap') || {};
+  const raw = evalVariableSource(txt, 'musicLibrary') || [];
+  const entries = [];
+  for (const line of Array.isArray(raw) ? raw : []) {
+    const s = String(line || '').trim();
+    if (!s) continue;
+    const dollar = s.lastIndexOf('$');
+    const code = dollar >= 0 ? s.slice(dollar + 1).trim() : '';
+    const body = dollar >= 0 ? s.slice(0, dollar).trim() : s;
+    const dash = body.lastIndexOf(' - ');
+    const song = dash >= 0 ? body.slice(0, dash).trim() : body;
+    const artist = dash >= 0 ? body.slice(dash + 3).trim() : 'Unknown Artist';
+    const genreName = String(genreMap[code] || code || 'Unsorted').trim() || 'Unsorted';
+    entries.push({
+      raw: s,
+      song,
+      artist,
+      code,
+      genreName,
+      genreKey: compareKey(genreName),
+      artistKey: compareKey(artist),
+      songKey: compareKey(song)
+    });
+  }
+  const genres = [];
+  const byGenre = new Map();
+  for (const entry of entries) {
+    if (!byGenre.has(entry.genreKey)) {
+      byGenre.set(entry.genreKey, { name: entry.genreName, code: entry.code, artists: new Map(), songs: [] });
+    }
+    const genre = byGenre.get(entry.genreKey);
+    genre.songs.push(entry);
+    if (!genre.artists.has(entry.artistKey)) {
+      genre.artists.set(entry.artistKey, { name: entry.artist, songs: [] });
+    }
+    genre.artists.get(entry.artistKey).songs.push(entry);
+  }
+  for (const g of byGenre.values()) {
+    const artists = [...g.artists.values()].map(a => ({
+      name: a.name,
+      songs: a.songs.slice().sort((x, y) => x.song.localeCompare(y.song, undefined, { numeric: true, sensitivity: 'base' }))
+    })).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+    genres.push({
+      name: g.name,
+      code: g.code,
+      artists,
+      songs: g.songs.slice().sort((x, y) => x.song.localeCompare(y.song, undefined, { numeric: true, sensitivity: 'base' }))
+    });
+  }
+  genres.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  return { genreMap, raw: entries, genres };
+}
+
+function pathToString(path) {
+  return Array.isArray(path) ? path.join(' / ') : String(path || '');
+}
+
+
+(() => {
+  const state = {
+    loaded: false,
+    section: 'video',
+    currentPath: [],
+    search: '',
+    folders: [],
+    loaders: [],
+    selectedBySection: {
+      video: new Set(),
+      music: new Set()
+    },
+    transfer: {
+      token: null,
+      payload: null,
+      pathText: ''
+    }
+  };
+
+  const el = {
+    sectionVideo: document.getElementById('sectionVideo'),
+    search: document.getElementById('search'),
+    rootsBtn: document.getElementById('rootsBtn'),
+    upBtn: document.getElementById('upBtn'),
+    selectViewBtn: document.getElementById('selectViewBtn'),
+    clearViewBtn: document.getElementById('clearViewBtn'),
+    viewTitle: document.getElementById('viewTitle'),
+    viewMeta: document.getElementById('viewMeta'),
+    viewCount: document.getElementById('viewCount'),
+    breadcrumb: document.getElementById('breadcrumb'),
+    grid: document.getElementById('grid'),
+    selectedCount: document.getElementById('selectedCount'),
+    selectedList: document.getElementById('selectedList'),
+    status: document.getElementById('status'),
+    transferModal: document.getElementById('transferModal'),
+    transferModalTitle: document.getElementById('transferModalTitle'),
+    transferModalMeta: document.getElementById('transferModalMeta'),
+    transferStartBtn: document.getElementById('transferStartBtn'),
+    transferCancelBtn: document.getElementById('transferCancelBtn'),
+    transferFrame: document.getElementById('transferFrame')
+  };
+
+  const flowTokenPrefix = 'shell-share-';
+  const embeddedShell = (() => {
+    try { return new URLSearchParams(location.search).get('flow') === '1' || window.self !== window.top; }
+    catch { return true; }
+  })();
+  if (embeddedShell) document.body.classList.add('embedded-shell');
+
+
+  function log(msg) {
+    el.status.textContent = String(msg || '');
+  }
+
+  function hideTransferModal() {
+    el.transferModal.classList.remove('show');
+    el.transferModal.setAttribute('aria-hidden', 'true');
+  }
+
+  function showTransferModal(payload, pathText) {
+    state.transfer.payload = payload;
+    state.transfer.pathText = pathText || '';
+    el.transferModalTitle.textContent = pathText
+      ? `Download shell of ${pathText}?`
+      : 'Download shell?';
+    el.transferModalMeta.textContent = pathText
+      ? `Choose Yes to build the zip, or Not, yet to go back.`
+      : 'Choose Yes to build the zip, or Not, yet to go back.';
+    el.transferModal.classList.add('show');
+    el.transferModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function stageTransferPayload(rootPath) {
+    const path = Array.isArray(rootPath) ? rootPath.slice() : [];
+    if (!path.length) return null;
+
+    const selected = [];
+    const anySelected = [...currentSelectedSet()].some(key => {
+      const p = pathFromKey(key);
+      return pathStartsWith(p, path) || pathStartsWith(path, p);
+    });
+
+    if (!anySelected) {
+      selected.push(nodeKey(path));
+    } else {
+      for (const key of currentSelectedSet()) {
+        const p = pathFromKey(key);
+        if (pathStartsWith(p, path) || pathStartsWith(path, p)) selected.push(key);
+      }
+      if (!selected.length) selected.push(nodeKey(path));
+    }
+
+    const payload = {
+      version: 1,
+      sourcePage: 'shell-backup.html',
+      section: state.section,
+      rootPath: path,
+      rootTitle: path[0],
+      selectedPaths: unique(selected),
+      createdAt: new Date().toISOString()
+    };
+
+    const token = `${flowTokenPrefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    try {
+      localStorage.setItem(token, JSON.stringify(payload));
+    } catch (e) {
+      log(`Could not stage package payload: ${e && e.message ? e.message : e}`);
+      return null;
+    }
+
+    state.transfer.token = token;
+    state.transfer.payload = payload;
+    state.transfer.pathText = pathToString(path);
+    return { token, payload, pathText: state.transfer.pathText };
+  }
+
+  function launchTransfer() {
+    const token = state.transfer.token;
+    if (!token) return;
+    const url = `shell-transfer.html?token=${encodeURIComponent(token)}&auto=1&embed=1&t=${Date.now()}`;
+    el.transferFrame.src = url;
+    log(`Building zip in hidden transfer frame for ${state.transfer.pathText || 'selected root'}…`);
+    hideTransferModal();
+  }
+
+  function currentSelectedSet() {
+    return state.selectedBySection[state.section];
+  }
+
+  function rootsForSection(section = state.section) {
+    const blocked = new Set(['continuewatching', 'games', 'music', 'books', 'manga', 'favorites']);
+    return (state.folders || [])
+      .map(cleanTitle)
+      .filter(Boolean)
+      .filter(title => !blocked.has(compareKey(title).replace(/[^a-z0-9]/g, '')));
+  }
+
+  function nodeKey(path) {
+    return pathKey(path);
+  }
+
+  function isSelected(path) {
+    return currentSelectedSet().has(nodeKey(path));
+  }
+
+  function hasSelectedDescendant(path) {
+    for (const key of currentSelectedSet()) {
+      const p = pathFromKey(key);
+      if (pathStartsWith(p, path) && p.length > path.length) return true;
+    }
+    return false;
+  }
+
+  function hasSelectedAncestor(path) {
+    const parts = Array.isArray(path) ? path : [];
+    for (let i = parts.length - 1; i >= 1; i--) {
+      if (currentSelectedSet().has(nodeKey(parts.slice(0, i)))) return true;
+    }
+    return false;
+  }
+
+  function effectiveVisibleSelection(path) {
+    return isSelected(path) || hasSelectedDescendant(path) || hasSelectedAncestor(path);
+  }
+
+  function togglePath(path, on) {
+    const key = nodeKey(path);
+    if (on) currentSelectedSet().add(key);
+    else currentSelectedSet().delete(key);
+    render();
+  }
+
+  function toggleVisibleSelection(on) {
+    const items = visibleNodes();
+    for (const node of items) {
+      togglePath(node.path, on);
+    }
+  }
+
+  function filteredRoots() {
+    const all = rootsForSection();
+    const q = compareKey(state.search);
+    if (!q) return all;
+    return all.filter(t => compareKey(t).includes(q));
+  }
+
+  function getVideoSource(title) {
+    const key = compareKey(title);
+    const direct = state.episodes[title] || state.episodes[cleanTitle(title)] || state.episodes[key];
+    return Array.isArray(direct) ? direct : null;
+  }
+
+  function nodeChildren(section, path) {
+    const depth = path.length;
+
+    if (depth === 0) {
+      return filteredRoots().map(title => ({ title, path: [title], kind: 'branch', count: 0 }));
+    }
+
+    const currentTitle = cleanTitle(path[path.length - 1] || '');
+    const loader = getLoaderEntryForTitle(currentTitle);
+    if (!loader) return [];
+
+    const childTitles = Array.isArray(loader.seasons) ? loader.seasons : [];
+    return childTitles
+      .map(child => {
+        const title = cleanTitle(child);
+        const childLoader = getLoaderEntryForTitle(title);
+        const childCount = childLoader && Array.isArray(childLoader.seasons) ? childLoader.seasons.length : 0;
+        const hasChildren = childCount > 0;
+        return {
+          title,
+          path: path.concat([title]),
+          kind: hasChildren ? 'branch' : 'leaf',
+          count: childCount
+        };
+      })
+      .filter(node => !state.search || compareKey(node.title).includes(compareKey(state.search)));
+  }
+
+  function visibleNodes() {
+    return nodeChildren(state.section, state.currentPath).filter(node => !state.search || compareKey(node.title).includes(compareKey(state.search)));
+  }
+
+  function buildBreadcrumbs() {
+    el.breadcrumb.innerHTML = '';
+    const crumbs = [{ label: 'Roots', path: [] }].concat(state.currentPath.map((part, idx) => ({
+      label: String(part),
+      path: state.currentPath.slice(0, idx + 1)
+    })));
+    crumbs.forEach((crumb, index) => {
+      if (index) {
+        const sep = document.createElement('span');
+        sep.className = 'crumbSep';
+        sep.textContent = '›';
+        el.breadcrumb.appendChild(sep);
+      }
+      const c = document.createElement('button');
+      c.className = 'crumb';
+      c.textContent = crumb.label;
+      c.onclick = () => {
+        state.currentPath = crumb.path.slice();
+        render();
+      };
+      el.breadcrumb.appendChild(c);
+    });
+  }
+
+  function updateSidebar() {
+    const exact = [...currentSelectedSet()].map(pathFromKey).filter(Boolean);
+    el.selectedCount.textContent = String(exact.length);
+    el.selectedList.innerHTML = '';
+    for (const path of exact.slice().sort((a, b) => a.length - b.length || pathToString(a).localeCompare(pathToString(b)))) {
+      const row = document.createElement('div');
+      row.className = 'selItem';
+      const t = document.createElement('div');
+      t.className = 't';
+      t.textContent = pathToString(path);
+      const x = document.createElement('button');
+      x.className = 'x';
+      x.type = 'button';
+      x.textContent = '×';
+      x.onclick = () => {
+        currentSelectedSet().delete(nodeKey(path));
+        render();
+      };
+      row.appendChild(t);
+      row.appendChild(x);
+      el.selectedList.appendChild(row);
+    }
+  }
+
+  function renderGrid() {
+    const nodes = visibleNodes();
+    el.grid.innerHTML = '';
+
+    for (const node of nodes) {
+      const card = document.createElement('div');
+      card.className = 'tile';
+      if (effectiveVisibleSelection(node.path)) card.classList.add('selected');
+
+      const isRoot = Array.isArray(node.path) && node.path.length === 1;
+      let pkg = null;
+      let chk = null;
+
+      if (isRoot) {
+        pkg = document.createElement('button');
+        pkg.className = 'pkg';
+        pkg.type = 'button';
+        pkg.title = `Package ${node.title}`;
+        pkg.textContent = '📦';
+        pkg.onclick = (ev) => {
+          ev.stopPropagation();
+          packageNode(node.path);
+        };
+      } else {
+        chk = document.createElement('label');
+        chk.className = 'chk';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = isSelected(node.path);
+        input.onchange = () => togglePath(node.path, !!input.checked);
+        chk.appendChild(input);
+      }
+
+      const art = document.createElement('div');
+      art.className = 'art';
+      const img = document.createElement('img');
+      const fallback = document.createElement('div');
+      fallback.className = 'fallback';
+      fallback.textContent = node.title;
+
+      const candidates = buildImageCandidates(node);
+      let imageIndex = 0;
+      img.alt = node.title;
+      img.src = candidates[imageIndex] || '';
+      img.onerror = function() {
+        if (imageIndex < candidates.length - 1) {
+          imageIndex += 1;
+          this.src = candidates[imageIndex];
+        } else {
+          this.onerror = null;
+          this.style.display = 'none';
+        }
+      };
+      art.appendChild(img);
+      art.appendChild(fallback);
+
+      const label = document.createElement('div');
+      label.className = 'title';
+      label.textContent = node.title;
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = node.kind === 'leaf' ? 'Leaf package' : `Branch • ${node.count || 0} child nodes`;
+
+      const foot = document.createElement('div');
+      foot.className = 'foot';
+      foot.textContent = node.kind === 'leaf' ? 'Open item' : 'Open branch';
+
+      if (node.kind !== 'leaf') card.classList.add('branchOnly');
+
+      if (pkg) card.appendChild(pkg);
+      if (chk) card.appendChild(chk);
+      card.appendChild(art);
+      card.appendChild(label);
+      card.appendChild(meta);
+      card.appendChild(foot);
+
+      card.onclick = () => {
+        if (node.kind !== 'leaf') {
+          state.currentPath = node.path.slice();
+          state.search = '';
+          el.search.value = '';
+          render();
+        } else {
+          togglePath(node.path, !isSelected(node.path));
+        }
+      };
+
+      el.grid.appendChild(card);
+    }
+
+    const count = nodes.length;
+    el.viewCount.textContent = `${count} visible`;
+    el.viewMeta.textContent = state.currentPath.length ? pathToString(state.currentPath) : 'Root packages';
+    el.viewTitle.textContent = state.currentPath.length ? state.currentPath[state.currentPath.length - 1] : 'Video roots';
+    updateSidebar();
+  }
+
+  function packageNode(rootPath) {
+    const staged = stageTransferPayload(rootPath);
+    if (!staged) return;
+    showTransferModal(staged.payload, staged.pathText);
+  }
+
+  function render() {
+    buildBreadcrumbs();
+    renderGrid();
+    el.sectionVideo.classList.toggle('active', state.section === 'video');
+    log(`${currentSelectedSet().size} checked node(s). Use 📦 on a root tile to stage that package for hidden transfer.`);
+  }
+
+  async function init() {
+    try {
+      log('Loading source files…');
+      const [foldersTxt, loadersTxt] = await Promise.all([
+        fetchTextResource(SOURCE_FILES.folders).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.loaders).then(r => r.text)
+      ]);
+
+      const folders = evalVariableSource(foldersTxt, 'folders');
+      state.folders = Array.isArray(folders) ? folders : [];
+      state.loaders = parseLoaders(loadersTxt || '');
+      window.__shellLoaderEntries = state.loaders;
+      state.loaded = true;
+      render();
+      log(`Loaded ${state.folders.length} roots and ${state.loaders.length} loaders.`);
+    } catch (e) {
+      console.error(e);
+      log(`Load failed: ${e && e.message ? e.message : e}`);
+      el.viewTitle.textContent = 'Load failed';
+      el.viewMeta.textContent = 'Open this page from the server, not file://.';
+    }
+  }
+
+  if (el.sectionVideo) {
+    el.sectionVideo.onclick = () => {
+      state.section = 'video';
+      state.currentPath = [];
+      render();
+    };
+  }
+  if (el.transferStartBtn) el.transferStartBtn.onclick = () => launchTransfer();
+  if (el.transferCancelBtn) el.transferCancelBtn.onclick = () => hideTransferModal();
+  if (el.transferModal) {
+    el.transferModal.addEventListener('click', (ev) => {
+      if (ev.target === el.transferModal) hideTransferModal();
+    });
+  }
+  window.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && el.transferModal && el.transferModal.classList.contains('show')) hideTransferModal();
+  });
+  window.addEventListener('message', (ev) => {
+    const data = ev && ev.data;
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'shell-transfer-ready') {
+      log(`Transfer frame ready for ${data.pathText || state.transfer.pathText || 'selected root'}…`);
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'shell-package-ready',
+          ok: true,
+          title: state.transfer.payload?.rootTitle || state.transfer.pathText || 'Shell',
+          pathText: state.transfer.pathText || '',
+          token: state.transfer.token || '',
+          zipName: ''
+        }, '*');
+      }
+    } else if (data.type === 'shell-transfer-complete') {
+      const shellTitle = state.transfer.payload?.rootTitle || state.transfer.pathText || 'Shell';
+      const doneText = `${shellTitle} Shell Downloaded`;
+      log(`${doneText}${data.ok === false ? ' (failed)' : ''}.`);
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'shell-package-complete',
+          ok: data.ok !== false,
+          title: doneText,
+          zipName: data.zipName || '',
+          pathText: state.transfer.pathText || '',
+          token: data.token || state.transfer.token || ''
+        }, '*');
+      }
+    }
+  });
+  el.search.addEventListener('input', () => {
+    state.search = el.search.value || '';
+    render();
+  });
+  el.rootsBtn.onclick = () => {
+    state.currentPath = [];
+    state.search = '';
+    el.search.value = '';
+    render();
+  };
+  el.upBtn.onclick = () => {
+    if (!state.currentPath.length) return;
+    state.currentPath = state.currentPath.slice(0, -1);
+    render();
+  };
+  el.selectViewBtn.onclick = () => toggleVisibleSelection(true);
+  el.clearViewBtn.onclick = () => toggleVisibleSelection(false);
+
+  init();
+})();
+
+</script>
+</body>
+</html>

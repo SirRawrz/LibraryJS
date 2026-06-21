@@ -40,6 +40,7 @@
     .topbarCenter{justify-content:center;text-align:center}
     .topbarCenter h1{width:100%}
     .topbarRight{justify-content:flex-end;flex-wrap:wrap}
+    .shellFlowActive .topbarRight{display:none!important}
     h1{margin:0;font-size:24px;letter-spacing:-.02em}
     .sub{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.45;max-width:960px}
     .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
@@ -170,6 +171,7 @@
           <input id="currentBackupMode" type="checkbox" checked />
           <span>Current Backup</span>
         </label>
+        <button class="btn ghost" id="shellBackupBtn" type="button">Backup Content Shell</button>
         <button class="btn primary" id="continueBtn">Begin Backup</button>
       </div>
     </div>
@@ -256,6 +258,7 @@
       choiceProfile: document.getElementById('choiceProfile'),
       choiceContent: document.getElementById('choiceContent'),
       choiceMeta: document.getElementById('choiceMeta'),
+      shellBackupBtn: document.getElementById('shellBackupBtn'),
       continueBtn: document.getElementById('continueBtn'),
       currentBackupChoice: document.getElementById('currentBackupChoice'),
       currentBackupMode: document.getElementById('currentBackupMode'),
@@ -284,7 +287,8 @@
       results: { profile: null, content: null },
       finalBundle: null,
       finalName: '',
-      busy: false
+      busy: false,
+      shellMode: false
     };
 
     function updateChoiceStyles() {
@@ -295,7 +299,7 @@
       }
       const count = [el.profileCheck.checked, el.contentCheck.checked].filter(Boolean).length;
       el.choiceMeta.textContent = count === 0 ? 'Nothing selected yet' : count === 1 ? '1 lane selected' : '2 lanes selected';
-      el.continueBtn.disabled = count === 0;
+      el.continueBtn.disabled = state.shellMode || count === 0;
       syncPrimaryActionLabel();
     }
 
@@ -306,20 +310,39 @@
       ].filter(Boolean);
     }
 
+    function syncShellBackupButtonVisibility() {
+      if (!el.shellBackupBtn) return;
+      const showShellButton = !state.shellMode && el.chooserView.style.display !== 'none';
+      el.shellBackupBtn.style.display = showShellButton ? 'inline-flex' : 'none';
+    }
+
+
+    function setShellFlowActive(active) {
+      document.body.classList.toggle('shellFlowActive', !!active);
+    }
 
     function syncPrimaryActionLabel() {
       if (el.currentBackupChoice) {
         el.currentBackupChoice.style.display = state.finished ? 'inline-flex' : 'none';
       }
+      if (state.shellMode) {
+        el.continueBtn.textContent = 'Shell Backup Open';
+        el.continueBtn.disabled = true;
+        syncShellBackupButtonVisibility();
+        return;
+      }
       if (state.finished) {
         el.continueBtn.textContent = 'Restore from Backup';
+        syncShellBackupButtonVisibility();
         return;
       }
       if (el.workView.style.display === 'grid') {
         el.continueBtn.textContent = state.activeLane === 'profile' ? 'Profile Backup' : 'Content Backup';
+        syncShellBackupButtonVisibility();
         return;
       }
       el.continueBtn.textContent = 'Begin Backup';
+      syncShellBackupButtonVisibility();
     }
 
     function setUiForRunning() {
@@ -331,6 +354,34 @@
       el.overlayMsg.style.display = 'none';
       el.frame.src = 'about:blank';
       syncPrimaryActionLabel();
+    }
+
+    function startShellBackup() {
+      if (state.shellMode) return;
+      clearWatcher();
+      state.shellMode = true;
+      setShellFlowActive(true);
+      state.activeLane = '';
+      state.lanes = [];
+      state.laneIndex = 0;
+      state.finished = false;
+      state.results = { profile: null, content: null };
+      state.finalBundle = null;
+      state.finalName = '';
+      el.chooserView.style.display = 'none';
+      el.workView.style.display = 'grid';
+      el.doneCard.classList.remove('show');
+      el.frameShell.style.display = '';
+      el.workView.classList.add('compactMode');
+      el.overlayMsg.style.display = 'none';
+      el.frame.src = 'about:blank';
+      el.stepTitle.textContent = 'Shell content backup';
+      el.stepMeta.textContent = 'Build the shell package in the iframe, then the hidden transfer frame will download it.';
+      el.continueBtn.disabled = true;
+      el.continueBtn.textContent = 'Shell Backup Open';
+      syncShellBackupButtonVisibility();
+      el.frame.src = './shell-backup.html?flow=1';
+      setStatus('Opening shell backup workspace…');
     }
 
     function setStatus(text) {
@@ -714,13 +765,30 @@
       if (event.source !== el.frame.contentWindow) return;
       if (event.origin !== location.origin && event.origin !== 'null') return;
       const data = event.data || {};
-      if (data.type !== 'libraryjs-flow-result' || data.flow !== 'backup') return;
-      const lane = data.lane === 'content' ? 'content' : 'profile';
-      try {
-        handleLaneResult(lane, data);
-      } catch (err) {
-        console.error(err);
-        setStatus(`Flow handoff failed: ${err && err.message ? err.message : String(err)}`);
+
+      if (data.type === 'libraryjs-flow-result' && data.flow === 'backup') {
+        const lane = data.lane === 'content' ? 'content' : 'profile';
+        try {
+          handleLaneResult(lane, data);
+        } catch (err) {
+          console.error(err);
+          setStatus(`Flow handoff failed: ${err && err.message ? err.message : String(err)}`);
+        }
+        return;
+      }
+
+      if (data.type === 'shell-package-complete') {
+        const title = String(data.title || 'Shell Downloaded').trim();
+        state.finished = true;
+        state.shellMode = true;
+        setShellFlowActive(true);
+        setStatus(title);
+        el.stepTitle.textContent = title;
+        el.stepMeta.textContent = data.ok === false
+          ? 'Shell package build failed.'
+          : 'Shell package built and downloaded from the hidden transfer frame.';
+        if (el.currentBackupChoice) el.currentBackupChoice.classList.add('active');
+        syncPrimaryActionLabel();
       }
     }
 
@@ -739,6 +807,11 @@
     if (el.currentBackupMode) {
       el.currentBackupMode.addEventListener('change', updateChoiceStyles);
     }
+    if (el.shellBackupBtn) {
+      el.shellBackupBtn.addEventListener('click', () => {
+        startShellBackup();
+      });
+    }
 
     el.backBtn.addEventListener('click', () => {
       if (el.doneCard.classList.contains('show')) {
@@ -748,6 +821,7 @@
         el.workView.classList.add('compactMode');
         el.overlayMsg.style.display = 'none';
         syncPrimaryActionLabel();
+        syncShellBackupButtonVisibility();
         return;
       }
 
@@ -756,11 +830,15 @@
         state.activeLane = '';
         state.laneIndex = 0;
         state.finished = false;
+        state.shellMode = false;
+        setShellFlowActive(false);
         el.frame.src = 'about:blank';
         el.workView.classList.remove('compactMode');
         el.workView.style.display = 'none';
         el.chooserView.style.display = 'grid';
+        el.continueBtn.disabled = [el.profileCheck.checked, el.contentCheck.checked].filter(Boolean).length === 0;
         syncPrimaryActionLabel();
+        syncShellBackupButtonVisibility();
         return;
       }
 
@@ -792,6 +870,10 @@
     }
 
     el.continueBtn.addEventListener('click', async () => {
+      if (state.shellMode) {
+        setStatus('Close Shell Backup to return to the regular backup flow.');
+        return;
+      }
       if (state.finished) {
         if (el.currentBackupMode && el.currentBackupMode.checked) {
           try {
@@ -834,6 +916,7 @@
     window.addEventListener('message', onFlowMessage);
 
     el.frame.addEventListener('load', () => {
+      if (state.shellMode) return;
       const lane = state.activeLane;
       if (!lane) return;
       tuneChildFrame(lane);
@@ -848,6 +931,7 @@
 
     updateChoiceStyles();
     syncPrimaryActionLabel();
+    syncShellBackupButtonVisibility();
   })();
   </script>
 
