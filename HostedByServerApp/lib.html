@@ -3326,12 +3326,13 @@ function loaderFunctionName(title) {
       const title = safeText(rawTitle);
       if (!title) return;
 
-      const key = normalizeLookupKey(title.replace(/\*/g, ''));
-      const hasStar = title.includes('*');
+      const base = collapseTrailingAdultMarks(title);
+      const key = normalizeLookupKey(base || title);
+      const hasStar = /\*$/.test(title);
       const existing = merged.get(key);
 
       if (!existing) {
-        merged.set(key, { title, hasStar });
+        merged.set(key, { title: hasStar ? title : base, hasStar });
         return;
       }
 

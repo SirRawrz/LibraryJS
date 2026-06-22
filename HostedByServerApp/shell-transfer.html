@@ -295,7 +295,7 @@ function safeDecodeText(raw) {
 }
 
 function cleanTitle(raw) {
-  return safeDecodeText(String(raw || '').replace(/\*/g, '').trim());
+  return safeDecodeText(String(raw || '').replace(/\s*\*+$/g, '').trim());
 }
 
 function compareKey(s) {

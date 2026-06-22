@@ -571,7 +571,7 @@ body.autoCompact .archivePanel{display:none!important}
     const text = normalizeSourceText(source);
     const match = text.match(/const\s+folders\s*=\s*\[((?:.|\n)*?)\]\s*;?/s);
     if (!match) return [];
-    return sortMainFolderTitles(parseQuotedListValues(match[1]).map(collapseTrailingAdultMarks));
+    return sortMainFolderTitles(parseQuotedListValues(match[1]));
   }
 
   function extractMainfoldersHeader(source) {
@@ -611,12 +611,13 @@ body.autoCompact .archivePanel{display:none!important}
       const title = safeText(rawTitle);
       if (!title) return;
 
-      const key = normalizeLookupKey(title.replace(/\*/g, ''));
-      const hasStar = title.includes('*');
+      const base = collapseTrailingAdultMarks(title);
+      const key = normalizeLookupKey(base || title);
+      const hasStar = /\*$/.test(title);
       const existing = merged.get(key);
 
       if (!existing) {
-        merged.set(key, { title, hasStar });
+        merged.set(key, { title: hasStar ? title : base, hasStar });
         return;
       }
 
@@ -686,6 +687,92 @@ body.autoCompact .archivePanel{display:none!important}
       re.lastIndex = end;
     }
     return blocks;
+  }
+
+  function normalizeLibrarySeparatorNoise(text, footerText = '') {
+    const source = String(text ?? '').replace(/\r\n?/g, '\n');
+    const cleanLooseLines = (segment) => String(segment ?? '')
+      .replace(/\r\n?/g, '\n')
+      .replace(/(^|\n)[ \t]*[},;]+[ \t]*(?=\n|$)/g, '$1')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trimEnd();
+
+    const split = typeof splitLibraryFooter === 'function' ? splitLibraryFooter(source) : { body: source, footer: '' };
+    const body = split.body;
+    const blocks = typeof parseLibraryBlocks === 'function' ? parseLibraryBlocks(body) : [];
+
+    if (!blocks.length) {
+      let out = cleanLooseLines(source);
+      const footer = split.footer || footerText || '';
+      if (!footer) return out;
+      const footerClean = String(footer).replace(/^\n+/, '\n');
+      return `${out}${out ? '\n' : ''}${footerClean}`;
+    }
+
+    const parts = [];
+    const prefix = cleanLooseLines(body.slice(0, blocks[0].start));
+    if (prefix) parts.push(prefix);
+
+    blocks.forEach((block, index) => {
+      let blockText = String(block.text ?? '').replace(/\r\n?/g, '\n').replace(/[ \t]+$/gm, '').trimEnd();
+      blockText = blockText.replace(/,\s*$/, '');
+      if (index < blocks.length - 1) blockText += ',';
+      parts.push(blockText);
+    });
+
+    let out = parts.join('\n').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+\n/g, '\n').trimEnd();
+    const footer = split.footer || footerText || '';
+    if (footer) {
+      out += `${out ? '\n' : ''}${String(footer).replace(/^\n+/, '\n')}`;
+    }
+    return out;
+  }
+
+  function mergeLibraryFile(currentText, generatedText, removeKeys = []) {
+    const current = String(currentText ?? '').replace(/\r\n?/g, '\n');
+    const generated = String(generatedText ?? '').replace(/\r\n?/g, '\n').trim();
+    if (!generated) return current;
+
+    const removeSet = new Set(ensureArray(removeKeys).map(key => normalizeLookupKey(key)));
+    const currentSplit = splitLibraryFooter(current);
+    const generatedBlocks = parseLibraryBlocks(generated);
+    if (!generatedBlocks.length) {
+      const trimmedBody = currentSplit.body.replace(/[\t ]+$/g, '');
+      return normalizeLibrarySeparatorNoise(`${trimmedBody}\n\n${generated}${currentSplit.footer || '\n};;'}`);
+    }
+
+    const existingBlocks = parseLibraryBlocks(currentSplit.body).filter(block => !removeSet.has(normalizeLookupKey(block.key)));
+    const generatedByKey = new Map(generatedBlocks.map(block => [block.key, block]));
+
+    let mergedBody = '';
+    let cursor = 0;
+
+    for (const block of existingBlocks) {
+      if (block.start > cursor) {
+        mergedBody += currentSplit.body.slice(cursor, block.start);
+      }
+
+      if (!generatedByKey.has(block.key)) {
+        mergedBody += currentSplit.body.slice(block.start, block.end);
+      }
+
+      cursor = block.end;
+    }
+
+    mergedBody += currentSplit.body.slice(cursor).replace(/[\t ]+$/g, '');
+
+    const appended = generatedBlocks.map(block => block.text.trimEnd()).join('\n\n');
+    const bodyClean = mergedBody.replace(/[\t ]+$/g, '');
+    if (!appended) {
+      const footerOnly = currentSplit.footer || '\n};;';
+      const needsSpacer = bodyClean && !/\n\n$/.test(bodyClean);
+      return normalizeLibrarySeparatorNoise(`${bodyClean}${needsSpacer ? '\n\n' : '\n'}${footerOnly.replace(/^\n+/, '\n')}`);
+    }
+
+    const footer = currentSplit.footer || '\n};;';
+    const needsSpacer = bodyClean && !/\n\n$/.test(bodyClean);
+    return normalizeLibrarySeparatorNoise(`${bodyClean}${needsSpacer ? '\n\n' : '\n'}${appended}\n${footer.replace(/^\n+/, '\n')}`);
   }
 
 
