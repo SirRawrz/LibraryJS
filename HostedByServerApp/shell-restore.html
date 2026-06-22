@@ -688,51 +688,42 @@ body.autoCompact .archivePanel{display:none!important}
     return blocks;
   }
 
-  function stripLooseLeadingEpisodesComma(text) {
-    const source = String(text ?? '');
-    const marker = 'const episodes = {';
-    const start = source.indexOf(marker);
-    if (start === -1) return source;
-    let i = start + marker.length;
-    while (i < source.length && /[\t\r\n ]/.test(source[i])) i++;
-    if (source[i] !== ',') return source;
-    const before = source.slice(0, i).replace(/[\t ]+$/g, '');
-    let after = source.slice(i + 1);
-    after = after.replace(/^[\t\r\n ]+/, '');
-    return `${before}\n  ${after}`;
+
+function stripLooseLeadingEpisodesComma(text) {
+  const source = String(text ?? '').replace(/\r\n?/g, '\n');
+  const cleanLooseLines = (segment) => String(segment ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/(^|\n)[ \t]*[},;]+[ \t]*(?=\n|$)/g, '$1')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd();
+
+  const split = splitLibraryFooter(source);
+  const blocks = parseLibraryBlocks(split.body);
+  if (!blocks.length) {
+    let cleaned = cleanLooseLines(split.body);
+    const footer = split.footer || '';
+    if (footer) cleaned += `${cleaned ? '\n' : ''}${String(footer).replace(/^\n+/, '\n')}`;
+    return cleaned;
   }
 
-  function mergeLibraryFile(currentText, generatedText) {
-    const current = String(currentText ?? '').replace(/\r\n?/g, '\n');
-    const generated = String(generatedText ?? '').replace(/\r\n?/g, '\n').trim();
-    if (!generated) return current;
-    const currentSplit = splitLibraryFooter(current);
-    const generatedBlocks = parseLibraryBlocks(generated);
-    if (!generatedBlocks.length) {
-      const trimmedBody = currentSplit.body.replace(/[\t ]+$/g, '');
-      const footer = currentSplit.footer || '};';
-      return stripLooseLeadingEpisodesComma(`${trimmedBody}\n${footer}`);
-    }
-    const existingBlocks = parseLibraryBlocks(currentSplit.body);
-    const generatedByKey = new Map(generatedBlocks.map(block => [normalizeLookupKey(block.key), block]));
-    let mergedBody = '';
-    let cursor = 0;
-    for (const block of existingBlocks) {
-      if (block.start > cursor) mergedBody += currentSplit.body.slice(cursor, block.start);
-      if (!generatedByKey.has(normalizeLookupKey(block.key))) mergedBody += currentSplit.body.slice(block.start, block.end);
-      cursor = block.end;
-    }
-    mergedBody += currentSplit.body.slice(cursor).replace(/[\t ]+$/g, '');
-    const appended = generatedBlocks.map(block => block.text.trimEnd()).filter(Boolean).join('\n\n');
-    const bodyClean = mergedBody.replace(/[\t ]+$/g, '');
-    const footer = currentSplit.footer || '};';
-    if (!appended) return stripLooseLeadingEpisodesComma(`${bodyClean}\n${footer}`);
-    const needsComma = bodyClean && !/,\s*$/.test(bodyClean);
-    const separator = bodyClean ? (needsComma ? ',\n\n' : '\n\n') : '';
-    return stripLooseLeadingEpisodesComma(`${bodyClean}${separator}${appended}\n${footer}`);
-  }
+  const parts = [];
+  const prefix = cleanLooseLines(split.body.slice(0, blocks[0].start));
+  if (prefix) parts.push(prefix);
 
-  function normalizeLoadSeasonFunctionsText(source) {
+  blocks.forEach((block, index) => {
+    let blockText = String(block.text ?? '').replace(/\r\n?/g, '\n').replace(/[ \t]+$/gm, '').trimEnd();
+    blockText = blockText.replace(/,\s*$/, '');
+    if (index < blocks.length - 1) blockText += ',';
+    parts.push(blockText);
+  });
+
+  let cleaned = parts.join('\n').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+\n/g, '\n').trimEnd();
+  if (split.footer) cleaned += `${cleaned ? '\n' : ''}${String(split.footer).replace(/^\n+/, '\n')}`;
+  return cleaned;
+}
+
+function normalizeLoadSeasonFunctionsText(source) {
     return String(source ?? '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   }
 

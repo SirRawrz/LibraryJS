@@ -1290,13 +1290,43 @@ if (item.kind === 'audiobook') {
   }
 
   
-    function normalizeLibraryEpisodesText(text) {
-    let out = String(text ?? '').replace(/\r\n?/g, '\n');
-    out = out.replace(/(const\s+episodes\s*=\s*\{)(?:\s*,\s*)+(?=\n\s*["'])/s, '$1');
-    out = out.replace(/(\n\s*[\]\}])(?:\s*,\s*){2,}(?=\n\s*["'])/g, '$1,');
-    out = out.replace(/(\n\s*[\]\}])(?:\s*,\s*)+(?=\n\s*\}\s*;{1,2}\s*$)/g, '$1');
-    return out;
+    
+function normalizeLibraryEpisodesText(text) {
+  const source = String(text ?? '').replace(/\r\n?/g, '\n');
+  const cleanLooseLines = (segment) => String(segment ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/(^|\n)[ \t]*[},;]+[ \t]*(?=\n|$)/g, '$1')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd();
+
+  let out = source;
+  out = out.replace(/(const\s+episodes\s*=\s*\{)(?:\s*,\s*)+(?=\n\s*["'])/s, '$1');
+
+  const split = splitLibraryFooter(out);
+  const blocks = parseLibraryBlocks(split.body);
+  if (!blocks.length) {
+    let cleaned = cleanLooseLines(split.body);
+    const footer = split.footer || '';
+    if (footer) cleaned += `${cleaned ? '\n' : ''}${String(footer).replace(/^\n+/, '\n')}`;
+    return cleaned;
   }
+
+  const parts = [];
+  const prefix = cleanLooseLines(split.body.slice(0, blocks[0].start));
+  if (prefix) parts.push(prefix);
+
+  blocks.forEach((block, index) => {
+    let blockText = String(block.text ?? '').replace(/\r\n?/g, '\n').replace(/[ \t]+$/gm, '').trimEnd();
+    blockText = blockText.replace(/,\s*$/, '');
+    if (index < blocks.length - 1) blockText += ',';
+    parts.push(blockText);
+  });
+
+  let cleaned = parts.join('\n').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+\n/g, '\n').trimEnd();
+  if (split.footer) cleaned += `${cleaned ? '\n' : ''}${String(split.footer).replace(/^\n+/, '\n')}`;
+  return cleaned;
+}
 
 function mergeLibraryFile(currentText, generatedText, removeKeys = []) {
     const current = String(currentText ?? '').replace(/\r\n?/g, '\n');
