@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -400,7 +401,7 @@ function safeDecodeText(raw) {
 }
 
 function cleanTitle(raw) {
-  return safeDecodeText(String(raw || '').replace(/\*/g, '').trim());
+  return safeDecodeText(String(raw || '').replace(/\s*\*+$/g, '').trim());
 }
 
 function compareKey(s) {
@@ -515,31 +516,13 @@ function getLoaderEntryForTitle(title) {
   const loaders = Array.isArray(window.__shellLoaderEntries) ? window.__shellLoaderEntries : [];
   if (!loaders.length) return null;
 
-  const exact = loaders.find(entry => entry && (
+  return loaders.find(entry => entry && (
     entry.key === key ||
     entry.strictKey === sKey ||
     loaderStrictKey(entry.title) === sKey ||
     loaderStrictKey(entry.fnName) === sKey
-  ));
-  if (exact) return exact;
-
-  const byContainment = loaders.filter(entry => {
-    if (!entry) return false;
-    const eKey = entry.strictKey || loaderStrictKey(entry.title) || loaderStrictKey(entry.fnName);
-    return eKey && (eKey.includes(sKey) || sKey.includes(eKey));
-  }).sort((a, b) => (a.strictKey || loaderStrictKey(a.title)).length - (b.strictKey || loaderStrictKey(b.title)).length);
-  if (byContainment.length) return byContainment[0];
-
-  const titleTokens = tokenParts(clean);
-  const scored = loaders.map(entry => {
-    const eTokens = Array.isArray(entry.tokens) && entry.tokens.length ? entry.tokens : tokenParts(entry.title || entry.fnName || '');
-    let score = 0;
-    for (const token of titleTokens) if (eTokens.includes(token)) score++;
-    return { entry, score, len: (entry.strictKey || loaderStrictKey(entry.title) || '').length };
-  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.len - b.len);
-  return scored.length ? scored[0].entry : null;
+  )) || null;
 }
-
 
 function libStyleSegment(value) {
   return String(value || '')
@@ -1147,7 +1130,6 @@ function pathToString(path) {
   function rootsForSection(section = state.section) {
     const blocked = new Set(['continuewatching', 'games', 'music', 'books', 'manga', 'favorites']);
     return (state.folders || [])
-      .map(cleanTitle)
       .filter(Boolean)
       .filter(title => !blocked.has(compareKey(title).replace(/[^a-z0-9]/g, '')));
   }
