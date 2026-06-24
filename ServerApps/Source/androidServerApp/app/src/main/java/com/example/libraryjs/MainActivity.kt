@@ -21,6 +21,7 @@ import android.text.method.LinkMovementMethod
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -50,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mainHttpsCheck: CheckBox
     private lateinit var mainHttpsInstallButton: Button
     private lateinit var installLibraryJsButton: Button
+    private lateinit var installProgressText: TextView
     private lateinit var wifiModeButton: ImageButton
     private lateinit var hotspotQrButton: ImageButton
     private lateinit var hotspotInfoContainer: LinearLayout
@@ -175,6 +177,7 @@ class MainActivity : AppCompatActivity() {
         mainRootText = findViewById(R.id.mainRootText)
 
         installLibraryJsButton = findViewById(R.id.installLibraryJsButton)
+        installProgressText = findViewById(R.id.installProgressText)
         startupOptionsButton = findViewById(R.id.startupOptionsButton)
         wifiModeButton = findViewById(R.id.wifiModeButton)
         hotspotQrButton = findViewById(R.id.hotspotQrButton)
@@ -1198,6 +1201,17 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+
+    private fun setInstallProgress(message: String?) {
+        if (message.isNullOrBlank()) {
+            installProgressText.visibility = View.GONE
+            installProgressText.text = ""
+        } else {
+            installProgressText.visibility = View.VISIBLE
+            installProgressText.text = message
+        }
+    }
+
     private fun buildInstallTargets(): List<InstallTarget> {
         val targets = mutableListOf<InstallTarget>()
         store.loadMainRoot()?.let { targets += InstallTarget("Mainserver • ${it.displayName}", it) }
@@ -1206,11 +1220,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startHostedBundleInstall(root: StorageRoot, targetLabel: String, preserve: Boolean) {
-        statusText.text = if (preserve) {
-            "Downloading HostedByServerApp.zip for ${root.displayName} with preserve mode..."
-        } else {
-            "Downloading HostedByServerApp.zip for ${root.displayName}..."
-        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        setInstallProgress(
+            if (preserve) {
+                "Downloading HostedByServerApp.zip for ${root.displayName} with preserve mode..."
+            } else {
+                "Downloading HostedByServerApp.zip for ${root.displayName}..."
+            }
+        )
 
         Thread {
             runCatching {
@@ -1219,16 +1236,18 @@ class MainActivity : AppCompatActivity() {
                     root = root,
                     releaseZipUrl = ServerConfig.INSTALL_LIBRARYJS_URL,
                     preserveRelativePaths = if (preserve) ServerConfig.INSTALL_LIBRARYJS_PRESERVE_PATHS else emptyList(),
-                    onProgress = { message -> runOnUiThread { statusText.text = message } }
+                    onProgress = { message -> runOnUiThread { setInstallProgress(message) } }
                 )
             }.onSuccess { message ->
                 runOnUiThread {
-                    statusText.text = "${message} (Target: $targetLabel)"
+                    setInstallProgress("${message} (Target: $targetLabel). Server running.")
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     startServerService()
                 }
             }.onFailure { error ->
                 runOnUiThread {
-                    statusText.text = "Install failed: ${error.message ?: error.javaClass.simpleName}"
+                    setInstallProgress("Install failed: ${error.message ?: error.javaClass.simpleName}")
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 }
             }
         }.start()

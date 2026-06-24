@@ -3,6 +3,8 @@ package com.example.libraryjs
 import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -87,9 +89,9 @@ object ReleaseBundleInstaller {
             error("Download failed with HTTP $code")
         }
 
-        connection.inputStream.use { input ->
-            target.outputStream().use { output ->
-                input.copyTo(output)
+        connection.inputStream.buffered(DEFAULT_BUFFER_SIZE).use { input ->
+            target.outputStream().buffered(256 * 1024).use { output ->
+                input.copyTo(output, 256 * 1024)
             }
         }
         connection.disconnect()
@@ -126,7 +128,7 @@ object ReleaseBundleInstaller {
             val parentDir = ensureDirectory(tree, parentPath) ?: continue
             parentDir.findFile(fileName)?.delete()
             val created = parentDir.createFile(file.mimeType, fileName) ?: continue
-            context.contentResolver.openOutputStream(created.uri)?.use { output ->
+            context.contentResolver.openOutputStream(created.uri)?.buffered(64 * 1024)?.use { output ->
                 output.write(file.bytes)
                 output.flush()
             } ?: continue
@@ -146,6 +148,21 @@ object ReleaseBundleInstaller {
             current = next
         }
         return null
+    }
+
+
+    private fun ensureDirectoryCached(
+        parent: DocumentFile,
+        path: String,
+        cache: MutableMap<String, DocumentFile>
+    ): DocumentFile? {
+        val key = normalizeEntryName(path).trim('/')
+        if (key.isBlank()) return parent
+        cache[key]?.let { return it }
+
+        val current = ensureDirectory(parent, key) ?: return null
+        cache[key] = current
+        return current
     }
 
     private fun extractZipToTree(

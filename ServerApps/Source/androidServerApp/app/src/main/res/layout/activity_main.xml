@@ -96,6 +96,19 @@
                         android:paddingBottom="6dp"
                         android:text="Install LibraryJS" />
 
+                    <TextView
+                        android:id="@+id/installProgressText"
+                        android:layout_width="150dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="4dp"
+                        android:gravity="center"
+                        android:ellipsize="end"
+                        android:maxLines="3"
+                        android:text=""
+                        android:textColor="@color/library_text_secondary"
+                        android:textSize="11sp"
+                        android:visibility="gone" />
+
                     <LinearLayout
                         android:id="@+id/hotspotInfoContainer"
                         android:layout_width="wrap_content"
