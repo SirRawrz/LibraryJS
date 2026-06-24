@@ -1,16 +1,21 @@
 package com.example.libraryjs
 
 import android.app.NotificationChannel
+import android.Manifest
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.content.ComponentName
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
 
 class ServerService : Service() {
@@ -23,9 +28,11 @@ class ServerService : Service() {
 
     private val servers = linkedMapOf<Int, RunningServer>()
     private var wakeLock: PowerManager.WakeLock? = null
+    private lateinit var hotspotManager: WifiHotspotManager
 
     override fun onCreate() {
         super.onCreate()
+        hotspotManager = WifiHotspotManager(applicationContext)
         ensureChannel()
     }
 
@@ -33,17 +40,21 @@ class ServerService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 stopAllServers()
+                hotspotManager.stop()
+                ServerStore(applicationContext).saveWifiHotspotActive(false)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
             }
             ACTION_START, null -> {
-                ensureServers()
+                val roots = ensureServers()
+                syncHotspotState(roots)
                 updateNotification()
                 return START_STICKY
             }
             else -> {
-                ensureServers()
+                val roots = ensureServers()
+                syncHotspotState(roots)
                 updateNotification()
                 return START_STICKY
             }
@@ -52,12 +63,14 @@ class ServerService : Service() {
 
     override fun onDestroy() {
         stopAllServers()
+        hotspotManager.stop()
+        ServerStore(applicationContext).saveWifiHotspotActive(false)
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun ensureServers() {
+    private fun ensureServers(): List<StorageRoot> {
         val store = ServerStore(applicationContext)
         val roots = (store.loadRoots() + listOfNotNull(TemporaryUsbRegistry.get()))
             .filter { it.treeUri.isNotBlank() }
@@ -70,7 +83,7 @@ class ServerService : Service() {
         if (duplicatePorts.isNotEmpty()) {
             updateNotification("Duplicate ports: ${duplicatePorts.joinToString(", ")}")
             stopAllServers()
-            return
+            return emptyList()
         }
 
         val desiredPorts = roots.map { it.port }.toSet()
@@ -93,15 +106,15 @@ class ServerService : Service() {
             } catch (e: Exception) {
                 updateNotification("Port ${root.port} failed: ${e.message ?: e.javaClass.simpleName}")
                 stopAllServers()
-                return
+                return emptyList()
             }
         }
 
         if (servers.isNotEmpty()) {
-            writeStartupMetadataFiles(roots)
             acquireWakeLock()
         }
         setRunning(servers.isNotEmpty())
+        return roots
     }
 
     private fun stopAllServers() {
@@ -109,6 +122,64 @@ class ServerService : Service() {
         servers.clear()
         releaseWakeLock()
         setRunning(false)
+    }
+
+    private fun syncHotspotState(roots: List<StorageRoot>) {
+        val store = ServerStore(applicationContext)
+        val mode = store.loadWifiBroadcastMode()
+        val running = roots.isNotEmpty()
+        val shouldBroadcast = running && shouldBroadcastOwnWifi(mode)
+
+        store.saveWifiHotspotActive(false)
+
+        if (!shouldBroadcast) {
+            hotspotManager.stop()
+            updateNotification()
+            return
+        }
+
+        if (!hasHotspotPermission()) {
+            hotspotManager.stop()
+            updateNotification("Wi-Fi permission needed for hotspot mode.")
+            return
+        }
+
+        hotspotManager.sync(shouldBroadcast, store.loadWifiHotspotSsid(), store.loadWifiHotspotPassword(), { text ->
+            updateNotification(text)
+        }) { info ->
+            store.saveWifiHotspotActive(info.isRunning)
+            if (info.isRunning) {
+                store.saveWifiHotspotSsid(info.ssid)
+                store.saveWifiHotspotPassword(info.password)
+                writeStartupMetadataFiles(roots)
+            }
+            updateNotification()
+        }
+    }
+
+    private fun hasHotspotPermission(): Boolean {
+        val permission = if (Build.VERSION.SDK_INT >= 33) {
+            Manifest.permission.NEARBY_WIFI_DEVICES
+        } else {
+            Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        return ContextCompat.checkSelfPermission(applicationContext, permission) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun shouldBroadcastOwnWifi(mode: String): Boolean {
+
+        return when (mode) {
+            ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI -> true
+            ServerConfig.WIFI_MODE_USE_EXISTING_WIFI_IF_POSSIBLE -> !isConnectedToWifi()
+            else -> false
+        }
+    }
+
+    private fun isConnectedToWifi(): Boolean {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)
     }
 
     private fun writeStartupMetadataFiles(roots: List<StorageRoot>) {
@@ -126,6 +197,9 @@ class ServerService : Service() {
             "httpsserverip.txt",
             roots.firstOrNull { it.httpsEnabled }?.let { NetworkUtils.primaryServerUrl(it.port, it.httpsEnabled).removeSuffix("?I") }.orEmpty()
         )
+        val info = hotspotManager.currentInfo()
+        writeRootTextFile(tree, "wifissid.txt", info.ssid)
+        writeRootTextFile(tree, "wifipassword.txt", info.password)
     }
 
     private fun writeRootTextFile(parent: DocumentFile, name: String, content: String) {
@@ -199,41 +273,44 @@ class ServerService : Service() {
         }
     }
 
-    private fun buildStatusText(): String {
-        if (servers.isEmpty()) return "No storage roots configured."
-
-        val sortedServers = servers.values.sortedBy { it.root.port }
-        val portsText = sortedServers.joinToString(", ") { it.root.port.toString() }
-        val urlsText = sortedServers
-            .flatMap { NetworkUtils.serverUrls(it.root.port, it.root.httpsEnabled) }
-            .distinct()
-            .joinToString("\n")
-        return "Running on ports: $portsText\n$urlsText"
-    }
-
     private fun ensureChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (Build.VERSION.SDK_INT < 26) return
+        val mgr = getSystemService(NotificationManager::class.java) ?: return
         val channel = NotificationChannel(
             CHANNEL_ID,
             "LibraryJS Server",
             NotificationManager.IMPORTANCE_LOW
         )
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        mgr.createNotificationChannel(channel)
     }
 
-    private fun StorageRoot.signature(): String {
-        return listOf(id, treeUri, port.toString(), httpsEnabled.toString()).joinToString("|")
+    private fun setRunning(running: Boolean) {
+        runningFlag = running
+        val pref = getSharedPreferences(ServerConfig.PREFS_NAME, MODE_PRIVATE)
+        pref.edit().putBoolean(PREFS_RUNNING, running).commit()
+    }
+
+    private fun buildStatusText(): String {
+        val portList = servers.keys.sorted()
+        return if (portList.isEmpty()) {
+            "No active servers."
+        } else {
+            val ports = portList.joinToString(", ")
+            val hotspot = hotspotManager.currentSummary()
+            if (hotspot.isBlank()) "Servers active on $ports." else "Servers active on $ports. $hotspot"
+        }
     }
 
     companion object {
-        const val ACTION_START = "com.example.libraryjs.action.START"
-        const val ACTION_STOP = "com.example.libraryjs.action.STOP"
-        private const val CHANNEL_ID = "libraryjs_server"
+        const val ACTION_START = "com.example.libraryjs.START_SERVER"
+        const val ACTION_STOP = "com.example.libraryjs.STOP_SERVER"
+        private const val CHANNEL_ID = "libraryjs_server_channel"
         private const val NOTIFICATION_ID = 1001
-        @Volatile private var running = false
-        fun isRunning(): Boolean = running
-        internal fun setRunning(value: Boolean) {
-            running = value
-        }
+        private const val PREFS_RUNNING = "server_running"
+
+        @Volatile
+        private var runningFlag: Boolean = false
+
+        fun isRunning(): Boolean = runningFlag
     }
 }

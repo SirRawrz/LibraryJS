@@ -2,11 +2,17 @@ package com.example.libraryjs
 
 import android.Manifest
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.DocumentsContract
 import android.text.InputType
 import android.text.TextUtils
@@ -16,6 +22,8 @@ import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -38,14 +46,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rootsText: TextView
     private lateinit var mainRootText: TextView
     private lateinit var mainPortInput: EditText
+    private lateinit var startupOptionsButton: Button
     private lateinit var mainHttpsCheck: CheckBox
     private lateinit var mainHttpsInstallButton: Button
     private lateinit var installLibraryJsButton: Button
+    private lateinit var wifiModeButton: ImageButton
+    private lateinit var hotspotQrButton: ImageButton
+    private lateinit var hotspotInfoContainer: LinearLayout
+    private lateinit var hotspotSsidText: TextView
+    private lateinit var hotspotPasswordText: TextView
+    private lateinit var temporaryUsbEnableCheck: CheckBox
     private lateinit var temporaryUsbButton: Button
     private lateinit var temporaryUsbPortInput: EditText
-    private lateinit var temporaryUsbUrlText: TextView
-    private lateinit var autoOpenOnBootCheck: CheckBox
-    private lateinit var autoStartServersOnOpenCheck: CheckBox
     private lateinit var mainPickButton: Button
     private lateinit var extendedContainer: LinearLayout
     private lateinit var store: ServerStore
@@ -55,6 +67,7 @@ class MainActivity : AppCompatActivity() {
     private var pendingMainPicker = false
     private var pendingTemporaryUsbPicker = false
     private var bindingUi = false
+    private val uiRefreshHandler = Handler(Looper.getMainLooper())
 
     private data class RowState(
         var root: StorageRoot?,
@@ -140,6 +153,17 @@ class MainActivity : AppCompatActivity() {
         refreshUi()
     }
 
+    private val requestWifiPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            startServerService()
+        } else {
+            statusText.text = "Wi-Fi permission denied. Hotspot mode cannot start."
+            refreshUi()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -151,9 +175,15 @@ class MainActivity : AppCompatActivity() {
         mainRootText = findViewById(R.id.mainRootText)
 
         installLibraryJsButton = findViewById(R.id.installLibraryJsButton)
+        startupOptionsButton = findViewById(R.id.startupOptionsButton)
+        wifiModeButton = findViewById(R.id.wifiModeButton)
+        hotspotQrButton = findViewById(R.id.hotspotQrButton)
+        hotspotInfoContainer = findViewById(R.id.hotspotInfoContainer)
+        hotspotSsidText = findViewById(R.id.hotspotSsidText)
+        hotspotPasswordText = findViewById(R.id.hotspotPasswordText)
+        temporaryUsbEnableCheck = findViewById(R.id.temporaryUsbEnableCheck)
         temporaryUsbButton = findViewById(R.id.temporaryUsbButton)
         temporaryUsbPortInput = findViewById(R.id.temporaryUsbPortInput)
-        temporaryUsbUrlText = findViewById(R.id.temporaryUsbUrlText)
 
         bindLinks(urlText)
         bindLinks(mainRootText)
@@ -161,13 +191,34 @@ class MainActivity : AppCompatActivity() {
         mainPortInput = findViewById(R.id.mainPortInput)
         mainHttpsCheck = findViewById(R.id.mainHttpsCheck)
         mainHttpsInstallButton = findViewById(R.id.mainHttpsInstallButton)
-        autoOpenOnBootCheck = findViewById(R.id.autoOpenOnBootCheck)
-        autoStartServersOnOpenCheck = findViewById(R.id.autoStartServersOnOpenCheck)
         mainPickButton = findViewById(R.id.pickFolderButton)
         extendedContainer = findViewById(R.id.extendedContainer)
 
         installLibraryJsButton.setOnClickListener { showInstallLibraryJsDialog() }
-        temporaryUsbButton.setOnClickListener { toggleTemporaryUsb() }
+        startupOptionsButton.setOnClickListener { showStartupOptionsDialog() }
+        wifiModeButton.setOnClickListener { showWifiBroadcastModeDialog() }
+        hotspotQrButton.setOnClickListener { showHotspotQrDialog() }
+        temporaryUsbButton.setOnClickListener {
+            pendingTemporaryUsbPicker = true
+            launchFolderPicker()
+        }
+        temporaryUsbEnableCheck.setOnCheckedChangeListener { _, isChecked ->
+            if (bindingUi) return@setOnCheckedChangeListener
+            if (isChecked) {
+                if (TemporaryUsbRegistry.get() == null) {
+                    pendingTemporaryUsbPicker = true
+                    launchFolderPicker()
+                } else {
+                    startServerService()
+                }
+            } else {
+                if (TemporaryUsbRegistry.hasTemporaryRoot()) {
+                    TemporaryUsbRegistry.clear()
+                }
+                startServerService()
+            }
+            refreshUi()
+        }
         temporaryUsbPortInput.doAfterTextChanged {
             if (bindingUi) return@doAfterTextChanged
             val tempRoot = TemporaryUsbRegistry.get() ?: return@doAfterTextChanged
@@ -198,18 +249,6 @@ class MainActivity : AppCompatActivity() {
             store.loadMainRoot()?.let { mainRoot ->
                 store.saveMainRoot(mainRoot.copy(httpsEnabled = isChecked))
             }
-            refreshUi()
-        }
-
-        autoOpenOnBootCheck.setOnCheckedChangeListener { _, isChecked ->
-            if (bindingUi) return@setOnCheckedChangeListener
-            store.saveAutoOpenOnBoot(isChecked)
-            refreshUi()
-        }
-
-        autoStartServersOnOpenCheck.setOnCheckedChangeListener { _, isChecked ->
-            if (bindingUi) return@setOnCheckedChangeListener
-            store.saveAutoStartServersOnAppOpen(isChecked)
             refreshUi()
         }
 
@@ -269,9 +308,33 @@ class MainActivity : AppCompatActivity() {
         )
         statusText.text = "Starting server…"
         refreshUi()
+        scheduleUiRefresh()
+        maybeRequestHotspotPermissionAfterServerStart()
+    }
+
+    private fun maybeRequestHotspotPermissionAfterServerStart(retry: Int = 0) {
+        if (!requiresHotspotPermission()) return
+        if (!ServerService.isRunning()) {
+            if (retry < 12) {
+                uiRefreshHandler.postDelayed({ maybeRequestHotspotPermissionAfterServerStart(retry + 1) }, 150)
+            }
+            return
+        }
+
+        val permission = if (Build.VERSION.SDK_INT >= 33) {
+            Manifest.permission.NEARBY_WIFI_DEVICES
+        } else {
+            Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+            statusText.text = "Requesting Wi-Fi permission for hotspot mode…"
+            requestWifiPermission.launch(permission)
+        }
     }
 
     private fun maybeAutoStartServersOnAppOpen() {
+
+
         if (!store.loadAutoStartServersOnAppOpen()) return
         if (ServerService.isRunning()) return
         startServerService()
@@ -279,6 +342,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshUi() {
         val roots = store.loadRoots()
+        val wifiMode = store.loadWifiBroadcastMode()
+        val tempRoot = TemporaryUsbRegistry.get()
+        val hotspotActive = ServerService.isRunning() && store.loadWifiHotspotActive()
         bindingUi = true
         try {
             val mainRoot = store.loadMainRoot()
@@ -290,30 +356,18 @@ class MainActivity : AppCompatActivity() {
             mainPickButton.text = if (mainRoot == null) "Add main storage folder" else "Change main storage folder"
             mainHttpsCheck.isEnabled = mainRoot != null
             mainHttpsCheck.isChecked = mainRoot?.httpsEnabled ?: false
-            temporaryUsbButton.text = if (TemporaryUsbRegistry.hasTemporaryRoot()) "Remove Temporary USB" else "Temporary USB"
             mainHttpsInstallButton.isEnabled = mainRoot?.httpsEnabled == true
             mainHttpsInstallButton.text = if (mainRoot?.httpsEnabled == true) "Install HTTPS cert" else "Enable HTTPS first"
-            autoOpenOnBootCheck.isChecked = store.loadAutoOpenOnBoot()
-            autoStartServersOnOpenCheck.isChecked = store.loadAutoStartServersOnAppOpen()
 
             mainRootText.text = mainRoot?.let { buildRootSummary(it) } ?: "No main storage folder selected."
 
-            val tempRoot = TemporaryUsbRegistry.get()
             val suggestedTempPort = store.nextAvailablePort((roots.map { it.port } + listOfNotNull(mainRoot?.port) + extendedRows.mapNotNull { it.root?.port }).toSet())
             val tempPortText = (tempRoot?.port ?: suggestedTempPort).toString()
             if (!temporaryUsbPortInput.hasFocus() && temporaryUsbPortInput.text?.toString()?.trim() != tempPortText) {
                 temporaryUsbPortInput.setText(tempPortText)
             }
-            temporaryUsbButton.text = if (tempRoot != null) "Remove Temporary USB" else "Temporary USB"
-            temporaryUsbUrlText.text = if (tempRoot != null) {
-                HtmlCompat.fromHtml(
-                    "<b>Temporary USB Server:</b><br>" + buildEndpointHtml(NetworkUtils.serverUrls(tempRoot.port, tempRoot.httpsEnabled)),
-                    HtmlCompat.FROM_HTML_MODE_LEGACY
-                )
-            } else {
-                "Temporary USB Server: not active."
-            }
-            bindLinks(temporaryUsbUrlText)
+            temporaryUsbEnableCheck.isChecked = tempRoot != null
+            temporaryUsbButton.text = if (tempRoot != null) "Change Folder" else "Choose Folder"
 
             val extraRoots = store.loadExtendedRoots()
             while (extendedRows.size > extraRoots.size) {
@@ -353,10 +407,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            rootsText.text = if (roots.isEmpty()) {
-                "No storage roots selected."
+            val infoRoots = buildList {
+                addAll(roots)
+                tempRoot?.let { add(it) }
+            }
+            rootsText.text = if (infoRoots.isEmpty()) {
+                "No server information available."
             } else {
-                roots.joinToString(separator = "\n\n") { root -> buildRootSummary(root) }
+                infoRoots.joinToString(separator = "\n\n") { root -> buildRootSummary(root) }
             }
 
             val ports = roots.map { it.port }.distinct().sorted()
@@ -368,7 +426,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 HtmlCompat.fromHtml(
                     ports.joinToString(separator = "<br><br>") { port ->
-                        val urlTextValue = NetworkUtils.serverUrlLabel(port, roots.firstOrNull { it.port == port }?.httpsEnabled ?: false)
+                        val urlTextValue = NetworkUtils.serverUrlLabel(port, roots.firstOrNull { it.port == port }?.httpsEnabled ?: false, hotspotActive)
                         urlTextValue.split('\n').joinToString("<br>") { url ->
                             val safeUrl = TextUtils.htmlEncode(url)
                             "<a href=\"$safeUrl\">$safeUrl</a>"
@@ -377,10 +435,30 @@ class MainActivity : AppCompatActivity() {
                     HtmlCompat.FROM_HTML_MODE_LEGACY
                 )
             }
+            val hotspotSsid = store.loadWifiHotspotSsid().trim()
+            val hotspotPassword = store.loadWifiHotspotPassword().trim()
+            val hotspotVisible = ServerService.isRunning() && hotspotActive && hotspotSsid.isNotBlank() && hotspotPassword.isNotBlank()
+            hotspotInfoContainer.visibility = if (hotspotVisible) View.VISIBLE else View.GONE
+            if (hotspotVisible) {
+                hotspotSsidText.text = hotspotSsid
+                hotspotPasswordText.text = hotspotPassword
+            }
+            wifiModeButton.contentDescription = when (wifiMode) {
+                ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI -> "Wi-Fi mode: Broadcast Own Wifi when Server Starts"
+                ServerConfig.WIFI_MODE_USE_EXISTING_WIFI_IF_POSSIBLE -> "Wi-Fi mode: Use Existing Wifi when possible"
+                else -> "Wi-Fi mode: Use Existing Wifi"
+            }
+            wifiModeButton.alpha = if (wifiMode == ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI) 1f else 0.88f
             statusText.text = if (ServerService.isRunning()) "Server running." else "Server stopped."
         } finally {
             bindingUi = false
         }
+    }
+
+    private fun scheduleUiRefresh() {
+        uiRefreshHandler.removeCallbacksAndMessages(null)
+        uiRefreshHandler.postDelayed({ if (!isFinishing && !isDestroyed) refreshUi() }, 250)
+        uiRefreshHandler.postDelayed({ if (!isFinishing && !isDestroyed) refreshUi() }, 1200)
     }
 
     private fun persistUiState(): Boolean {
@@ -472,6 +550,7 @@ class MainActivity : AppCompatActivity() {
         }
         val summary = TextView(this).apply {
             text = root?.let { buildRootSummary(it) } ?: "Select a folder to mount this server."
+            visibility = View.GONE
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setTextColor(0xFFE8EEF7.toInt())
             bindLinks(this)
@@ -491,6 +570,7 @@ class MainActivity : AppCompatActivity() {
         container.addView(summary)
         container.addView(installButton)
 
+        summary.visibility = View.GONE
         val state = RowState(root, container, title, pickButton, portInput, httpsCheck, installButton, summary, removeButton)
 
         pickButton.setOnClickListener {
@@ -570,7 +650,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             "HTTPS is off for this root."
         }
-        val endpointHtml = buildEndpointHtml(NetworkUtils.serverUrls(root.port, root.httpsEnabled))
+        val endpointHtml = buildEndpointHtml(NetworkUtils.serverUrls(root.port, root.httpsEnabled, ServerService.isRunning() && store.loadWifiHotspotActive()))
         val html = buildString {
             append("<b>")
             append(TextUtils.htmlEncode(root.displayName))
@@ -602,7 +682,408 @@ class MainActivity : AppCompatActivity() {
         textView.isLongClickable = true
     }
 
+    private fun requiresHotspotPermission(): Boolean {
+        return when (store.loadWifiBroadcastMode()) {
+            ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI -> true
+            ServerConfig.WIFI_MODE_USE_EXISTING_WIFI_IF_POSSIBLE -> !isConnectedToWifi()
+            else -> false
+        }
+    }
+
+    private fun isConnectedToWifi(): Boolean {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)
+    }
+
+    private fun buildWifiQrPayload(ssid: String, password: String): String {
+        fun escape(value: String): String {
+            return value
+                .replace("\\", "\\\\")
+                .replace(";", "\\;")
+                .replace(",", "\\,")
+                .replace(":", "\\:")
+        }
+
+        val auth = if (password.isBlank()) "nopass" else "WPA"
+        val ssidEscaped = escape(ssid)
+        val passwordEscaped = escape(password)
+        return if (password.isBlank()) {
+            "WIFI:T:$auth;S:$ssidEscaped;H:false;;"
+        } else {
+            "WIFI:T:$auth;S:$ssidEscaped;P:$passwordEscaped;H:false;;"
+        }
+    }
+
+    private fun createQrBitmap(contents: String, size: Int): Bitmap {
+        val matrix = com.google.zxing.MultiFormatWriter().encode(
+            contents,
+            com.google.zxing.BarcodeFormat.QR_CODE,
+            size,
+            size,
+            mapOf(com.google.zxing.EncodeHintType.MARGIN to 1)
+        )
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
+            }
+        }
+        return bitmap
+    }
+
     private data class InstallTarget(val label: String, val root: StorageRoot)
+
+    private fun showStartupOptionsDialog() {
+        val dialogBg = 0xFF141A22.toInt()
+        val dialogTextPrimary = 0xFFE8EEF7.toInt()
+        val dialogTextSecondary = 0xFFA8B3C7.toInt()
+        val dialogAccent = 0xFF79A8FF.toInt()
+        val currentAutoOpen = store.loadAutoOpenOnBoot()
+        val currentAutoStart = store.loadAutoStartServersOnAppOpen()
+
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(dialogBg)
+            isFillViewport = true
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(dialogBg)
+            setPadding(dp(20), dp(18), dp(20), dp(8))
+        }
+
+        val intro = TextView(this).apply {
+            text = "Choose what LibraryJS should do around boot and app start."
+            setTextColor(dialogTextPrimary)
+            textSize = 14f
+        }
+        content.addView(intro)
+
+        val autoOpenCheck = CheckBox(this).apply {
+            text = "Auto-open app on boot"
+            setTextColor(dialogTextPrimary)
+            isChecked = currentAutoOpen
+            setPadding(0, dp(14), 0, 0)
+        }
+        content.addView(autoOpenCheck)
+
+        val autoStartCheck = CheckBox(this).apply {
+            text = "Auto-start servers when app starts"
+            setTextColor(dialogTextPrimary)
+            isChecked = currentAutoStart
+            setPadding(0, dp(8), 0, 0)
+        }
+        content.addView(autoStartCheck)
+
+        val note = TextView(this).apply {
+            text = "These take effect after the app starts or the device boots."
+            setTextColor(dialogTextSecondary)
+            setPadding(0, dp(12), 0, 0)
+        }
+        content.addView(note)
+
+        scroll.addView(content)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(scroll)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Save", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawable(ColorDrawable(dialogBg))
+            dialog.findViewById<View>(androidx.appcompat.R.id.parentPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.topPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.contentPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.buttonPanel)?.setBackgroundColor(dialogBg)
+
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).apply {
+                setTextColor(dialogAccent)
+                setOnClickListener {
+                    store.saveAutoOpenOnBoot(autoOpenCheck.isChecked)
+                    store.saveAutoStartServersOnAppOpen(autoStartCheck.isChecked)
+                    refreshUi()
+                    dialog.dismiss()
+                }
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(dialogTextPrimary)
+        }
+        dialog.show()
+    }
+
+    private fun showWifiBroadcastModeDialog() {
+        val dialogBg = 0xFF141A22.toInt()
+        val dialogTextPrimary = 0xFFE8EEF7.toInt()
+        val dialogTextSecondary = 0xFFA8B3C7.toInt()
+        val dialogAccent = 0xFF79A8FF.toInt()
+        val currentMode = store.loadWifiBroadcastMode()
+        val currentSsid = store.loadWifiHotspotSsid().ifBlank { "Last hotspot SSID will appear after it starts" }
+        val currentPassword = store.loadWifiHotspotPassword().ifBlank { "Last hotspot password will appear after it starts" }
+
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(dialogBg)
+            isFillViewport = true
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(dialogBg)
+            setPadding(dp(20), dp(18), dp(20), dp(8))
+        }
+
+        val intro = TextView(this).apply {
+            text = "Choose what LibraryJS should do after the server starts."
+            setTextColor(dialogTextPrimary)
+            textSize = 14f
+        }
+        content.addView(intro)
+
+        val radioGroup = RadioGroup(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(14), 0, 0)
+        }
+        val broadcastRadio = RadioButton(this).apply {
+            id = View.generateViewId()
+            text = "Broadcast Own Wifi when Server Starts"
+            setTextColor(dialogTextPrimary)
+        }
+        val existingRadio = RadioButton(this).apply {
+            id = View.generateViewId()
+            text = "Use Existing Wifi"
+            setTextColor(dialogTextPrimary)
+            setPadding(0, dp(10), 0, 0)
+        }
+        radioGroup.addView(broadcastRadio)
+        radioGroup.addView(existingRadio)
+        content.addView(radioGroup)
+
+        val fallbackCheck = CheckBox(this).apply {
+            text = "Use Existing Wifi Over Broadcasting when possible"
+            setTextColor(dialogTextPrimary)
+            setPadding(0, dp(10), 0, 0)
+        }
+        content.addView(fallbackCheck)
+
+        val fallbackNote = TextView(this).apply {
+            text = "When this is on, LibraryJS uses known Wi-Fi after the server starts. If no known Wi-Fi is available, it creates its own hotspot and then updates the links shown in the app."
+            setTextColor(dialogTextSecondary)
+            setPadding(0, dp(8), 0, 0)
+        }
+        content.addView(fallbackNote)
+
+        val ssidLabel = TextView(this).apply {
+            text = "Remembered hotspot SSID"
+            setTextColor(dialogTextSecondary)
+            setPadding(0, dp(14), 0, dp(6))
+        }
+        content.addView(ssidLabel)
+
+        val ssidValue = TextView(this).apply {
+            text = currentSsid
+            setTextColor(dialogTextPrimary)
+            setBackgroundColor(0x221E2833)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+        }
+        content.addView(ssidValue)
+
+        val passwordLabel = TextView(this).apply {
+            text = "Remembered hotspot password"
+            setTextColor(dialogTextSecondary)
+            setPadding(0, dp(14), 0, dp(6))
+        }
+        content.addView(passwordLabel)
+
+        val passwordValue = TextView(this).apply {
+            text = currentPassword
+            setTextColor(dialogTextPrimary)
+            setBackgroundColor(0x221E2833)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+        }
+        content.addView(passwordValue)
+
+        val showQrButton = Button(this).apply {
+            text = "Show Password QR"
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+        }
+        content.addView(showQrButton)
+
+        val note = TextView(this).apply {
+            text = "These settings only affect the server after it starts."
+            setTextColor(dialogTextSecondary)
+            setPadding(0, dp(12), 0, 0)
+        }
+        content.addView(note)
+
+        when (currentMode) {
+            ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI -> broadcastRadio.isChecked = true
+            ServerConfig.WIFI_MODE_USE_EXISTING_WIFI_IF_POSSIBLE -> {
+                existingRadio.isChecked = true
+                fallbackCheck.isChecked = true
+            }
+            else -> existingRadio.isChecked = true
+        }
+
+        val syncFallbackState = {
+            val existingSelected = existingRadio.isChecked
+            fallbackCheck.isEnabled = existingSelected
+            if (!existingSelected) {
+                fallbackCheck.isChecked = false
+            }
+        }
+        syncFallbackState()
+
+        radioGroup.setOnCheckedChangeListener { _, checkedId ->
+            fallbackCheck.isEnabled = checkedId == existingRadio.id
+            if (checkedId != existingRadio.id) {
+                fallbackCheck.isChecked = false
+            }
+        }
+
+        scroll.addView(content)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(scroll)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Save", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawable(ColorDrawable(dialogBg))
+            dialog.findViewById<View>(androidx.appcompat.R.id.parentPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.topPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.contentPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.buttonPanel)?.setBackgroundColor(dialogBg)
+
+            showQrButton.setOnClickListener {
+                showHotspotQrDialog()
+            }
+
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).apply {
+                setTextColor(dialogAccent)
+                setOnClickListener {
+                    val mode = when {
+                        broadcastRadio.isChecked -> ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI
+                        fallbackCheck.isChecked -> ServerConfig.WIFI_MODE_USE_EXISTING_WIFI_IF_POSSIBLE
+                        else -> ServerConfig.WIFI_MODE_USE_EXISTING_WIFI
+                    }
+                    store.saveWifiBroadcastMode(mode)
+                    dialog.dismiss()
+                    refreshUi()
+                    statusText.text = when (mode) {
+                        ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI -> "Wi-Fi mode set to Broadcast Own Wifi when Server Starts."
+                        ServerConfig.WIFI_MODE_USE_EXISTING_WIFI_IF_POSSIBLE -> "Wi-Fi mode set to Use Existing Wifi when possible."
+                        else -> "Wi-Fi mode set to Use Existing Wifi."
+                    }
+                    startServerService()
+                }
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(dialogTextPrimary)
+        }
+        dialog.show()
+    }
+
+    private fun showHotspotQrDialog() {
+        val ssid = store.loadWifiHotspotSsid().trim()
+        val password = store.loadWifiHotspotPassword().trim()
+        val dialogBg = 0xFF141A22.toInt()
+        val dialogTextPrimary = 0xFFE8EEF7.toInt()
+        val dialogTextSecondary = 0xFFA8B3C7.toInt()
+        val dialogAccent = 0xFF79A8FF.toInt()
+
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(dialogBg)
+            isFillViewport = true
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(dialogBg)
+            setPadding(dp(20), dp(18), dp(20), dp(8))
+        }
+
+        val title = TextView(this).apply {
+            text = if (ssid.isBlank() || password.isBlank()) {
+                "Start the server in Broadcast Own Wifi when Server Starts mode first to generate the QR."
+            } else {
+                "Scan this Wi-Fi QR code to join the hotspot."
+            }
+            setTextColor(dialogTextPrimary)
+            textSize = 14f
+        }
+        content.addView(title)
+
+        if (ssid.isNotBlank() && password.isNotBlank()) {
+            val qrImage = ImageView(this).apply {
+                val qrText = buildWifiQrPayload(ssid, password)
+                setImageBitmap(createQrBitmap(qrText, dp(260)))
+                adjustViewBounds = true
+                setBackgroundColor(Color.WHITE)
+                setPadding(dp(12), dp(12), dp(12), dp(12))
+                contentDescription = "Wi-Fi QR code"
+            }
+            val qrWrap = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, dp(16), 0, 0)
+                addView(qrImage, LinearLayout.LayoutParams(dp(260), dp(260)).apply {
+                    gravity = android.view.Gravity.CENTER_HORIZONTAL
+                })
+            }
+            content.addView(qrWrap)
+
+            val ssidLabel = TextView(this).apply {
+                text = "SSID"
+                setTextColor(dialogTextSecondary)
+                setPadding(0, dp(14), 0, dp(4))
+            }
+            content.addView(ssidLabel)
+
+            val ssidValue = TextView(this).apply {
+                text = ssid
+                setTextColor(dialogTextPrimary)
+                setBackgroundColor(0x221E2833)
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+            }
+            content.addView(ssidValue)
+
+            val passLabel = TextView(this).apply {
+                text = "Password"
+                setTextColor(dialogTextSecondary)
+                setPadding(0, dp(12), 0, dp(4))
+            }
+            content.addView(passLabel)
+
+            val passValue = TextView(this).apply {
+                text = password
+                setTextColor(dialogTextPrimary)
+                setBackgroundColor(0x221E2833)
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+            }
+            content.addView(passValue)
+        } else {
+            val note = TextView(this).apply {
+                text = "The hotspot username and password will show here once Broadcast Own Wifi when Server Starts is active."
+                setTextColor(dialogTextSecondary)
+                setPadding(0, dp(14), 0, 0)
+            }
+            content.addView(note)
+        }
+
+        scroll.addView(content)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(scroll)
+            .setPositiveButton("Close", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawable(ColorDrawable(dialogBg))
+            dialog.findViewById<View>(androidx.appcompat.R.id.parentPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.topPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.contentPanel)?.setBackgroundColor(dialogBg)
+            dialog.findViewById<View>(androidx.appcompat.R.id.buttonPanel)?.setBackgroundColor(dialogBg)
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(dialogAccent)
+        }
+        dialog.show()
+    }
 
     private fun showInstallLibraryJsDialog() {
         val targets = buildInstallTargets()
@@ -641,7 +1122,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(targetLabel)
 
         val targetGroup = RadioGroup(this).apply {
-            orientation = RadioGroup.VERTICAL
+            orientation = LinearLayout.VERTICAL
         }
         val targetButtons = targets.mapIndexed { index, target ->
             RadioButton(this).apply {
@@ -661,7 +1142,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(modeLabel)
 
         val modeGroup = RadioGroup(this).apply {
-            orientation = RadioGroup.VERTICAL
+            orientation = LinearLayout.VERTICAL
         }
         val wipeButton = RadioButton(this).apply {
             id = View.generateViewId()
@@ -751,19 +1232,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }.start()
-    }
-
-    private fun toggleTemporaryUsb() {
-        if (TemporaryUsbRegistry.hasTemporaryRoot()) {
-            TemporaryUsbRegistry.clear()
-            statusText.text = "Temporary USB removed."
-            refreshUi()
-            startServerService()
-            return
-        }
-
-        pendingTemporaryUsbPicker = true
-        launchFolderPicker()
     }
 
     private fun parsePort(raw: String?, fallback: Int): Int {

@@ -13,51 +13,146 @@
         android:padding="16dp"
         android:background="@color/library_bg">
 
-        <TextView
-            android:id="@+id/statusText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Server stopped."
-            android:textColor="@color/library_text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Server stopped."
+                android:textColor="@color/library_text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/startupOptionsButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:minHeight="0dp"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="Startup options" />
+        </LinearLayout>
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:orientation="vertical"
-            android:background="@color/library_surface"
-            android:padding="14dp">
+            android:background="@color/library_surface">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:padding="14dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Main Server"
-                    android:textColor="@color/library_text_secondary" />
+                    android:orientation="vertical"
+                    android:paddingEnd="12dp">
 
-                <Button
-                    android:id="@+id/installLibraryJsButton"
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Main Server"
+                        android:textColor="@color/library_text_secondary" />
+
+                    <TextView
+                        android:id="@+id/urlText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="http://127.0.0.1:8080/?I"
+                        android:textColor="@color/library_link"
+                        android:textIsSelectable="true" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Install LibraryJS" />
-            </LinearLayout>
+                    android:layout_gravity="top"
+                    android:layout_marginStart="8dp"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal">
 
-            <TextView
-                android:id="@+id/urlText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="http://127.0.0.1:8080/?I"
-                android:textColor="@color/library_link"
-                android:textIsSelectable="true" />
-        </LinearLayout>
+                    <Button
+                        android:id="@+id/installLibraryJsButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="6dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="12dp"
+                        android:paddingTop="6dp"
+                        android:paddingEnd="12dp"
+                        android:paddingBottom="6dp"
+                        android:text="Install LibraryJS" />
+
+                    <LinearLayout
+                        android:id="@+id/hotspotInfoContainer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal"
+                        android:visibility="gone">
+
+                        <ImageButton
+                            android:id="@+id/hotspotQrButton"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Show hotspot QR"
+                            android:padding="8dp"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_qr_code"
+                            android:tint="@color/library_link" />
+
+                        <TextView
+                            android:id="@+id/hotspotSsidText"
+                            android:layout_width="120dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            android:text="SSID"
+                            android:textColor="@color/library_text_primary"
+                            android:textSize="11sp"
+                            android:gravity="center" />
+
+                        <TextView
+                            android:id="@+id/hotspotPasswordText"
+                            android:layout_width="120dp"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            android:text="Password"
+                            android:textColor="@color/library_text_secondary"
+                            android:textSize="11sp"
+                            android:gravity="center" />
+                    </LinearLayout>
+
+                    <ImageButton
+                        android:id="@+id/wifiModeButton"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="6dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Choose Wi-Fi mode"
+                        android:padding="8dp"
+                        android:scaleType="centerInside"
+                        android:src="@drawable/ic_router_mode"
+                        android:tint="@color/library_link" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
 
         <Button
             android:id="@+id/startButton"
@@ -91,14 +186,23 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <CheckBox
+                    android:id="@+id/temporaryUsbEnableCheck"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Temporary USB"
+                    android:textColor="@color/library_text_primary" />
 
                 <Button
                     android:id="@+id/temporaryUsbButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Temporary USB" />
+                    android:layout_marginStart="8dp"
+                    android:text="Choose Folder" />
 
                 <EditText
                     android:id="@+id/temporaryUsbPortInput"
@@ -111,15 +215,6 @@
                     android:textColor="@color/library_text_primary"
                     android:textColorHint="@color/library_text_secondary" />
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/temporaryUsbUrlText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Temporary USB Server: not active."
-                android:textColor="@color/library_link"
-                android:textIsSelectable="true" />
         </LinearLayout>
 
         <LinearLayout
@@ -169,37 +264,6 @@
                 android:layout_marginTop="8dp"
                 android:text="Install HTTPS cert" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="vertical"
-                android:padding="12dp"
-                android:background="@color/library_bg">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Startup behavior"
-                    android:textColor="@color/library_text_secondary" />
-
-                <CheckBox
-                    android:id="@+id/autoOpenOnBootCheck"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="Auto-open app on boot"
-                    android:textColor="@color/library_text_primary" />
-
-                <CheckBox
-                    android:id="@+id/autoStartServersOnOpenCheck"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Auto-start servers when app opens"
-                    android:textColor="@color/library_text_primary" />
-            </LinearLayout>
-
             <TextView
                 android:id="@+id/mainRootText"
                 android:layout_width="match_parent"
@@ -207,7 +271,8 @@
                 android:layout_marginTop="8dp"
                 android:text="No main storage folder selected."
                 android:textColor="@color/library_text_primary"
-                android:textIsSelectable="true" />
+                android:textIsSelectable="true"
+                android:visibility="gone" />
         </LinearLayout>
 
         <LinearLayout
@@ -227,7 +292,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Mounted storage roots"
+                android:text="Server information"
                 android:textColor="@color/library_text_secondary" />
 
             <TextView
@@ -235,7 +300,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingTop="6dp"
-                android:text="No storage roots selected."
+                android:text="No server information available."
                 android:textColor="@color/library_text_primary"
                 android:textIsSelectable="true" />
         </LinearLayout>

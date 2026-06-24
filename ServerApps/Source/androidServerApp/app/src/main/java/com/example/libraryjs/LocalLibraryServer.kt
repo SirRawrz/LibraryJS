@@ -43,7 +43,6 @@ class LocalLibraryServer(private val context: Context, private val root: Storage
         val socket = createServerSocket()
         serverSocket = socket
         running = true
-        ServerService.setRunning(true)
         executor.execute {
             try {
                 while (running) {

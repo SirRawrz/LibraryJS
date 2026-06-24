@@ -88,6 +88,54 @@ class ServerStore(context: Context) {
     fun saveAutoStartServersOnAppOpen(enabled: Boolean) {
         prefs.edit().putBoolean(ServerConfig.PREFS_AUTO_START_SERVERS_ON_APP_OPEN, enabled).commit()
     }
+
+    fun loadWifiHotspotSsid(): String = prefs.getString(ServerConfig.PREFS_WIFI_HOTSPOT_SSID, "") ?: ""
+
+    fun saveWifiHotspotSsid(value: String) {
+        prefs.edit().putString(ServerConfig.PREFS_WIFI_HOTSPOT_SSID, value.trim()).commit()
+    }
+
+    fun loadWifiHotspotPassword(): String = prefs.getString(ServerConfig.PREFS_WIFI_HOTSPOT_PASSWORD, "") ?: ""
+
+    fun saveWifiHotspotPassword(value: String) {
+        prefs.edit().putString(ServerConfig.PREFS_WIFI_HOTSPOT_PASSWORD, value.trim()).commit()
+    }
+
+    fun loadWifiHotspotActive(): Boolean = prefs.getBoolean(ServerConfig.PREFS_WIFI_HOTSPOT_ACTIVE, false)
+
+    fun saveWifiHotspotActive(active: Boolean) {
+        prefs.edit().putBoolean(ServerConfig.PREFS_WIFI_HOTSPOT_ACTIVE, active).commit()
+    }
+
+    fun loadWifiBroadcastMode(): String {
+        val raw = prefs.getString(ServerConfig.PREFS_WIFI_BROADCAST_MODE, ServerConfig.WIFI_MODE_USE_EXISTING_WIFI) ?: ServerConfig.WIFI_MODE_USE_EXISTING_WIFI
+        return when (raw) {
+            ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI,
+            ServerConfig.WIFI_MODE_USE_EXISTING_WIFI,
+            ServerConfig.WIFI_MODE_USE_EXISTING_WIFI_IF_POSSIBLE -> raw
+            ServerConfig.WIFI_MODE_CURRENT_WIFI_ONLY -> ServerConfig.WIFI_MODE_USE_EXISTING_WIFI
+            else -> ServerConfig.WIFI_MODE_USE_EXISTING_WIFI
+        }
+    }
+
+    fun saveWifiBroadcastMode(mode: String) {
+        val normalized = when (mode) {
+            ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI,
+            ServerConfig.WIFI_MODE_USE_EXISTING_WIFI,
+            ServerConfig.WIFI_MODE_USE_EXISTING_WIFI_IF_POSSIBLE -> mode
+            else -> ServerConfig.WIFI_MODE_USE_EXISTING_WIFI
+        }
+        prefs.edit()
+            .putString(ServerConfig.PREFS_WIFI_BROADCAST_MODE, normalized)
+            .commit()
+    }
+
+    fun loadBroadcastOwnWifi(): Boolean = loadWifiBroadcastMode() != ServerConfig.WIFI_MODE_USE_EXISTING_WIFI
+
+    fun saveBroadcastOwnWifi(enabled: Boolean) {
+        saveWifiBroadcastMode(if (enabled) ServerConfig.WIFI_MODE_BROADCAST_OWN_WIFI else ServerConfig.WIFI_MODE_USE_EXISTING_WIFI)
+    }
+
     fun loadLastPort(): Int = prefs.getInt(ServerConfig.PREFS_LAST_PORT, ServerConfig.DEFAULT_PORT)
         .coerceIn(1, 65535)
 

@@ -6,10 +6,11 @@ import java.util.Locale
 
 object NetworkUtils {
 
-    fun localIPv4Addresses(): List<String> {
+    fun localIPv4Addresses(includeHotspot: Boolean = true): List<String> {
         return runCatching {
             NetworkInterface.getNetworkInterfaces().toList()
                 .filter { it.isUp && !it.isLoopback && !it.isVirtual }
+                .filter { includeHotspot || !it.name.equals("ap0", ignoreCase = true) }
                 .flatMap { iface ->
                     iface.inetAddresses.toList()
                         .filterIsInstance<Inet4Address>()
@@ -20,13 +21,19 @@ object NetworkUtils {
         }.getOrDefault(emptyList())
     }
 
-    fun preferredLocalIPv4(): String? {
+    fun preferredLocalIPv4(broadcastOwnWifi: Boolean = true): String? {
         val interfaces = runCatching {
             NetworkInterface.getNetworkInterfaces().toList()
                 .filter { it.isUp && !it.isLoopback && !it.isVirtual }
+                .filter { broadcastOwnWifi || !it.name.equals("ap0", ignoreCase = true) }
         }.getOrDefault(emptyList())
 
-        val preferredNames = listOf("wlan0", "eth0", "ap0", "rndis0")
+        val preferredNames = if (broadcastOwnWifi) {
+            listOf("ap0", "wlan0", "eth0", "rndis0")
+        } else {
+            listOf("wlan0", "eth0", "rndis0")
+        }
+
         for (name in preferredNames) {
             val found = interfaces.firstOrNull { it.name.equals(name, ignoreCase = true) }
                 ?.inetAddresses
@@ -37,12 +44,12 @@ object NetworkUtils {
             if (found != null) return found
         }
 
-        return localIPv4Addresses().firstOrNull()
+        return localIPv4Addresses(includeHotspot = broadcastOwnWifi).firstOrNull()
     }
 
-    fun serverUrls(port: Int, httpsEnabled: Boolean = false): List<String> {
+    fun serverUrls(port: Int, httpsEnabled: Boolean = false, broadcastOwnWifi: Boolean = true): List<String> {
         val urls = mutableListOf(ServerConfig.localhostUrl(port, httpsEnabled))
-        preferredLocalIPv4()?.let { ip ->
+        preferredLocalIPv4(broadcastOwnWifi)?.let { ip ->
             val scheme = if (httpsEnabled) "https" else "http"
             val lanUrl = "$scheme://$ip:$port/?I"
             if (lanUrl !in urls) {
@@ -52,12 +59,12 @@ object NetworkUtils {
         return urls.distinct()
     }
 
-    fun primaryServerUrl(port: Int, httpsEnabled: Boolean = false): String {
-        return serverUrls(port, httpsEnabled).firstOrNull().orEmpty()
+    fun primaryServerUrl(port: Int, httpsEnabled: Boolean = false, broadcastOwnWifi: Boolean = true): String {
+        return serverUrls(port, httpsEnabled, broadcastOwnWifi).firstOrNull().orEmpty()
     }
 
-    fun serverUrlLabel(port: Int, httpsEnabled: Boolean = false): String {
-        return serverUrls(port, httpsEnabled).joinToString(separator = "\n")
+    fun serverUrlLabel(port: Int, httpsEnabled: Boolean = false, broadcastOwnWifi: Boolean = true): String {
+        return serverUrls(port, httpsEnabled, broadcastOwnWifi).joinToString(separator = "\n")
     }
 
     private fun isUsableIpv4(ip: String): Boolean {
