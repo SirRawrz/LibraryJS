@@ -16,7 +16,7 @@ The Android and Windows apps act like the console, while whatever folder (Flash 
 
 ## Why not Jellyfin? Plex? Emby?
 
-LibraryJS is about perserving all your media, in a safe offline state, that is accessible, easy to backup and share locally and over tailscale. Build bundles of content to give out  between family and friends over their local wifi when you visit (or remotely over tailscale.) All with the same browser experience. Once your video files have been fast start "repaired" we don't transcode them, allowing the server to be fairly weak and still perform well. The point is a living archive, with easy couch streaming and personal features like having your album images as screen savers! 
+LibraryJS is about perserving all your media, in a safe offline state, that is accessible, easy to backup and share locally and over tailscale. Build bundles of content to give out  between family and friends over their local wifi when you visit (or remotely over tailscale.) All with the same browser experience. Once your video files have been fast start "repaired" we don't transcode them, allowing the server to be fairly weak and still perform well. The point is a living archive, with easy couch streaming and personal features like having your album images as screen savers! Not just videos, but reading content, music, and even EmulatorJS games! A console that lives on your storage. You can even play multiplayer against others locally or tailscale like you could on the original consoles! Gameboy Advance Pokemon games can trade!
 
 ---
 
