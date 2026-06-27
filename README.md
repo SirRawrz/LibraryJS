@@ -8,6 +8,9 @@ The Android and Windows apps act like the console, while your storage device act
 
 Most of what you experience of LibraryJS happens in your browser. The server applications simply provide access to your library, allowing even low-powered devices to act as servers without needing expensive hardware. In many cases, the only thing you need to buy is storage.
 
+
+<img width="1536" height="1024" alt="1955b10f-3128-4b3d-85ef-f0e8c9a683ef" src="https://github.com/user-attachments/assets/9d6ca849-3db7-44e1-bbc9-e2d84a0cff98" />
+
 The goal is to support Linux, Docker, and iOS in the future as well.
 
 ---
