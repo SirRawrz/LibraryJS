@@ -24,7 +24,7 @@ LibraryJS is about perserving all your media, in a safe offline state, that is a
 
 1. Download the android apk or the windows exe.
 
-2. Install the android apk and click **"More info"** **"Run anyways"**. (I hope to sign my things eventually! Sorry!)
+2. Android Server - Install the android apk | Windows Server - click **"More info"** **"Run anyways"**. (I hope to sign my things eventually! Sorry!)
 
 3. Choose a Main Server folder. Hit start and Install LibraryJS. This will download and unpack the hostedbyserverapp.zip from github. Be patient. I plan on speeding up the unpacking so that the emulator is unpacked last so the rest of the site is available to work with. Users just wont be able to play EmulatorJS games until its finished.
 
