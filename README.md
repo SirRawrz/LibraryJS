@@ -152,9 +152,3 @@ This file is a project-level notice, not a substitute for the upstream license t
 If any packaged third-party binary or asset has its own redistribution requirements, those requirements still apply.
 
 ---
-
-PASTE YOUR ENTIRE EXTENSION FILE LIST HERE EXACTLY AS IT ALREADY EXISTS
-
-```
-
-</details>
