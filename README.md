@@ -35,8 +35,9 @@ So why not give someone a start in self-hosting their own media library?
 ---
 
 ## Setup
+<img width="800" height="450" alt="0627-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/d6005aba-28c2-47ce-a3d4-aaa62ca5da1f" />
 
-1. Download the android apk or the windows exe.
+1. Download the android apk or the windows exe. (WINDOWS GIF Above!)
 
 2. Android Server - Install the android apk | Windows Server - click **"More info"** **"Run anyways"**. (I hope to sign my things eventually! Sorry!)
 
