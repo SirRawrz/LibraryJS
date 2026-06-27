@@ -19,7 +19,7 @@ The goal is to support Linux, Docker, and iOS in the future as well.
 
 LibraryJS is about preserving your media in a family-safe, offline state that is easy to access, back up, and share locally or over Tailscale. Some households are perfect for Jellyfin, Plex and Emby, but mine isn't. My family's internet is slow, our hardware is modest, and I wanted something built around those realities instead of despite them.
 
-This project is about building collection and hoarding a living library: a personal legacy that can be freely shared with friends and family while preserving the same experience everywhere.
+This project is about building collections and hoarding a living library: a personal legacy that can be freely shared with friends and family while preserving the same experience everywhere.
 
 Build bundles of content to share over local Wi-Fi when visiting family and friends, or remotely over Tailscale. Once video files have been "fast start" repaired, LibraryJS avoids transcoding whenever possible, allowing even relatively weak servers to perform well.
 
