@@ -23,9 +23,7 @@ This project is about building collections and hoarding a living library: a pers
 
 Build bundles of content to share over local Wi-Fi when visiting family and friends, or remotely over Tailscale. Once video files have been "fast start" repaired, LibraryJS avoids transcoding whenever possible, allowing even relatively weak servers to perform well.
 
-The goal is a living archive with easy couch streaming and personal touches, like displaying album uploads as profile based screen savers. LibraryJS focuses on collections of Movies and Series, but its also Books, Manga, Music and EmulatorJS games with built-in guidebooks.
-
-It becomes a console that lives on your storage.
+The goal is a living family/personal archive with easy couch streaming and personal touches, like displaying album uploads as profile based screen savers. LibraryJS focuses on collections of Movies and Series, but its also Books, Manga, Music and EmulatorJS games with built-in guidebooks.
 
 You can even play multiplayer games locally or over Tailscale much like the original consoles. Game Boy Advance Pokémon games can trade exactly as they were designed to.
 
