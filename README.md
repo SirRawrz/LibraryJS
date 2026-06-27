@@ -25,7 +25,7 @@ Build bundles of content to share over local Wi-Fi when visiting family and frie
 
 The goal is a living family/personal archive with easy couch streaming and personal touches, like displaying album uploads as profile based screen savers. LibraryJS focuses on collections of Movies and Series, but its also Books, Manga, Music and EmulatorJS games with built-in guidebooks.
 
-You can even play multiplayer games locally or over Tailscale much like the original consoles. Game Boy Advance Pokémon games can trade exactly as they were designed to.
+You can even play multiplayer games locally or over Tailscale much like the original consoles. Link Trade Cable supported for Game Boy Advance Pokemon trading and battles.
 
 <img width="1919" height="900" alt="image" src="https://github.com/user-attachments/assets/58da91dc-c9f3-4361-a834-d234200def91" />
 
