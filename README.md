@@ -1,14 +1,31 @@
 # LibraryJS
 
-LibraryJS has two apps currently, but most of what you experience of LibraryJS is in your browser.
+LibraryJS is a local-first digital library.
 
-The Android and Windows apps act like the console, while whatever folder (Flash Drive/HDD) are the cartridges holding your files and the files unpacked from the HostedByServerApp.zip here on Github. The library structure saved on your storage is compatible between devices. I eventually aim to support Linux/Docker/IOS as well.
+The Android and Windows apps act like the console, while your storage device acts like the cartridge. Your media, library data, and LibraryJS files live together on your storage and can move between compatible hosts while preserving the same browser experience.
+
+Most of what you experience of LibraryJS happens in your browser. The server applications simply provide access to your library, allowing even low-powered devices to act as servers without needing expensive hardware. In many cases, the only thing you need to buy is storage.
+
+The goal is to support Linux, Docker, and iOS in the future as well.
 
 ---
 
 ## Why not Jellyfin? Plex? Emby?
 
-LibraryJS is about perserving all your media, in a family safe offline state, that is accessible, easy to backup and share locally and over tailscale. Build bundles of content to give out  between family and friends over their local wifi when you visit (or remotely over tailscale.) All with the same browser experience. Once your video files have been fast start "repaired" we don't transcode them, allowing the server to be fairly weak and still perform well. The point is a living archive, with easy couch streaming and personal features like having your album images as screen savers! Not just videos, but reading content, music, and even EmulatorJS games with built in guidebooks! A console that lives on your storage. You can even play multiplayer against others locally or tailscale like you could on the original consoles! Gameboy Advance Pokemon games can trade! So why not start/give someone a start at selfhosting their own media server through this!
+LibraryJS is about preserving your media in a family-safe, offline state that is easy to access, back up, and share locally or over Tailscale.
+
+It is about building collections and hoarding a living library: a personal archive that can be freely shared with friends and family while preserving the same experience everywhere.
+
+Build bundles of content to share over local Wi-Fi when visiting family and friends, or remotely over Tailscale. Once video files have been "fast start" repaired, LibraryJS avoids transcoding whenever possible, allowing even relatively weak servers to perform well.
+
+The goal is a living archive with easy couch streaming and personal touches, such as using your album artwork as screen savers. LibraryJS is not only about videos, but also reading content, music, and EmulatorJS games with built-in guidebooks.
+
+It becomes a console that lives on your storage.
+
+You can even play multiplayer games locally or over Tailscale much like the original consoles. Game Boy Advance Pokémon games can trade exactly as they were designed to.
+
+So why not give someone a start in self-hosting their own media library?
+
 
 <img width="1923" height="892" alt="image" src="https://github.com/user-attachments/assets/dfec448c-4e8c-4e0d-8fd5-b5243436e649" />
 
