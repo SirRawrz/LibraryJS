@@ -27,10 +27,8 @@ The goal is a living family/personal archive with easy couch streaming and perso
 
 You can even play multiplayer games locally or over Tailscale much like the original consoles. Game Boy Advance Pokémon games can trade exactly as they were designed to.
 
-So why not give someone a start in self-hosting their own media library?
+<img width="1919" height="900" alt="image" src="https://github.com/user-attachments/assets/58da91dc-c9f3-4361-a834-d234200def91" />
 
-
-<img width="1923" height="892" alt="image" src="https://github.com/user-attachments/assets/dfec448c-4e8c-4e0d-8fd5-b5243436e649" />
 
 ---
 
