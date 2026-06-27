@@ -1,9 +1,10 @@
 # LibraryJS
 
-LibraryJS is a local-first digital library in your browser.
+LibraryJS is a local-first digital library that lives in your browser.
+The Android and Windows apps act like the console, while your storage device acts like the cartridge. Your media, library data, and LibraryJS files live together on your storage and can move between compatible hosts while preserving the same experience.
+
 <img width="1914" height="486" alt="image" src="https://github.com/user-attachments/assets/319d84c9-caea-4448-89c7-9f5333f6cb75" />
 
-The Android and Windows apps act like the console, while your storage device acts like the cartridge. Your media, library data, and LibraryJS files live together on your storage and can move between compatible hosts while preserving the same experience.
 
 Most of what you experience of LibraryJS happens in your browser. The server applications simply provide access to your library, allowing even low-powered devices to act as servers without needing expensive hardware. In many cases, the only thing you need to buy is storage.
 
@@ -13,9 +14,9 @@ The goal is to support Linux, Docker, and iOS in the future as well.
 
 ## Why not Jellyfin? Plex? Emby?
 
-LibraryJS is about preserving your media in a family-safe, offline state that is easy to access, back up, and share locally or over Tailscale.
+LibraryJS is about preserving your media in a family-safe, offline state that is easy to access, back up, and share locally or over Tailscale. Some households are perfect for Jellyfin, Plex and Emby, but mine isn't. My family's internet is slow, our hardware is modest, and I wanted something built around those realities instead of despite them.
 
-It is about building collections and hoarding a living library: a personal archive that can be freely shared with friends and family while preserving the same experience everywhere.
+This project is about building collection and hoarding a living library: a personal legacy that can be freely shared with friends and family while preserving the same experience everywhere.
 
 Build bundles of content to share over local Wi-Fi when visiting family and friends, or remotely over Tailscale. Once video files have been "fast start" repaired, LibraryJS avoids transcoding whenever possible, allowing even relatively weak servers to perform well.
 
