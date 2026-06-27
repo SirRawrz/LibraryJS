@@ -1,7 +1,9 @@
 ## Its a part of my soul at this point.
 
+<img width="1870" height="21248" alt="library" src="https://github.com/user-attachments/assets/7687ce46-4376-4260-be18-f8af863c0990" />
 
-   <img width="146" height="125" alt="Untitled" src="https://github.com/user-attachments/assets/8797fc59-edb0-41cc-b3e0-110dc050a38a" />
+
+  
 
  # LibraryJS Hosted Bundle
     This folder is the core of the actual LibraryJS that you experience in your browser.
@@ -17,9 +19,13 @@
 
     1. Download the android apk or the windows exe.
     2. Install the android apk and click "More info" "Run anyways". (I hope to sign my things eventually! Sorry!)
-    3. Choose a Main Server folder. Hit start and Install LibraryJS. This will download and unpack the hostedbyserverapp.zip from github. Be patient. I plan on speeding up the unpacking so that the emulator is unpacked last so the rest of the site is available to work with. Users just wont be able to play EmulatorJS games until its finished.
-    4. Use Manage to add Videos, Games, Music, and Reading Content.
-    5. Once you've amassed enough to start sharing locally you can use the Backup/Restore routes to give that content to another device. One way I've used it is to send things from my main server to my android device, so that when I visit the library, which has 100x the upload as my home internet's upload, so that I can send anime to a friend in the U.K. from the US over tailscale! 
+    3. Choose a Main Server folder. Hit start and Install LibraryJS. This will download and unpack the hostedbyserverapp.zip from github. Be patient. I plan on speeding up the unpacking so that the emulator is unpacked last so the rest of the site is available to work with. Users just wont be able to play EmulatorJS games until its finished. 
+    5. Click on the 192.x.x.x in the LibraryJS app to open your library in browser (It will always be in browser)
+    6. Setup the server, writing in its name, the IP address that you clicked on. Write it like this http://X.X.X.X:8080/ where 8080 is the port you chose in the app. If you don't have tailscale, you can sign up and enter your IP from it in here, so that the page can make original and kid safe QRs for you. (Going to http://X.X.X.X:8080/?I will mark you as an adult. You will default as a kid if you don't enter this. The app will take you to this page automatically, but manual entry will require this knowledge! Why ?I because it looks like ?l!
+    7. Use Manage to add Videos, Games, Music, and Reading Content.
+    8. Once you've amassed enough to start sharing locally you can use the Backup/Restore routes to give that content to another device. One way I've used it is to send things from my main server to my android device, so that when I visit the library, which has 100x the upload as my home internet's upload, so that I can send anime to a friend in the U.K. from the US over tailscale! 
+
+
 
     
 ## LICENSE
