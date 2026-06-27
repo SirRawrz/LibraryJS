@@ -1,208 +1,27 @@
-Now in a shareable test phase! Before wider release! Next step will be continueing to fix odds and ends and creating a more human readme and visual video guides for how to use its base features!
+## Its a part of my soul at this point.
 
-## README-HostedBundle.md
-Project documentation / readme
 
-    # LibraryJS Hosted Bundle
+   <img width="146" height="125" alt="Untitled" src="https://github.com/user-attachments/assets/8797fc59-edb0-41cc-b3e0-110dc050a38a" />
 
-    This folder is the actual LibraryJS experience.
+ # LibraryJS Hosted Bundle
+    This folder is the core of the actual LibraryJS that you experience in your browser.
 
-    The Android and Windows apps are only the host shells. This bundle is the part people browse, organize, assemble, read, watch, launch, back up, restore, and clone. It is designed to feel like one local-first media environment rather than a pile of unrelated pages.
+    The Android and Windows apps act like the console, while whatever folder (Flash Drive/HDD) are the cartridges holding your files and the files unpacked from the HostedByServerApp.zip. The library itself is compatible between devices. I am to support IOS/Linux/Docker as well. 
+   
+    ## Why not Jellyfin? Plex? Emby?
 
-    ## The core idea
+    LibraryJS is about perserving all your media, in a safe offline state, that is accessible, easy to backup and share locally and over tailscale. Build bundles of content to give out locally between family and friends over wifi locally when you visit (or remotely over tailscale.)
 
-    LibraryJS is built around a contract between the host and the hosted files.
 
-    The host is responsible for:
+    ## Setup
 
-    - serving the bundle over HTTP or HTTPS
-    - writing the runtime identity files the pages read
-    - exposing upload, copy, proxy, and repair routes
-    - keeping the chosen roots available
-    - supporting cloning and temporary USB workflows
+    1. Download the android apk or the windows exe.
+    2. Install the android apk and click "More info" "Run anyways". (I hope to sign my things eventually! Sorry!)
+    3. Choose a Main Server folder. Hit start and Install LibraryJS. This will download and unpack the hostedbyserverapp.zip from github. Be patient. I plan on speeding up the unpacking so that the emulator is unpacked last so the rest of the site is available to work with. Users just wont be able to play EmulatorJS games until its finished.
+    4. Use Manage to add Videos, Games, Music, and Reading Content.
+    5. Once you've amassed enough to start sharing locally you can use the Backup/Restore routes to give that content to another device. One way I've used it is to send things from my main server to my android device, so that when I visit the library, which has 100x the upload as my home internet's upload, so that I can send anime to a friend in the U.K. from the US over tailscale! 
 
-    The hosted bundle is responsible for:
-
-    - presenting the UI
-    - discovering and organizing content
-    - keeping profile state and playback history
-    - switching between media, reading, games, and tools
-    - using relative paths so the same bundle can move between hosts
-
-    That split is what makes the project portable.
-
-    ## How the project is meant to be used
-
-    The usual flow is:
-
-    1. A setup host is pointed at a root.
-    2. Content is gathered and assembled through `lib.html`, `manage.html`, the extension, and the other helper pages.
-    3. Media that is missing or incomplete can be added through the management flows.
-    4. Once the library has enough substance, the host can be backed up or selectively cloned to another server.
-    5. The same bundle can then be opened again on the next host with its identity files rewritten for that environment.
-
-    That makes the project feel less like a downloader and more like a portable library seed.
-
-    ## The host-written contract files
-
-    These files tell the bundle what machine it is sitting on and how to talk back to it:
-
-    - `platform.txt`
-    - `serverip.txt`
-    - `httpserverip.txt`
-    - `httpsserverip.txt`
-    - `tailscaleip.txt`
-    - `tailscaleserverip.txt`
-    - `expandedstorage.txt`
-    - `https setup.txt`
-
-    The bundle leans on these files instead of hardcoded machine paths so the same content can be moved, mirrored, or restored elsewhere.
-
-    ## The main parts of the bundle
-
-    ### `index.html`
-    The home page and dispatcher.
-
-    This is the first place most users land. It links the profile system, the me
-
-## README-AndroidServerApp.md
-Project documentation / readme
-
-    # LibraryJS Android Server App
-
-    The Android app is the mobile host for LibraryJS.
-
-    It is not a companion app sitting beside the project. It is the server personality running in an Android shell, writing the same runtime files, serving the same hosted bundle, and supporting the same backup, restore, and clone flows as the desktop version.
-
-    ## The shared model
-
-    Both host apps are meant to do the same job:
-
-    - serve one or more roots
-    - expose the hosted LibraryJS bundle
-    - write the identity files the pages read
-    - keep the library origin discoverable
-    - support backup, restore, and selective cloning
-    - support temporary USB bridging for transfers
-    - run repair and proxy helpers when needed
-
-    The shell is different, but the server contract is the same.
-
-    ## What the Android app controls
-
-    The Android UI is the setup and control surface for the host.
-
-    It lets you:
-
-    - choose the main root with the Android folder picker
-    - add extended roots
-    - assign ports and HTTPS per root
-    - start and stop the foreground service
-    - enable boot start and auto-start on app launch
-    - mount a temporary USB root for transfer or cloning
-    - install the generated HTTPS certificate on the device
-    - open the LibraryJS install page for the active root
-
-    The app stores the choices first, then lets the service layer bring the server back into sync.
-
-    ## The important files
-
-    ### `MainActivity.kt`
-    The control panel.
-
-    This is where the user picks roots, toggles service state, manages temporary USB mode, and writes the chosen configuration into persistent storage.
-
-    ### `ServerStore.kt`
-    The saved configuration layer.
-
-    It keeps the list of roots, ports, HTTPS settings, boot preferences, and other server choices.
-
-    ### `ServerService.kt`
-    The foreground runtime.
-
-    This is the piece that loads the saved roots, starts the servers, merges in temporary USB when it is active, writes the runtime metadata files, and keeps the host alive.
-
-    ### `LocalLibraryServer.kt`
-    The request handler for one root.
-
-    It serves the hosted bundle, media, upload paths, copy helpers, metadata files, and server-side repair routes.
-
-    ### `ServerTlsManager.kt`
-    The HTTPS material manager.
-
-    It creates and reloads local certificate material so the host ca
-
-
-
-## README-WindowsServerApp.md
-Project documentation / readme
-
-    # LibraryJS Windows Server App
-
-    The Windows server app is the desktop host for LibraryJS.
-
-    It shares the same job as the Android app: serve the bundle, write the runtime files, support cloning and restore workflows, and keep the project feeling like one system no matter which shell is underneath it.
-
-    ## The shared model
-
-    The Windows and Android hosts are meant to be interchangeable. Each one should be able to:
-
-    - serve one or more roots
-    - expose the hosted LibraryJS bundle
-    - write the identity files the hosted pages read
-    - support backups, restores, and selective cloning
-    - support temporary USB transfer workflows
-    - run proxy and repair helpers
-    - present the same content surface to the browser
-
-    That interchangeability is the whole point.
-
-    ## What the Windows app controls
-
-    The desktop shell is the server control center.
-
-    It lets you:
-
-    - choose one or more folder roots
-    - assign ports per root
-    - turn HTTPS on or off
-    - start and stop the server
-    - keep the server in the tray
-    - register auto-start with Windows
-    - auto-start the server when the app launches
-    - use temporary USB mode for transfer or cloning
-    - install or open the LibraryJS bundle into the active root
-
-    Windows gives you easier access to local storage and desktop integration, but the server personality should still feel the same as Android.
-
-    ## Core files and how they fit together
-
-    ### `server.mjs`
-    The Node server layer.
-
-    It handles the serving behavior, request routing, uploads, copy helpers, proxy paths, FFmpeg repair requests, and optional HTTPS support.
-
-    ### `site/`
-    The bundled desktop UI.
-
-    `site/index.html` is the dashboard and handoff page, while `site/app.js` drives the setup, URL building, stream/transfer helpers, and the action flow into the LibraryJS surface.
-
-    ### `trayhost/`
-    The Windows shell wrapper.
-
-    This layer gives the app a tray icon, start/stop controls, startup registration, and the desktop behaviors that make the Node server feel like a native app.
-
-    ### `launcher.cjs` and `build-sea.ps1`
-    The packaging path.
-
-    These support the desktop build and launch flow.
-
-    ## How the Windows app should feel
-
-    The Windows version is the “full desk” counterpart to the Android host.
-
-    It should still think in t
-
+    
 ## LICENSE
 Other file
 
