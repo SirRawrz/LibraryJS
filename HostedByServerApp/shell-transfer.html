@@ -1059,8 +1059,16 @@ function pathToString(path) {
         if (path.length === 1 || kept.length || shouldKeep(path)) {
           outputEpisodes[title] = selectAll && path.length === 1 ? src.slice() : (kept.length ? kept : src.slice());
         }
-      } else {
-        outputEpisodes[title] = JSON.parse(JSON.stringify(src));
+            } else {
+        outputEpisodes[title] = src.map(entry => {
+          const copy = { ...entry };
+
+          if (typeof copy.file === 'string') {
+            copy.file = normalizeLibraryFilePath(copy.file);
+          }
+
+          return copy;
+        });
       }
     }
 
@@ -1200,7 +1208,16 @@ function pathToString(path) {
       })
       .join('/');
   }
+function normalizeLibraryFilePath(path) {
+  path = String(path || '');
 
+  // Convert local server URLs using numeric IPv4 hosts into portable relative paths.
+  // Leave domain names and external URLs untouched.
+  return path.replace(
+    /^https?:\/\/(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\//i,
+    './'
+  );
+}
   function musicImageCandidates(artist) {
     const variants = unique([
       artist,
