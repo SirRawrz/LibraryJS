@@ -6,11 +6,11 @@
 
 ---
 
-# LibraryJS Hosted Bundle
+# LibraryJS
 
-This folder is the core of the actual LibraryJS that you experience in your browser.
+LibraryJS has 2 apps currently, but most of what you experience of LibraryJS is in your browser.
 
-The Android and Windows apps act like the console, while whatever folder (Flash Drive/HDD) are the cartridges holding your files and the files unpacked from the HostedByServerApp.zip. The library itself is compatible between devices. I am to support IOS/Linux/Docker as well.
+The Android and Windows apps act like the console, while whatever folder (Flash Drive/HDD) are the cartridges holding your files and the files unpacked from the HostedByServerApp.zip here on Github. The library structure saved on your storage is compatible between devices. I eventually aim to support Linux/Docker/IOS as well.
 
 ---
 
