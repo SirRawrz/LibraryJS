@@ -3,7 +3,7 @@
 LibraryJS is a local-first digital library in your browser.
 <img width="1914" height="486" alt="image" src="https://github.com/user-attachments/assets/319d84c9-caea-4448-89c7-9f5333f6cb75" />
 
-The Android and Windows apps act like the console, while your storage device acts like the cartridge. Your media, library data, and LibraryJS files live together on your storage and can move between compatible hosts while preserving the same browser experience.
+The Android and Windows apps act like the console, while your storage device acts like the cartridge. Your media, library data, and LibraryJS files live together on your storage and can move between compatible hosts while preserving the same experience.
 
 Most of what you experience of LibraryJS happens in your browser. The server applications simply provide access to your library, allowing even low-powered devices to act as servers without needing expensive hardware. In many cases, the only thing you need to buy is storage.
 
