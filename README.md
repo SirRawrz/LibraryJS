@@ -153,58 +153,6 @@ If any packaged third-party binary or asset has its own redistribution requireme
 
 ---
 
-## Hosted by a server app (android or windows)
-
-<details>
-<summary><strong>Click to expand file list</strong></summary>
-
-```
-
-PASTE YOUR ENTIRE FILE LIST HERE EXACTLY AS IT ALREADY EXISTS
-
-```
-
-</details>
-
----
-
-## androidserverapp/
-
-<details>
-<summary><strong>Click to expand file list</strong></summary>
-
-```
-
-PASTE YOUR ENTIRE ANDROID FILE LIST HERE EXACTLY AS IT ALREADY EXISTS
-
-```
-
-</details>
-
----
-
-## Windows Server app/
-
-<details>
-<summary><strong>Click to expand file list</strong></summary>
-
-```
-
-PASTE YOUR ENTIRE WINDOWS FILE LIST HERE EXACTLY AS IT ALREADY EXISTS
-
-```
-
-</details>
-
----
-
-## Extension/
-
-<details>
-<summary><strong>Click to expand file list</strong></summary>
-
-```
-
 PASTE YOUR ENTIRE EXTENSION FILE LIST HERE EXACTLY AS IT ALREADY EXISTS
 
 ```
