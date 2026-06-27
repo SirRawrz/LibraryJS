@@ -1,14 +1,6 @@
-## Its a part of my soul at this point.
-
-<p align="center">
-  <img width="1870" height="21248" alt="library" src="https://github.com/user-attachments/assets/7687ce46-4376-4260-be18-f8af863c0990" />
-</p>
-
----
-
 # LibraryJS
 
-LibraryJS has 2 apps currently, but most of what you experience of LibraryJS is in your browser.
+LibraryJS has two apps currently, but most of what you experience of LibraryJS is in your browser.
 
 The Android and Windows apps act like the console, while whatever folder (Flash Drive/HDD) are the cartridges holding your files and the files unpacked from the HostedByServerApp.zip here on Github. The library structure saved on your storage is compatible between devices. I eventually aim to support Linux/Docker/IOS as well.
 
@@ -55,7 +47,17 @@ For Videos you want to upload manually, without the Stream Archiver extension, s
 
 
 ---
+## Its a part of my soul at this point.
 
+<p align="center">
+  <img width="1870" height="21248" alt="library" src="https://github.com/user-attachments/assets/7687ce46-4376-4260-be18-f8af863c0990" />
+</p>
+
+<img width="1884" height="900" alt="image" src="https://github.com/user-attachments/assets/0c03e06f-2401-4253-b684-a974d8edfe87" />
+
+<img width="1906" height="1079" alt="image" src="https://github.com/user-attachments/assets/be9ba8dc-784f-4d76-a1f0-9872ff00a65b" />
+
+---
 ## LICENSE
 
 Other file
