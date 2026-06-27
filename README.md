@@ -16,7 +16,7 @@ The Android and Windows apps act like the console, while whatever folder (Flash 
 
 ## Why not Jellyfin? Plex? Emby?
 
-LibraryJS is about perserving all your media, in a safe offline state, that is accessible, easy to backup and share locally and over tailscale. Build bundles of content to give out locally between family and friends over wifi locally when you visit (or remotely over tailscale.)
+LibraryJS is about perserving all your media, in a safe offline state, that is accessible, easy to backup and share locally and over tailscale. Build bundles of content to give out locally between family and friends over wifi locally when you visit (or remotely over tailscale.) All with the same browser experience. 
 
 ---
 
