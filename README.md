@@ -19,7 +19,7 @@ It is about building collections and hoarding a living library: a personal archi
 
 Build bundles of content to share over local Wi-Fi when visiting family and friends, or remotely over Tailscale. Once video files have been "fast start" repaired, LibraryJS avoids transcoding whenever possible, allowing even relatively weak servers to perform well.
 
-The goal is a living archive with easy couch streaming and personal touches, such as using your album artwork as screen savers. LibraryJS is not only about videos, but also reading content, music, and EmulatorJS games with built-in guidebooks.
+The goal is a living archive with easy couch streaming and personal touches, such as using your album uploads as screen savers. LibraryJS focuses on videos and music, but its also Books, Manga and EmulatorJS games with built-in guidebooks.
 
 It becomes a console that lives on your storage.
 
