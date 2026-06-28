@@ -59,8 +59,9 @@ If you don't have tailscale, you can sign up and enter your IP from it in here, 
 <img width="1874" height="895" alt="image" src="https://github.com/user-attachments/assets/b6c6ac7b-d115-4120-9928-bb464ea43bb8" />
 
 
-or Browse Shells that I made already to get started. https://sirrawrz.github.io/LibraryJS-Content-Shells/ is a preview accessible without running the server and clicking "Browse Shells." 
+or Browse Shells that I made already to get started. 
 <img width="1915" height="887" alt="image" src="https://github.com/user-attachments/assets/e321ddb4-8c26-4faa-aa65-47346cafdc04" />
+https://sirrawrz.github.io/LibraryJS-Content-Shells/ is a preview accessible without running the server and clicking "Browse Shells." 
 <img width="1699" height="881" alt="image" src="https://github.com/user-attachments/assets/6c04990b-e32a-4da7-a71a-5e4b9f9a308b" />
 
 
