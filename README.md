@@ -1,6 +1,6 @@
 ## LibraryJS
 
-LibraryJS is a local-first digital library designed to be your personal or family archive, accessible from any modern browser.
+LibraryJS is a portable digital archive where your collection travels on your storage.
 The Android and Windows apps act like the console, while your storage device acts like the cartridge. Your media, library data, and LibraryJS files live together on your storage and can move between compatible hosts while preserving the same experience.
 
 <img width="1914" height="486" alt="image" src="https://github.com/user-attachments/assets/319d84c9-caea-4448-89c7-9f5333f6cb75" />
