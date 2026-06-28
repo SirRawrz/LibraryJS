@@ -180,8 +180,17 @@ object ReleaseBundleInstaller {
 
             val stripPrefix = detectSharedRootPrefix(entryNames)
             var count = 0
+            val prioritized = entryNames.filterNot {
+                val relativeCheck = stripLeadingPrefix(it, stripPrefix).lowercase(Locale.US)
+                relativeCheck.startsWith("emulator/")
+            }
+            val deferred = entryNames.filter {
+                val relativeCheck = stripLeadingPrefix(it, stripPrefix).lowercase(Locale.US)
+                relativeCheck.startsWith("emulator/")
+            }
 
-            for (rawName in entryNames) {
+            onProgress("Installing LibraryJS core files... Games will become available after the emulator pack finishes installing.")
+            for (rawName in prioritized) {
                 val relative = stripLeadingPrefix(rawName, stripPrefix)
                 if (!isSafeRelativePath(relative)) {
                     continue
@@ -202,6 +211,25 @@ object ReleaseBundleInstaller {
                     zip.getInputStream(entry).use { input ->
                         input.copyTo(output)
                     }
+                } ?: error("Could not open output stream for $relative")
+                count++
+            }
+            if (deferred.isNotEmpty()) {
+                onProgress("Core LibraryJS installed. Everything except Games can now be used while the emulator pack finishes installing...")
+            }
+            for (rawName in deferred) {
+                val relative = stripLeadingPrefix(rawName, stripPrefix)
+                if (!isSafeRelativePath(relative)) continue
+                val entry = zip.getEntry(rawName.replace('\\', '/')) ?: continue
+                onProgress("Installing emulator pack: $relative")
+                val parentPath = relative.substringBeforeLast('/', missingDelimiterValue = "")
+                val fileName = relative.substringAfterLast('/')
+                val parentDir = ensureDirectory(tree, parentPath) ?: error("Could not create ${parentPath.ifBlank { "root" }}")
+                parentDir.findFile(fileName)?.delete()
+                val mimeType = guessMimeType(fileName)
+                val created = parentDir.createFile(mimeType, fileName) ?: error("Could not create $relative")
+                context.contentResolver.openOutputStream(created.uri)?.use { output ->
+                    zip.getInputStream(entry).use { input -> input.copyTo(output) }
                 } ?: error("Could not open output stream for $relative")
                 count++
             }

@@ -893,7 +893,21 @@ internal sealed class LibraryJSServerContext : ApplicationContext
         var entries = archive.Entries.Where(entry => !string.IsNullOrWhiteSpace(entry.FullName) && !entry.FullName.EndsWith("/", StringComparison.Ordinal)).ToList();
         var prefix = DetectCommonRootPrefix(entries.Select(entry => NormalizeZipPath(entry.FullName)).ToList());
 
-        foreach (var entry in entries)
+        var prioritizedEntries = entries.Where(entry =>
+        {
+            var normalized = NormalizeZipPath(entry.FullName);
+            var relative = StripZipPrefix(normalized, prefix);
+            return !relative.StartsWith("emulator/", StringComparison.OrdinalIgnoreCase);
+        });
+
+        var deferredEntries = entries.Where(entry =>
+        {
+            var normalized = NormalizeZipPath(entry.FullName);
+            var relative = StripZipPrefix(normalized, prefix);
+            return relative.StartsWith("emulator/", StringComparison.OrdinalIgnoreCase);
+        });
+
+        foreach (var entry in prioritizedEntries)
         {
             var normalized = NormalizeZipPath(entry.FullName);
             var relative = StripZipPrefix(normalized, prefix);
@@ -915,6 +929,20 @@ internal sealed class LibraryJSServerContext : ApplicationContext
             installed++;
         }
 
+        MessageBox.Show("LibraryJS core files are installed. Users can use everything except Games while the emulator pack finishes installing.","LibraryJS Server",MessageBoxButtons.OK,MessageBoxIcon.Information);
+        foreach (var entry in deferredEntries)
+        {
+            var normalized = NormalizeZipPath(entry.FullName);
+            var relative = StripZipPrefix(normalized, prefix);
+            if (!IsSafeRelativeZipPath(relative)) continue;
+            var targetPath = Path.Combine(destinationRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+            var targetDirectory = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrWhiteSpace(targetDirectory)) Directory.CreateDirectory(targetDirectory);
+            using var input = entry.Open();
+            using var output = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            input.CopyTo(output);
+            installed++;
+        }
         return installed;
     }
 
