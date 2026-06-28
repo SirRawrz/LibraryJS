@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shell Library Browser</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #0b0b0f;
+            color: #e2e2e2;
+            padding: 2rem 1.5rem;
+            min-height: 100vh;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #a78bfa, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle { text-align: center; color: #888; margin-bottom: 2rem; font-size: 1.1rem; }
+        .search-wrapper { display: flex; justify-content: center; margin-bottom: 2.5rem; }
+        .search-bar {
+            width: 100%;
+            max-width: 450px;
+            padding: 0.9rem 1.2rem;
+            border: 1px solid #2a2a2e;
+            border-radius: 2rem;
+            background: #15151a;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .search-bar:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1.75rem;
+        }
+        .card {
+            background: #1a1a1f;
+            border-radius: 1rem;
+            overflow: hidden;
+            transition: transform 0.25s, box-shadow 0.25s;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #2a2a30;
+            cursor: pointer;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.6);
+            border-color: #6366f1;
+        }
+        .card img {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            background: #2a2a2e;
+        }
+        .card-body {
+            padding: 0.8rem 0.7rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            flex: 1;
+        }
+        .card-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            line-height: 1.3;
+            color: #fff;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+        }
+        .card-actions { display: flex; align-items: center; margin-top: auto; }
+        .btn-add {
+            flex: 1;
+            background: #6366f1;
+            color: #fff;
+            text-align: center;
+            padding: 0.45rem 0.6rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-add:hover { background: #818cf8; }
+
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 2rem;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1e1e24;
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 700px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #2a2a30;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+        }
+        .modal-header {
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2a2a30;
+        }
+        .modal-header h3 { margin: 0; font-size: 1.2rem; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .modal-body {
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .progress-label { font-size: 0.9rem; color: #aaa; }
+        .progress-bar-outer {
+            width: 100%;
+            height: 10px;
+            background: #2a2a30;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .progress-bar-inner {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #a78bfa);
+            transition: width 0.3s ease;
+        }
+        .status-text {
+            font-size: 0.85rem;
+            color: #ccc;
+            white-space: pre-wrap;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        iframe {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #2a2a30;
+            border-radius: 0.5rem;
+            display: none;
+        }
+        iframe.visible { display: block; }
+        .empty-message {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 1.3rem;
+            color: #666;
+            padding: 4rem 1rem;
+        }
+        .loader {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            padding: 4rem 1rem;
+        }
+        .loader::after {
+            content: "";
+            width: 40px;
+            height: 40px;
+            border: 4px solid #2a2a2e;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        footer { margin-top: 3rem; text-align: center; color: #555; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📦 Shell Library</h1>
+        <p class="subtitle">Browse pre‑assembled shells. Click “Add to Library” to merge them onto this server.</p>
+
+        <div class="search-wrapper">
+            <input type="text" class="search-bar" id="searchInput" placeholder="Search shells…" autocomplete="off">
+        </div>
+
+        <div class="grid" id="grid">
+            <div class="loader"></div>
+        </div>
+    </div>
+    <footer>Data sourced from <code>LibraryJS-Content-Shells</code> on GitHub</footer>
+
+    <!-- Restore Modal -->
+    <div class="modal-overlay" id="restoreModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Adding to Library…</h3>
+                <button class="modal-close" id="modalCloseBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="progress-label" id="progressLabel">Preparing…</div>
+                <div class="progress-bar-outer">
+                    <div class="progress-bar-inner" id="progressBar"></div>
+                </div>
+                <div class="status-text" id="statusText"></div>
+                <iframe id="restoreFrame" src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        // ---------- CONFIGURATION ----------
+        const BASE = "https://raw.githubusercontent.com/SirRawrz/LibraryJS-Content-Shells/main/";
+        const CATALOG_URL = BASE + "catalog.json";
+
+        const grid = document.getElementById("grid");
+        const searchInput = document.getElementById("searchInput");
+        let shells = [];
+
+        // Modal DOM refs
+        const modal = document.getElementById("restoreModal");
+        const modalTitle = document.getElementById("modalTitle");
+        const progressLabel = document.getElementById("progressLabel");
+        const progressBar = document.getElementById("progressBar");
+        const statusText = document.getElementById("statusText");
+        const restoreFrame = document.getElementById("restoreFrame");
+        const modalCloseBtn = document.getElementById("modalCloseBtn");
+
+        let activeShellName = null;
+        let restoreInProgress = false;
+        let messageListener = null;
+
+        // ---------- Merge / Restore via iframe ----------
+        function addToLibrary(shellName) {
+            if (restoreInProgress) closeModal();
+
+            activeShellName = shellName;
+            openModal(`Adding ${shellName} to Library`);
+
+            const encoded = encodeURIComponent(shellName);
+            const zipUrl = `${BASE}shell/${encoded}/${encoded}-shell.zip`;
+
+            progressLabel.textContent = "Fetching shell ZIP…";
+            fetch(zipUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.blob();
+                })
+                .then(blob => {
+                    const zipFile = new File([blob], `${shellName}-shell.zip`, { type: "application/zip" });
+
+                    restoreFrame.classList.add("visible");
+                    restoreFrame.src = "./shell-restore.html?flow=1&auto=1&contentMode=merge";
+
+                    messageListener = function(event) {
+                        if (event.source !== restoreFrame.contentWindow) return;
+                        if (!event.data || event.data.flow !== "restore") return;
+
+                        const data = event.data;
+                        if (data.type === "libraryjs-flow-progress" || data.type === "libraryjs-flow-status") {
+                            updateModalProgress(data.done || 0, data.total || 1, data.label || data.status || data.message);
+                            if (data.status || data.message) {
+                                statusText.textContent = data.status || data.message;
+                            }
+                        } else if (data.type === "libraryjs-flow-complete") {
+                            updateModalProgress(1, 1, "Restore complete!");
+                            statusText.textContent = data.status || data.message || `${shellName} has been added to the library.`;
+                            restoreInProgress = false;
+                        }
+                    };
+                    window.addEventListener("message", messageListener);
+
+                    restoreFrame.addEventListener("load", function injectAndStart() {
+                        try {
+                            const iframeDoc = restoreFrame.contentDocument || restoreFrame.contentWindow.document;
+                            if (!iframeDoc) {
+                                statusText.textContent = "Could not access iframe. Check same-origin policy.";
+                                return;
+                            }
+                            const fileInput = iframeDoc.getElementById("zipFile");
+                            if (!fileInput) {
+                                statusText.textContent = "shell‑restore page missing file input.";
+                                return;
+                            }
+                            const dt = new DataTransfer();
+                            dt.items.add(zipFile);
+                            fileInput.files = dt.files;
+                            fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+                            progressLabel.textContent = "Scanning and restoring…";
+                        } catch (e) {
+                            statusText.textContent = "Error communicating with restore page: " + e.message;
+                        }
+                        restoreFrame.removeEventListener("load", injectAndStart);
+                    });
+                })
+                .catch(err => {
+                    statusText.textContent = `Failed to fetch ZIP: ${err.message}`;
+                    restoreInProgress = false;
+                });
+        }
+
+        // Modal helpers
+        function openModal(title) {
+            modalTitle.textContent = title || "Adding to Library…";
+            progressLabel.textContent = "Preparing…";
+            progressBar.style.width = "0%";
+            statusText.textContent = "";
+            restoreFrame.classList.remove("visible");
+            restoreFrame.src = "about:blank";
+            modal.classList.add("active");
+            restoreInProgress = true;
+        }
+
+        function closeModal() {
+            modal.classList.remove("active");
+            restoreFrame.src = "about:blank";
+            restoreInProgress = false;
+            activeShellName = null;
+            if (messageListener) {
+                window.removeEventListener("message", messageListener);
+                messageListener = null;
+            }
+        }
+
+        function updateModalProgress(done, total, label) {
+            const pct = total ? Math.min(100, (done / total) * 100) : 0;
+            progressBar.style.width = `${pct}%`;
+            if (label) progressLabel.textContent = label;
+        }
+
+        // ---------- RENDER CARDS (without inline onclick) ----------
+        function renderCards(filterText = "") {
+            const term = filterText.toLowerCase().trim();
+            const filtered = term 
+                ? shells.filter(s => s.name.toLowerCase().includes(term))
+                : shells;
+
+            grid.innerHTML = "";
+
+            if (!shells.length) {
+                grid.innerHTML = `<div class="loader"></div>`;
+                return;
+            }
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="empty-message">No shells found for “${term}”</div>`;
+                return;
+            }
+
+            filtered.forEach(shell => {
+                const encoded = encodeURIComponent(shell.name);
+                const posterUrl = `${BASE}shell/${encoded}/poster.jpg`;
+
+                const card = document.createElement("div");
+                card.className = "card";
+
+                // Card click triggers merge
+                card.addEventListener("click", (e) => {
+                    if (e.target.closest("button")) return;
+                    addToLibrary(shell.name);
+                });
+
+                // Build inner HTML (no onclick attribute)
+                card.innerHTML = `
+                    <img src="${posterUrl}" 
+                         alt="${shell.name}" 
+                         loading="lazy"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22450%22%3E%3Crect fill=%22%232a2a2e%22 width=%22300%22 height=%22450%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2214%22%3ENo Poster%3C/text%3E%3C/svg%3E'">
+                    <div class="card-body">
+                        <div class="card-title">${shell.name}</div>
+                        <div class="card-actions">
+                            <button class="btn-add">Add to Library</button>
+                        </div>
+                    </div>
+                `;
+
+                // Attach event listener to the button programmatically
+                const btn = card.querySelector(".btn-add");
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    addToLibrary(shell.name);
+                });
+
+                grid.appendChild(card);
+            });
+        }
+
+        // ---------- FETCH CATALOG ----------
+        async function loadCatalog() {
+            try {
+                const response = await fetch(CATALOG_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                if (!Array.isArray(data)) throw new Error("Catalog is not an array");
+                shells = data.filter(item => item && typeof item.name === "string");
+                renderCards();
+            } catch (error) {
+                console.error("Failed to load catalog:", error);
+                grid.innerHTML = `
+                    <div class="empty-message">
+                        ❌ Could not load the catalog.<br>
+                        <small>Check that <code>catalog.json</code> exists at the root of the repository.</small><br>
+                        <small style="color:#888">${error.message}</small>
+                    </div>`;
+            }
+        }
+
+        // ---------- EVENT LISTENERS ----------
+        searchInput.addEventListener("input", () => {
+            renderCards(searchInput.value);
+        });
+
+        modalCloseBtn.addEventListener("click", closeModal);
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        // ---------- START ----------
+        loadCatalog();
+    })();
+    </script>
+</body>
+</html>

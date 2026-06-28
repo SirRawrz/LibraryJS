@@ -1,0 +1,1204 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Publish Library Shells</title>
+    <style>
+        :root {
+            --bg: #0b1018;
+            --panel: #111827;
+            --panel2: #0d1420;
+            --line: rgba(255, 255, 255, .08);
+            --text: #edf4ff;
+            --muted: #93a2be;
+            --accent: #79e3c5;
+            --accent2: #86aafc;
+            --danger: #ff8591;
+            --warn: #ffbe6a;
+            --radius: 18px;
+            --shadow: 0 22px 60px rgba(0, 0, 0, .28);
+        }
+        * { box-sizing: border-box; }
+        html, body { min-height: 100%; }
+        body {
+            margin: 0;
+            background: radial-gradient(circle at top left, rgba(121, 227, 197, .09), transparent 26%),
+                        radial-gradient(circle at right top, rgba(134, 170, 252, .08), transparent 24%),
+                        linear-gradient(180deg, #09111b 0%, #0b1018 100%);
+            color: var(--text);
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            padding: 16px;
+        }
+        .wrap { max-width: 1400px; margin: 0 auto; }
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .panelHead {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+            background: rgba(255,255,255,.02);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .panelHead h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+        .panelHead .meta { color: var(--muted); font-size: 13px; }
+        .panelBody { padding: 18px 20px; }
+        .flex { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+        .flex-col { display: flex; flex-direction: column; gap: 10px; }
+        button {
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 18px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            background: rgba(255,255,255,.08);
+            color: var(--text);
+            border: 1px solid var(--line);
+            transition: transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+        }
+        button:hover { border-color: rgba(134, 170, 252, .22); }
+        button:active { transform: translateY(1px); }
+        button.primary {
+            background: linear-gradient(180deg, rgba(121,227,197,1), rgba(92,202,168,1));
+            color: #07120f;
+            border-color: transparent;
+        }
+        button.danger { background: rgba(255,133,145,.12); color: #ffc5cb; border-color: rgba(255,133,145,.18); }
+        button.ghost { background: rgba(255,255,255,.04); }
+        button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+        button.accent { background: rgba(134,170,252,.15); color: var(--accent2); border-color: rgba(134,170,252,.18); }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin: 8px 0 4px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,.03);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 12px 14px;
+        }
+        .stat-card .num { font-size: 26px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+        .stat-card .label { color: var(--muted); font-size: 12px; margin-top: 3px; }
+        .log-area {
+            background: var(--panel2);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 12px 14px;
+            font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            color: var(--muted);
+            min-height: 180px;
+            max-height: 420px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+        .log-area .ok { color: var(--accent); }
+        .log-area .err { color: var(--danger); }
+        .log-area .warn { color: var(--warn); }
+        .log-area .info { color: var(--accent2); }
+        .progress-wrap {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,.06);
+            border-radius: 99px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border-radius: 99px;
+            transition: width .25s ease;
+        }
+        .root-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+        .root-tag {
+            background: rgba(255,255,255,.06);
+            border: 1px solid var(--line);
+            border-radius: 99px;
+            padding: 3px 12px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .root-tag.done { border-color: rgba(121,227,197,.25); color: var(--accent); }
+        .root-tag.fail { border-color: rgba(255,133,145,.25); color: var(--danger); }
+        .root-tag.active {
+            border-color: rgba(134,170,252,.35);
+            color: var(--accent2);
+            background: rgba(134,170,252,.08);
+        }
+        .file-path { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; word-break: break-all; }
+        .inline-code {
+            background: rgba(255,255,255,.06);
+            border-radius: 6px;
+            padding: 1px 8px;
+            font-family: ui-monospace, monospace;
+            font-size: 12px;
+            color: var(--accent2);
+        }
+        @media (max-width: 640px) {
+            .stat-grid { grid-template-columns: 1fr 1fr; }
+            .panelHead { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="panel">
+            <div class="panelHead">
+                <div>
+                    <h2>📦 Publish Library Shells</h2>
+                    <div class="meta">One root at a time – uploads to server at /publish/shells/name/name-shell.zip</div>
+                </div>
+                <div class="flex">
+                    <input type="text" id="serverBase" placeholder="http://192.168.254.16:8080" style="flex:1;min-width:220px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);font:inherit;" />
+                    <button id="publishBtn" class="primary">▶ Publish & Upload</button>
+                    <button id="cancelBtn" class="danger" disabled>⏹ Cancel</button>
+                </div>
+            </div>
+            <div class="panelBody">
+                <div class="stat-grid" id="stats">
+                    <div class="stat-card"><div class="num" id="statRoots">0</div><div class="label">Roots total</div></div>
+                    <div class="stat-card"><div class="num" id="statDone">0</div><div class="label">Uploaded</div></div>
+                    <div class="stat-card"><div class="num" id="statFail">0</div><div class="label">Failed</div></div>
+                    <div class="stat-card"><div class="num" id="statProcessed">0</div><div class="label">Processed</div></div>
+                </div>
+                <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+                <div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:6px;">
+                    <span style="font-size:13px;color:var(--muted);" id="statusLabel">Ready.</span>
+                    <span style="font-size:12px;color:var(--muted);" id="sizeLabel"></span>
+                </div>
+                <div class="root-list" id="rootList"></div>
+                <div style="margin-top:10px;">
+                    <div class="log-area" id="logArea">Waiting to start…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 1.  UTILITY FUNCTIONS (matching shell-backup / shell-transfer)
+        // ============================================================
+
+        const enc = new TextEncoder();
+        const dec = new TextDecoder();
+        const MAX_LOG_LINES = 50;
+
+        function safeDecodeText(raw) {
+            const text = String(raw || '').replace(/\+/g, ' ');
+            try { return decodeURIComponent(text); } catch { return text; }
+        }
+
+        function cleanTitle(raw) {
+            return safeDecodeText(String(raw || '').replace(/\s*\*+$/g, '').trim());
+        }
+
+        function compareKey(s) {
+            return String(s || '')
+                .replace(/&amp;/gi, 'and')
+                .replace(/&/g, 'and')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9 ]/g, '');
+        }
+
+        function strictKey(s) {
+            return String(s || '')
+                .replace(/&amp;/gi, 'and')
+                .replace(/&/g, 'and')
+                .replace(/\s+/g, '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '');
+        }
+
+        function looseKey(s) {
+            return String(s || '')
+                .replace(/&amp;/gi, 'and')
+                .replace(/&/g, 'and')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '');
+        }
+
+        function pathKey(path) {
+            return JSON.stringify(Array.isArray(path) ? path : []);
+        }
+
+        function pathFromKey(key) {
+            try { const p = JSON.parse(key); return Array.isArray(p) ? p : []; } catch { return []; }
+        }
+
+        function pathEquals(a, b) {
+            const left = Array.isArray(a) ? a : [];
+            const right = Array.isArray(b) ? b : [];
+            if (left.length !== right.length) return false;
+            for (let i = 0; i < left.length; i++) {
+                if (String(left[i]) !== String(right[i])) return false;
+            }
+            return true;
+        }
+
+        function pathStartsWith(path, prefix) {
+            const full = Array.isArray(path) ? path : [];
+            const head = Array.isArray(prefix) ? prefix : [];
+            if (head.length > full.length) return false;
+            for (let i = 0; i < head.length; i++) {
+                if (String(full[i]) !== String(head[i])) return false;
+            }
+            return true;
+        }
+
+        function pathIntersectsSelection(path, selectedPaths) {
+            const probe = Array.isArray(path) ? path : [];
+            for (const sel of selectedPaths || []) {
+                if (pathEquals(probe, sel) || pathStartsWith(sel, probe) || pathStartsWith(probe, sel)) return true;
+            }
+            return false;
+        }
+
+        function unique(arr) {
+            return [...new Set((arr || []).filter(Boolean))];
+        }
+
+        function libStyleSegment(value) {
+            return String(value || '')
+                .replace(/[’']/g, '')
+                .replace(/[*]/g, '')
+                .replace(/[\\/:*?"<>|]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        // ---- Added: matches shell-backup / shell-transfer ----
+        function encodeLocalPath(path) {
+            return String(path || '')
+                .split('/')
+                .map(part => {
+                    if (!part || part === '.' || part === '..') return part;
+                    return encodeURIComponent(part);
+                })
+                .join('/');
+        }
+
+        function encodePathForFetch(path) {
+            const raw = String(path || '').replace(/^\.\//, '');
+            const [pre, query] = raw.split('?');
+            const encoded = pre.split('/').map(seg => encodeURIComponent(seg)).join('/');
+            return query ? `${encoded}?${query}` : encoded;
+        }
+
+        function resourceCandidates(file) {
+            const raw = String(file || '').replace(/^\.\//, '');
+            return [new URL(encodePathForFetch(raw), new URL('./', window.location.href)).href];
+        }
+
+        // ---- Added: variantsForName from shell-backup / shell-transfer ----
+        function variantsForName(name) {
+            const base = String(name || '').trim();
+            if (!base) return [];
+            const noApos = base.replace(/[’']/g, '');
+            const noSpace = base.replace(/\s+/g, '');
+            return unique([base, noApos, noSpace, noApos.replace(/\s+/g, '')].filter(Boolean));
+        }
+
+        // ---- Added: pushLibStyleArtworkCandidates from shell-backup / shell-transfer ----
+        function pushLibStyleArtworkCandidates(pushFn, rootName, leafName = rootName) {
+            const canonicalRoot = libStyleSegment(rootName);
+            const canonicalLeaf = libStyleSegment(leafName);
+            if (!canonicalRoot) return;
+
+            const exts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+            const add = (prefix, folder, file) => {
+                if (!folder || !file) return;
+                for (const ext of exts) {
+                    pushFn(`${prefix}${folder}/${file}.${ext}`);
+                }
+            };
+
+            add('./', canonicalRoot, canonicalRoot);
+            add('./Movies/', canonicalRoot, canonicalRoot);
+
+            for (const ext of exts) {
+                pushFn(`./${canonicalRoot}.${ext}`);
+            }
+
+            if (canonicalLeaf && canonicalLeaf !== canonicalRoot) {
+                add('./', canonicalRoot, canonicalLeaf);
+                add('./Movies/', canonicalRoot, canonicalLeaf);
+                add('./', canonicalLeaf, canonicalLeaf);
+                add('./Movies/', canonicalLeaf, canonicalLeaf);
+                for (const ext of exts) {
+                    pushFn(`./${canonicalRoot}/${canonicalLeaf}.${ext}`);
+                    pushFn(`./${canonicalLeaf}/${canonicalLeaf}.${ext}`);
+                }
+            }
+        }
+
+        async function fetchTextResource(file) {
+            const urls = resourceCandidates(file);
+            let lastError = null;
+            for (const url of urls) {
+                try {
+                    const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return { text: await res.text(), source: url };
+                } catch (e) { lastError = e; }
+            }
+            throw lastError || new Error(`${file} not found`);
+        }
+
+        async function fetchBinaryResource(path) {
+            const urls = resourceCandidates(path);
+            let lastError = null;
+            for (const url of urls) {
+                try {
+                    const res = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const buf = await res.arrayBuffer();
+                    return { bytes: new Uint8Array(buf), source: url };
+                } catch (e) { lastError = e; }
+            }
+            throw lastError || new Error(`${path} not found`);
+        }
+
+        function evalVariableSource(txt, varName) {
+            try {
+                const fn = new Function(`${txt}\nreturn (typeof ${varName} !== 'undefined') ? ${varName} : null;`);
+                return fn();
+            } catch (e) {
+                console.warn(`Failed to evaluate ${varName}`, e);
+                return null;
+            }
+        }
+
+        function getBalancedBlock(text, openIndex) {
+            let depth = 0,
+                state = 'code',
+                escaped = false,
+                regexClass = false,
+                prevSig = '';
+            const regexStarters = new Set(['(', '[', '{', '=', ':', ';', ',', '!', '?', '+', '-', '*', '%', '&', '|', '^', '~',
+                '<', '>', '\n'
+            ]);
+            for (let i = openIndex; i < text.length; i++) {
+                const ch = text[i],
+                    next = text[i + 1];
+                if (state === 'lineComment') { if (ch === '\n') state = 'code'; continue; }
+                if (state === 'blockComment') { if (ch === '*' && next === '/') { state = 'code';
+                        i++; } continue; }
+                if (state === 'singleQuote') { if (escaped) escaped = false;
+                    else if (ch === '\\') escaped = true;
+                    else if (ch === "'") state = 'code'; continue; }
+                if (state === 'doubleQuote') { if (escaped) escaped = false;
+                    else if (ch === '\\') escaped = true;
+                    else if (ch === '"') state = 'code'; continue; }
+                if (state === 'template') { if (escaped) escaped = false;
+                    else if (ch === '\\') escaped = true;
+                    else if (ch === '`') state = 'code'; continue; }
+                if (state === 'regex') { if (escaped) escaped = false;
+                    else if (ch === '\\') escaped = true;
+                    else if (ch === '[') regexClass = true;
+                    else if (ch === ']' && regexClass) regexClass = false;
+                    else if (ch === '/' && !regexClass) state = 'code'; continue; }
+                if (ch === '/' && next === '/') { state = 'lineComment';
+                    i++; continue; }
+                if (ch === '/' && next === '*') { state = 'blockComment';
+                    i++; continue; }
+                if (ch === "'") { state = 'singleQuote';
+                    escaped = false; continue; }
+                if (ch === '"') { state = 'doubleQuote';
+                    escaped = false; continue; }
+                if (ch === '`') { state = 'template';
+                    escaped = false; continue; }
+                if (ch === '/' && regexStarters.has(prevSig)) { state = 'regex';
+                    escaped = false;
+                    regexClass = false; continue; }
+                if (ch === '{') depth++;
+                else if (ch === '}') { depth--; if (depth === 0) return i; }
+                if (!/\s/.test(ch)) prevSig = ch;
+            }
+            return -1;
+        }
+
+        function extractFunctionBlock(text, fnName) {
+            const idx = text.search(new RegExp(`function\\s+${fnName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`));
+            if (idx < 0) return null;
+            const open = text.indexOf('{', idx);
+            if (open < 0) return null;
+            const close = getBalancedBlock(text, open);
+            if (close < 0) return null;
+            return text.slice(idx, close + 1);
+        }
+
+        function loaderDisplayName(fnName) {
+            const raw = String(fnName || '').trim();
+            const cleaned = raw.replace(/^load/i, '').replace(/seasons?$/i, '');
+            return cleaned
+                .replace(/ApOsTrOpHe/g, "'")
+                .replace(/AmPeRsAnD/g, '&')
+                .replace(/PeRiOd/g, '.')
+                .replace(/CoMmA/g, ',')
+                .replace(/ExClAmAtIoN/g, '!')
+                .replace(/HyPhEn/g, '-')
+                .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function tokenParts(raw) {
+            return String(raw || '')
+                .replace(/&amp;/gi, ' and ')
+                .replace(/&/g, ' and ')
+                .replace(/[_/\-]+/g, ' ')
+                .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase()
+                .split(/[^a-z0-9]+/)
+                .filter(Boolean);
+        }
+
+        function parseLoaders(txt) {
+            const out = [];
+            const re = /function\s+(load[A-Za-z0-9_]+seasons?)\s*\(\)\s*\{/gi;
+            let m;
+            while ((m = re.exec(txt)) !== null) {
+                const fnName = m[1];
+                const block = extractFunctionBlock(txt, fnName);
+                if (!block) continue;
+                const seasonsMatch = block.match(/const\s+seasons\s*=\s*\[([\s\S]*?)\]\s*;/m);
+                let seasons = [];
+                if (seasonsMatch) {
+                    try { seasons = new Function(`return [${seasonsMatch[1]}];`)() || []; } catch (e) { console.warn(
+                            `Could not parse seasons for ${fnName}`, e); }
+                }
+                const title = loaderDisplayName(fnName);
+                out.push({ fnName, title, key: compareKey(title), strictKey: strictKey(title), tokens: tokenParts(title),
+                    block, seasons });
+            }
+            out.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
+            return out;
+        }
+
+        function loaderStrictKey(raw) {
+            return String(raw || '')
+                .replace(/&amp;/gi, 'and')
+                .replace(/&/g, 'and')
+                .replace(/\s+/g, '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '');
+        }
+
+        function getLoaderEntryForTitle(title, loaders) {
+            const clean = cleanTitle(title);
+            const key = compareKey(clean);
+            const sKey = strictKey(clean);
+            const sk = loaderStrictKey(clean);
+            if (!loaders || !loaders.length) return null;
+            return loaders.find(entry => entry && (
+                entry.key === key ||
+                entry.strictKey === sKey ||
+                loaderStrictKey(entry.title) === sk ||
+                loaderStrictKey(entry.fnName) === sk
+            )) || null;
+        }
+
+        function normalizeLibraryFilePath(path) {
+            path = String(path || '');
+            return path.replace(
+                /^https?:\/\/(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\//i,
+                './'
+            );
+        }
+
+        function crc32(bytes) {
+            let crc = ~0 >>> 0;
+            for (let i = 0; i < bytes.length; i++) {
+                crc ^= bytes[i];
+                for (let k = 0; k < 8; k++) {
+                    crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+                }
+            }
+            return (~crc) >>> 0;
+        }
+
+        function concatBytes(parts) {
+            const arrays = parts.map(p => p instanceof Uint8Array ? p : new Uint8Array(p));
+            const total = arrays.reduce((n, arr) => n + arr.length, 0);
+            const out = new Uint8Array(total);
+            let offset = 0;
+            for (const arr of arrays) {
+                out.set(arr, offset);
+                offset += arr.length;
+            }
+            return out;
+        }
+
+        function makeZip(files) {
+            const localParts = [],
+                centralParts = [];
+            let offset = 0;
+            for (const file of files) {
+                const nameBytes = enc.encode(String(file.name || ''));
+                const raw = file.bytes instanceof Uint8Array ? file.bytes :
+                    file.bytes instanceof ArrayBuffer ? new Uint8Array(file.bytes) :
+                    enc.encode(String(file.content ?? ''));
+                const dataBytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+                const crc = crc32(dataBytes);
+                const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
+                const ldv = new DataView(local.buffer);
+                ldv.setUint32(0, 0x04034b50, true);
+                ldv.setUint16(4, 20, true);
+                ldv.setUint16(6, 0x0800, true);
+                ldv.setUint16(8, 0, true);
+                ldv.setUint16(10, 0, true);
+                ldv.setUint16(12, 0, true);
+                ldv.setUint16(14, 0, true);
+                ldv.setUint32(14, crc, true);
+                ldv.setUint32(18, dataBytes.length, true);
+                ldv.setUint32(22, dataBytes.length, true);
+                ldv.setUint16(26, nameBytes.length, true);
+                ldv.setUint16(28, 0, true);
+                local.set(nameBytes, 30);
+                local.set(dataBytes, 30 + nameBytes.length);
+                localParts.push(local);
+                const central = new Uint8Array(46 + nameBytes.length);
+                const cdv = new DataView(central.buffer);
+                cdv.setUint32(0, 0x02014b50, true);
+                cdv.setUint16(4, 20, true);
+                cdv.setUint16(6, 20, true);
+                cdv.setUint16(8, 0x0800, true);
+                cdv.setUint16(10, 0, true);
+                cdv.setUint16(12, 0, true);
+                cdv.setUint16(14, 0, true);
+                cdv.setUint32(16, crc, true);
+                cdv.setUint32(20, dataBytes.length, true);
+                cdv.setUint32(24, dataBytes.length, true);
+                cdv.setUint16(28, nameBytes.length, true);
+                cdv.setUint16(30, 0, true);
+                cdv.setUint16(32, 0, true);
+                cdv.setUint16(34, 0, true);
+                cdv.setUint16(36, 0, true);
+                cdv.setUint32(38, 0, true);
+                cdv.setUint32(42, offset, true);
+                central.set(nameBytes, 46);
+                centralParts.push(central);
+                offset += local.length;
+            }
+            const centralBytes = concatBytes(centralParts);
+            const end = new Uint8Array(22);
+            const edv = new DataView(end.buffer);
+            edv.setUint32(0, 0x06054b50, true);
+            edv.setUint16(4, 0, true);
+            edv.setUint16(6, 0, true);
+            edv.setUint16(8, files.length, true);
+            edv.setUint16(10, files.length, true);
+            edv.setUint32(12, centralBytes.length, true);
+            edv.setUint32(16, offset, true);
+            edv.setUint16(20, 0, true);
+            return concatBytes([...localParts, centralBytes, end]);
+        }
+
+        function normalizeZipEntryName(name) {
+            const cleaned = String(name || '').replace(/^\/+/, '');
+            return cleaned.split('/').filter(Boolean).map(part => safeDecodeText(part)).join('/');
+        }
+
+        function addDirectoryEntries(fileMap, fileName) {
+            const parts = String(fileName || '').split('/').filter(Boolean);
+            if (!parts.length) return;
+            for (let i = 1; i < parts.length; i++) {
+                const dir = parts.slice(0, i).join('/') + '/';
+                if (!fileMap.has(dir)) fileMap.set(dir, { name: dir, content: '', kind: 'dir' });
+            }
+        }
+
+        function pushText(fileMap, name, content, kind) {
+            const cleanName = normalizeZipEntryName(name);
+            addDirectoryEntries(fileMap, cleanName);
+            fileMap.set(cleanName, { name: cleanName, content: String(content ?? ''), kind: kind || 'data' });
+        }
+
+        function pushBytes(fileMap, name, bytes, kind) {
+            const cleanName = normalizeZipEntryName(name);
+            addDirectoryEntries(fileMap, cleanName);
+            fileMap.set(cleanName, { name: cleanName, bytes: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
+                kind: kind || 'asset' });
+        }
+
+        function pathToString(path) {
+            return Array.isArray(path) ? path.join(' / ') : String(path || '');
+        }
+
+        // ============================================================
+        // 2.  SHELL GENERATION (now matches shell-transfer exactly)
+        // ============================================================
+
+        // ---- REPLACED: buildVideoImageCandidates now matches shell-transfer ----
+        function buildVideoImageCandidates(nodeOrTitle) {
+            const sourceNode = nodeOrTitle && typeof nodeOrTitle === 'object' ? nodeOrTitle : null;
+            const folderName = cleanTitle(sourceNode ? (sourceNode.title || sourceNode.name || '') : nodeOrTitle);
+            const pathParts = Array.isArray(sourceNode && sourceNode.path) ? sourceNode.path.map(cleanTitle).filter(Boolean) : [];
+            const candidates = [];
+            const push = (u) => {
+                const enc = encodeLocalPath(u);
+                if (enc && !candidates.includes(enc)) candidates.push(enc);
+            };
+
+            const variants = variantsForName(folderName);
+            const rootName = pathParts[0] || folderName;
+            const leafName = pathParts[pathParts.length - 1] || folderName;
+            const parentName = pathParts.slice(0, -1).join('/');
+
+            if (sourceNode && sourceNode.item) {
+                push(sourceNode.item.img);
+                push(sourceNode.item.image);
+                push(sourceNode.item.cover);
+            }
+
+            pushLibStyleArtworkCandidates(push, rootName, leafName);
+
+            for (const v of variants) {
+                const noSpace = v.replace(/\s+/g, '');
+                push(encodeLocalPath(`./Movies/${v}/${v}.jpg`));
+                push(encodeLocalPath(`./Movies/${v}/${noSpace}.jpg`));
+                push(encodeLocalPath(`./Movies/${v}.jpg`));
+                push(encodeLocalPath(`./${v}/${v}.jpg`));
+                push(encodeLocalPath(`./${v}.jpg`));
+            }
+
+            if (rootName && leafName && rootName !== leafName) {
+                for (const rv of variantsForName(rootName)) {
+                    for (const lv of variantsForName(leafName)) {
+                        const lvNoSpace = lv.replace(/\s+/g, '');
+                        push(`./Movies/${rv}/${lv}.jpg`);
+                        push(`./Movies/${rv}/${lvNoSpace}.jpg`);
+                        push(`./Movies/${rv}/${lv}/${lv}.jpg`);
+                        push(`./Movies/${rv}/${lv}/${lvNoSpace}.jpg`);
+                        push(`./Movies/${rv}.jpg`);
+                        push(`./${rv}/${lv}.jpg`);
+                        push(`./${rv}/${lv}/${lv}.jpg`);
+                    }
+                }
+            }
+
+            if (parentName && leafName) {
+                for (const lv of variantsForName(leafName)) {
+                    const lvNoSpace = lv.replace(/\s+/g, '');
+                    push(`./Movies/${parentName}/${lv}.jpg`);
+                    push(`./Movies/${parentName}/${lvNoSpace}.jpg`);
+                    push(`./Movies/${parentName}/${lv}/${lv}.jpg`);
+                    push(`./Movies/${parentName}/${lv}/${lvNoSpace}.jpg`);
+                    push(`./${parentName}/${lv}.jpg`);
+                    push(`./${parentName}/${lv}/${lv}.jpg`);
+                    push(`./${parentName}/${lv}/${lvNoSpace}.jpg`);
+                }
+            }
+
+            return candidates;
+        }
+
+        function collectVideoOutput(rootPath, selectedPaths, sourceMap, loaders) {
+            const rootFolderTitle = String(rootPath[0] || '').trim();
+            const rootTitle = cleanTitle(rootFolderTitle);
+            const outputFolders = [rootFolderTitle];
+            const outputEpisodes = {};
+            const assetPaths = new Set();
+            const selected = selectedPaths.filter(p => pathStartsWith(p, rootPath));
+            const selectAll = !selected.length;
+
+            function getSource(title) {
+                const key = cleanTitle(title);
+                const direct = sourceMap.episodes[key] || sourceMap.episodes[title] || sourceMap.episodes[compareKey(key)];
+                return Array.isArray(direct) ? direct : null;
+            }
+
+            function shouldKeep(path) {
+                if (selectAll) return true;
+                return selected.some(sel => pathIntersectsSelection(path, [sel]));
+            }
+
+            function includeNode(title, path) {
+                const src = getSource(title);
+                if (!Array.isArray(src)) return;
+
+                if (src.every(v => typeof v === 'string')) {
+                    const kept = [];
+                    for (const child of src) {
+                        const childTitle = cleanTitle(child);
+                        const childPath = path.concat([childTitle]);
+                        if (shouldKeep(childPath)) {
+                            kept.push(childTitle);
+                            includeNode(childTitle, childPath);
+                        }
+                    }
+                    if (path.length === 1 || kept.length || shouldKeep(path)) {
+                        outputEpisodes[title] = selectAll && path.length === 1 ? src.slice() : (kept.length ? kept : src.slice());
+                    }
+                } else {
+                    outputEpisodes[title] = src.map(entry => {
+                        const copy = { ...entry };
+                        if (typeof copy.file === 'string') {
+                            copy.file = normalizeLibraryFilePath(copy.file);
+                        }
+                        return copy;
+                    });
+                }
+            }
+
+            includeNode(rootTitle, [rootFolderTitle]);
+
+            // Recursively gather assets for all nodes (now uses the expanded buildVideoImageCandidates)
+            function gatherAssetsForTitle(title, path) {
+                const src = getSource(title);
+                const candidates = buildVideoImageCandidates({ title, path });
+                for (const c of candidates) assetPaths.add(c);
+                if (!Array.isArray(src)) return;
+                if (!src.every(v => typeof v === 'string')) return;
+                for (const child of src) {
+                    const childTitle = cleanTitle(child);
+                    const childPath = path.concat([childTitle]);
+                    if (shouldKeep(childPath)) {
+                        gatherAssetsForTitle(childTitle, childPath);
+                    }
+                }
+            }
+            gatherAssetsForTitle(rootTitle, [rootFolderTitle]);
+
+            // Loader entries: collect all loaders in the tree
+            const loaderEntries = [];
+            const seenLoaders = new Set();
+            const walkLoader = (title) => {
+                const entry = getLoaderEntryForTitle(title, loaders);
+                if (!entry) return;
+                const k = entry.fnName || entry.key;
+                if (k && seenLoaders.has(k)) return;
+                if (k) seenLoaders.add(k);
+                loaderEntries.push(entry);
+                for (const childRaw of Array.isArray(entry.seasons) ? entry.seasons : []) {
+                    const childTitle = cleanTitle(childRaw);
+                    if (!childTitle) continue;
+                    if (compareKey(childTitle) === compareKey(title)) continue;
+                    walkLoader(childTitle);
+                }
+            };
+            walkLoader(rootTitle);
+
+            return { outputFolders, outputEpisodes, assetPaths: [...assetPaths], loaderEntries };
+        }
+
+        function buildLoaderFile(loaderEntries) {
+            if (!loaderEntries || !loaderEntries.length) return null;
+            const blocks = loaderEntries.map(entry => entry.block).join('\n\n');
+            return `/* Generated by publish-library-shells.html */\n\n${blocks}\n`;
+        }
+
+        // ============================================================
+        // 3.  SANITISE SERVER PATH
+        // ============================================================
+
+        function sanitizeServerPath(name) {
+            return String(name || '')
+                .replace(/[\*\\/:?"<>|]/g, '')
+                .trim();
+        }
+
+        // ============================================================
+        // 4.  CHUNKED PUBLISHER WITH AUTO‑REFRESH
+        // ============================================================
+        const CHUNK_SIZE = 50;
+        const STORAGE_KEY = 'publishShellState';
+
+        function loadPublishState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                return raw ? JSON.parse(raw) : null;
+            } catch { return null; }
+        }
+
+        function savePublishState(state) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        function clearPublishState() {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+
+        const PUBLISHER = {
+            roots: [],
+            loaders: [],
+            videoSource: null,
+            musicSource: null,
+            sourceFiles: {},
+            status: 'idle',
+            accumulatedDone: 0,
+            accumulatedFail: 0,
+            processed: 0,
+            total: 0,
+            results: [],
+            startTime: null,
+            cancelRequested: false,
+            logLines: [],
+            rootStates: new Map(),
+            serverBase: ''
+        };
+
+        const el = {
+            publishBtn: document.getElementById('publishBtn'),
+            cancelBtn: document.getElementById('cancelBtn'),
+            serverBase: document.getElementById('serverBase'),
+            statRoots: document.getElementById('statRoots'),
+            statDone: document.getElementById('statDone'),
+            statFail: document.getElementById('statFail'),
+            statProcessed: document.getElementById('statProcessed'),
+            progressBar: document.getElementById('progressBar'),
+            statusLabel: document.getElementById('statusLabel'),
+            sizeLabel: document.getElementById('sizeLabel'),
+            rootList: document.getElementById('rootList'),
+            logArea: document.getElementById('logArea'),
+        };
+
+        function log(msg, cls) {
+            const ts = new Date().toLocaleTimeString();
+            const line = `[${ts}] ${msg}`;
+            while (PUBLISHER.logLines.length >= MAX_LOG_LINES) {
+                PUBLISHER.logLines.shift();
+                if (el.logArea.firstChild) el.logArea.removeChild(el.logArea.firstChild);
+            }
+            PUBLISHER.logLines.push(line);
+            const div = document.createElement('div');
+            if (cls) div.className = cls;
+            div.textContent = line;
+            el.logArea.appendChild(div);
+            el.logArea.scrollTop = el.logArea.scrollHeight;
+        }
+
+        function clearLog() {
+            el.logArea.innerHTML = '';
+            PUBLISHER.logLines = [];
+        }
+
+        function updateStats() {
+            el.statRoots.textContent = PUBLISHER.total;
+            el.statDone.textContent = PUBLISHER.accumulatedDone;
+            el.statFail.textContent = PUBLISHER.accumulatedFail;
+            el.statProcessed.textContent = PUBLISHER.processed;
+            const pct = PUBLISHER.total ? (PUBLISHER.processed / PUBLISHER.total * 100) : 0;
+            el.progressBar.style.width = Math.min(100, pct) + '%';
+            updateRootList();
+        }
+
+        function updateRootList() {
+            el.rootList.innerHTML = '';
+            for (const root of PUBLISHER.roots) {
+                const state = PUBLISHER.rootStates.get(root) || 'pending';
+                const tag = document.createElement('span');
+                tag.className = 'root-tag';
+                if (state === 'done') tag.classList.add('done');
+                else if (state === 'fail') tag.classList.add('fail');
+                else if (state === 'running') tag.classList.add('active');
+                tag.textContent = root;
+                el.rootList.appendChild(tag);
+            }
+        }
+
+        function setStatus(msg) {
+            el.statusLabel.textContent = msg;
+        }
+
+        // ----- Upload to server (using /publish/shells/...) -----
+        async function uploadShell(rootName, zipBytes, posterBytes) {
+            const base = PUBLISHER.serverBase;
+            if (!base) throw new Error('Server base URL not configured.');
+            const safeRoot = sanitizeServerPath(rootName);
+            if (!safeRoot) throw new Error(`Empty safe name for "${rootName}"`);
+
+            const shellPath = `/publish/shells/${encodeURIComponent(safeRoot)}/${encodeURIComponent(safeRoot)}-shell.zip`;
+            const shellUrl = new URL(shellPath, base).href;
+
+            const resZip = await fetch(shellUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/zip' },
+                body: zipBytes instanceof Blob ? zipBytes : new Blob([zipBytes], { type: 'application/zip' })
+            });
+            if (!resZip.ok) throw new Error(`PUT ${shellPath} returned ${resZip.status}`);
+
+            if (posterBytes) {
+                const arr = posterBytes instanceof Uint8Array ? posterBytes : new Uint8Array(posterBytes);
+                const isWebp = arr.length > 4 && arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46;
+                const ext = isWebp ? 'webp' : 'jpg';
+                const posterPath = `/publish/shell/${encodeURIComponent(safeRoot)}/poster.${ext}`;
+                const posterUrl = new URL(posterPath, base).href;
+                const resPoster = await fetch(posterUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': isWebp ? 'image/webp' : 'image/jpeg' },
+                    body: posterBytes instanceof Blob ? posterBytes : new Blob([posterBytes], { type: isWebp ? 'image/webp' : 'image/jpeg' })
+                });
+                if (!resPoster.ok) throw new Error(`PUT ${posterPath} returned ${resPoster.status}`);
+            }
+            return shellUrl;
+        }
+
+        async function generateShellForRoot(rootName) {
+            const rootPath = [rootName];
+            const selectedPaths = []; // empty => select all
+            const out = collectVideoOutput(rootPath, selectedPaths, PUBLISHER.videoSource, PUBLISHER.loaders);
+            const fileMap = new Map();
+
+            pushText(fileMap, 'mainfolders.js',
+                `/* Generated by publish-library-shells.html */\n\nconst folders = ${JSON.stringify(out.outputFolders, null, 2)};\n`,
+                'mainfolders');
+            pushText(fileMap, 'library.js',
+                `/* Generated by publish-library-shells.html */\n\nconst episodes = ${JSON.stringify(out.outputEpisodes, null, 2)};\n`,
+                'library');
+
+            const loaderText = buildLoaderFile(out.loaderEntries);
+            if (loaderText) pushText(fileMap, 'loadseasonfunctions.js', loaderText, 'loaders');
+
+            // Add all asset images (root, seasons, episodes) — now with full candidate set
+            for (const assetPath of out.assetPaths) {
+                try {
+                    const { bytes } = await fetchBinaryResource(assetPath);
+                    const cleanName = assetPath.replace(/^\.\//, '');
+                    pushBytes(fileMap, cleanName, bytes, 'asset');
+                } catch {}
+            }
+
+            // Manifest
+            const manifest = {
+                version: 1,
+                createdAt: new Date().toISOString(),
+                sourcePage: 'publish-library-shells.html',
+                root: rootName,
+                rootPath: rootPath,
+                files: [...fileMap.values()].map(f => ({ name: f.name, kind: f.kind || 'data' }))
+            };
+            pushText(fileMap, 'shell-manifest.json', JSON.stringify(manifest, null, 2), 'manifest');
+
+            // Poster
+            let posterBytes = null;
+            const posterCandidates = buildVideoImageCandidates({ title: rootName, path: [rootName] });
+            for (const cand of posterCandidates) {
+                try {
+                    const { bytes } = await fetchBinaryResource(cand);
+                    posterBytes = bytes;
+                    break;
+                } catch {}
+            }
+
+            const files = [...fileMap.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+            const zipBytes = makeZip(files);
+            return { zipBytes, posterBytes, rootName };
+        }
+
+        async function loadSourceFiles() {
+            try {
+                log('📥 Loading source files…', 'info');
+                const [foldersTxt, episodesTxt, loadersTxt, musicTxt] = await Promise.all([
+                    fetchTextResource('mainfolders.js').then(r => r.text),
+                    fetchTextResource('library.js').then(r => r.text),
+                    fetchTextResource('loadseasonfunctions.js').then(r => r.text),
+                    fetchTextResource('musiclibrary.js').then(r => r.text).catch(() => '')
+                ]);
+
+                PUBLISHER.sourceFiles = {};
+
+                const folders = evalVariableSource(foldersTxt, 'folders');
+                PUBLISHER.roots = Array.isArray(folders) ? folders.filter(Boolean).map(String) : [];
+
+                const episodes = evalVariableSource(episodesTxt, 'episodes');
+                PUBLISHER.videoSource = {
+                    folders: PUBLISHER.roots,
+                    episodes: episodes && typeof episodes === 'object' ? episodes : {}
+                };
+
+                PUBLISHER.loaders = parseLoaders(loadersTxt || '');
+
+                const blocked = new Set(['continuewatching', 'games', 'music', 'books', 'manga', 'favorites']);
+                PUBLISHER.roots = PUBLISHER.roots.filter(r => !blocked.has(compareKey(r).replace(/[^a-z0-9]/g, '')));
+
+                PUBLISHER.total = PUBLISHER.roots.length;
+                PUBLISHER.rootStates = new Map(PUBLISHER.roots.map(r => [r, 'pending']));
+                updateStats();
+
+                log(`📚 Found ${PUBLISHER.total} roots (${PUBLISHER.loaders.length} loaders)`, 'ok');
+                return true;
+            } catch (e) {
+                log(`❌ Failed to load source files: ${e.message}`, 'err');
+                return false;
+            }
+        }
+
+        async function startPublish(startIndex) {
+            if (PUBLISHER.status === 'running') {
+                log('⚠️ Already running.', 'warn');
+                return;
+            }
+            const base = el.serverBase.value.trim().replace(/\/+$/, '');
+            if (!base) {
+                log('❌ Please enter the server base URL.', 'err');
+                return;
+            }
+            PUBLISHER.serverBase = base;
+            localStorage.setItem('publishServerBase', base);
+
+            PUBLISHER.status = 'running';
+            PUBLISHER.cancelRequested = false;
+            PUBLISHER.startTime = Date.now();
+
+            if (startIndex === 0) {
+                PUBLISHER.accumulatedDone = 0;
+                PUBLISHER.accumulatedFail = 0;
+            }
+            PUBLISHER.processed = startIndex;
+            updateStats();
+
+            el.publishBtn.disabled = true;
+            el.cancelBtn.disabled = false;
+
+            const endIndex = Math.min(startIndex + CHUNK_SIZE, PUBLISHER.total);
+            setStatus(`Processing batch ${startIndex + 1}–${endIndex} of ${PUBLISHER.total}…`);
+            log(`⚡ Starting batch: roots ${startIndex + 1} to ${endIndex}`, 'info');
+
+            let chunkDone = 0,
+                chunkFail = 0;
+            for (let i = startIndex; i < endIndex; i++) {
+                if (PUBLISHER.cancelRequested) {
+                    log('⏹ Cancelled by user.', 'warn');
+                    break;
+                }
+                const root = PUBLISHER.roots[i];
+                setStatus(`[${i + 1}/${PUBLISHER.total}] Processing: ${root}`);
+                PUBLISHER.rootStates.set(root, 'running');
+                updateRootList();
+
+                let zipBytes = null,
+                    posterBytes = null,
+                    result = null;
+                try {
+                    result = await generateShellForRoot(root);
+                    zipBytes = result.zipBytes;
+                    posterBytes = result.posterBytes;
+                    log(`⚙️ Shell ready for ${root}`, 'info');
+                    setStatus(`Uploading ${root}…`);
+                    const url = await uploadShell(root, zipBytes, posterBytes);
+                    chunkDone++;
+                    PUBLISHER.rootStates.set(root, 'done');
+                    log(`✅ Uploaded ${root} → ${url}`, 'ok');
+                } catch (e) {
+                    chunkFail++;
+                    PUBLISHER.rootStates.set(root, 'fail');
+                    log(`❌ Failed ${root}: ${e.message}`, 'err');
+                } finally {
+                    if (result) { result.zipBytes = null;
+                        result.posterBytes = null;
+                        result = null; }
+                    zipBytes = null;
+                    posterBytes = null;
+                    PUBLISHER.processed = startIndex + chunkDone + chunkFail;
+                    updateStats();
+                    await new Promise(r => setTimeout(r, 10));
+                }
+            }
+
+            PUBLISHER.accumulatedDone += chunkDone;
+            PUBLISHER.accumulatedFail += chunkFail;
+            PUBLISHER.processed = endIndex;
+            updateStats();
+
+            if (endIndex < PUBLISHER.total && !PUBLISHER.cancelRequested) {
+                const state = {
+                    nextIndex: endIndex,
+                    totalDone: PUBLISHER.accumulatedDone,
+                    totalFail: PUBLISHER.accumulatedFail,
+                    serverBase: PUBLISHER.serverBase
+                };
+                savePublishState(state);
+                log(`🔄 Chunk complete. Refreshing to continue with next ${CHUNK_SIZE}…`, 'info');
+                setTimeout(() => { location.reload(); }, 800);
+            } else {
+                clearPublishState();
+                PUBLISHER.status = 'done';
+                const elapsed = ((Date.now() - PUBLISHER.startTime) / 1000).toFixed(1);
+                const msg = PUBLISHER.cancelRequested ?
+                    `⏹ Cancelled after ${elapsed}s. Total so far: ${PUBLISHER.accumulatedDone} uploaded, ${PUBLISHER.accumulatedFail} failed.` :
+                    `✅ All done in ${elapsed}s. ${PUBLISHER.accumulatedDone} uploaded, ${PUBLISHER.accumulatedFail} failed.`;
+                setStatus(msg);
+                log(msg, 'ok');
+                el.publishBtn.disabled = false;
+                el.cancelBtn.disabled = true;
+            }
+        }
+
+        async function init() {
+            clearLog();
+            log('🚀 Publish Library Shells (server upload with auto‑refresh) loaded.', 'info');
+
+            const savedBase = localStorage.getItem('publishServerBase');
+            if (savedBase) el.serverBase.value = savedBase;
+
+            el.publishBtn.onclick = () => { clearPublishState();
+                startPublish(0); };
+            el.cancelBtn.onclick = () => {
+                if (PUBLISHER.status === 'running') {
+                    PUBLISHER.cancelRequested = true;
+                    clearPublishState();
+                    setStatus('⏹ Cancelling…');
+                }
+            };
+
+            const ok = await loadSourceFiles();
+            if (!ok) { log('⚠️ Some source files could not be loaded.', 'warn'); }
+
+            const state = loadPublishState();
+            if (state && state.nextIndex != null && state.serverBase && PUBLISHER.roots.length) {
+                const total = PUBLISHER.roots.length;
+                if (state.nextIndex < total) {
+                    el.serverBase.value = state.serverBase;
+                    PUBLISHER.accumulatedDone = state.totalDone || 0;
+                    PUBLISHER.accumulatedFail = state.totalFail || 0;
+                    PUBLISHER.processed = state.nextIndex;
+                    updateStats();
+                    log(`🔄 Resuming from root index ${state.nextIndex} (${PUBLISHER.accumulatedDone} done, ${PUBLISHER.accumulatedFail} failed so far)`, 'info');
+                    await startPublish(state.nextIndex);
+                } else {
+                    clearPublishState();
+                    log(`✅ All ${total} roots already published in a previous session.`, 'ok');
+                    setStatus('All roots have been processed.');
+                    el.publishBtn.disabled = false;
+                }
+            } else {
+                el.publishBtn.disabled = !PUBLISHER.roots.length;
+            }
+        }
+
+        init();
+        console.log('📦 Publish Library Shells ready.');
+    </script>
+</body>
+</html>

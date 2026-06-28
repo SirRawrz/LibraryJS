@@ -619,8 +619,11 @@
 <div id="profileActionBack" class="modal-back" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-label="Profile Actions" style="width:min(560px, 96%);">
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
-      <button id="editProfilesBtn" class="btn" style="padding:16px 14px;font-size:16px;">Edit Profiles</button>
+    
+	  <button id="browseBtn" class="btn" style="padding:16px 14px;font-size:16px;">Browse Shells</button>
       <button id="manageUtilitiesBtn" class="btn" style="padding:16px 14px;font-size:16px;">Manage</button>
+	    <button id="editProfilesBtn" class="btn" style="padding:16px 14px;font-size:16px;">Edit Profiles</button>
+		  <button id="themesBtn" class="btn" style="padding:16px 14px;font-size:16px;">Themes</button>
       <button id="backupFlowBtn" class="btn" style="padding:16px 14px;font-size:16px;">Backup</button>
       <button id="restoreFlowBtn" class="btn" style="padding:16px 14px;font-size:16px;">Restore</button>
       <button id="cancelActionBtn" class="btn" style="grid-column:1/-1;padding:16px 14px;font-size:16px;margin-top:2px;">Close</button>
@@ -827,9 +830,11 @@
     const settingsBack = document.getElementById("settingsBack");
     const profileActionBack = document.getElementById("profileActionBack");
     const editProfilesBtn = document.getElementById("editProfilesBtn");
+	    const themesBtn = document.getElementById("themesBtn");
     const manageUtilitiesBtn = document.getElementById("manageUtilitiesBtn");
     const backupFlowBtn = document.getElementById("backupFlowBtn");
     const restoreFlowBtn = document.getElementById("restoreFlowBtn");
+	 const browseBtn = document.getElementById("browseBtn");
     const cancelActionBtn = document.getElementById("cancelActionBtn");
     const profilesSelectGrid = document.getElementById("profilesSelectGrid");
     const selectedProfileEmpty = document.getElementById("selectedProfileEmpty");
@@ -1225,6 +1230,8 @@ editProfilesBtn.addEventListener('click', () => {
   closeActionDialog();
   openProfileEditor();
 });
+browseBtn.addEventListener('click', () => { window.location.href = './browse.html'; });
+themesBtn.addEventListener('click', () => { window.location.href = './themes.html'; });
 manageUtilitiesBtn.addEventListener('click', () => { window.location.href = './manage.html'; });
 backupFlowBtn.addEventListener('click', () => { window.location.href = './Backup-flow.html'; });
 restoreFlowBtn.addEventListener('click', () => { window.location.href = './Restore-flow.html'; });
