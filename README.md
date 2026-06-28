@@ -1,4 +1,4 @@
-# LibraryJS
+<img width="1699" height="881" alt="image" src="https://github.com/user-attachments/assets/6c04990b-e32a-4da7-a71a-5e4b9f9a308b" /># LibraryJS
 
 LibraryJS is a local-first digital library designed to be your personal or family archive, accessible from any modern browser.
 The Android and Windows apps act like the console, while your storage device acts like the cartridge. Your media, library data, and LibraryJS files live together on your storage and can move between compatible hosts while preserving the same experience.
@@ -59,8 +59,10 @@ If you don't have tailscale, you can sign up and enter your IP from it in here, 
 <img width="1874" height="895" alt="image" src="https://github.com/user-attachments/assets/b6c6ac7b-d115-4120-9928-bb464ea43bb8" />
 
 
-or Browse Shells that I made already to get started. 
+or Browse Shells that I made already to get started. https://sirrawrz.github.io/LibraryJS-Content-Shells/ is a preview accessible without running the server and clicking "Browse Shells." 
 <img width="1915" height="887" alt="image" src="https://github.com/user-attachments/assets/e321ddb4-8c26-4faa-aa65-47346cafdc04" />
+<img width="1699" height="881" alt="image" src="https://github.com/user-attachments/assets/4fdeff4b-6933-4476-8380-7c2022b2a838" />
+
 
 
 7. For videos and Music you can use an extension like FetchV, Videodownloadhelper or Stream Archiver (being built with the project. It really streamlines gathering the content but its not 100% reliable everywhere. It is perfect for streamline grabbing music from youtube. Sorry if you're purist! You can still add/upload your music in Manage!) 
@@ -72,7 +74,7 @@ For Videos you want to upload manually, without the Stream Archiver extension, s
 
 <img width="800" height="450" alt="06271-ezgif com-optimize" src="https://github.com/user-attachments/assets/76f358bc-4163-4aff-9f94-3453386a3c62" />
 
-If you would like to share just the "shells" without the actual copyright content, while distributing online, you can use the Backup Shell Content in backup. 
+If you would like to share just your "shells" as well without the actual copyright content, while distributing online, you can use the Backup Shell Content in backup. 
 
 
 ---
