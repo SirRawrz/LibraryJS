@@ -61,7 +61,6 @@ If you don't have tailscale, you can sign up and enter your IP from it in here, 
 
 or Browse Shells that I made already to get started. https://sirrawrz.github.io/LibraryJS-Content-Shells/ is a preview accessible without running the server and clicking "Browse Shells." 
 <img width="1915" height="887" alt="image" src="https://github.com/user-attachments/assets/e321ddb4-8c26-4faa-aa65-47346cafdc04" />
-<img width="1699" height="881" alt="image" src="https://github.com/user-attachments/assets/4fdeff4b-6933-4476-8380-7c2022b2a838" />
 <img width="1699" height="881" alt="image" src="https://github.com/user-attachments/assets/6c04990b-e32a-4da7-a71a-5e4b9f9a308b" />
 
 
