@@ -86,6 +86,8 @@ If you would like to share just your "shells" as well without the actual copyrig
 
 <img width="1884" height="900" alt="image" src="https://github.com/user-attachments/assets/0c03e06f-2401-4253-b684-a974d8edfe87" />
 
+<img width="1895" height="901" alt="image" src="https://github.com/user-attachments/assets/822cc9cc-cf08-4385-961c-3005ed9b05d2" />
+
 <img width="1906" height="1079" alt="image" src="https://github.com/user-attachments/assets/be9ba8dc-784f-4d76-a1f0-9872ff00a65b" />
 
 ---
