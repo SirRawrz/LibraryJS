@@ -69,6 +69,7 @@ https://sirrawrz.github.io/LibraryJS-Content-Shells/ is a preview accessible wit
 
 For Videos you want to upload manually, without the Stream Archiver extension, scan the content and then select the red button declaring it missing. This will prompt you for a file that it will upload to fill that spot! 
 <img width="1901" height="893" alt="image" src="https://github.com/user-attachments/assets/93782b4e-867d-4f86-9d15-117a0aa839cd" />
+<img width="800" height="450" alt="0629-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/6c3992e3-d946-49d4-bfbf-f14cc8d34298" />
 
 8. Once you've amassed enough to start sharing locally you can use the Backup/Restore routes to give that content to another device. One way I've used it is to send things from my main server to my android device, so that when I visit the library, which has 100x the upload as my home internet's upload, so that I can send anime to a friend in the U.K. from the US over tailscale! 
 
