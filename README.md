@@ -62,7 +62,7 @@ If you don't have tailscale, you can sign up and enter your IP from it in here, 
 or Browse Shells that I made already to get started. 
 <img width="1915" height="887" alt="image" src="https://github.com/user-attachments/assets/e321ddb4-8c26-4faa-aa65-47346cafdc04" />
 https://sirrawrz.github.io/LibraryJS-Content-Shells/ is a preview accessible without running the server and clicking "Browse Shells." 
-<img width="1699" height="881" alt="image" src="https://github.com/user-attachments/assets/6c04990b-e32a-4da7-a71a-5e4b9f9a308b" />
+<img width="1525" height="837" alt="image" src="https://github.com/user-attachments/assets/e9118c09-3d3c-42c7-bc31-6741019a9c9b" />
 
 
 7. For videos and Music you can use an extension like FetchV, Videodownloadhelper or Stream Archiver (being built with the project. It really streamlines gathering the content but its not 100% reliable everywhere. It is perfect for streamline grabbing music from youtube. Sorry if you're purist! You can still add/upload your music in Manage!) 
