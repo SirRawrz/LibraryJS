@@ -84,6 +84,9 @@ If you would like to share just your "shells" as well without the actual copyrig
   <img width="1870" height="21248" alt="library" src="https://github.com/user-attachments/assets/7687ce46-4376-4260-be18-f8af863c0990" />
 </p>
 
+<img width="1920" height="1489" alt="image" src="https://github.com/user-attachments/assets/a00c8a5d-8872-4438-906f-b95c6957b5a0" />
+
+Couch views for TV and Radio Mode for easy couch viewing on a TV device browser. 
 <img width="1884" height="900" alt="image" src="https://github.com/user-attachments/assets/0c03e06f-2401-4253-b684-a974d8edfe87" />
 
 <img width="1895" height="901" alt="image" src="https://github.com/user-attachments/assets/822cc9cc-cf08-4385-961c-3005ed9b05d2" />
