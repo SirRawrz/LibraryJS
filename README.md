@@ -55,7 +55,7 @@ If you don't have tailscale, you can sign up and enter your IP from it in here, 
 
 (Going to `http://X.X.X.X:8080/?I` will mark you as an adult. You will default as a kid if you don't enter this. The app will take you to this page automatically, but manual entry will require this knowledge! Why ?I because it looks like ?l!)
 
-6.Browse Shells that I made already to get started quickly
+6. Browse Shells that I made already to get started quickly
 <img width="1915" height="887" alt="image" src="https://github.com/user-attachments/assets/e321ddb4-8c26-4faa-aa65-47346cafdc04" />
 
 https://sirrawrz.github.io/LibraryJS-Content-Shells/ is a preview accessible without running the server and clicking "Browse Shells." 
@@ -66,7 +66,7 @@ or Use Manage to add Videos, Games, Music, and Reading Content,
 <img width="1874" height="895" alt="image" src="https://github.com/user-attachments/assets/b6c6ac7b-d115-4120-9928-bb464ea43bb8" />
 
 
-7. For videos and Music you can use an extension like FetchV, Videodownloadhelper or Stream Archiver (being built with the project. It really streamlines gathering the content but its not 100% reliable everywhere. It is perfect for streamline grabbing music from youtube. Sorry if you're purist! You can still add/upload your music in Manage!) 
+7. For videos and Music you can use an extension like FetchV, Videodownloadhelper or Stream Archiver (being built with the project. It really streamlines gathering the content but its not 100% reliable everywhere. It is perfect for streamline grabbing music from youtube. Sorry if you're purist! You can still add/upload your music in Manage!Flac and Mp3 Supported) 
 
 For Videos you want to upload manually, without the Stream Archiver extension, scan the content and then select the red button declaring it missing. This will prompt you for a file that it will upload to fill that spot! 
 <img width="1901" height="893" alt="image" src="https://github.com/user-attachments/assets/93782b4e-867d-4f86-9d15-117a0aa839cd" />
