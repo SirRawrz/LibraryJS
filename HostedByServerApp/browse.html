@@ -14,8 +14,40 @@
             min-height: 100vh;
         }
         .container { max-width: 1400px; margin: 0 auto; }
-        h1 {
+
+        /* ---- Header with navigation buttons ---- */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+        .header-center {
             text-align: center;
+            flex: 1;
+        }
+        .nav-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            text-decoration: none;
+            background: #15151a;
+            border: 1px solid #2a2a2e;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            color: #e2e2e2;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background 0.2s, border-color 0.2s;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .nav-btn:hover {
+            background: #1a1a1f;
+            border-color: #6366f1;
+        }
+
+        h1 {
             font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
@@ -24,7 +56,8 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        .subtitle { text-align: center; color: #888; margin-bottom: 2rem; font-size: 1.1rem; }
+        .subtitle { color: #888; font-size: 1.1rem; }
+
         .search-wrapper { display: flex; justify-content: center; margin-bottom: 2.5rem; }
         .search-bar {
             width: 100%;
@@ -42,11 +75,14 @@
             border-color: #6366f1;
             box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
         }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 1.75rem;
         }
+
+        /* ---- Card without action button ---- */
         .card {
             background: #1a1a1f;
             border-radius: 1rem;
@@ -69,10 +105,9 @@
             background: #2a2a2e;
         }
         .card-body {
-            padding: 0.8rem 0.7rem;
+            padding: 0.5rem 0.5rem;
             display: flex;
             flex-direction: column;
-            gap: 0.6rem;
             flex: 1;
         }
         .card-title {
@@ -86,23 +121,8 @@
             overflow: hidden;
             word-break: break-word;
         }
-        .card-actions { display: flex; align-items: center; margin-top: auto; }
-        .btn-add {
-            flex: 1;
-            background: #6366f1;
-            color: #fff;
-            text-align: center;
-            padding: 0.45rem 0.6rem;
-            border-radius: 0.5rem;
-            font-size: 0.85rem;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .btn-add:hover { background: #818cf8; }
 
-        /* Modal overlay */
+        /* ---- Modal (no longer contains an iframe) ---- */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -170,14 +190,7 @@
             max-height: 120px;
             overflow-y: auto;
         }
-        iframe {
-            width: 100%;
-            height: 400px;
-            border: 1px solid #2a2a30;
-            border-radius: 0.5rem;
-            display: none;
-        }
-        iframe.visible { display: block; }
+
         .empty-message {
             grid-column: 1 / -1;
             text-align: center;
@@ -201,25 +214,29 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
         footer { margin-top: 3rem; text-align: center; color: #555; font-size: 0.9rem; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📦 Shell Library</h1>
-        <p class="subtitle">Browse pre‑assembled shells. Click “Add to Library” to merge them onto this server.</p>
-
-        <div class="search-wrapper">
-            <input type="text" class="search-bar" id="searchInput" placeholder="Search shells…" autocomplete="off">
-        </div>
+        <div class="container">
+<header class="header">
+    <a href="index.html" class="nav-btn" title="Go to Home">Home</a>
+    <button onclick="history.back()" class="nav-btn" title="Go back to previous page"
+            style="padding: 0.5rem 0.6rem; margin-left: 0.5rem;">← Back</button>
+    <div style="flex:1; display:flex; justify-content:center; margin:0 1rem;">
+        <input type="text" class="search-bar" id="searchInput" placeholder="Search shells…" autocomplete="off" style="width:100%; max-width:450px;">
+    </div>
+    <a href="manage.html" class="nav-btn" title="Manage Library">Manage</a>
+</header>
 
         <div class="grid" id="grid">
             <div class="loader"></div>
         </div>
     </div>
-    <footer>Data sourced from <code>LibraryJS-Content-Shells</code> on GitHub</footer>
+    <footer>Made for LibraryJS as <code>LibraryJS-Content-Shells</code> on GitHub</footer>
 
-    <!-- Restore Modal -->
+    <!-- Restore Modal – no iframe inside, everything runs hidden -->
     <div class="modal-overlay" id="restoreModal">
         <div class="modal">
             <div class="modal-header">
@@ -232,7 +249,7 @@
                     <div class="progress-bar-inner" id="progressBar"></div>
                 </div>
                 <div class="status-text" id="statusText"></div>
-                <iframe id="restoreFrame" src="about:blank"></iframe>
+                <!-- no visible iframe -->
             </div>
         </div>
     </div>
@@ -253,14 +270,14 @@
         const progressLabel = document.getElementById("progressLabel");
         const progressBar = document.getElementById("progressBar");
         const statusText = document.getElementById("statusText");
-        const restoreFrame = document.getElementById("restoreFrame");
         const modalCloseBtn = document.getElementById("modalCloseBtn");
 
         let activeShellName = null;
         let restoreInProgress = false;
         let messageListener = null;
+        let currentIframe = null;   // hidden iframe used for restore
 
-        // ---------- Merge / Restore via iframe ----------
+        // ---------- Merge / Restore via hidden iframe ----------
         function addToLibrary(shellName) {
             if (restoreInProgress) closeModal();
 
@@ -279,11 +296,15 @@
                 .then(blob => {
                     const zipFile = new File([blob], `${shellName}-shell.zip`, { type: "application/zip" });
 
-                    restoreFrame.classList.add("visible");
-                    restoreFrame.src = "./shell-restore.html?flow=1&auto=1&contentMode=merge";
+                    // Create a completely hidden iframe
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    document.body.appendChild(iframe);
+                    currentIframe = iframe;
 
+                    // Listen for messages from the hidden iframe
                     messageListener = function(event) {
-                        if (event.source !== restoreFrame.contentWindow) return;
+                        if (event.source !== iframe.contentWindow) return;
                         if (!event.data || event.data.flow !== "restore") return;
 
                         const data = event.data;
@@ -296,13 +317,25 @@
                             updateModalProgress(1, 1, "Restore complete!");
                             statusText.textContent = data.status || data.message || `${shellName} has been added to the library.`;
                             restoreInProgress = false;
+
+                            // Clean up hidden iframe and listener
+                            if (currentIframe) {
+                                currentIframe.remove();
+                                currentIframe = null;
+                            }
+                            if (messageListener) {
+                                window.removeEventListener("message", messageListener);
+                                messageListener = null;
+                            }
                         }
                     };
                     window.addEventListener("message", messageListener);
 
-                    restoreFrame.addEventListener("load", function injectAndStart() {
+                    // Set the restore tool URL and wait for it to load
+                    iframe.src = "./shell-restore.html?flow=1&auto=1&contentMode=merge";
+                    iframe.addEventListener("load", function injectAndStart() {
                         try {
-                            const iframeDoc = restoreFrame.contentDocument || restoreFrame.contentWindow.document;
+                            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                             if (!iframeDoc) {
                                 statusText.textContent = "Could not access iframe. Check same-origin policy.";
                                 return;
@@ -320,7 +353,7 @@
                         } catch (e) {
                             statusText.textContent = "Error communicating with restore page: " + e.message;
                         }
-                        restoreFrame.removeEventListener("load", injectAndStart);
+                        iframe.removeEventListener("load", injectAndStart);
                     });
                 })
                 .catch(err => {
@@ -335,15 +368,17 @@
             progressLabel.textContent = "Preparing…";
             progressBar.style.width = "0%";
             statusText.textContent = "";
-            restoreFrame.classList.remove("visible");
-            restoreFrame.src = "about:blank";
             modal.classList.add("active");
             restoreInProgress = true;
         }
 
         function closeModal() {
             modal.classList.remove("active");
-            restoreFrame.src = "about:blank";
+            // Remove any hidden iframe still attached
+            if (currentIframe) {
+                currentIframe.remove();
+                currentIframe = null;
+            }
             restoreInProgress = false;
             activeShellName = null;
             if (messageListener) {
@@ -358,7 +393,7 @@
             if (label) progressLabel.textContent = label;
         }
 
-        // ---------- RENDER CARDS (without inline onclick) ----------
+        // ---------- RENDER CARDS (no "Add to Library" button) ----------
         function renderCards(filterText = "") {
             const term = filterText.toLowerCase().trim();
             const filtered = term 
@@ -383,13 +418,12 @@
                 const card = document.createElement("div");
                 card.className = "card";
 
-                // Card click triggers merge
+                // Whole card click triggers add-to-library
                 card.addEventListener("click", (e) => {
-                    if (e.target.closest("button")) return;
+                    // No buttons inside, so always add
                     addToLibrary(shell.name);
                 });
 
-                // Build inner HTML (no onclick attribute)
                 card.innerHTML = `
                     <img src="${posterUrl}" 
                          alt="${shell.name}" 
@@ -397,18 +431,8 @@
                          onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22450%22%3E%3Crect fill=%22%232a2a2e%22 width=%22300%22 height=%22450%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2214%22%3ENo Poster%3C/text%3E%3C/svg%3E'">
                     <div class="card-body">
                         <div class="card-title">${shell.name}</div>
-                        <div class="card-actions">
-                            <button class="btn-add">Add to Library</button>
-                        </div>
                     </div>
                 `;
-
-                // Attach event listener to the button programmatically
-                const btn = card.querySelector(".btn-add");
-                btn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    addToLibrary(shell.name);
-                });
 
                 grid.appendChild(card);
             });

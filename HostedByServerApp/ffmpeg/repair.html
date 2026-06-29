@@ -167,14 +167,6 @@
 </head>
 <body>
   <div class="wrap">
-    <section class="hero">
-      <div class="eyebrow">FFmpeg repair</div>
-      <h1>Server-assembled fast-start remux</h1>
-      <p class="lede">
-        This version pushes the heavy work into the Node server. The browser only submits the job and watches logs.
-        No browser-side concat, no giant final buffer.
-      </p>
-    </section>
 
     <div class="grid">
       <section class="card">
@@ -281,7 +273,7 @@
       function notifyRepairParent(type, payload = {}) {
         try {
           if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type, ...payload }, window.location.origin);
+            window.parent.postMessage({ type, ...payload }, '*');
           }
         } catch {}
       }
