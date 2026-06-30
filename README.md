@@ -13,6 +13,9 @@ To gift content, you hit "Backup," select the content you want to share, enter y
 
 <img width="1536" height="1024" alt="1955b10f-3128-4b3d-85ef-f0e8c9a683ef" src="https://github.com/user-attachments/assets/9d6ca849-3db7-44e1-bbc9-e2d84a0cff98" />
 
+
+
+
 ---
 
 ## Why not Jellyfin? Plex? Emby?
@@ -29,7 +32,9 @@ You can even play multiplayer games locally or over Tailscale much like the orig
 
 <img width="1919" height="900" alt="image" src="https://github.com/user-attachments/assets/58da91dc-c9f3-4361-a834-d234200def91" />
 
+Drive down the highway on long roadtrips with your content on the android app's built in hotspot, while away from home. 
 
+<img width="288" height="641" alt="image" src="https://github.com/user-attachments/assets/295ec648-49a5-4eb6-a1ad-91d144a42f23" />
 ---
 
 ## Setup
