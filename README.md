@@ -34,7 +34,6 @@ You can even play multiplayer games locally or over Tailscale much like the orig
 
 Drive down the highway on long roadtrips with your content on the android app's built in hotspot, while away from home. 
 
-<img width="288" height="641" alt="image" src="https://github.com/user-attachments/assets/295ec648-49a5-4eb6-a1ad-91d144a42f23" />
 ---
 
 ## Setup
