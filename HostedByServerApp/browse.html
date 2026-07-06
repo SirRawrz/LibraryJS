@@ -298,7 +298,12 @@
 
                     // Create a completely hidden iframe
                     const iframe = document.createElement('iframe');
-                    iframe.style.display = 'none';
+                    iframe.style.position = 'absolute';
+iframe.style.left   = '-9999px';
+iframe.style.top    = '-9999px';
+iframe.style.width  = '1px';
+iframe.style.height = '1px';
+iframe.style.border = 'none';
                     document.body.appendChild(iframe);
                     currentIframe = iframe;
 
