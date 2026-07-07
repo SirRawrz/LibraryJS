@@ -221,7 +221,7 @@
           try {
             targetEpisodes = eval('episodes');
           } catch (e) {
-            targetEpisodes = null;
+            targetEpisodes = window.episodes;
           }
           if (typeof targetEpisodes === 'object' && targetEpisodes !== null) {
             let added = 0;
@@ -290,14 +290,13 @@
       }
 
       // ------------------------------------------------------------
-      // 4. Merge remote loadseasonfunctions.js using a script tag to capture functions
+      // 4. Merge remote loadseasonfunctions.js using a script tag
       // ------------------------------------------------------------
       console.log('[loadexpanded] Fetching remote loadseasonfunctions.js...');
       const lsfRes = await fetch(`${baseUrl}/loadseasonfunctions.js`, { cache: 'no-store' });
       if (lsfRes.ok) {
         const lsfText = await lsfRes.text();
 
-        // Remember existing load* functions before injecting
         const existingLoaders = new Set();
         for (const prop of Object.getOwnPropertyNames(window)) {
           if (prop.startsWith('load') && typeof window[prop] === 'function') {
@@ -305,12 +304,10 @@
           }
         }
 
-        // Inject the remote script via a temporary <script> element
         const script = document.createElement('script');
         script.textContent = lsfText;
         document.head.appendChild(script);
 
-        // Now capture any new load* functions that appeared
         let addedLoaders = 0;
         for (const prop of Object.getOwnPropertyNames(window)) {
           if (prop.startsWith('load') && typeof window[prop] === 'function' && !existingLoaders.has(prop)) {
@@ -318,27 +315,50 @@
           }
         }
         console.log(`[loadexpanded] Added ${addedLoaders} new loader functions from remote loadseasonfunctions.js.`);
-
-        // Clean up the script element
         script.remove();
       } else {
         console.warn('[loadexpanded] Failed to fetch remote loadseasonfunctions.js, status:', lsfRes.status);
       }
 
       // ------------------------------------------------------------
-      // 5. Store remote cache for fallback
+      // 5. Store remote cache for fallback (used by loadEpisodes)
       // ------------------------------------------------------------
       window.__remoteEpisodes = remoteEpisodesCache;
       window.__remoteFoldersSet = new Set(remoteFolders);
-      window.__remoteBaseUrl = baseUrl;
+      window.__remoteBaseUrl = baseUrl; // kept for legacy/debug
 
       // ------------------------------------------------------------
-      // 6. Patch loadEpisodes to log and ensure episode data is used
+      // 6. Push this server’s origin into expandedImageOrigins so that
+      //    buildImageCandidates will try it for ALL tiles.
+      // ------------------------------------------------------------
+      if (!window.expandedImageOrigins) {
+        window.expandedImageOrigins = [];
+      }
+      window.expandedImageOrigins.push(baseUrl);
+      console.log('[loadexpanded] Added baseUrl to expandedImageOrigins:', baseUrl);
+
+      // ------------------------------------------------------------
+      // 7. Override getImageCandidatesForFolder to use buildImageCandidates
+      //    (which already includes all origins from expandedImageOrigins)
+      // ------------------------------------------------------------
+      if (typeof window.buildImageCandidates === 'function') {
+        window.getImageCandidatesForFolder = function(folder) {
+          let eps;
+          try { eps = eval('episodes'); } catch(e) { eps = window.episodes || {}; }
+          // For main tiles we don't have a parent, so pass null
+          return window.buildImageCandidates(folder, null, eps);
+        };
+        console.log('[loadexpanded] getImageCandidatesForFolder now uses buildImageCandidates.');
+      } else {
+        console.warn('[loadexpanded] buildImageCandidates not available; image fallback may be limited.');
+      }
+
+      // ------------------------------------------------------------
+      // 8. Patch loadEpisodes to log and ensure episode data is used
       // ------------------------------------------------------------
       const originalLoadEpisodes = window.loadEpisodes;
       if (typeof originalLoadEpisodes === 'function') {
         window.loadEpisodes = async function(folderName) {
-          // Strip adult marker for lookup
           const cleanFolder = collapseTrailingAdultMarks(folderName);
           let targetEpisodes;
           try {
@@ -363,7 +383,6 @@
             console.warn(`[loadexpanded] No episodes found for "${cleanFolder}" before calling loadEpisodes.`);
           }
 
-          // Call original with the clean folder name (so it uses the episodes key without the star)
           return originalLoadEpisodes.call(this, cleanFolder);
         };
         console.log('[loadexpanded] Patched loadEpisodes with logging and remote fallback.');
@@ -372,7 +391,7 @@
       }
 
       // ------------------------------------------------------------
-      // 7. Patch openFolderByName to strip adult markers
+      // 9. Patch openFolderByName to strip adult markers
       // ------------------------------------------------------------
       if (typeof window.openFolderByName === 'function') {
         const originalOpenFolder = window.openFolderByName;
@@ -387,90 +406,8 @@
       }
 
       // ------------------------------------------------------------
-      // 8. Override image candidate generator for remote folders
-      // ------------------------------------------------------------
-      if (remoteFolders.length > 0) {
-        console.log('[loadexpanded] Patching image loading for remote folders...');
-
-        const originalGetCandidates = window.getImageCandidatesForFolder;
-
-        window.getImageCandidatesForFolder = function(folder) {
-          const cleanFolder = collapseTrailingAdultMarks(folder);
-          const isRemote = window.__remoteFoldersSet && window.__remoteFoldersSet.has(cleanFolder);
-          if (isRemote && window.__remoteBaseUrl) {
-            const assetFolder = (typeof toAssetName === 'function') ? toAssetName(cleanFolder) : cleanFolder;
-            const remoteCandidates = [
-              `${window.__remoteBaseUrl}/${encodeURIComponent(assetFolder)}/${encodeURIComponent(assetFolder)}.jpg`,
-              `${window.__remoteBaseUrl}/Images/${encodeURIComponent(assetFolder)}.jpg`,
-              `${window.__remoteBaseUrl}/${encodeURIComponent(assetFolder)}.jpg`
-            ];
-            let fallback = [];
-            if (typeof originalGetCandidates === 'function') {
-              try {
-                fallback = originalGetCandidates(cleanFolder);
-              } catch (e) {
-                console.warn('[loadexpanded] originalGetCandidates threw', e);
-              }
-            } else {
-              const af = (typeof toAssetName === 'function') ? toAssetName(cleanFolder) : cleanFolder;
-              fallback = [
-                `./${encodeURIComponent(af)}/${encodeURIComponent(af)}.jpg`,
-                `./Images/${encodeURIComponent(af)}.jpg`,
-                `./${encodeURIComponent(af)}.jpg`,
-                `./Images/placeholder.jpg`
-              ];
-            }
-            return [...remoteCandidates, ...fallback];
-          }
-          if (typeof originalGetCandidates === 'function') {
-            return originalGetCandidates(folder);
-          }
-          const assetFolder = (typeof toAssetName === 'function') ? toAssetName(folder) : folder;
-          return [
-            `./${encodeURIComponent(assetFolder)}/${encodeURIComponent(assetFolder)}.jpg`,
-            `./Images/${encodeURIComponent(assetFolder)}.jpg`,
-            `./${encodeURIComponent(assetFolder)}.jpg`,
-            `./Images/placeholder.jpg`
-          ];
-        };
-
-        console.log('[loadexpanded] Image patching complete.');
-      }
-
-      // ------------------------------------------------------------
-      // 9. Enhance buildImageCandidates to include remote URLs
-      // ------------------------------------------------------------
-      console.log('[loadexpanded] Enhancing buildImageCandidates for remote folders...');
-      const originalBuildImageCandidates = window.buildImageCandidates;
-      if (typeof originalBuildImageCandidates === 'function') {
-        window.buildImageCandidates = function(folderName, parentName, episodesMap) {
-          // Get all local candidates from the original function
-          let candidates = originalBuildImageCandidates(folderName, parentName, episodesMap) || [];
-
-          const cleanFolder = collapseTrailingAdultMarks ? collapseTrailingAdultMarks(folderName) : String(folderName || '').replace(/\*+$/g, '').trim();
-
-          // If this folder is from the remote server, prepend remote URLs
-          if (window.__remoteFoldersSet && window.__remoteFoldersSet.has(cleanFolder) && window.__remoteBaseUrl) {
-            const assetFolder = (typeof toAssetName === 'function') ? toAssetName(cleanFolder) : cleanFolder;
-            const remoteCandidates = [
-              `${window.__remoteBaseUrl}/${encodeURIComponent(assetFolder)}/${encodeURIComponent(assetFolder)}.jpg`,
-              `${window.__remoteBaseUrl}/Images/${encodeURIComponent(assetFolder)}.jpg`,
-              `${window.__remoteBaseUrl}/${encodeURIComponent(assetFolder)}.jpg`
-            ];
-            // Prepend remote candidates so they are tried first
-            candidates = [...remoteCandidates, ...candidates];
-          }
-
-          // Remove duplicates while preserving order
-          return [...new Set(candidates)];
-        };
-        console.log('[loadexpanded] buildImageCandidates enhanced.');
-      } else {
-        console.warn('[loadexpanded] original buildImageCandidates not found, skipping enhancement.');
-      }
-
-      // ------------------------------------------------------------
       // 10. Override search (filterTiles) to use merged data + empty query handling
+      //     (kept as is – it already uses buildImageCandidates)
       // ------------------------------------------------------------
       console.log('[loadexpanded] Overriding search (filterTiles) to use merged data...');
 
@@ -498,7 +435,6 @@
         const merged = [];
         const seen = new Set();
 
-        // 1. Folders (main tiles)
         if (typeof folders !== 'undefined' && Array.isArray(folders)) {
           for (const f of folders) {
             const clean = collapseTrailingAdultMarks(f);
@@ -510,7 +446,6 @@
           }
         }
 
-        // 2. Episodes (from global 'episodes')
         let episodesObj = null;
         try {
           episodesObj = eval('episodes');
@@ -542,7 +477,6 @@
         return merged;
       }
 
-      // Build library index from merged libraryData, books, manga, guidebooks
       function buildLibraryIndex() {
         const items = [];
         if (window.libraryData && Array.isArray(window.libraryData.items)) {
@@ -567,13 +501,11 @@
 
       // --- Helper to attach favorite star (mirroring original logic) ---
       function attachTileFavorite(tile, folderName) {
-        // Use the original function if available (it's defined in index.html)
         if (typeof window.attachSeasonFavoriteStar === 'function') {
           window.attachSeasonFavoriteStar(tile, folderName);
           return;
         }
 
-        // Fallback implementation (copied from index.html)
         const readFavs = () => {
           try {
             if (typeof getStoredFavorites === 'function') {
@@ -689,7 +621,6 @@
 
       // New filterTiles implementation
       const newFilterTiles = debounce(async function() {
-        // Block filtering while a tile navigation is in progress
         if (window._searchNavigateInProgress) {
           return;
         }
@@ -701,7 +632,6 @@
         const container = document.getElementById('folderContainer');
         if (!container) return;
 
-        // If query is empty, restore main folders and return (original behavior)
         if (!raw) {
           if (typeof loadMainFolders === 'function') {
             loadMainFolders();
@@ -711,11 +641,9 @@
 
         const deepAll = raw === DEEP_ALL_TOKEN;
 
-        // Get merged data
         const mergedIndex = buildMergedIndex();
         const libraryIndex = buildLibraryIndex();
 
-        // Filter main matches
         let mainMatches = [];
         if (deepAll) {
           mainMatches = mergedIndex;
@@ -726,13 +654,11 @@
           mainMatches = exact ? [exact] : [];
         }
 
-        // Library matches (always deep search if q >= 2)
         let libraryMatches = [];
         if (q.length >= 2) {
           libraryMatches = libraryIndex.filter(item => normKey(item.title).includes(q));
         }
 
-        // Render main tiles
         container.innerHTML = '';
         if (mainMatches.length === 0 && libraryMatches.length === 0) {
           const no = document.createElement('div');
@@ -744,7 +670,6 @@
           return;
         }
 
-        // --- Precompute parent->child mapping for hasChildTiles checks ---
         const parentMap = new Map();
         for (const item of mergedIndex) {
           if (item.parent) {
@@ -754,7 +679,6 @@
           }
         }
 
-        // Render main matches as tiles
         const grid = document.createElement('div');
         grid.style.display = 'flex';
         grid.style.flexWrap = 'wrap';
@@ -770,7 +694,7 @@
           div.style.position = 'relative';
           div.style.overflow = 'visible';
 
-          // Use the enhanced buildImageCandidates with episodes
+          // Use buildImageCandidates (which uses expandedImageOrigins)
           const candidates = window.buildImageCandidates(item.title, item.parent, episodesObj);
 
           let idx = 0;
@@ -809,21 +733,17 @@
             div.appendChild(parentP);
           }
 
-          // --- Decide if we should show favorite star (same logic as loadmainfolders) ---
           const suppressFavoriteStar = (typeof window.isRootFavoriteSuppressedTile === 'function')
             ? window.isRootFavoriteSuppressedTile(item.title)
             : false;
 
-          // Check if the folder is "favoriteable" (non-root, has episodes or loader)
           let isFavoriteable = false;
           if (!suppressFavoriteStar) {
-            // Use the same logic as in loadmainfolders: check episodes, special handlers, loader functions
             if (episodesObj && episodesObj[item.title] && Array.isArray(episodesObj[item.title])) {
               isFavoriteable = true;
             } else if (window._specialFolderHandlers && typeof window._specialFolderHandlers[item.title] === 'function') {
               isFavoriteable = true;
             } else {
-              // Check for loader functions using toLoaderSafeBase
               const base = (typeof toLoaderSafeBase === 'function')
                 ? toLoaderSafeBase(item.title)
                 : item.title.replace(/[^a-zA-Z0-9]+/g,' ').split(/\s+/).filter(Boolean).map(s => s.charAt(0).toUpperCase()+s.slice(1)).join('');
@@ -841,12 +761,10 @@
             }
           }
 
-          // Only attach star if favoriteable and not suppressed
           if (isFavoriteable && !suppressFavoriteStar) {
             attachTileFavorite(div, item.title);
           }
 
-          // --- Decide if we should show the Send to TV button (same logic as loadmainfolders) ---
           const isRootWithSeasons = (window._rootNonFavoriteTileSet && window._rootNonFavoriteTileSet.has(item.title));
           const hasChildren = parentMap.has(item.title) && parentMap.get(item.title).length > 0;
           const isSpecialHandlerTile = !!(window._specialFolderHandlers && typeof window._specialFolderHandlers[item.title] === 'function');
@@ -867,7 +785,6 @@
             sendImg.style.width = '28px';
             sendImg.style.height = '28px';
             sendImg.style.pointerEvents = 'none';
-            // Try several paths for the icon
             const iconCandidates = ['./Images/sendtotv.png', 'Images/sendtotv.png', '/Images/sendtotv.png'];
             let tryIdx = 0;
             sendImg.src = iconCandidates[tryIdx];
@@ -886,14 +803,12 @@
               try {
                 const ok = (window.SysNotify && window.SysNotify.confirm) ? await window.SysNotify.confirm(`Send "${item.title}" to TV?`, `Send to TV`) : true;
                 if (!ok) return;
-                // Set currentFolder and call sendToTV
                 if (typeof currentFolder !== 'undefined') window.currentFolder = item.title;
                 else currentFolder = item.title;
                 if (typeof sendToTV === 'function') {
                   const maybe = sendToTV();
                   if (maybe && typeof maybe.then === 'function') await maybe;
                 }
-                // Clear search and return home
                 const inputEl = document.getElementById('searchInput');
                 if (inputEl) {
                   inputEl.value = '';
@@ -920,16 +835,13 @@
             div.appendChild(sendBtn);
           }
 
-          // --- Tile click handler with navigation guard ---
           div.onclick = () => {
-            // Prevent further search filtering while navigating
             window._searchNavigateInProgress = true;
             const input = document.getElementById('searchInput');
             if (input) {
               input.value = '';
-              input.blur(); // remove focus to stop further input events
+              input.blur();
             }
-            // Call the navigation function
             try {
               if (typeof window.openFolderByName === 'function') {
                 window.openFolderByName(item.title);
@@ -939,7 +851,6 @@
             } catch(e) {
               console.warn('Navigation error:', e);
             }
-            // Re-enable search after a delay (allow navigation to complete)
             setTimeout(() => {
               window._searchNavigateInProgress = false;
             }, 500);
@@ -950,7 +861,6 @@
 
         container.appendChild(grid);
 
-        // Render library matches as a separate section
         if (libraryMatches.length > 0) {
           const section = document.createElement('div');
           section.style.width = '100%';
@@ -1022,46 +932,31 @@
           container.appendChild(section);
         }
 
-        // Show home button (search mode)
         if (typeof showHomeButton === 'function') {
           showHomeButton();
         }
       }, 120);
 
-      // Replace the global filterTiles with our new implementation
       window.filterTiles = newFilterTiles;
 
-      // ------------------------------------------------------------
-      // 11. Remove old listener and attach new one
-      // ------------------------------------------------------------
       const inputEl = document.getElementById('searchInput');
       if (inputEl) {
-        // Save the old filterTiles reference (the debounced function from the original IIFE)
         const oldFilterTiles = window.filterTiles;
-        // Remove the old listener if it exists
         if (oldFilterTiles && typeof oldFilterTiles === 'function') {
           try {
             inputEl.removeEventListener('input', oldFilterTiles);
             console.log('[loadexpanded] Removed old filterTiles listener.');
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) {}
         }
 
-        // Set the new function globally
         window.filterTiles = newFilterTiles;
-
-        // Attach the new listener using both oninput and addEventListener for safety
         inputEl.oninput = newFilterTiles;
         try {
           inputEl.addEventListener('input', newFilterTiles);
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
         console.log('[loadexpanded] Attached new filterTiles listener.');
       }
 
-      // Log final episodes keys for debugging
       let targetEpisodes;
       try {
         targetEpisodes = eval('episodes');

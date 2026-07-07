@@ -782,10 +782,9 @@ function fetchVersion() {
 
 
 window.onload = async () => {
-  // ========== ADDED: wait for expanded merge to complete ==========
-  if (typeof window.__loadexpandedPromise !== 'undefined') {
-    await window.__loadexpandedPromise;
-  }
+  // Wait for both expanded merges
+  if (window.__loadexpandedPromise) await window.__loadexpandedPromise;
+  if (window.__loadlocalexpandedPromise) await window.__loadlocalexpandedPromise;
 
   // detect platform once at startup (cached)
   try {
@@ -2206,6 +2205,7 @@ function normalizeSeasonsArrayInPlace(arr) {
     <script src="./screensaver.js"></script>
 	  <script src="./loadimages.js"></script>
 	   <script src="./loadexpanded.js"></script>
+	   <script src="./loadlocalexpanded.js"></script>
 	   
    <!-- Work in progress feature to unite multiple servers -->
 
