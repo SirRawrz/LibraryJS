@@ -289,9 +289,6 @@ private fun handleClient(socket: Socket) {
             return plainTextResponse(200, "android", req.method == "HEAD")
         }
 
-        if (path == "/expandedstorage.txt") {
-            return plainTextResponse(200, buildExpandedStorageReport(), req.method == "HEAD")
-        }
 
         if (path == "/https setup.txt") {
             return plainTextResponse(200, buildHttpsSetupNote(), req.method == "HEAD")
@@ -1273,24 +1270,6 @@ private fun resolveOrCreateDirectoriesCached(root: DocumentFile, segments: List<
         )
     }
 
-    private fun buildExpandedStorageReport(): String {
-        return buildString {
-            append(root.displayName)
-            append("\n")
-            append("Port: ")
-            append(root.port)
-            append("\n")
-            append("Tree URI: ")
-            append(root.treeUri)
-            append("\n")
-            append("URLs:\n")
-            NetworkUtils.serverUrls(root.port, root.httpsEnabled).forEach { url ->
-                append(" - ")
-                append(url)
-                append("\n")
-            }
-        }.trim()
-    }
 
     private fun buildHttpsSetupNote(): String {
         return buildString {
