@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -784,6 +782,11 @@ function fetchVersion() {
 
 
 window.onload = async () => {
+  // ========== ADDED: wait for expanded merge to complete ==========
+  if (typeof window.__loadexpandedPromise !== 'undefined') {
+    await window.__loadexpandedPromise;
+  }
+
   // detect platform once at startup (cached)
   try {
     const __r = await fetch('./platform.txt', { cache: 'no-store' });
@@ -2201,7 +2204,9 @@ function normalizeSeasonsArrayInPlace(arr) {
 <script src="./loadseasonfunctions.js"></script>
     <script src="./loadgames.js"></script>
     <script src="./screensaver.js"></script>
-	    <!-- 	<script src="./loadexpanded.js"></script>  -->
+	  <script src="./loadimages.js"></script>
+	   <script src="./loadexpanded.js"></script>
+	   
    <!-- Work in progress feature to unite multiple servers -->
 
     <script>
@@ -2525,7 +2530,7 @@ function normalizeSeriesName(seriesName) {
 /* Safe, working search IIFE — drop-in replacement (adds Music search) */
 /* Safe, working search IIFE — drop-in replacement (adds Music genres + Home fix) */
 (function(){
-  const CACHE = {
+    const CACHE = {
     seasons: null,
     mainFolders: null,
     mergedIndex: null,
@@ -2535,6 +2540,15 @@ function normalizeSeriesName(seriesName) {
     musicFlat: null,
     musicGenres: null,
     adultMainFolderKeys: new Set()
+  };
+
+  // --- NEW: expose a way for loadexpanded.js to invalidate the search cache ---
+  window.invalidateSearchCache = function() {
+      CACHE.mainFolders = null;
+      CACHE.mergedIndex = null;
+      CACHE.seasons = null;
+      CACHE.roots = null;
+      CACHE.mergedRoots = null;
   };
 
   window._searchResultMode = window._searchResultMode || false;
@@ -2688,8 +2702,37 @@ function decodeLoaderNameToDisplayName(fnName) {
     return [...new Set([base, noApos].filter(Boolean))];
   }
 
-  // REPLACE getMainFolders and getParsedSeasons with this improved version:
-  async function getMainFolders(){
+    async function getMainFolders(){
+    // --- Use the merged global folders if available ---
+    if (Array.isArray(window.folders) && window.folders.length) {
+        CACHE.mainFolders = [...window.folders];
+        // Populate adult keys from the original file (only once)
+        if (CACHE.adultMainFolderKeys.size === 0) {
+            try {
+                const res = await fetch('./mainfolders.js', { cache: 'no-store' });
+                const txt = await res.text();
+                const arrMatch = /const\s+folders\s*=\s*\[([\s\S]*?)\]/m.exec(txt);
+                if (arrMatch) {
+                    let content = arrMatch[1];
+                    content = content.replace(/\/\*[\s\S]*?\*\//g, '');
+                    content = content.replace(/(^|\n)\s*\/\/.*$/gm, '');
+                    const re = /(['"])(.*?)\1/g;
+                    let m;
+                    while ((m = re.exec(content)) !== null) {
+                        let rawName = (m[2] || '').trim();
+                        if (!rawName) continue;
+                        const isAdult = rawName.indexOf('*') !== -1;
+                        const cleanName = rawName.replace(/\*/g, '').trim();
+                        if (isAdult) {
+                            CACHE.adultMainFolderKeys.add(parentCompareKey(cleanName));
+                            CACHE.adultMainFolderKeys.add(parentLooseKey(cleanName));
+                        }
+                    }
+                }
+            } catch(e) { /* ignore */ }
+        }
+        return CACHE.mainFolders;
+    }
     if (CACHE.mainFolders) return CACHE.mainFolders;
     try {
       const kidsMode = (typeof window.isKidsModeActive === 'function')
@@ -2703,36 +2746,29 @@ function decodeLoaderNameToDisplayName(fnName) {
       const arrMatch = /const\s+folders\s*=\s*\[([\s\S]*?)\]/m.exec(txt);
       const out = [];
       if (arrMatch) {
-        // Remove block and line comments so commented-out strings are ignored.
         let content = arrMatch[1];
-        content = content.replace(/\/\*[\s\S]*?\*\//g, '');       // strip /* ... */
-        content = content.replace(/(^|\n)\s*\/\/.*$/gm, '');      // strip // lines
-
-        // find string literals
+        content = content.replace(/\/\*[\s\S]*?\*\//g, '');
+        content = content.replace(/(^|\n)\s*\/\/.*$/gm, '');
         const re = /(['"])(.*?)\1/g;
         let m;
         while ((m = re.exec(content)) !== null) {
           let rawName = (m[2] || '').trim();
           if (!rawName) continue;
-
-          const isAdult = rawName.indexOf('*') !== -1;        // star anywhere marks Adult
-          const cleanName = rawName.replace(/\*/g, '').trim(); // remove metadata char for display
-
+          const isAdult = rawName.indexOf('*') !== -1;
+          const cleanName = rawName.replace(/\*/g, '').trim();
           if (isAdult) {
             CACHE.adultMainFolderKeys.add(parentCompareKey(cleanName));
             CACHE.adultMainFolderKeys.add(parentLooseKey(cleanName));
           }
-
-          if (isAdult && kidsMode) {
-            // In Kids mode, completely omit Adult items
-            continue;
-          }
-          // otherwise include the cleaned name (no star visible anywhere)
+          if (isAdult && kidsMode) continue;
           out.push(cleanName);
         }
       }
-      CACHE.mainFolders = out;
-      return out;
+      // Prefer window.folders if it became available after parsing
+      CACHE.mainFolders = (Array.isArray(window.folders) && window.folders.length)
+          ? [...window.folders]
+          : out;
+      return CACHE.mainFolders;
     } catch(e){
       safeLog('getMainFolders error', e);
       CACHE.mainFolders = [];
@@ -2905,9 +2941,20 @@ function decodeLoaderNameToDisplayName(fnName) {
     }
   }
 
-  async function getMergedIndex() {
+    async function getMergedIndex() {
     if (CACHE.mergedIndex) return CACHE.mergedIndex;
-    const [parsed, mainFolders, libraryItems] = await Promise.all([getParsedSeasons(), getMainFolders(), getLibraryIndex()]);
+
+    // --- Directly use the merged window.folders as the main folder source ---
+    let mainFolders = [];
+    if (Array.isArray(window.folders) && window.folders.length) {
+        mainFolders = window.folders.slice();
+    } else {
+        // fallback: parse mainfolders.js
+        const mf = await getMainFolders();
+        mainFolders = mf.slice();
+    }
+
+    const [parsed, libraryItems] = await Promise.all([getParsedSeasons(), getLibraryIndex()]);
     const out = [];
     const seen = new Set();
 
@@ -2918,13 +2965,12 @@ function decodeLoaderNameToDisplayName(fnName) {
       out.push({ title: p.title, parent: p.parent || null });
     }
 
-    for (const f of (mainFolders || [])) {
+    // Add all main folders (merged) as root tiles (parent null)
+    for (const f of mainFolders) {
       const nf = normKey(f);
-      const existingIdx = out.findIndex(i => normKey(i.title) === nf);
+      const existingIdx = out.findIndex(i => normKey(i.title) === nf && i.parent === null);
       if (existingIdx === -1) {
         out.push({ title: f, parent: null });
-      } else if (!out[existingIdx].parent) {
-        out[existingIdx] = { title: f, parent: null };
       }
     }
 
@@ -2935,8 +2981,21 @@ function decodeLoaderNameToDisplayName(fnName) {
       out.push(item);
     }
 
-    CACHE.mergedIndex = out;
+    // Dedupe by title (preserve first occurrence)
+    const unique = [];
+    const titleSeen = new Set();
+    for (const item of out) {
+      const key = normKey(item.title);
+      if (!titleSeen.has(key)) {
+        titleSeen.add(key);
+        unique.push(item);
+      }
+    }
+
+    CACHE.mergedIndex = unique;
     CACHE.mergedRoots = CACHE.roots || new Set();
+
+    console.log('[search] getMergedIndex built with', unique.length, 'items (main folders:', mainFolders.length, ')');
     return CACHE.mergedIndex;
   }
 
@@ -3577,7 +3636,7 @@ function renderGameMatches(matches, rawQuery) {
     refreshStarVisual();
   }
 
-// renderResults — uses the page's CSS for sizing so default tiles are preserved
+// renderResults – uses the page's CSS for sizing so default tiles are preserved
 function renderResults(matches, rawQuery, options = {}){
   const container = document.getElementById('folderContainer');
   if (!container) return;
@@ -3691,42 +3750,12 @@ function renderResults(matches, rawQuery, options = {}){
     div.style.position = 'relative';
     div.style.overflow = 'visible';
 
-    const candidates = [];
-    if (m.cover) candidates.push(String(m.cover));
-    const parentVariants = m.parent ? assetVariantsForName(m.parent) : ['Movies'];
-    const variants = nameVariants(m.title);
-    const encSeg = (value) => encodeURIComponent(String(value || '').trim());
-    const addPath = (...parts) => {
-      const clean = parts.map(part => String(part || '').trim()).filter(Boolean).map(encSeg).join('/');
-      if (clean) candidates.push(`./${clean}`);
-    };
+    // ---- NEW: use the unified image builder ----
+    // build candidates using the folder name and its parent (if any)
+    const candidates = window.buildImageCandidates(m.title, m.parent || null, episodes);
 
-    parentVariants.forEach(parentName => {
-      variants.forEach(v => {
-        addPath(parentName, v, `${v}.jpg`);
-        addPath(parentName, v, `${v}.jpg`);
-
-        if (v && v.includes(' - ')) {
-          const baseTitle = v.split(' - ')[0].trim();
-          if (baseTitle) {
-            addPath(parentName, baseTitle, v, `${v}.jpg`);
-          }
-        }
-      });
-    });
-
-    variants.forEach(v => {
-      addPath(v, v, `${v}.jpg`);
-      addPath(v, `${v}.jpg`);
-      if (v && v.includes(' - ')) {
-        const baseTitle = v.split(' - ')[0].trim();
-        if (baseTitle) {
-          addPath(baseTitle, v, `${v}.jpg`);
-        }
-      }
-    });
-
-    candidates.push(`./Images/placeholder.jpg`);
+    // If m.cover is explicitly provided, put it at the front of the list
+    if (m.cover) candidates.unshift(String(m.cover));
 
     let idx = 0;
 
@@ -4644,17 +4673,23 @@ async function createSeasonButtons(seasons, seriesName) {
   seasons.forEach(season => {
     const div = document.createElement("div");
     div.className = `folder${season === latestValidSeason ? " highlight-season" : ""}`;
-    const imageCandidates = buildSeasonImageCandidates(seriesName, season);
+    div.style.position = 'relative';
+    div.tabIndex = 0;
+    div.setAttribute('role', 'button');
+    div.setAttribute('aria-label', `Open ${season}`);
+    
+    // Use the unified image builder from loadimages.js
+    const candidates = window.buildImageCandidates(season, seriesName, episodes);
     let imageIndex = 0;
 
     const img = document.createElement('img');
     img.alt = season;
-    img.src = imageCandidates[imageIndex];
+    img.src = candidates[imageIndex];
 
     img.onerror = function() {
-      if (imageIndex < imageCandidates.length - 1) {
+      if (imageIndex < candidates.length - 1) {
         imageIndex += 1;
-        this.src = imageCandidates[imageIndex];
+        this.src = candidates[imageIndex];
       } else {
         this.onerror = null;
       }
@@ -4665,7 +4700,16 @@ async function createSeasonButtons(seasons, seriesName) {
 
     div.appendChild(img);
     div.appendChild(title);
+    attachSeasonFavoriteStar(div, season);
+
     div.onclick = () => loadEpisodes(season);
+    div.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 32) {
+        e.preventDefault();
+        div.click();
+      }
+    });
+
     folderContainer.appendChild(div);
   });
 
@@ -4832,36 +4876,6 @@ function assetVariantsForName(name) {
   return [...new Set([base, noApos, noSpace, noAposNoSpace].filter(Boolean))];
 }
 
-function buildSeasonImageCandidates(seriesName, seasonName) {
-  const candidates = [];
-  const pushIf = (u) => {
-    if (u && !candidates.includes(u)) candidates.push(u);
-  };
-
-  const seriesVariants = assetVariantsForName(seriesName);
-  const seasonVariants = assetVariantsForName(seasonName);
-
-  for (const s of seriesVariants) {
-    for (const e of seasonVariants) {
-      const encS = encodeURIComponent(s);
-      const encE = encodeURIComponent(e);
-      pushIf(`./${encS}/${encE}/${encE}.jpg`);
-      pushIf(`./${encS}/${encE}.jpg`);
-    }
-  }
-
-  for (const e of seasonVariants) {
-    const encE = encodeURIComponent(e);
-    pushIf(`./${encE}/${encE}.jpg`);
-    pushIf(`./${encE}.jpg`);
-    pushIf(`./Movies/${encE}.jpg`);
-  }
-
-  pushIf('./Images/default.jpg');
-  pushIf('./Images/placeholder.jpg');
-  return candidates;
-}
-
 // Adds the same top-left favorite star mechanic used in the main folder and search tiles,
 // while keeping the season tile itself as the focusable / navigable surface for remote users.
 function attachSeasonFavoriteStar(tile, folderName) {
@@ -5024,17 +5038,18 @@ function createSeasonButtons(seasons, series) {
       div.classList.add("highlight-season");
     }
 
-    const imageCandidates = buildSeasonImageCandidates(series, season);
+    // Use the unified image builder
+    const candidates = window.buildImageCandidates(season, series, episodes);
     let imageIndex = 0;
 
     const img = document.createElement('img');
     img.alt = season;
-    img.src = imageCandidates[imageIndex];
+    img.src = candidates[imageIndex];
 
     img.onerror = function() {
-      if (imageIndex < imageCandidates.length - 1) {
+      if (imageIndex < candidates.length - 1) {
         imageIndex += 1;
-        this.src = imageCandidates[imageIndex];
+        this.src = candidates[imageIndex];
       } else {
         this.onerror = null;
       }
@@ -6615,7 +6630,7 @@ if (typeof video !== 'undefined' && video) {
 // 0000000000000000
 //0000000000000000
 // 00000000000000000
-// 000000000000000000
+// 0000000000000000
 //0000000000000000
 // 00000000000000000
 // 0000000000000000
@@ -7285,7 +7300,7 @@ function _requestPlayerFullscreen() {
     allowNavigateNextBack = false;
   });
 
-  // When video is paused or ends, allow the next back to navigate away (normal behavior)
+  // When video is paused or ends, allow the next back to navigate (normal behavior)
   vid.addEventListener('pause', markAllowNextBack);
   vid.addEventListener('ended', markAllowNextBack);
 
@@ -8329,145 +8344,14 @@ async function loadFavorites() {
     // Sort favorites alphabetically (case-insensitive)
     const sortedFavs = favs.slice().sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
-    // helper: build list of candidate image URLs for folderName
-    function buildImageCandidates(folderName) {
-      const exts = ['.jpg'];
-      const candidates = [];
-      const pushIf = (u) => {
-        if (!u) return;
-        if (!candidates.includes(u)) candidates.push(u);
-      };
-
-      // local, self-contained variant generator so favorites never depend on a missing global helper
-      function variantsForName(name) {
-        const base = String(name || '').trim();
-        if (!base) return [];
-        const noApos = base.replace(/[’']/g, '');
-        const noSpace = base.replace(/\s+/g, '');
-        const noAposNoSpace = noApos.replace(/\s+/g, '');
-        return [...new Set([base, noApos, noSpace, noAposNoSpace].filter(Boolean))];
-      }
-
-      const variants = variantsForName(folderName);
-      const baseFolder = String(folderName || '').trim();
-
-      // 0) try folder-level poster variants used by the main grid
-      for (const v of variants) {
-        const noSpace = v.replace(/\s+/g, '');
-        for (const e of exts) {
-          pushIf(`./${v}/${v}${e}`);
-          pushIf(`./${v}/${noSpace}${e}`);
-          pushIf(`./Movies/${v}${e}`);
-          pushIf(`./${v}${e}`);
-        }
-      }
-
-      // 1) explicit episode-provided art (existing behavior) — handles episodes arrays of objects
-      if (typeof episodes !== 'undefined' && episodes && episodes[baseFolder]) {
-        const list = episodes[baseFolder];
-        if (Array.isArray(list)) {
-          const hasObjects = list.some(it => it && typeof it === 'object' && (it.img || it.image || it.file || it.name));
-          if (hasObjects) {
-            for (const ep of list) {
-              if (!ep) continue;
-              if (ep.img) pushIf(ep.img);
-              if (ep.image) pushIf(ep.image);
-              if (ep.file) {
-                try {
-                  const rawPath = String(ep.file);
-                  const parent = rawPath.split('/').slice(0, -1).join('/');
-                  for (const v of variants) {
-                    for (const e of exts) {
-                      pushIf(`${parent}/${v}${e}`);
-                      pushIf(`${parent}/${v.replace(/\s+/g, '')}${e}`);
-                      pushIf(`${parent}/${basename(v)}${e}`);
-                    }
-                  }
-                } catch (e) {}
-              }
-            }
-          } else {
-            for (const seasonName of list) {
-              if (!seasonName) continue;
-              const seasonEpisodes = episodes[seasonName];
-              if (!Array.isArray(seasonEpisodes)) continue;
-
-              for (const sep of seasonEpisodes) {
-                if (!sep || typeof sep !== 'object') continue;
-                if (sep.img) { pushIf(sep.img); break; }
-                if (sep.image) { pushIf(sep.image); break; }
-                if (sep.file) {
-                  try {
-                    const rawPath = String(sep.file);
-                    const parent = rawPath.split('/').slice(0, -1).join('/');
-                    for (const v of variants) {
-                      for (const e of exts) {
-                        pushIf(`${parent}/${v}${e}`);
-                        pushIf(`${parent}/${v.replace(/\s+/g, '')}${e}`);
-                        pushIf(`${parent}/${basename(v)}${e}`);
-                      }
-                    }
-                    break;
-                  } catch (e) {}
-                }
-              }
-              if (candidates.length) break;
-            }
-          }
-        }
-      }
-
-      // 2) derive parent path from first episode file (if present)
-      try {
-        if (typeof episodes !== 'undefined' && episodes && episodes[baseFolder]) {
-          const list = episodes[baseFolder];
-          if (Array.isArray(list) && list.length > 0) {
-            const first = list[0];
-            if (first && typeof first === 'object' && first.file) {
-              const rawPath = String(first.file);
-              const parent = rawPath.split('/').slice(0, -1).join('/');
-              for (const v of variants) {
-                for (const e of exts) {
-                  pushIf(`${parent}/${v}${e}`);
-                  pushIf(`${parent}/${v.replace(/\s+/g, '')}${e}`);
-                  pushIf(`${parent}/${basename(v)}${e}`);
-                }
-              }
-            }
-          }
-        }
-      } catch (e) { /* ignore */ }
-
-      // 3) try root level images
-      for (const v of variants) {
-        for (const e of exts) {
-          pushIf(`./${v}${e}`);
-          pushIf(`./${v.replace(/\s+/g, '')}${e}`);
-        }
-      }
-
-      // 4) try ./Movies/<Folder>.<ext> and flat variants
-      for (const v of variants) {
-        for (const e of exts) {
-          pushIf(`./Movies/${v}${e}`);
-          pushIf(`./${v}${e}`);
-        }
-      }
-
-      // 5) last fallbacks
-      pushIf('./Images/default.jpg');
-      pushIf('./Images/placeholder.jpg');
-
-      return candidates;
-    }
-
-    // Render favorites (sorted)
+    // Render favorites (sorted) using the unified image builder
     sortedFavs.forEach(folderName => {
       try {
         const tile = document.createElement('div');
         tile.className = 'folder';
 
-        const candidates = buildImageCandidates(folderName);
+        // --- Use the unified image builder from loadimages.js ---
+        const candidates = window.buildImageCandidates(folderName, null, episodes);
 
         let imgIndex = 0;
         const imgEl = document.createElement('img');
