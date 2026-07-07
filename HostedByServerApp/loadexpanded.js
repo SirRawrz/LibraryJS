@@ -636,25 +636,60 @@
 
       // New filterTiles implementation
       const newFilterTiles = debounce(async function() {
-        if (window._searchNavigateInProgress) {
-          return;
-        }
+    // Inject the required CSS for the Send-to-TV button (once)
+    if (!document.getElementById('sendtotv-inline-style')) {
+        const style = document.createElement('style');
+        style.id = 'sendtotv-inline-style';
+        style.textContent = `
+            .send-to-tv-btn {
+                position: absolute;
+                top: 6px;
+                right: 8px;
+                width: 36px;
+                height: 36px;
+                padding: 0;
+                margin: 0;
+                border: none;
+                background: transparent;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+                cursor: pointer;
+                border-radius: 0;
+            }
+            .send-to-tv-btn img {
+                width: 28px;
+                height: 28px;
+                display: block;
+                pointer-events: none;
+            }
+            .send-to-tv-btn:focus {
+                outline: 2px solid rgba(255,255,255,0.9);
+            }
+        `;
+        document.head.appendChild(style);
+    }
 
-        const input = document.getElementById('searchInput');
-        if (!input) return;
-        const raw = input.value.trim();
-        const q = normKey(raw);
-        const container = document.getElementById('folderContainer');
-        if (!container) return;
+    if (window._searchNavigateInProgress) {
+        return;
+    }
 
-        if (!raw) {
-          if (typeof loadMainFolders === 'function') {
+    const input = document.getElementById('searchInput');
+    if (!input) return;
+    const raw = input.value.trim();
+    const q = normKey(raw);
+    const container = document.getElementById('folderContainer');
+    if (!container) return;
+
+    if (!raw) {
+        if (typeof loadMainFolders === 'function') {
             loadMainFolders();
-          }
-          return;
         }
+        return;
+    }
 
-        const deepAll = raw === DEEP_ALL_TOKEN;
+    const deepAll = raw === DEEP_ALL_TOKEN;
 
         const mergedIndex = buildMergedIndex();
         const libraryIndex = buildLibraryIndex();
@@ -814,31 +849,32 @@
             sendBtn.appendChild(sendImg);
 
             sendBtn.addEventListener('click', async function(ev) {
-              ev.stopPropagation();
-              try {
-                const ok = (window.SysNotify && window.SysNotify.confirm) ? await window.SysNotify.confirm(`Send "${item.title}" to TV?`, `Send to TV`) : true;
-                if (!ok) return;
-                if (typeof currentFolder !== 'undefined') window.currentFolder = item.title;
-                else currentFolder = item.title;
-                if (typeof sendToTV === 'function') {
-                  const maybe = sendToTV();
-                  if (maybe && typeof maybe.then === 'function') await maybe;
-                }
-                const inputEl = document.getElementById('searchInput');
-                if (inputEl) {
-                  inputEl.value = '';
-                  try { window.filterTiles(); } catch(e) {}
-                }
-                setTimeout(() => {
-                  try {
-                    if (typeof returnToHome === 'function') returnToHome();
-                    else if (typeof loadMainFolders === 'function') loadMainFolders();
-                  } catch(e) {}
-                }, 120);
-              } catch (e) {
-                console.error('send-to-tv click error', e);
-              }
-            });
+    ev.stopPropagation();
+    try {
+        const ok = (window.SysNotify && window.SysNotify.confirm) ? await window.SysNotify.confirm(`Send "${item.title}" to TV?`, `Send to TV`) : true;
+        if (!ok) return;
+        // FIX: set both the global variable and the window property
+        currentFolder = item.title;
+        window.currentFolder = item.title;
+        if (typeof sendToTV === 'function') {
+            const maybe = sendToTV();
+            if (maybe && typeof maybe.then === 'function') await maybe;
+        }
+        const inputEl = document.getElementById('searchInput');
+        if (inputEl) {
+            inputEl.value = '';
+            try { window.filterTiles(); } catch(e) {}
+        }
+        setTimeout(() => {
+            try {
+                if (typeof returnToHome === 'function') returnToHome();
+                else if (typeof loadMainFolders === 'function') loadMainFolders();
+            } catch(e) {}
+        }, 120);
+    } catch (e) {
+        console.error('send-to-tv click error', e);
+    }
+});
 
             sendBtn.addEventListener('keydown', function(ev) {
               if (ev.key === 'Enter' || ev.key === ' ') {

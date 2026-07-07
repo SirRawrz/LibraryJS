@@ -399,6 +399,7 @@ html, body {
 <script src="./screensaver.js"></script>
 <script src="./loadexpanded.js"></script>
    <script src="./loadlocalexpanded.js"></script>
+
 <!-- renderer for the profile overlay (uses window.profiles from profiles.js) -->
 <script>
 (function(){
@@ -1667,11 +1668,41 @@ async function playEpisode(folderName, epIndex = 0, startTime = 0, options = {})
   const video = document.querySelector('video');
   video.pause();
 
-btnTV.addEventListener('click', () => {
- overlay.style.display = 'none';
- initVideo();
-});
+btnTV.addEventListener('click', async () => {
+  overlay.style.display = 'none';
 
+  const profile = localStorage.getItem('activeProfile') || 'Guest';
+  const resumeKey = `progress-${profile}-Resume`;
+  let resumeData = {};
+  try {
+    resumeData = JSON.parse(localStorage.getItem(resumeKey) || '{}');
+  } catch (e) {}
+  const folder = resumeData.folderName;
+
+  // Check if folder exists in current episodes
+  let eps;
+  try { eps = eval('episodes'); } catch(e) { eps = window.episodes || {}; }
+
+  if (folder && eps[folder]) {
+    // Folder already exists – play immediately
+    initVideo();
+    return;
+  }
+
+  // Folder missing; wait for remote merges to finish (if they are running)
+  if (window.__loadexpandedPromise) await window.__loadexpandedPromise;
+  if (window.__loadlocalexpandedPromise) await window.__loadlocalexpandedPromise;
+
+  // Re-check after merges
+  try { eps = eval('episodes'); } catch(e) { eps = window.episodes || {}; }
+  if (folder && eps[folder]) {
+    initVideo();
+  } else {
+    // Still not found – fallback to the original behaviour (first folder)
+    // This ensures the TV button always does something, even if the folder never appears.
+    initVideo();
+  }
+});
   btnRadio.addEventListener('click', () => {
    window.location.href = './radio.html';
   });
@@ -3488,6 +3519,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 </script>
+
 </body>
 </html>
 
