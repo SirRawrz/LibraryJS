@@ -18,6 +18,14 @@
       const baseUrl = `${window.location.protocol}//${window.location.hostname}:${port}`;
       console.log(`[loadexpanded] Using remote server at ${baseUrl}`);
 
+      // ---- Helper to record folder origin (only if not already set) ----
+      function addFolderOrigin(folder) {
+        if (!window.folderOriginMap) window.folderOriginMap = {};
+        if (!window.folderOriginMap[folder]) {
+          window.folderOriginMap[folder] = baseUrl;
+        }
+      }
+
       // ------------------------------------------------------------
       // Helper: extract folders array from mainfolders.js text
       // ------------------------------------------------------------
@@ -199,6 +207,9 @@
 
         folders.length = 0;
         folders.push(...merged);
+
+        // Record origin for each remote folder
+        remoteFolders.forEach(f => addFolderOrigin(f));
       } else {
         console.warn('[loadexpanded] Failed to fetch remote mainfolders.js, status:', mfRes.status);
       }
@@ -228,6 +239,8 @@
             for (const key in transformed) {
               if (!(key in targetEpisodes)) {
                 targetEpisodes[key] = transformed[key];
+                // Record origin for this episode key (folder)
+                addFolderOrigin(key);
                 added++;
               }
             }
@@ -241,6 +254,7 @@
             for (const key in transformed) {
               if (!(key in window.episodes)) {
                 window.episodes[key] = transformed[key];
+                addFolderOrigin(key);
                 added++;
               }
             }
@@ -328,8 +342,8 @@
       window.__remoteBaseUrl = baseUrl; // kept for legacy/debug
 
       // ------------------------------------------------------------
-      // 6. Push this server’s origin into expandedImageOrigins so that
-      //    buildImageCandidates will try it for ALL tiles.
+      // 6. Push this server’s origin into expandedImageOrigins (legacy)
+      //    We keep this for backward compatibility, but buildImageCandidates now uses folderOriginMap.
       // ------------------------------------------------------------
       if (!window.expandedImageOrigins) {
         window.expandedImageOrigins = [];
@@ -339,13 +353,12 @@
 
       // ------------------------------------------------------------
       // 7. Override getImageCandidatesForFolder to use buildImageCandidates
-      //    (which already includes all origins from expandedImageOrigins)
+      //    (which now uses folderOriginMap)
       // ------------------------------------------------------------
       if (typeof window.buildImageCandidates === 'function') {
         window.getImageCandidatesForFolder = function(folder) {
           let eps;
           try { eps = eval('episodes'); } catch(e) { eps = window.episodes || {}; }
-          // For main tiles we don't have a parent, so pass null
           return window.buildImageCandidates(folder, null, eps);
         };
         console.log('[loadexpanded] getImageCandidatesForFolder now uses buildImageCandidates.');
@@ -372,6 +385,8 @@
               if (remoteEntry && Array.isArray(remoteEntry) && remoteEntry.length > 0) {
                 console.log(`[loadexpanded] Populating episodes["${cleanFolder}"] from remote cache (${remoteEntry.length} items)`);
                 targetEpisodes[cleanFolder] = remoteEntry;
+                // Also record origin for this folder if not set
+                addFolderOrigin(cleanFolder);
               }
             }
           }
@@ -406,8 +421,8 @@
       }
 
       // ------------------------------------------------------------
-      // 10. Override search (filterTiles) to use merged data + empty query handling
-      //     (kept as is – it already uses buildImageCandidates)
+      // 10. Override search (filterTiles) to use merged data
+      //     (unchanged – it already uses buildImageCandidates)
       // ------------------------------------------------------------
       console.log('[loadexpanded] Overriding search (filterTiles) to use merged data...');
 
@@ -694,7 +709,7 @@
           div.style.position = 'relative';
           div.style.overflow = 'visible';
 
-          // Use buildImageCandidates (which uses expandedImageOrigins)
+          // Use buildImageCandidates (which now uses folderOriginMap)
           const candidates = window.buildImageCandidates(item.title, item.parent, episodesObj);
 
           let idx = 0;
