@@ -1,4 +1,4 @@
-// loadexpanded.js
+// loadexpanded.js – data merge + search override with correct focus behavior
 (function() {
   window.__loadexpandedPromise = new Promise(async (resolve) => {
     try {
@@ -343,7 +343,6 @@
 
       // ------------------------------------------------------------
       // 6. Push this server’s origin into expandedImageOrigins (legacy)
-      //    We keep this for backward compatibility, but buildImageCandidates now uses folderOriginMap.
       // ------------------------------------------------------------
       if (!window.expandedImageOrigins) {
         window.expandedImageOrigins = [];
@@ -422,7 +421,6 @@
 
       // ------------------------------------------------------------
       // 10. Override search (filterTiles) to use merged data
-      //     (unchanged – it already uses buildImageCandidates)
       // ------------------------------------------------------------
       console.log('[loadexpanded] Overriding search (filterTiles) to use merged data...');
 
@@ -514,118 +512,58 @@
         return items;
       }
 
-      // --- Helper to attach favorite star (mirroring original logic) ---
+      // --- Exact copy of the original attachTileFavorite from index.html (inside the search IIFE) ---
       function attachTileFavorite(tile, folderName) {
-        if (typeof window.attachSeasonFavoriteStar === 'function') {
-          window.attachSeasonFavoriteStar(tile, folderName);
-          return;
-        }
-
-        const readFavs = () => {
-          try {
-            if (typeof getStoredFavorites === 'function') {
-              const favs = getStoredFavorites();
-              return Array.isArray(favs) ? favs : [];
-            }
-            return JSON.parse(localStorage.getItem('favorites') || '[]');
-          } catch (e) {
-            return [];
-          }
-        };
+        if (!tile || !folderName) return;
 
         const starBtn = document.createElement('button');
-        starBtn.type = 'button';
         starBtn.className = 'tile-fav-star';
-        starBtn.setAttribute('aria-label', `Favorite ${folderName}`);
-        starBtn.setAttribute('title', `Favorite ${folderName}`);
-        starBtn.setAttribute('aria-hidden', 'true');
-        starBtn.tabIndex = -1;
-        starBtn.style.display = 'none';
+        starBtn.type = 'button';
+        starBtn.title = 'Favorite';
+        starBtn.tabIndex = 0;
+        starBtn.setAttribute('aria-label', `Toggle favorite for ${folderName}`);
 
         const glyph = document.createElement('span');
         glyph.className = 'tile-fav-glyph';
-        glyph.style.pointerEvents = 'none';
         glyph.textContent = '☆';
         starBtn.appendChild(glyph);
 
         function refreshStarVisual() {
-          const favs = readFavs();
+          const favs = (typeof getStoredFavorites === 'function') ? getStoredFavorites() : [];
           const isFav = Array.isArray(favs) && favs.includes(folderName);
-          glyph.textContent = isFav ? '★' : '☆';
-          glyph.style.color = isFav ? '#ffcf33' : '#fff';
-          starBtn.classList.toggle('favorited', isFav);
+
+          if (isFav) {
+            starBtn.classList.add('favorited');
+            glyph.textContent = '★';
+          } else {
+            starBtn.classList.remove('favorited');
+            glyph.textContent = '☆';
+          }
         }
 
-        function toggleFavorite() {
-          try {
-            if (typeof toggleFavoriteByName === 'function') {
-              toggleFavoriteByName(folderName);
-            } else {
-              const favs = readFavs();
-              const idx = favs.indexOf(folderName);
-              if (idx === -1) favs.push(folderName);
-              else favs.splice(idx, 1);
-              if (typeof setStoredFavorites === 'function') setStoredFavorites(favs);
-              else localStorage.setItem('favorites', JSON.stringify(favs));
-              if (typeof saveFavoritesToServer === 'function') {
-                try { saveFavoritesToServer(favs).catch(() => {}); } catch (e) {}
-              }
-            }
-          } catch (e) {
-            console.warn('favorite toggle failed', e);
-          }
+        starBtn.addEventListener('click', function (e) {
+          e.stopPropagation(); // IMPORTANT: prevents tile open
+          toggleFavoriteByName(folderName);
           refreshStarVisual();
-          if (typeof updateFavoriteButtonUI === 'function') updateFavoriteButtonUI();
-        }
-
-        starBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          toggleFavorite();
         });
 
-        starBtn.addEventListener('pointerdown', function(e) {
-          e.stopPropagation();
-        }, { passive: true });
-
-        tile.addEventListener('pointerenter', function(ev) {
-          const pType = (ev && ev.pointerType) ? String(ev.pointerType).toLowerCase() : 'mouse';
-          if (pType === 'mouse' || pType === 'pen') {
-            refreshStarVisual();
-            starBtn.style.display = 'flex';
-          }
-        }, { passive: true });
-
-        tile.addEventListener('pointerleave', function() {
-          starBtn.style.display = 'none';
-        }, { passive: true });
-
-        tile.addEventListener('pointerdown', function(ev) {
-          if (ev && String(ev.pointerType).toLowerCase() === 'touch') {
-            refreshStarVisual();
-            starBtn.style.display = 'flex';
-            setTimeout(() => {
-              try { starBtn.style.display = 'none'; } catch (e) {}
-            }, 2500);
-          }
-        }, { passive: true });
-
-        tile.addEventListener('focus', function() {
-          refreshStarVisual();
-          starBtn.style.display = 'flex';
-        });
-
-        tile.addEventListener('blur', function() {
-          starBtn.style.display = 'none';
-        });
-
-        tile.addEventListener('keydown', function(e) {
-          const key = e.key || '';
-          if (key === 'Enter' || key === ' ' || key === 'Spacebar' || e.keyCode === 13 || e.keyCode === 32) {
+        starBtn.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 32) {
             e.preventDefault();
-            tile.click();
-          } else if (key === 'f' || key === 'F') {
+            e.stopPropagation();
+            starBtn.click();
+            return;
+          }
+          e.stopPropagation();
+        });
+
+        // Optional: keyboard shortcut when tile focused (press F)
+        tile.addEventListener('keydown', function (e) {
+          if (e.key === 'f' || e.key === 'F') {
             e.preventDefault();
-            toggleFavorite();
+            e.stopPropagation();
+            toggleFavoriteByName(folderName);
+            refreshStarVisual();
           }
         });
 
@@ -634,62 +572,65 @@
         refreshStarVisual();
       }
 
-      // New filterTiles implementation
+      // ---- The new filterTiles (overrides the original) ----
       const newFilterTiles = debounce(async function() {
-    // Inject the required CSS for the Send-to-TV button (once)
-    if (!document.getElementById('sendtotv-inline-style')) {
-        const style = document.createElement('style');
-        style.id = 'sendtotv-inline-style';
-        style.textContent = `
+        // Inject the required CSS for the Send-to-TV button (once)
+        if (!document.getElementById('sendtotv-inline-style')) {
+          const style = document.createElement('style');
+          style.id = 'sendtotv-inline-style';
+          style.textContent = `
             .send-to-tv-btn {
-                position: absolute;
-                top: 6px;
-                right: 8px;
-                width: 36px;
-                height: 36px;
-                padding: 0;
-                margin: 0;
-                border: none;
-                background: transparent;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 9999;
-                cursor: pointer;
-                border-radius: 0;
+              position: absolute;
+              top: 6px;
+              right: 8px;
+              width: 36px;
+              height: 36px;
+              padding: 0;
+              margin: 0;
+              border: none;
+              background: transparent;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              z-index: 9999;
+              cursor: pointer;
+              border-radius: 0;
             }
             .send-to-tv-btn img {
-                width: 28px;
-                height: 28px;
-                display: block;
-                pointer-events: none;
+              width: 28px;
+              height: 28px;
+              display: block;
+              pointer-events: none;
             }
             .send-to-tv-btn:focus {
-                outline: 2px solid rgba(255,255,255,0.9);
+              outline: 2px solid rgba(255,255,255,0.9);
             }
-        `;
-        document.head.appendChild(style);
-    }
-
-    if (window._searchNavigateInProgress) {
-        return;
-    }
-
-    const input = document.getElementById('searchInput');
-    if (!input) return;
-    const raw = input.value.trim();
-    const q = normKey(raw);
-    const container = document.getElementById('folderContainer');
-    if (!container) return;
-
-    if (!raw) {
-        if (typeof loadMainFolders === 'function') {
-            loadMainFolders();
+          `;
+          document.head.appendChild(style);
         }
-        return;
-    }
 
-    const deepAll = raw === DEEP_ALL_TOKEN;
+        if (window._searchNavigateInProgress) {
+          return;
+        }
+
+        const input = document.getElementById('searchInput');
+        if (!input) return;
+        const raw = input.value.trim();
+        const q = normKey(raw);
+        const container = document.getElementById('folderContainer');
+        if (!container) return;
+
+        // Clear container so we don't get stale results
+        container.innerHTML = '';
+
+        if (!raw) {
+          if (typeof loadMainFolders === 'function') {
+            loadMainFolders();
+          }
+          return;
+        }
+
+        const deepAll = raw === DEEP_ALL_TOKEN;
 
         const mergedIndex = buildMergedIndex();
         const libraryIndex = buildLibraryIndex();
@@ -709,7 +650,6 @@
           libraryMatches = libraryIndex.filter(item => normKey(item.title).includes(q));
         }
 
-        container.innerHTML = '';
         if (mainMatches.length === 0 && libraryMatches.length === 0) {
           const no = document.createElement('div');
           no.style.color = '#fff';
@@ -822,6 +762,23 @@
 
           const showSendBtn = !isRootWithSeasons && !hasChildren && !isSpecialHandlerTile && !isMasterTile;
 
+          if (!showSendBtn) {
+            // Only make the tile itself focusable when it does NOT have a Send button
+            div.tabIndex = 0;
+            div.setAttribute('role', 'button');
+            div.setAttribute('aria-label', `Open ${item.title}`);
+            div.addEventListener('keydown', function(ev) {
+              // If the target is a child interactive element (Send button, star, etc.), let it handle the event.
+              if (ev.target.closest && ev.target.closest('.send-to-tv-btn, .tile-fav-star, button, a, input, textarea, select, [role="switch"]')) {
+                return;
+              }
+              if (ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault();
+                div.click();
+              }
+            });
+          }
+
           if (showSendBtn) {
             const sendBtn = document.createElement('button');
             sendBtn.type = 'button';
@@ -849,36 +806,71 @@
             sendBtn.appendChild(sendImg);
 
             sendBtn.addEventListener('click', async function(ev) {
-    ev.stopPropagation();
-    try {
-        const ok = (window.SysNotify && window.SysNotify.confirm) ? await window.SysNotify.confirm(`Send "${item.title}" to TV?`, `Send to TV`) : true;
-        if (!ok) return;
-        // FIX: set both the global variable and the window property
-        currentFolder = item.title;
-        window.currentFolder = item.title;
-        if (typeof sendToTV === 'function') {
-            const maybe = sendToTV();
-            if (maybe && typeof maybe.then === 'function') await maybe;
-        }
-        const inputEl = document.getElementById('searchInput');
-        if (inputEl) {
-            inputEl.value = '';
-            try { window.filterTiles(); } catch(e) {}
-        }
-        setTimeout(() => {
-            try {
-                if (typeof returnToHome === 'function') returnToHome();
-                else if (typeof loadMainFolders === 'function') loadMainFolders();
-            } catch(e) {}
-        }, 120);
-    } catch (e) {
-        console.error('send-to-tv click error', e);
-    }
-});
+              ev.stopPropagation();
+              try {
+                const ok = (window.SysNotify && window.SysNotify.confirm) ? await window.SysNotify.confirm(`Send "${item.title}" to TV?`, `Send to TV`) : true;
+                if (!ok) return;
+                currentFolder = item.title;
+                window.currentFolder = item.title;
+                if (typeof sendToTV === 'function') {
+                  const maybe = sendToTV();
+                  if (maybe && typeof maybe.then === 'function') await maybe;
+                }
+                const inputEl = document.getElementById('searchInput');
+                if (inputEl) {
+                  inputEl.value = '';
+                  try { window.filterTiles(); } catch(e) {}
+                }
+                // Return to home (or load main folders)
+                setTimeout(() => {
+                  try {
+                    if (typeof returnToHome === 'function') returnToHome();
+                    else if (typeof loadMainFolders === 'function') loadMainFolders();
+                  } catch(e) {}
+                }, 120);
+
+                // Focus the "Continue Watching" tile after the main folders load
+                setTimeout(() => {
+                  try {
+                    const container = document.getElementById('folderContainer');
+                    if (!container) return;
+                    let target = null;
+                    const tiles = Array.from(container.querySelectorAll('.folder'));
+                    for (const t of tiles) {
+                      const p = t.querySelector('p');
+                      if (p && p.innerText && p.innerText.trim() === 'Continue Watching') {
+                        target = t;
+                        break;
+                      }
+                    }
+                    if (!target) {
+                      target = tiles.find(t => {
+                        const style = window.getComputedStyle(t);
+                        return style && style.display !== 'none' && t.offsetParent !== null;
+                      }) || null;
+                    }
+                    if (target) {
+                      target.setAttribute('tabindex', '0');
+                      try { target.focus(); } catch(e){}
+                      const cleanup = () => {
+                        try { target.removeAttribute('tabindex'); } catch(e){}
+                        target.removeEventListener('blur', cleanup);
+                      };
+                      target.addEventListener('blur', cleanup);
+                    }
+                  } catch (e) {
+                    console.warn('focus Continue Watching failed in send action', e);
+                  }
+                }, 250);
+              } catch (e) {
+                console.error('send-to-tv click error', e);
+              }
+            });
 
             sendBtn.addEventListener('keydown', function(ev) {
               if (ev.key === 'Enter' || ev.key === ' ') {
                 ev.preventDefault();
+                ev.stopPropagation(); // prevents parent tile from also handling
                 sendBtn.click();
               }
             });
@@ -988,10 +980,13 @@
         }
       }, 120);
 
+      // Replace the global filterTiles
       window.filterTiles = newFilterTiles;
 
+      // Also attach the new listener to the search input
       const inputEl = document.getElementById('searchInput');
       if (inputEl) {
+        // Remove any previous listeners to avoid duplicates
         const oldFilterTiles = window.filterTiles;
         if (oldFilterTiles && typeof oldFilterTiles === 'function') {
           try {

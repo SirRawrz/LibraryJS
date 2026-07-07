@@ -3921,12 +3921,12 @@ function renderResults(matches, rawQuery, options = {}){
       });
 
       sendBtn.addEventListener('keydown', function(ev){
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          ev.preventDefault();
-          sendBtn.click();
-        }
-      });
-
+  if (ev.key === 'Enter' || ev.key === ' ') {
+    ev.preventDefault();
+    ev.stopPropagation();
+    sendBtn.click();
+  }
+});
       div.appendChild(sendBtn);
       sendButtonsCount++;
       if (!firstFocusTarget) firstFocusTarget = sendBtn;
