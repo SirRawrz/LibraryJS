@@ -1,4 +1,4 @@
-// loadexpanded.js – data merge + search override with correct focus behavior
+// loadexpanded.js – Full data merge + search override with unconditional star attachment
 (function() {
   window.__loadexpandedPromise = new Promise(async (resolve) => {
     try {
@@ -92,6 +92,37 @@
           return null;
         } catch (e) {
           console.warn('[loadexpanded] Failed to extract episodes from library.js:', e);
+          return null;
+        }
+      }
+
+      // ------------------------------------------------------------
+      // Helper: extract games array from games.js text
+      // ------------------------------------------------------------
+      function extractGamesFromJs(text) {
+        try {
+          const fn = new Function(`"use strict"; ${text}; return typeof games !== 'undefined' ? games : null;`);
+          const result = fn();
+          if (Array.isArray(result)) {
+            return result;
+          }
+          return null;
+        } catch (e) {
+          console.warn('[loadexpanded] Failed to extract games from games.js:', e);
+          return null;
+        }
+      }
+
+      // ------------------------------------------------------------
+      // Helper: extract musicLibrary and musicLibraryGenreMap from musiclibrary.js text
+      // ------------------------------------------------------------
+      function extractMusicFromJs(text) {
+        try {
+          const fn = new Function(`"use strict"; ${text}; return { musicLibrary: typeof musicLibrary !== 'undefined' ? musicLibrary : null, musicLibraryGenreMap: typeof musicLibraryGenreMap !== 'undefined' ? musicLibraryGenreMap : null };`);
+          const result = fn();
+          return result;
+        } catch (e) {
+          console.warn('[loadexpanded] Failed to extract music from musiclibrary.js:', e);
           return null;
         }
       }
@@ -335,14 +366,92 @@
       }
 
       // ------------------------------------------------------------
-      // 5. Store remote cache for fallback (used by loadEpisodes)
+      // 5. Merge remote games.js (if exists)
+      // ------------------------------------------------------------
+      console.log('[loadexpanded] Fetching remote games.js...');
+      try {
+        const gamesRes = await fetch(`${baseUrl}/games.js`, { cache: 'no-store' });
+        if (gamesRes.ok) {
+          const gamesText = await gamesRes.text();
+          const remoteGames = extractGamesFromJs(gamesText);
+          if (Array.isArray(remoteGames) && remoteGames.length > 0) {
+            if (!window.games || !Array.isArray(window.games)) {
+              window.games = [];
+            }
+            let added = 0;
+            for (const remoteGame of remoteGames) {
+              const exists = window.games.some(localGame => localGame.name === remoteGame.name || localGame.link === remoteGame.link);
+              if (!exists) {
+                window.games.push(remoteGame);
+                added++;
+              }
+            }
+            console.log(`[loadexpanded] Merged games: added ${added} remote games.`);
+          } else {
+            console.warn('[loadexpanded] No games found in remote games.js.');
+          }
+        } else {
+          console.warn('[loadexpanded] Remote games.js not found (status: ' + gamesRes.status + '), skipping.');
+        }
+      } catch (e) {
+        console.warn('[loadexpanded] Failed to fetch remote games.js:', e);
+      }
+
+      // ------------------------------------------------------------
+      // 6. Merge remote musiclibrary.js (if exists)
+      // ------------------------------------------------------------
+      console.log('[loadexpanded] Fetching remote musiclibrary.js...');
+      try {
+        const musicRes = await fetch(`${baseUrl}/musiclibrary.js`, { cache: 'no-store' });
+        if (musicRes.ok) {
+          const musicText = await musicRes.text();
+          const remoteMusic = extractMusicFromJs(musicText);
+          if (remoteMusic) {
+            if (remoteMusic.musicLibrary && Array.isArray(remoteMusic.musicLibrary)) {
+              if (!window.musicLibrary || !Array.isArray(window.musicLibrary)) {
+                window.musicLibrary = [];
+              }
+              let added = 0;
+              for (const item of remoteMusic.musicLibrary) {
+                if (!window.musicLibrary.includes(item)) {
+                  window.musicLibrary.push(item);
+                  added++;
+                }
+              }
+              console.log(`[loadexpanded] Merged musicLibrary: added ${added} remote entries.`);
+            }
+            if (remoteMusic.musicLibraryGenreMap && typeof remoteMusic.musicLibraryGenreMap === 'object') {
+              if (!window.musicLibraryGenreMap || typeof window.musicLibraryGenreMap !== 'object') {
+                window.musicLibraryGenreMap = {};
+              }
+              let added = 0;
+              for (const [key, value] of Object.entries(remoteMusic.musicLibraryGenreMap)) {
+                if (!(key in window.musicLibraryGenreMap)) {
+                  window.musicLibraryGenreMap[key] = value;
+                  added++;
+                }
+              }
+              console.log(`[loadexpanded] Merged musicLibraryGenreMap: added ${added} genre mappings.`);
+            }
+          } else {
+            console.warn('[loadexpanded] Could not extract music data from remote musiclibrary.js.');
+          }
+        } else {
+          console.warn('[loadexpanded] Remote musiclibrary.js not found (status: ' + musicRes.status + '), skipping.');
+        }
+      } catch (e) {
+        console.warn('[loadexpanded] Failed to fetch remote musiclibrary.js:', e);
+      }
+
+      // ------------------------------------------------------------
+      // 7. Store remote cache for fallback (used by loadEpisodes)
       // ------------------------------------------------------------
       window.__remoteEpisodes = remoteEpisodesCache;
       window.__remoteFoldersSet = new Set(remoteFolders);
-      window.__remoteBaseUrl = baseUrl; // kept for legacy/debug
+      window.__remoteBaseUrl = baseUrl;
 
       // ------------------------------------------------------------
-      // 6. Push this server’s origin into expandedImageOrigins (legacy)
+      // 8. Push this server’s origin into expandedImageOrigins (legacy)
       // ------------------------------------------------------------
       if (!window.expandedImageOrigins) {
         window.expandedImageOrigins = [];
@@ -351,8 +460,7 @@
       console.log('[loadexpanded] Added baseUrl to expandedImageOrigins:', baseUrl);
 
       // ------------------------------------------------------------
-      // 7. Override getImageCandidatesForFolder to use buildImageCandidates
-      //    (which now uses folderOriginMap)
+      // 9. Override getImageCandidatesForFolder to use buildImageCandidates
       // ------------------------------------------------------------
       if (typeof window.buildImageCandidates === 'function') {
         window.getImageCandidatesForFolder = function(folder) {
@@ -366,7 +474,7 @@
       }
 
       // ------------------------------------------------------------
-      // 8. Patch loadEpisodes to log and ensure episode data is used
+      // 10. Patch loadEpisodes to log and ensure episode data is used
       // ------------------------------------------------------------
       const originalLoadEpisodes = window.loadEpisodes;
       if (typeof originalLoadEpisodes === 'function') {
@@ -384,19 +492,16 @@
               if (remoteEntry && Array.isArray(remoteEntry) && remoteEntry.length > 0) {
                 console.log(`[loadexpanded] Populating episodes["${cleanFolder}"] from remote cache (${remoteEntry.length} items)`);
                 targetEpisodes[cleanFolder] = remoteEntry;
-                // Also record origin for this folder if not set
                 addFolderOrigin(cleanFolder);
               }
             }
           }
-
           const entry = targetEpisodes ? targetEpisodes[cleanFolder] : null;
           if (entry && Array.isArray(entry)) {
             console.log(`[loadexpanded] Calling loadEpisodes for "${cleanFolder}" with ${entry.length} episodes.`);
           } else {
             console.warn(`[loadexpanded] No episodes found for "${cleanFolder}" before calling loadEpisodes.`);
           }
-
           return originalLoadEpisodes.call(this, cleanFolder);
         };
         console.log('[loadexpanded] Patched loadEpisodes with logging and remote fallback.');
@@ -405,7 +510,7 @@
       }
 
       // ------------------------------------------------------------
-      // 9. Patch openFolderByName to strip adult markers
+      // 11. Patch openFolderByName to strip adult markers
       // ------------------------------------------------------------
       if (typeof window.openFolderByName === 'function') {
         const originalOpenFolder = window.openFolderByName;
@@ -420,19 +525,11 @@
       }
 
       // ------------------------------------------------------------
-      // 10. Override search (filterTiles) to use merged data
+      // 12. Override search (filterTiles) with full support and UNCONDITIONAL star attachment
       // ------------------------------------------------------------
-      console.log('[loadexpanded] Overriding search (filterTiles) to use merged data...');
+      console.log('[loadexpanded] Overriding search (filterTiles) with full support for games, music, books, manga, guidebooks...');
 
-      function debounce(fn, wait) {
-        let timer;
-        return function(...args) {
-          clearTimeout(timer);
-          timer = setTimeout(() => fn.apply(this, args), wait);
-        };
-      }
-
-      const DEEP_ALL_TOKEN = '---';
+      // --- Helper functions (mirroring original search) ---
 
       function normKey(s) {
         return String(s || '')
@@ -487,11 +584,25 @@
           }
         }
 
+        // Add loaders as potential root tiles
+        for (const prop of Object.getOwnPropertyNames(window)) {
+          if (prop.startsWith('load') && prop.endsWith('Seasons') && typeof window[prop] === 'function') {
+            const base = prop.replace(/^load/, '').replace(/Seasons$/, '');
+            let display = base.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+            display = display.trim();
+            if (display && !seen.has(normKey(display))) {
+              seen.add(normKey(display));
+              merged.push({ title: display, parent: null, source: 'loader' });
+            }
+          }
+        }
+
         return merged;
       }
 
       function buildLibraryIndex() {
         const items = [];
+        // libraryData
         if (window.libraryData && Array.isArray(window.libraryData.items)) {
           for (const item of window.libraryData.items) {
             if (item && item.title) {
@@ -499,6 +610,7 @@
             }
           }
         }
+        // books, manga, guidebooks
         const libGlobals = { books: 'Books', manga: 'Manga', guidebooks: 'Guidebooks' };
         for (const [globalKey, category] of Object.entries(libGlobals)) {
           if (Array.isArray(window[globalKey])) {
@@ -512,69 +624,511 @@
         return items;
       }
 
-      // --- Exact copy of the original attachTileFavorite from index.html (inside the search IIFE) ---
+      function buildGamesIndex() {
+        const items = [];
+        if (Array.isArray(window.games)) {
+          for (const game of window.games) {
+            if (game && game.name) {
+              items.push({
+                title: game.name,
+                parent: 'Games',
+                source: 'game',
+                link: game.link,
+                img: game.img,
+                specialSet: game.specialSet,
+                disks: game.disks
+              });
+            }
+          }
+        }
+        return items;
+      }
+
+      function buildMusicIndex() {
+        const items = [];
+        if (Array.isArray(window.musicLibrary)) {
+          for (const entry of window.musicLibrary) {
+            let raw = '';
+            if (typeof entry === 'string') {
+              raw = entry;
+            } else if (entry && typeof entry === 'object' && entry.raw) {
+              raw = entry.raw;
+            } else if (entry && typeof entry === 'object' && entry.title && entry.artist) {
+              items.push({
+                title: entry.title || '',
+                artist: entry.artist || '',
+                genre: entry.genre || '',
+                raw: entry.raw || ''
+              });
+              continue;
+            } else {
+              continue;
+            }
+
+            let genreCode = '';
+            const dollarIdx = raw.lastIndexOf('$');
+            if (dollarIdx !== -1) {
+              genreCode = raw.slice(dollarIdx + 1);
+              raw = raw.slice(0, dollarIdx);
+            }
+
+            const parts = raw.split(' - ').map(s => s.trim());
+            let song = raw;
+            let artist = '';
+            if (parts.length > 1) {
+              artist = parts[parts.length - 1];
+              song = parts.slice(0, parts.length - 1).join(' - ');
+            }
+
+            const genreName = (window.musicLibraryGenreMap && window.musicLibraryGenreMap[genreCode]) || genreCode;
+            items.push({
+              title: song,
+              parent: 'Music',
+              source: 'music',
+              artist: artist,
+              genre: genreName,
+              raw: entry
+            });
+          }
+        }
+        return items;
+      }
+
+      // --- Render functions (copied from original index.html) ---
+
+      function renderGameMatches(matches, rawQuery) {
+        const container = document.getElementById('folderContainer');
+        if (!container) return;
+        const old = document.getElementById('gamesSearchSection');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+        if (!matches || matches.length === 0) return;
+
+        const section = document.createElement('div');
+        section.id = 'gamesSearchSection';
+        section.style.width = '100%';
+        section.style.marginTop = '18px';
+        section.style.paddingTop = '8px';
+        section.style.borderTop = '1px solid rgba(255,255,255,0.06)';
+
+        const header = document.createElement('div');
+        header.style.color = '#fff';
+        header.style.fontSize = '14px';
+        header.style.margin = '8px 12px';
+        header.innerText = `Games matches for "${rawQuery}"`;
+        section.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.style.display = 'flex';
+        grid.style.flexWrap = 'wrap';
+        grid.style.gap = '12px';
+        grid.style.justifyContent = 'center';
+        grid.style.padding = '6px 12px';
+
+        matches.forEach(m => {
+          const isMultiDisk = m && m.specialSet === 'multidisk' && Array.isArray(m.disks) && m.disks.length > 0;
+          const card = document.createElement('div');
+          card.className = 'game-match-card';
+          card.style.width = '170px';
+          card.style.cursor = 'default';
+          card.style.textAlign = 'center';
+          card.style.color = '#fff';
+          card.style.display = 'flex';
+          card.style.flexDirection = 'column';
+          card.style.alignItems = 'center';
+          card.style.gap = '8px';
+
+          const rootTile = document.createElement('div');
+          rootTile.style.cursor = 'pointer';
+          rootTile.style.width = '170px';
+
+          const rootImg = document.createElement('img');
+          rootImg.src = m.img || '';
+          rootImg.alt = m.title || m.name || '';
+          rootImg.style.width = '150px';
+          rootImg.style.height = '210px';
+          rootImg.style.objectFit = 'cover';
+          rootImg.style.borderRadius = '10px';
+          rootImg.style.display = 'block';
+          rootImg.style.margin = '0 auto';
+          rootImg.onerror = function() { this.onerror = null; this.src = './Images/placeholder.jpg'; };
+
+          const rootTitle = document.createElement('p');
+          rootTitle.style.fontSize = '13px';
+          rootTitle.style.margin = '6px 0 0';
+          rootTitle.style.fontWeight = 'bold';
+          rootTitle.innerText = m.title || m.name || '';
+
+          rootTile.appendChild(rootImg);
+          rootTile.appendChild(rootTitle);
+
+          rootTile.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isMultiDisk && typeof window.displayDisks === 'function') {
+              window.displayDisks(m);
+              return;
+            }
+            if (!m.link) return;
+            if (/^https?:\/\//i.test(m.link)) window.open(m.link, '_blank');
+            else window.location.href = m.link;
+          });
+
+          card.appendChild(rootTile);
+
+          if (isMultiDisk) {
+            const diskRow = document.createElement('div');
+            diskRow.style.display = 'flex';
+            diskRow.style.flexWrap = 'wrap';
+            diskRow.style.gap = '6px';
+            diskRow.style.justifyContent = 'center';
+            diskRow.style.width = '100%';
+
+            m.disks.forEach(disk => {
+              const diskTile = document.createElement('div');
+              diskTile.style.width = '48px';
+              diskTile.style.cursor = 'pointer';
+              diskTile.style.textAlign = 'center';
+              diskTile.style.color = '#fff';
+
+              const diskImg = document.createElement('img');
+              diskImg.src = disk.img || m.img || '';
+              diskImg.alt = `${m.title || m.name || 'Game'} - Disk ${disk.disk}`;
+              diskImg.style.width = '48px';
+              diskImg.style.height = '68px';
+              diskImg.style.objectFit = 'cover';
+              diskImg.style.borderRadius = '6px';
+              diskImg.style.display = 'block';
+              diskImg.onerror = function() { this.onerror = null; this.src = './Images/placeholder.jpg'; };
+
+              const diskLabel = document.createElement('div');
+              diskLabel.textContent = `D${disk.disk}`;
+              diskLabel.style.fontSize = '11px';
+              diskLabel.style.marginTop = '3px';
+
+              diskTile.appendChild(diskImg);
+              diskTile.appendChild(diskLabel);
+
+              diskTile.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (disk.link) {
+                  window.location.href = disk.link;
+                }
+              });
+
+              diskRow.appendChild(diskTile);
+            });
+
+            card.appendChild(diskRow);
+          }
+
+          grid.appendChild(card);
+        });
+
+        section.appendChild(grid);
+        container.appendChild(section);
+        if (typeof showHomeButton === 'function') showHomeButton();
+      }
+
+      function renderMusicMatches(matches, rawQuery) {
+        const container = document.getElementById('folderContainer');
+        if (!container) return;
+        const old = document.getElementById('musicSearchSection');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+        if (!matches || matches.length === 0) return;
+
+        const section = document.createElement('div');
+        section.id = 'musicSearchSection';
+        section.style.width = '100%';
+        section.style.marginTop = '18px';
+        section.style.paddingTop = '8px';
+        section.style.borderTop = '1px solid rgba(255,255,255,0.06)';
+
+        const header = document.createElement('div');
+        header.style.color = '#fff';
+        header.style.fontSize = '14px';
+        header.style.margin = '8px 12px';
+        header.innerText = `Music matches for "${rawQuery}"`;
+        section.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.style.display = 'flex';
+        grid.style.flexWrap = 'wrap';
+        grid.style.gap = '12px';
+        grid.style.justifyContent = 'center';
+        grid.style.padding = '6px 12px';
+
+        matches.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'folder';
+          div.style.width = '150px';
+          div.style.cursor = 'pointer';
+          div.style.textAlign = 'center';
+          div.style.color = '#fff';
+          div.style.position = 'relative';
+          div.style.overflow = 'visible';
+
+          const artistSafe = (m.artist || '').trim();
+          const candidates = [];
+          if (artistSafe) {
+            candidates.push(`./Music/Images/${artistSafe}.jpg`);
+            candidates.push(`Music/Images/${artistSafe}.jpg`);
+            candidates.push(`./Music/Images/${artistSafe}.png`);
+          }
+          candidates.push('./Images/placeholder.jpg');
+
+          let idx = 0;
+          const imgEl = document.createElement('img');
+          imgEl.alt = `${m.title || ''} - ${m.artist || ''}`.trim();
+          imgEl.style.width = '150px';
+          imgEl.style.height = '210px';
+          imgEl.style.objectFit = 'cover';
+          imgEl.style.borderRadius = '10px';
+          imgEl.style.display = 'block';
+          imgEl.onerror = function() {
+            if (idx < candidates.length - 1) {
+              idx++;
+              this.src = candidates[idx];
+            } else {
+              this.onerror = null;
+            }
+          };
+          imgEl.src = candidates[0];
+
+          const titleP = document.createElement('p');
+          titleP.style.fontSize = '14px';
+          titleP.style.fontWeight = 'bold';
+          titleP.style.color = '#fff';
+          titleP.style.margin = '8px 0 0';
+          titleP.innerText = m.title || '';
+
+          const artistP = document.createElement('p');
+          artistP.style.fontSize = '12px';
+          artistP.style.margin = '4px 0 0';
+          artistP.style.color = '#aaa';
+          artistP.innerText = m.artist || '';
+
+          const genreP = document.createElement('p');
+          genreP.style.fontSize = '12px';
+          genreP.style.margin = '3px 0 0';
+          genreP.style.color = '#ddd';
+          genreP.innerText = m.genre || '';
+
+          div.appendChild(imgEl);
+          div.appendChild(titleP);
+          if (m.artist) div.appendChild(artistP);
+          if (m.genre) div.appendChild(genreP);
+
+          div.addEventListener('click', () => {
+            try {
+              const target = `./Music.html?play=${encodeURIComponent(m.raw || m.title)}`;
+              window.location.href = target;
+            } catch (e) { console.error('music tile click', e); }
+          });
+
+          grid.appendChild(div);
+        });
+
+        section.appendChild(grid);
+        container.appendChild(section);
+        if (typeof showHomeButton === 'function') showHomeButton();
+      }
+
+      function renderLibraryMatches(libraryMatches, rawQuery) {
+        const container = document.getElementById('folderContainer');
+        if (!container) return;
+        const old = document.getElementById('librarySearchSection');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+        if (!libraryMatches || libraryMatches.length === 0) return;
+
+        const section = document.createElement('div');
+        section.id = 'librarySearchSection';
+        section.style.width = '100%';
+        section.style.marginTop = '18px';
+        section.style.paddingTop = '8px';
+        section.style.borderTop = '1px solid rgba(255,255,255,0.06)';
+
+        const header = document.createElement('div');
+        header.style.color = '#fff';
+        header.style.fontSize = '14px';
+        header.style.margin = '8px 12px';
+        header.innerText = `Reading matches for "${rawQuery}"`;
+        section.appendChild(header);
+
+        const groups = {};
+        for (const item of libraryMatches) {
+          const parent = item.parent || 'Library';
+          if (!groups[parent]) groups[parent] = [];
+          groups[parent].push(item);
+        }
+
+        for (const [category, items] of Object.entries(groups)) {
+          const subHeader = document.createElement('div');
+          subHeader.style.color = '#ddd';
+          subHeader.style.fontSize = '13px';
+          subHeader.style.margin = '14px 12px 6px';
+          subHeader.style.opacity = '0.95';
+          subHeader.innerText = `${category} (${items.length})`;
+          section.appendChild(subHeader);
+
+          const grid = document.createElement('div');
+          grid.style.display = 'flex';
+          grid.style.flexWrap = 'wrap';
+          grid.style.gap = '12px';
+          grid.style.justifyContent = 'center';
+          grid.style.padding = '6px 12px';
+
+          for (const item of items) {
+            const div = document.createElement('div');
+            div.className = 'folder';
+            div.style.width = '150px';
+            div.style.cursor = 'pointer';
+            div.style.textAlign = 'center';
+            div.style.color = '#fff';
+            div.style.position = 'relative';
+            div.style.overflow = 'visible';
+
+            const coverPath = item.cover || `./Images/${encodeURIComponent(item.title)}.jpg`;
+            const img = document.createElement('img');
+            img.src = coverPath;
+            img.alt = item.title;
+            img.style.width = '150px';
+            img.style.height = '210px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '10px';
+            img.onerror = function() { this.onerror = null; this.src = './Images/placeholder.jpg'; };
+
+            const titleP = document.createElement('p');
+            titleP.style.fontSize = '16px';
+            titleP.style.fontWeight = 'bold';
+            titleP.style.color = '#fff';
+            titleP.style.margin = '10px 0 0';
+            titleP.innerText = item.title;
+
+            const parentP = document.createElement('p');
+            parentP.style.fontSize = '11px';
+            parentP.style.margin = '2px 0 0';
+            parentP.style.color = '#aaa';
+            parentP.innerText = item.parent || '';
+
+            div.appendChild(img);
+            div.appendChild(titleP);
+            div.appendChild(parentP);
+
+            div.onclick = () => {
+              const lib = item.lib || 'books';
+              const url = `./reader.html?lib=${encodeURIComponent(lib)}&Book=${encodeURIComponent(item.title)}`;
+              window.location.href = url;
+            };
+
+            grid.appendChild(div);
+          }
+
+          section.appendChild(grid);
+        }
+
+        container.appendChild(section);
+        if (typeof showHomeButton === 'function') showHomeButton();
+      }
+
+      // --- Helper: attach favorite star (mirroring original) ---
       function attachTileFavorite(tile, folderName) {
-        if (!tile || !folderName) return;
+        if (typeof window.attachSeasonFavoriteStar === 'function') {
+          window.attachSeasonFavoriteStar(tile, folderName);
+          return;
+        }
+
+        const readFavs = () => {
+          try {
+            if (typeof getStoredFavorites === 'function') {
+              const favs = getStoredFavorites();
+              return Array.isArray(favs) ? favs : [];
+            }
+            return JSON.parse(localStorage.getItem('favorites') || '[]');
+          } catch (e) {
+            return [];
+          }
+        };
 
         const starBtn = document.createElement('button');
-        starBtn.className = 'tile-fav-star';
         starBtn.type = 'button';
-        starBtn.title = 'Favorite';
+        starBtn.className = 'tile-fav-star';
+        starBtn.setAttribute('aria-label', `Favorite ${folderName}`);
+        starBtn.setAttribute('title', `Favorite ${folderName}`);
         starBtn.tabIndex = 0;
-        starBtn.setAttribute('aria-label', `Toggle favorite for ${folderName}`);
 
         const glyph = document.createElement('span');
         glyph.className = 'tile-fav-glyph';
+        glyph.style.pointerEvents = 'none';
         glyph.textContent = '☆';
         starBtn.appendChild(glyph);
 
         function refreshStarVisual() {
-          const favs = (typeof getStoredFavorites === 'function') ? getStoredFavorites() : [];
+          const favs = readFavs();
           const isFav = Array.isArray(favs) && favs.includes(folderName);
-
-          if (isFav) {
-            starBtn.classList.add('favorited');
-            glyph.textContent = '★';
-          } else {
-            starBtn.classList.remove('favorited');
-            glyph.textContent = '☆';
-          }
+          glyph.textContent = isFav ? '★' : '☆';
+          glyph.style.color = isFav ? '#ffcf33' : '#fff';
+          starBtn.classList.toggle('favorited', isFav);
         }
 
-        starBtn.addEventListener('click', function (e) {
-          e.stopPropagation(); // IMPORTANT: prevents tile open
-          toggleFavoriteByName(folderName);
+        function toggleFavorite() {
+          try {
+            if (typeof toggleFavoriteByName === 'function') {
+              toggleFavoriteByName(folderName);
+            } else {
+              const favs = readFavs();
+              const idx = favs.indexOf(folderName);
+              if (idx === -1) favs.push(folderName);
+              else favs.splice(idx, 1);
+              if (typeof setStoredFavorites === 'function') setStoredFavorites(favs);
+              else localStorage.setItem('favorites', JSON.stringify(favs));
+              if (typeof saveFavoritesToServer === 'function') {
+                try { saveFavoritesToServer(favs).catch(() => {}); } catch (e) {}
+              }
+            }
+          } catch (e) {
+            console.warn('favorite toggle failed', e);
+          }
           refreshStarVisual();
+          if (typeof updateFavoriteButtonUI === 'function') updateFavoriteButtonUI();
+        }
+
+        starBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          toggleFavorite();
         });
 
-        starBtn.addEventListener('keydown', function (e) {
+        starBtn.addEventListener('keydown', function(e) {
           if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 32) {
             e.preventDefault();
             e.stopPropagation();
             starBtn.click();
             return;
           }
-          e.stopPropagation();
         });
 
-        // Optional: keyboard shortcut when tile focused (press F)
-        tile.addEventListener('keydown', function (e) {
-          if (e.key === 'f' || e.key === 'F') {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleFavoriteByName(folderName);
-            refreshStarVisual();
-          }
-        });
+        starBtn.addEventListener('pointerdown', function(e) {
+          e.stopPropagation();
+        }, { passive: true });
 
         tile.style.position = tile.style.position || 'relative';
         tile.appendChild(starBtn);
         refreshStarVisual();
       }
 
-      // ---- The new filterTiles (overrides the original) ----
+      // --- Main filterTiles function ---
+      const DEEP_ALL_TOKEN = '---';
+
+      function debounce(fn, wait) {
+        let timer;
+        return function(...args) {
+          clearTimeout(timer);
+          timer = setTimeout(() => fn.apply(this, args), wait);
+        };
+      }
+
       const newFilterTiles = debounce(async function() {
-        // Inject the required CSS for the Send-to-TV button (once)
+        // Inject Send-to-TV CSS if missing
         if (!document.getElementById('sendtotv-inline-style')) {
           const style = document.createElement('style');
           style.id = 'sendtotv-inline-style';
@@ -609,9 +1163,20 @@
           document.head.appendChild(style);
         }
 
-        if (window._searchNavigateInProgress) {
-          return;
+        // --- ADD THIS: ensure star is visible when focused ---
+        if (!document.getElementById('fav-star-focus-style')) {
+          const focusStyle = document.createElement('style');
+          focusStyle.id = 'fav-star-focus-style';
+          focusStyle.textContent = `
+            .tile-fav-star:focus {
+              opacity: 1 !important;
+              pointer-events: auto !important;
+            }
+          `;
+          document.head.appendChild(focusStyle);
         }
+
+        if (window._searchNavigateInProgress) return;
 
         const input = document.getElementById('searchInput');
         if (!input) return;
@@ -619,9 +1184,6 @@
         const q = normKey(raw);
         const container = document.getElementById('folderContainer');
         if (!container) return;
-
-        // Clear container so we don't get stale results
-        container.innerHTML = '';
 
         if (!raw) {
           if (typeof loadMainFolders === 'function') {
@@ -632,25 +1194,44 @@
 
         const deepAll = raw === DEEP_ALL_TOKEN;
 
+        // Build all indices
         const mergedIndex = buildMergedIndex();
         const libraryIndex = buildLibraryIndex();
+        const gamesIndex = buildGamesIndex();
+        const musicIndex = buildMusicIndex();
 
         let mainMatches = [];
-        if (deepAll) {
-          mainMatches = mergedIndex;
-        } else if (q.length >= 2) {
-          mainMatches = mergedIndex.filter(item => normKey(item.title).includes(q));
-        } else if (q.length === 1) {
-          const exact = mergedIndex.find(item => normKey(item.title) === q);
-          mainMatches = exact ? [exact] : [];
-        }
-
         let libraryMatches = [];
-        if (q.length >= 2) {
-          libraryMatches = libraryIndex.filter(item => normKey(item.title).includes(q));
+        let gameMatches = [];
+        let musicMatches = [];
+
+        if (deepAll) {
+          // Deep search: include everything
+          mainMatches = mergedIndex;
+          libraryMatches = libraryIndex;
+          gameMatches = gamesIndex;
+          musicMatches = musicIndex;
+        } else {
+          // Normal search by query
+          if (q.length >= 2) {
+            mainMatches = mergedIndex.filter(item => normKey(item.title).includes(q));
+            libraryMatches = libraryIndex.filter(item => normKey(item.title).includes(q));
+            gameMatches = gamesIndex.filter(item => normKey(item.title).includes(q));
+            musicMatches = musicIndex.filter(item => normKey(item.title).includes(q) || normKey(item.artist).includes(q) || normKey(item.genre).includes(q));
+          } else if (q.length === 1) {
+            const exact = mergedIndex.find(item => normKey(item.title) === q);
+            mainMatches = exact ? [exact] : [];
+            libraryMatches = libraryIndex.filter(item => normKey(item.title) === q);
+            gameMatches = gamesIndex.filter(item => normKey(item.title) === q);
+            musicMatches = musicIndex.filter(item => normKey(item.title) === q || normKey(item.artist) === q || normKey(item.genre) === q);
+          } else {
+            return;
+          }
         }
 
-        if (mainMatches.length === 0 && libraryMatches.length === 0) {
+        container.innerHTML = '';
+
+        if (mainMatches.length === 0 && libraryMatches.length === 0 && gameMatches.length === 0 && musicMatches.length === 0) {
           const no = document.createElement('div');
           no.style.color = '#fff';
           no.style.textAlign = 'center';
@@ -660,289 +1241,48 @@
           return;
         }
 
-        const parentMap = new Map();
-        for (const item of mergedIndex) {
-          if (item.parent) {
-            const parentKey = item.parent;
-            if (!parentMap.has(parentKey)) parentMap.set(parentKey, []);
-            parentMap.get(parentKey).push(item.title);
-          }
-        }
-
-        const grid = document.createElement('div');
-        grid.style.display = 'flex';
-        grid.style.flexWrap = 'wrap';
-        grid.style.gap = '12px';
-        grid.style.justifyContent = 'center';
-
-        const episodesObj = (typeof episodes !== 'undefined') ? episodes : window.episodes;
-
-        for (const item of mainMatches) {
-          const div = document.createElement('div');
-          div.className = 'folder';
-          div.style.width = '150px';
-          div.style.position = 'relative';
-          div.style.overflow = 'visible';
-
-          // Use buildImageCandidates (which now uses folderOriginMap)
-          const candidates = window.buildImageCandidates(item.title, item.parent, episodesObj);
-
-          let idx = 0;
-          const img = document.createElement('img');
-          img.alt = item.title;
-          img.style.width = '150px';
-          img.style.height = '210px';
-          img.style.objectFit = 'cover';
-          img.style.borderRadius = '10px';
-          img.src = candidates[0] || './Images/placeholder.jpg';
-          img.onerror = function() {
-            idx++;
-            if (idx < candidates.length) {
-              this.src = candidates[idx];
-            } else {
-              this.onerror = null;
-            }
-          };
-
-          const titleP = document.createElement('p');
-          titleP.style.fontSize = '16px';
-          titleP.style.fontWeight = 'bold';
-          titleP.style.color = '#fff';
-          titleP.style.margin = '10px 0 0';
-          titleP.innerText = item.title;
-
-          div.appendChild(img);
-          div.appendChild(titleP);
-
-          if (item.parent) {
-            const parentP = document.createElement('p');
-            parentP.style.fontSize = '11px';
-            parentP.style.margin = '2px 0 0';
-            parentP.style.color = '#aaa';
-            parentP.innerText = item.parent;
-            div.appendChild(parentP);
-          }
-
-          const suppressFavoriteStar = (typeof window.isRootFavoriteSuppressedTile === 'function')
-            ? window.isRootFavoriteSuppressedTile(item.title)
-            : false;
-
-          let isFavoriteable = false;
-          if (!suppressFavoriteStar) {
-            if (episodesObj && episodesObj[item.title] && Array.isArray(episodesObj[item.title])) {
-              isFavoriteable = true;
-            } else if (window._specialFolderHandlers && typeof window._specialFolderHandlers[item.title] === 'function') {
-              isFavoriteable = true;
-            } else {
-              const base = (typeof toLoaderSafeBase === 'function')
-                ? toLoaderSafeBase(item.title)
-                : item.title.replace(/[^a-zA-Z0-9]+/g,' ').split(/\s+/).filter(Boolean).map(s => s.charAt(0).toUpperCase()+s.slice(1)).join('');
-              const candidates = [
-                `load${base}Seasons`,
-                `load${base}Season`,
-                `load${base}`,
-                `load${base}CollectionSeasons`,
-                `load${base}Movies`,
-                `load${base}Films`
-              ];
-              for (const n of candidates) {
-                if (typeof window[n] === 'function') { isFavoriteable = true; break; }
-              }
+        // --- Render main matches (folders, episodes, loaders) ---
+        if (mainMatches.length > 0) {
+          const parentMap = new Map();
+          for (const item of mergedIndex) {
+            if (item.parent) {
+              const parentKey = item.parent;
+              if (!parentMap.has(parentKey)) parentMap.set(parentKey, []);
+              parentMap.get(parentKey).push(item.title);
             }
           }
 
-          if (isFavoriteable && !suppressFavoriteStar) {
-            attachTileFavorite(div, item.title);
-          }
+          const grid = document.createElement('div');
+          grid.style.display = 'flex';
+          grid.style.flexWrap = 'wrap';
+          grid.style.gap = '12px';
+          grid.style.justifyContent = 'center';
 
-          const isRootWithSeasons = (window._rootNonFavoriteTileSet && window._rootNonFavoriteTileSet.has(item.title));
-          const hasChildren = parentMap.has(item.title) && parentMap.get(item.title).length > 0;
-          const isSpecialHandlerTile = !!(window._specialFolderHandlers && typeof window._specialFolderHandlers[item.title] === 'function');
-          const isMasterTile = (typeof window.isMasterTile === 'function') ? window.isMasterTile(item.title) : false;
+          const episodesObj = (typeof episodes !== 'undefined') ? episodes : window.episodes;
 
-          const showSendBtn = !isRootWithSeasons && !hasChildren && !isSpecialHandlerTile && !isMasterTile;
-
-          if (!showSendBtn) {
-            // Only make the tile itself focusable when it does NOT have a Send button
-            div.tabIndex = 0;
-            div.setAttribute('role', 'button');
-            div.setAttribute('aria-label', `Open ${item.title}`);
-            div.addEventListener('keydown', function(ev) {
-              // If the target is a child interactive element (Send button, star, etc.), let it handle the event.
-              if (ev.target.closest && ev.target.closest('.send-to-tv-btn, .tile-fav-star, button, a, input, textarea, select, [role="switch"]')) {
-                return;
-              }
-              if (ev.key === 'Enter' || ev.key === ' ') {
-                ev.preventDefault();
-                div.click();
-              }
-            });
-          }
-
-          if (showSendBtn) {
-            const sendBtn = document.createElement('button');
-            sendBtn.type = 'button';
-            sendBtn.className = 'send-to-tv-btn';
-            sendBtn.setAttribute('aria-label', `Send ${item.title} to TV`);
-            sendBtn.setAttribute('title', `Send ${item.title} to TV`);
-            sendBtn.tabIndex = 0;
-
-            const sendImg = document.createElement('img');
-            sendImg.alt = 'Send to TV';
-            sendImg.style.width = '28px';
-            sendImg.style.height = '28px';
-            sendImg.style.pointerEvents = 'none';
-            const iconCandidates = ['./Images/sendtotv.png', 'Images/sendtotv.png', '/Images/sendtotv.png'];
-            let tryIdx = 0;
-            sendImg.src = iconCandidates[tryIdx];
-            sendImg.onerror = function() {
-              tryIdx++;
-              if (tryIdx < iconCandidates.length) {
-                this.src = iconCandidates[tryIdx];
-              } else {
-                this.style.display = 'none';
-              }
-            };
-            sendBtn.appendChild(sendImg);
-
-            sendBtn.addEventListener('click', async function(ev) {
-              ev.stopPropagation();
-              try {
-                const ok = (window.SysNotify && window.SysNotify.confirm) ? await window.SysNotify.confirm(`Send "${item.title}" to TV?`, `Send to TV`) : true;
-                if (!ok) return;
-                currentFolder = item.title;
-                window.currentFolder = item.title;
-                if (typeof sendToTV === 'function') {
-                  const maybe = sendToTV();
-                  if (maybe && typeof maybe.then === 'function') await maybe;
-                }
-                const inputEl = document.getElementById('searchInput');
-                if (inputEl) {
-                  inputEl.value = '';
-                  try { window.filterTiles(); } catch(e) {}
-                }
-                // Return to home (or load main folders)
-                setTimeout(() => {
-                  try {
-                    if (typeof returnToHome === 'function') returnToHome();
-                    else if (typeof loadMainFolders === 'function') loadMainFolders();
-                  } catch(e) {}
-                }, 120);
-
-                // Focus the "Continue Watching" tile after the main folders load
-                setTimeout(() => {
-                  try {
-                    const container = document.getElementById('folderContainer');
-                    if (!container) return;
-                    let target = null;
-                    const tiles = Array.from(container.querySelectorAll('.folder'));
-                    for (const t of tiles) {
-                      const p = t.querySelector('p');
-                      if (p && p.innerText && p.innerText.trim() === 'Continue Watching') {
-                        target = t;
-                        break;
-                      }
-                    }
-                    if (!target) {
-                      target = tiles.find(t => {
-                        const style = window.getComputedStyle(t);
-                        return style && style.display !== 'none' && t.offsetParent !== null;
-                      }) || null;
-                    }
-                    if (target) {
-                      target.setAttribute('tabindex', '0');
-                      try { target.focus(); } catch(e){}
-                      const cleanup = () => {
-                        try { target.removeAttribute('tabindex'); } catch(e){}
-                        target.removeEventListener('blur', cleanup);
-                      };
-                      target.addEventListener('blur', cleanup);
-                    }
-                  } catch (e) {
-                    console.warn('focus Continue Watching failed in send action', e);
-                  }
-                }, 250);
-              } catch (e) {
-                console.error('send-to-tv click error', e);
-              }
-            });
-
-            sendBtn.addEventListener('keydown', function(ev) {
-              if (ev.key === 'Enter' || ev.key === ' ') {
-                ev.preventDefault();
-                ev.stopPropagation(); // prevents parent tile from also handling
-                sendBtn.click();
-              }
-            });
-
-            div.appendChild(sendBtn);
-          }
-
-          div.onclick = () => {
-            window._searchNavigateInProgress = true;
-            const input = document.getElementById('searchInput');
-            if (input) {
-              input.value = '';
-              input.blur();
-            }
-            try {
-              if (typeof window.openFolderByName === 'function') {
-                window.openFolderByName(item.title);
-              } else if (typeof loadEpisodes === 'function') {
-                loadEpisodes(item.title);
-              }
-            } catch(e) {
-              console.warn('Navigation error:', e);
-            }
-            setTimeout(() => {
-              window._searchNavigateInProgress = false;
-            }, 500);
-          };
-
-          grid.appendChild(div);
-        }
-
-        container.appendChild(grid);
-
-        if (libraryMatches.length > 0) {
-          const section = document.createElement('div');
-          section.style.width = '100%';
-          section.style.marginTop = '18px';
-          section.style.paddingTop = '8px';
-          section.style.borderTop = '1px solid rgba(255,255,255,0.06)';
-
-          const header = document.createElement('div');
-          header.style.color = '#fff';
-          header.style.fontSize = '14px';
-          header.style.margin = '8px 12px';
-          header.innerText = `Library matches for "${raw}"`;
-          section.appendChild(header);
-
-          const libGrid = document.createElement('div');
-          libGrid.style.display = 'flex';
-          libGrid.style.flexWrap = 'wrap';
-          libGrid.style.gap = '12px';
-          libGrid.style.justifyContent = 'center';
-
-          for (const item of libraryMatches) {
+          for (const item of mainMatches) {
             const div = document.createElement('div');
             div.className = 'folder';
             div.style.width = '150px';
-            div.style.cursor = 'pointer';
-            div.style.textAlign = 'center';
-            div.style.color = '#fff';
+            div.style.position = 'relative';
+            div.style.overflow = 'visible';
 
+            const candidates = window.buildImageCandidates(item.title, item.parent, episodesObj);
+            let idx = 0;
             const img = document.createElement('img');
-            const coverPath = item.cover || `./Images/${encodeURIComponent(item.title)}.jpg`;
-            img.src = coverPath;
             img.alt = item.title;
             img.style.width = '150px';
             img.style.height = '210px';
             img.style.objectFit = 'cover';
             img.style.borderRadius = '10px';
+            img.src = candidates[0] || './Images/placeholder.jpg';
             img.onerror = function() {
-              this.onerror = null;
-              this.src = './Images/placeholder.jpg';
+              idx++;
+              if (idx < candidates.length) {
+                this.src = candidates[idx];
+              } else {
+                this.onerror = null;
+              }
             };
 
             const titleP = document.createElement('p');
@@ -952,27 +1292,186 @@
             titleP.style.margin = '10px 0 0';
             titleP.innerText = item.title;
 
-            const parentP = document.createElement('p');
-            parentP.style.fontSize = '11px';
-            parentP.style.margin = '2px 0 0';
-            parentP.style.color = '#aaa';
-            parentP.innerText = item.parent || 'Library';
-
             div.appendChild(img);
             div.appendChild(titleP);
-            div.appendChild(parentP);
+
+            if (item.parent) {
+              const parentP = document.createElement('p');
+              parentP.style.fontSize = '11px';
+              parentP.style.margin = '2px 0 0';
+              parentP.style.color = '#aaa';
+              parentP.innerText = item.parent;
+              div.appendChild(parentP);
+            }
+
+            // --- STAR ATTACHMENT: unconditional (like original) ---
+            const suppressFavoriteStar = (typeof window.isRootFavoriteSuppressedTile === 'function')
+              ? window.isRootFavoriteSuppressedTile(item.title)
+              : false;
+
+            const parentLower = (item.parent || '').toLowerCase();
+            const isMusicOrGame = parentLower === 'music' || parentLower === 'games';
+
+            if (!suppressFavoriteStar && !isMusicOrGame) {
+              attachTileFavorite(div, item.title);
+            }
+
+            const isRootWithSeasons = (window._rootNonFavoriteTileSet && window._rootNonFavoriteTileSet.has(item.title));
+            const hasChildren = parentMap.has(item.title) && parentMap.get(item.title).length > 0;
+            const isSpecialHandlerTile = !!(window._specialFolderHandlers && typeof window._specialFolderHandlers[item.title] === 'function');
+            const isMasterTile = (typeof window.isMasterTile === 'function') ? window.isMasterTile(item.title) : false;
+
+            const showSendBtn = !isRootWithSeasons && !hasChildren && !isSpecialHandlerTile && !isMasterTile;
+
+            if (!showSendBtn) {
+              div.tabIndex = 0;
+              div.setAttribute('role', 'button');
+              div.setAttribute('aria-label', `Open ${item.title}`);
+              div.addEventListener('keydown', function(ev) {
+                if (ev.target.closest && ev.target.closest('.send-to-tv-btn, .tile-fav-star, button, a, input, textarea, select, [role="switch"]')) return;
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault();
+                  div.click();
+                }
+              });
+            }
+
+            if (showSendBtn) {
+              const sendBtn = document.createElement('button');
+              sendBtn.type = 'button';
+              sendBtn.className = 'send-to-tv-btn';
+              sendBtn.setAttribute('aria-label', `Send ${item.title} to TV`);
+              sendBtn.setAttribute('title', `Send ${item.title} to TV`);
+              sendBtn.tabIndex = 0;
+
+              const sendImg = document.createElement('img');
+              sendImg.alt = 'Send to TV';
+              sendImg.style.width = '28px';
+              sendImg.style.height = '28px';
+              sendImg.style.pointerEvents = 'none';
+              const iconCandidates = ['./Images/sendtotv.png', 'Images/sendtotv.png', '/Images/sendtotv.png'];
+              let tryIdx = 0;
+              sendImg.src = iconCandidates[tryIdx];
+              sendImg.onerror = function() {
+                tryIdx++;
+                if (tryIdx < iconCandidates.length) {
+                  this.src = iconCandidates[tryIdx];
+                } else {
+                  this.style.display = 'none';
+                }
+              };
+              sendBtn.appendChild(sendImg);
+
+              sendBtn.addEventListener('click', async function(ev) {
+                ev.stopPropagation();
+                try {
+                  const ok = (window.SysNotify && window.SysNotify.confirm) ? await window.SysNotify.confirm(`Send "${item.title}" to TV?`, `Send to TV`) : true;
+                  if (!ok) return;
+                  currentFolder = item.title;
+                  window.currentFolder = item.title;
+                  if (typeof sendToTV === 'function') {
+                    const maybe = sendToTV();
+                    if (maybe && typeof maybe.then === 'function') await maybe;
+                  }
+                  const inputEl = document.getElementById('searchInput');
+                  if (inputEl) {
+                    inputEl.value = '';
+                    try { window.filterTiles(); } catch(e) {}
+                  }
+                  setTimeout(() => {
+                    try {
+                      if (typeof returnToHome === 'function') returnToHome();
+                      else if (typeof loadMainFolders === 'function') loadMainFolders();
+                    } catch(e) {}
+                  }, 120);
+                  setTimeout(() => {
+                    try {
+                      const container = document.getElementById('folderContainer');
+                      if (!container) return;
+                      let target = null;
+                      const tiles = Array.from(container.querySelectorAll('.folder'));
+                      for (const t of tiles) {
+                        const p = t.querySelector('p');
+                        if (p && p.innerText && p.innerText.trim() === 'Continue Watching') {
+                          target = t;
+                          break;
+                        }
+                      }
+                      if (!target) {
+                        target = tiles.find(t => {
+                          const style = window.getComputedStyle(t);
+                          return style && style.display !== 'none' && t.offsetParent !== null;
+                        }) || null;
+                      }
+                      if (target) {
+                        target.setAttribute('tabindex', '0');
+                        try { target.focus(); } catch(e){}
+                        const cleanup = () => {
+                          try { target.removeAttribute('tabindex'); } catch(e){}
+                          target.removeEventListener('blur', cleanup);
+                        };
+                        target.addEventListener('blur', cleanup);
+                      }
+                    } catch (e) {
+                      console.warn('focus Continue Watching failed in send action', e);
+                    }
+                  }, 250);
+                } catch (e) {
+                  console.error('send-to-tv click error', e);
+                }
+              });
+
+              sendBtn.addEventListener('keydown', function(ev) {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  sendBtn.click();
+                }
+              });
+
+              div.appendChild(sendBtn);
+            }
 
             div.onclick = () => {
-              const lib = item.lib || 'books';
-              const url = `./reader.html?lib=${encodeURIComponent(lib)}&Book=${encodeURIComponent(item.title)}`;
-              window.location.href = url;
+              window._searchNavigateInProgress = true;
+              const input = document.getElementById('searchInput');
+              if (input) {
+                input.value = '';
+                input.blur();
+              }
+              try {
+                if (typeof window.openFolderByName === 'function') {
+                  window.openFolderByName(item.title);
+                } else if (typeof loadEpisodes === 'function') {
+                  loadEpisodes(item.title);
+                }
+              } catch(e) {
+                console.warn('Navigation error:', e);
+              }
+              setTimeout(() => {
+                window._searchNavigateInProgress = false;
+              }, 500);
             };
 
-            libGrid.appendChild(div);
+            grid.appendChild(div);
           }
 
-          section.appendChild(libGrid);
-          container.appendChild(section);
+          container.appendChild(grid);
+        }
+
+        // --- Render library (books, manga, guidebooks) matches ---
+        if (libraryMatches.length > 0) {
+          renderLibraryMatches(libraryMatches, raw);
+        }
+
+        // --- Render game matches ---
+        if (gameMatches.length > 0) {
+          renderGameMatches(gameMatches, raw);
+        }
+
+        // --- Render music matches ---
+        if (musicMatches.length > 0) {
+          renderMusicMatches(musicMatches, raw);
         }
 
         if (typeof showHomeButton === 'function') {
@@ -980,13 +1479,11 @@
         }
       }, 120);
 
-      // Replace the global filterTiles
+      // --- Install the new filterTiles ---
       window.filterTiles = newFilterTiles;
 
-      // Also attach the new listener to the search input
       const inputEl = document.getElementById('searchInput');
       if (inputEl) {
-        // Remove any previous listeners to avoid duplicates
         const oldFilterTiles = window.filterTiles;
         if (oldFilterTiles && typeof oldFilterTiles === 'function') {
           try {
@@ -994,7 +1491,6 @@
             console.log('[loadexpanded] Removed old filterTiles listener.');
           } catch (e) {}
         }
-
         window.filterTiles = newFilterTiles;
         inputEl.oninput = newFilterTiles;
         try {
@@ -1003,6 +1499,9 @@
         console.log('[loadexpanded] Attached new filterTiles listener.');
       }
 
+      // ------------------------------------------------------------
+      // Final log
+      // ------------------------------------------------------------
       let targetEpisodes;
       try {
         targetEpisodes = eval('episodes');
@@ -1016,7 +1515,7 @@
         }
       }
 
-      console.log('[loadexpanded] Merge completed.');
+      console.log('[loadexpanded] Merge completed. Search now includes games, music, books, manga, guidebooks.');
       resolve();
     } catch (e) {
       console.error('[loadexpanded] Merge failed:', e);
