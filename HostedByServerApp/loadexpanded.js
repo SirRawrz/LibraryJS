@@ -1,4 +1,4 @@
-// loadexpanded.js – Full data merge + search override with unconditional star attachment
+// loadexpanded.js – Full data merge + search override with fixed image fallbacks
 (function() {
   window.__loadexpandedPromise = new Promise(async (resolve) => {
     try {
@@ -28,26 +28,27 @@
 
       // ------------------------------------------------------------
       // Helper: extract folders array from mainfolders.js text
+      // Now returns { names: string[], adultSet: Set<string> }
       // ------------------------------------------------------------
       function extractFoldersFromJs(text) {
         const arrMatch = /(?:const|let|var)?\s*folders\s*=\s*\[([\s\S]*?)\]/m.exec(text);
-        if (!arrMatch) {
-          console.warn('[loadexpanded] Could not find folders array in remote mainfolders.js');
-          return [];
-        }
+        if (!arrMatch) return { names: [], adultSet: new Set() };
         let content = arrMatch[1];
         content = content.replace(/\/\*[\s\S]*?\*\//g, '');
         content = content.replace(/(^|\n)\s*\/\/.*$/gm, '');
         const re = /(['"])(.*?)\1/g;
-        const out = [];
+        const names = [];
+        const adultSet = new Set();
         let m;
         while ((m = re.exec(content)) !== null) {
           let rawName = (m[2] || '').trim();
           if (!rawName) continue;
+          const hasStar = rawName.includes('*');
           const cleanName = rawName.replace(/\*/g, '').trim();
-          out.push(cleanName);
+          names.push(cleanName);
+          if (hasStar) adultSet.add(cleanName);
         }
-        return out;
+        return { names, adultSet };
       }
 
       // ------------------------------------------------------------
@@ -222,9 +223,12 @@
       console.log('[loadexpanded] Fetching remote mainfolders.js...');
       const mfRes = await fetch(`${baseUrl}/mainfolders.js`, { cache: 'no-store' });
       let remoteFolders = [];
+      let remoteAdultSet = new Set();
       if (mfRes.ok) {
         const mfText = await mfRes.text();
-        remoteFolders = extractFoldersFromJs(mfText);
+        const parsed = extractFoldersFromJs(mfText);
+        remoteFolders = parsed.names;
+        remoteAdultSet = parsed.adultSet;
         console.log(`[loadexpanded] Remote folders (${port}):`, remoteFolders);
 
         if (typeof folders === 'undefined' || !Array.isArray(folders)) {
@@ -241,6 +245,18 @@
 
         // Record origin for each remote folder
         remoteFolders.forEach(f => addFolderOrigin(f));
+
+        // ---- Apply Kids Mode filtering to the merged folders ----
+        if (typeof window.isKidsModeActive === 'function' && window.isKidsModeActive()) {
+          const allAdult = new Set(window.__adultFolderNames || []);
+          for (const name of remoteAdultSet) allAdult.add(name);
+          for (let i = folders.length - 1; i >= 0; i--) {
+            if (allAdult.has(folders[i])) {
+              folders.splice(i, 1);
+            }
+          }
+          window.__adultFolderNames = Array.from(allAdult);
+        }
       } else {
         console.warn('[loadexpanded] Failed to fetch remote mainfolders.js, status:', mfRes.status);
       }
@@ -259,6 +275,28 @@
           const transformed = prependBaseToPaths(remoteEpisodes, baseUrl);
           remoteEpisodesCache = JSON.parse(JSON.stringify(transformed));
 
+          function normalizeSeasonsArray(arr) {
+            if (!Array.isArray(arr)) return arr;
+            const kidsMode = (typeof window.isKidsModeActive === 'function') ? window.isKidsModeActive() : false;
+            if (!kidsMode) return arr;
+            return arr.filter(item => typeof item === 'string' && !item.includes('*'));
+          }
+
+          const adultSet = new Set(window.__adultFolderNames || []);
+          const filteredEpisodes = {};
+          for (const key in transformed) {
+            if (adultSet.has(key)) continue;
+            const seasons = transformed[key];
+            if (Array.isArray(seasons)) {
+              const filtered = normalizeSeasonsArray(seasons);
+              if (filtered.length > 0) {
+                filteredEpisodes[key] = filtered;
+              }
+            } else {
+              filteredEpisodes[key] = seasons;
+            }
+          }
+
           let targetEpisodes;
           try {
             targetEpisodes = eval('episodes');
@@ -267,29 +305,25 @@
           }
           if (typeof targetEpisodes === 'object' && targetEpisodes !== null) {
             let added = 0;
-            for (const key in transformed) {
+            for (const key in filteredEpisodes) {
               if (!(key in targetEpisodes)) {
-                targetEpisodes[key] = transformed[key];
-                // Record origin for this episode key (folder)
+                targetEpisodes[key] = filteredEpisodes[key];
                 addFolderOrigin(key);
                 added++;
               }
             }
-            console.log(`[loadexpanded] Added ${added} new episode entries to global episodes (paths transformed).`);
-            if (added > 0) {
-              console.log(`[loadexpanded] New episodes: ${Object.keys(transformed).join(', ')}`);
-            }
+            console.log(`[loadexpanded] Added ${added} new episode entries to global episodes (paths transformed, filtered).`);
           } else {
             if (!window.episodes) window.episodes = {};
             let added = 0;
-            for (const key in transformed) {
+            for (const key in filteredEpisodes) {
               if (!(key in window.episodes)) {
-                window.episodes[key] = transformed[key];
+                window.episodes[key] = filteredEpisodes[key];
                 addFolderOrigin(key);
                 added++;
               }
             }
-            console.log(`[loadexpanded] Added ${added} new episode entries to window.episodes (paths transformed).`);
+            console.log(`[loadexpanded] Added ${added} new episode entries to window.episodes (paths transformed, filtered).`);
           }
 
           // Merge other globals (libraryData, books, manga, guidebooks)
@@ -527,7 +561,7 @@
       // ------------------------------------------------------------
       // 12. Override search (filterTiles) with full support and UNCONDITIONAL star attachment
       // ------------------------------------------------------------
-      console.log('[loadexpanded] Overriding search (filterTiles) with full support for games, music, books, manga, guidebooks...');
+      console.log('[loadexpanded] Overriding search (filterTiles) with fixed image fallbacks...');
 
       // --- Helper functions (mirroring original search) ---
 
@@ -602,7 +636,6 @@
 
       function buildLibraryIndex() {
         const items = [];
-        // libraryData
         if (window.libraryData && Array.isArray(window.libraryData.items)) {
           for (const item of window.libraryData.items) {
             if (item && item.title) {
@@ -610,7 +643,6 @@
             }
           }
         }
-        // books, manga, guidebooks
         const libGlobals = { books: 'Books', manga: 'Manga', guidebooks: 'Guidebooks' };
         for (const [globalKey, category] of Object.entries(libGlobals)) {
           if (Array.isArray(window[globalKey])) {
@@ -694,7 +726,7 @@
         return items;
       }
 
-      // --- Render functions (copied from original index.html) ---
+      // --- Render functions (FIXED: now use folderOriginMap for remote fallback) ---
 
       function renderGameMatches(matches, rawQuery) {
         const container = document.getElementById('folderContainer');
@@ -724,6 +756,11 @@
         grid.style.justifyContent = 'center';
         grid.style.padding = '6px 12px';
 
+        // Helper: get the origin for "Games" folder if set
+        const gamesOrigin = (window.folderOriginMap && window.folderOriginMap['Games'])
+          ? (window.folderOriginMap['Games'].endsWith('/') ? window.folderOriginMap['Games'] : window.folderOriginMap['Games'] + '/')
+          : null;
+
         matches.forEach(m => {
           const isMultiDisk = m && m.specialSet === 'multidisk' && Array.isArray(m.disks) && m.disks.length > 0;
           const card = document.createElement('div');
@@ -742,7 +779,6 @@
           rootTile.style.width = '170px';
 
           const rootImg = document.createElement('img');
-          rootImg.src = m.img || '';
           rootImg.alt = m.title || m.name || '';
           rootImg.style.width = '150px';
           rootImg.style.height = '210px';
@@ -750,7 +786,29 @@
           rootImg.style.borderRadius = '10px';
           rootImg.style.display = 'block';
           rootImg.style.margin = '0 auto';
-          rootImg.onerror = function() { this.onerror = null; this.src = './Images/placeholder.jpg'; };
+
+          // Build candidate list: local img, then remote equivalent if origin exists, then placeholder
+          const candidates = [];
+          if (m.img) {
+            candidates.push(m.img); // local first (may be relative or absolute)
+            // If we have a "Games" origin, try the same path there
+            if (gamesOrigin && !/^https?:\/\//i.test(m.img)) {
+              const clean = m.img.replace(/^\.?\//, '');
+              candidates.push(gamesOrigin + clean);
+            }
+          }
+          candidates.push('./Images/placeholder.jpg');
+
+          let idx = 0;
+          rootImg.src = candidates[0];
+          rootImg.onerror = function() {
+            idx++;
+            if (idx < candidates.length) {
+              this.src = candidates[idx];
+            } else {
+              this.onerror = null;
+            }
+          };
 
           const rootTitle = document.createElement('p');
           rootTitle.style.fontSize = '13px';
@@ -791,14 +849,34 @@
               diskTile.style.color = '#fff';
 
               const diskImg = document.createElement('img');
-              diskImg.src = disk.img || m.img || '';
               diskImg.alt = `${m.title || m.name || 'Game'} - Disk ${disk.disk}`;
               diskImg.style.width = '48px';
               diskImg.style.height = '68px';
               diskImg.style.objectFit = 'cover';
               diskImg.style.borderRadius = '6px';
               diskImg.style.display = 'block';
-              diskImg.onerror = function() { this.onerror = null; this.src = './Images/placeholder.jpg'; };
+
+              // Same fallback logic for disk images
+              const diskCandidates = [];
+              if (disk.img) {
+                diskCandidates.push(disk.img);
+                if (gamesOrigin && !/^https?:\/\//i.test(disk.img)) {
+                  const clean = disk.img.replace(/^\.?\//, '');
+                  diskCandidates.push(gamesOrigin + clean);
+                }
+              }
+              diskCandidates.push('./Images/placeholder.jpg');
+
+              let diskIdx = 0;
+              diskImg.src = diskCandidates[0];
+              diskImg.onerror = function() {
+                diskIdx++;
+                if (diskIdx < diskCandidates.length) {
+                  this.src = diskCandidates[diskIdx];
+                } else {
+                  this.onerror = null;
+                }
+              };
 
               const diskLabel = document.createElement('div');
               diskLabel.textContent = `D${disk.disk}`;
@@ -858,6 +936,11 @@
         grid.style.justifyContent = 'center';
         grid.style.padding = '6px 12px';
 
+        // Get the origin for the "Music" folder if set
+        const musicOrigin = (window.folderOriginMap && window.folderOriginMap['Music'])
+          ? (window.folderOriginMap['Music'].endsWith('/') ? window.folderOriginMap['Music'] : window.folderOriginMap['Music'] + '/')
+          : null;
+
         matches.forEach(m => {
           const div = document.createElement('div');
           div.className = 'folder';
@@ -870,12 +953,36 @@
 
           const artistSafe = (m.artist || '').trim();
           const candidates = [];
+
+          // Local artist‑based images first
           if (artistSafe) {
             candidates.push(`./Music/Images/${artistSafe}.jpg`);
             candidates.push(`Music/Images/${artistSafe}.jpg`);
             candidates.push(`./Music/Images/${artistSafe}.png`);
           }
-          candidates.push('./Images/placeholder.jpg');
+
+          // Remote artist‑based images if Music origin exists
+          if (musicOrigin && artistSafe) {
+            candidates.push(`${musicOrigin}Music/Images/${artistSafe}.jpg`);
+            candidates.push(`${musicOrigin}Music/Images/${artistSafe}.png`);
+          }
+
+          // Use buildImageCandidates for "Music" as a broader fallback (it includes e.g. ./Music/Music.jpg etc.)
+          if (typeof window.buildImageCandidates === 'function') {
+            const musicCandidates = window.buildImageCandidates('Music', null, window.episodes || {});
+            for (const url of musicCandidates) {
+              if (!candidates.includes(url)) candidates.push(url);
+            }
+          } else {
+            // Fallback if buildImageCandidates missing
+            candidates.push('./Music/Music.jpg');
+            candidates.push('./Images/placeholder.jpg');
+          }
+
+          // Ensure placeholder is always last
+          if (!candidates.includes('./Images/placeholder.jpg')) {
+            candidates.push('./Images/placeholder.jpg');
+          }
 
           let idx = 0;
           const imgEl = document.createElement('img');
@@ -978,6 +1085,11 @@
           grid.style.justifyContent = 'center';
           grid.style.padding = '6px 12px';
 
+          // Get origin for this category if available (Books, Manga, etc.)
+          const categoryOrigin = (window.folderOriginMap && window.folderOriginMap[category])
+            ? (window.folderOriginMap[category].endsWith('/') ? window.folderOriginMap[category] : window.folderOriginMap[category] + '/')
+            : null;
+
           for (const item of items) {
             const div = document.createElement('div');
             div.className = 'folder';
@@ -990,13 +1102,30 @@
 
             const coverPath = item.cover || `./Images/${encodeURIComponent(item.title)}.jpg`;
             const img = document.createElement('img');
-            img.src = coverPath;
             img.alt = item.title;
             img.style.width = '150px';
             img.style.height = '210px';
             img.style.objectFit = 'cover';
             img.style.borderRadius = '10px';
-            img.onerror = function() { this.onerror = null; this.src = './Images/placeholder.jpg'; };
+
+            // Candidates: local cover, then remote equivalent (if category origin exists), then placeholder
+            const candidates = [coverPath];
+            if (categoryOrigin && !/^https?:\/\//i.test(coverPath)) {
+              const clean = coverPath.replace(/^\.?\//, '');
+              candidates.push(categoryOrigin + clean);
+            }
+            candidates.push('./Images/placeholder.jpg');
+
+            let idx = 0;
+            img.src = candidates[0];
+            img.onerror = function() {
+              idx++;
+              if (idx < candidates.length) {
+                this.src = candidates[idx];
+              } else {
+                this.onerror = null;
+              }
+            };
 
             const titleP = document.createElement('p');
             titleP.style.fontSize = '16px';
@@ -1163,7 +1292,7 @@
           document.head.appendChild(style);
         }
 
-        // --- ADD THIS: ensure star is visible when focused ---
+        // ensure star is visible when focused
         if (!document.getElementById('fav-star-focus-style')) {
           const focusStyle = document.createElement('style');
           focusStyle.id = 'fav-star-focus-style';
@@ -1206,13 +1335,11 @@
         let musicMatches = [];
 
         if (deepAll) {
-          // Deep search: include everything
           mainMatches = mergedIndex;
           libraryMatches = libraryIndex;
           gameMatches = gamesIndex;
           musicMatches = musicIndex;
         } else {
-          // Normal search by query
           if (q.length >= 2) {
             mainMatches = mergedIndex.filter(item => normKey(item.title).includes(q));
             libraryMatches = libraryIndex.filter(item => normKey(item.title).includes(q));
@@ -1267,6 +1394,7 @@
             div.style.position = 'relative';
             div.style.overflow = 'visible';
 
+            // Uses buildImageCandidates – already correct
             const candidates = window.buildImageCandidates(item.title, item.parent, episodesObj);
             let idx = 0;
             const img = document.createElement('img');
@@ -1304,7 +1432,7 @@
               div.appendChild(parentP);
             }
 
-            // --- STAR ATTACHMENT: unconditional (like original) ---
+            // Star attachment
             const suppressFavoriteStar = (typeof window.isRootFavoriteSuppressedTile === 'function')
               ? window.isRootFavoriteSuppressedTile(item.title)
               : false;
@@ -1515,7 +1643,7 @@
         }
       }
 
-      console.log('[loadexpanded] Merge completed. Search now includes games, music, books, manga, guidebooks.');
+      console.log('[loadexpanded] Merge completed. Search now includes games, music, books, manga, guidebooks with proper image fallbacks.');
       resolve();
     } catch (e) {
       console.error('[loadexpanded] Merge failed:', e);

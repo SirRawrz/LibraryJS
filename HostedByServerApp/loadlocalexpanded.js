@@ -4,21 +4,25 @@
   window.__loadlocalexpandedDone = true;
 
   // Helper: extract folders array from mainfolders.js text
+  // Now returns { names: string[], adultSet: Set<string> }
   function extractFoldersFromJs(text) {
     const arrMatch = /(?:const|let|var)?\s*folders\s*=\s*\[([\s\S]*?)\]/m.exec(text);
-    if (!arrMatch) return [];
+    if (!arrMatch) return { names: [], adultSet: new Set() };
     let content = arrMatch[1];
     content = content.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\n)\s*\/\/.*$/gm, '');
     const re = /(['"])(.*?)\1/g;
-    const out = [];
+    const names = [];
+    const adultSet = new Set();
     let m;
     while ((m = re.exec(content)) !== null) {
       let rawName = (m[2] || '').trim();
       if (!rawName) continue;
+      const hasStar = rawName.includes('*');
       const cleanName = rawName.replace(/\*/g, '').trim();
-      out.push(cleanName);
+      names.push(cleanName);
+      if (hasStar) adultSet.add(cleanName);
     }
-    return out;
+    return { names, adultSet };
   }
 
   // Helper: prepend baseUrl to relative paths
@@ -182,7 +186,9 @@
       console.warn(`[loadlocalexpanded] Failed to fetch mainfolders.js from ${baseUrl}`);
       return false;
     }
-    const remoteFolders = extractFoldersFromJs(mfRes.text);
+    const parsed = extractFoldersFromJs(mfRes.text);
+    const remoteFolders = parsed.names;
+    const remoteAdultSet = parsed.adultSet;
     console.log(`[loadlocalexpanded] Remote folders from ${baseUrl}:`, remoteFolders);
 
     if (typeof folders !== 'undefined' && Array.isArray(folders)) {
@@ -191,6 +197,18 @@
       console.log(`[loadlocalexpanded] Merged folders with ${baseUrl}: local ${localFolders.length}, remote ${remoteFolders.length}, total ${merged.length}`);
       folders.length = 0;
       folders.push(...merged);
+
+      // ---- Apply Kids Mode filtering to the merged folders ----
+      if (typeof window.isKidsModeActive === 'function' && window.isKidsModeActive()) {
+        const allAdult = new Set(window.__adultFolderNames || []);
+        for (const name of remoteAdultSet) allAdult.add(name);
+        for (let i = folders.length - 1; i >= 0; i--) {
+          if (allAdult.has(folders[i])) {
+            folders.splice(i, 1);
+          }
+        }
+        window.__adultFolderNames = Array.from(allAdult);
+      }
     } else {
       console.warn('[loadlocalexpanded] Global `folders` not found; creating it.');
       window.folders = remoteFolders.slice();
@@ -207,6 +225,30 @@
         const transformed = prependBaseToPaths(remoteEpisodes, baseUrl);
         remoteEpisodesCache = transformed;
 
+        // ---- Helper to filter season arrays for Kids Mode ----
+        function normalizeSeasonsArray(arr) {
+          if (!Array.isArray(arr)) return arr;
+          const kidsMode = (typeof window.isKidsModeActive === 'function') ? window.isKidsModeActive() : false;
+          if (!kidsMode) return arr;
+          return arr.filter(item => typeof item === 'string' && !item.includes('*'));
+        }
+
+        // ---- Apply filtering to episodes ----
+        const adultSet = new Set(window.__adultFolderNames || []);
+        const filteredEpisodes = {};
+        for (const key in transformed) {
+          if (adultSet.has(key)) continue;
+          const seasons = transformed[key];
+          if (Array.isArray(seasons)) {
+            const filtered = normalizeSeasonsArray(seasons);
+            if (filtered.length > 0) {
+              filteredEpisodes[key] = filtered;
+            }
+          } else {
+            filteredEpisodes[key] = seasons;
+          }
+        }
+
         let targetEpisodes;
         try {
           targetEpisodes = eval('episodes');
@@ -215,25 +257,25 @@
         }
         if (typeof targetEpisodes === 'object' && targetEpisodes !== null) {
           let added = 0;
-          for (const key in transformed) {
+          for (const key in filteredEpisodes) {
             if (!(key in targetEpisodes)) {
-              targetEpisodes[key] = transformed[key];
+              targetEpisodes[key] = filteredEpisodes[key];
               addFolderOrigin(key, baseUrl);
               added++;
             }
           }
-          console.log(`[loadlocalexpanded] Added ${added} new episode entries from ${baseUrl}.`);
+          console.log(`[loadlocalexpanded] Added ${added} new episode entries (filtered) from ${baseUrl}.`);
         } else {
           if (!window.episodes) window.episodes = {};
           let added = 0;
-          for (const key in transformed) {
+          for (const key in filteredEpisodes) {
             if (!(key in window.episodes)) {
-              window.episodes[key] = transformed[key];
+              window.episodes[key] = filteredEpisodes[key];
               addFolderOrigin(key, baseUrl);
               added++;
             }
           }
-          console.log(`[loadlocalexpanded] Added ${added} new episode entries to window.episodes from ${baseUrl}.`);
+          console.log(`[loadlocalexpanded] Added ${added} new episode entries (filtered) to window.episodes from ${baseUrl}.`);
         }
 
         // Merge other globals
