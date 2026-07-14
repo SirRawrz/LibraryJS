@@ -1,5 +1,6 @@
 // loadexpanded.js – ALWAYS provides enhanced search (sub‑seasons, root detection, games, music, books)
 // plus optional merging of a remote server if expandedstorage.txt contains a port.
+// Also includes click‑outside and double‑tap to clear the search input.
 
 (function() {
   window.__loadexpandedPromise = new Promise(async (resolve) => {
@@ -1068,6 +1069,81 @@
       } catch (e) {}
       console.log('[loadexpanded] Enhanced filterTiles installed.');
     }
+
+    // ---- Add click‑outside to clear search ----
+    document.addEventListener('click', function(ev) {
+      const input = document.getElementById('searchInput');
+      const results = document.getElementById('folderContainer');
+      if (!input || !results) return;
+      const clickedInsideInput = input.contains(ev.target) || ev.target === input;
+      const clickedInsideResults = results.contains(ev.target);
+      if (!clickedInsideInput && !clickedInsideResults) {
+        if (input.value.trim().length > 0) {
+          input.value = '';
+          window.filterTiles();
+        }
+      }
+    });
+
+    // ---- Add double‑tap/double‑click to clear search (mirrors original) ----
+    (function enableDoubleTapToCloseSearch() {
+      const input = () => document.getElementById('searchInput');
+      const container = () => document.getElementById('folderContainer');
+      if (!container() || !input()) return;
+
+      let lastTap = 0;
+      const DOUBLE_TAP_MS = 300;
+
+      function isTapOnEmptySpace(eventTarget, x, y) {
+        let el = null;
+        try {
+          if (typeof x === 'number' && typeof y === 'number') {
+            el = document.elementFromPoint(x, y);
+          }
+        } catch (e) { el = null; }
+        el = el || eventTarget;
+
+        if (!el) return true;
+        if (el.closest && el.closest('.folder')) return false;
+        if (el === input()) return false;
+        if (el.closest && el.closest('.qr-buttons-container')) return false;
+        return true;
+      }
+
+      container().addEventListener('touchend', function(e) {
+        if (!e.changedTouches || e.changedTouches.length === 0) return;
+        const t = e.changedTouches[0];
+        const now = Date.now();
+
+        if (!isTapOnEmptySpace(e.target, t.clientX, t.clientY)) {
+          lastTap = now;
+          return;
+        }
+
+        if (now - lastTap <= DOUBLE_TAP_MS) {
+          const s = input();
+          if (s && s.value.trim().length > 0) {
+            s.value = '';
+            try { window.filterTiles && window.filterTiles(); } catch(_) {}
+            s.blur();
+          }
+          lastTap = 0;
+          e.preventDefault && e.preventDefault();
+        } else {
+          lastTap = now;
+        }
+      }, { passive: true });
+
+      container().addEventListener('dblclick', function(e) {
+        if (!isTapOnEmptySpace(e.target)) return;
+        const s = input();
+        if (s && s.value.trim().length > 0) {
+          s.value = '';
+          try { window.filterTiles && window.filterTiles(); } catch(_) {}
+          s.blur();
+        }
+      });
+    })();
 
     // ================================================================
     // 2. OPTIONAL: Merge remote server if expandedstorage.txt exists
