@@ -2656,23 +2656,15 @@ async function getSeasonLoaderTitleMap() {
   return SEASON_LOADER_TITLE_CACHE.promise;
 }
 
-function decodeLoaderNameToDisplayName(fnName) {
-  const raw = String(fnName || '').trim();
-
-  const cleaned = raw
-    .replace(/^load/i, '')
-    .replace(/Seasons$/i, '');
-
-  return cleaned
-    .replace(/ApOsTrOpHe/g, "'")
-    .replace(/AmPeRsAnD/g, '&')
-    .replace(/PeRiOd/g, '.')
-    .replace(/CoMmA/g, ',')
-    .replace(/ExClAmAtIoN/g, '!')
-    .replace(/HyPhEn/g, '-')
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/\s+/g, ' ')
-    .trim();
+// NEW: simple alphanumeric-only normalization (no HyPhEn, PeRiOd, etc.)
+function toLoaderSafeBase(str) {
+    return String(str || "")
+        .normalize("NFKD")                 // decompose accented characters
+        .replace(/[\u0300-\u036f]/g, "")   // remove combining marks
+        .replace(/&amp;/gi, " ")
+        .replace(/&/g, " ")
+        .replace(/[^a-zA-Z0-9]/g, "")      // drop everything else
+        .trim();
 }
 
   function resolveMainFolderTitle(rawTitle, activeMainFolders) {
@@ -5014,7 +5006,6 @@ function createSeasonButtons(seasons, series) {
   let latestValidSeason = null;
   let latestTimestamp = 0;
 
-  // 1. Find the most recent valid season (episodeIndex ≠ 9999)
   seasons.forEach(season => {
     const key = `progress-${profile}-${season}`;
     const data = JSON.parse(localStorage.getItem(key) || "{}");
@@ -5026,7 +5017,6 @@ function createSeasonButtons(seasons, series) {
     }
   });
 
-  // 2. Render season buttons, adding .highlight-season to the latest one
   seasons.forEach(season => {
     const div = document.createElement("div");
     div.className = "folder";
@@ -5038,22 +5028,65 @@ function createSeasonButtons(seasons, series) {
       div.classList.add("highlight-season");
     }
 
-    // Use the unified image builder
-    const candidates = window.buildImageCandidates(season, series, episodes);
-    let imageIndex = 0;
+    // 1. Build standard candidates
+    let candidates = window.buildImageCandidates(season, series, episodes) || [];
 
+    // 2. Compute the correct path manually (apostrophes removed)
+    const cleanSeries = series.replace(/['’]/g, '');
+    const cleanSeason = season.replace(/['’]/g, '');
+    const relativePath = `./${cleanSeries}/${cleanSeason}/${cleanSeason}.jpg`;
+
+    // 3. Determine base URL from folderOriginMap (if available)
+    let baseUrl = null;
+    if (window.folderOriginMap && window.folderOriginMap[season]) {
+      baseUrl = window.folderOriginMap[season];
+    } else if (window.folderOriginMap && window.folderOriginMap[series]) {
+      baseUrl = window.folderOriginMap[series];
+    }
+
+    // 4. Build the absolute URL (or keep relative if no base)
+    let absoluteUrl = relativePath;
+    if (baseUrl) {
+      const base = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+      const rel = relativePath.replace(/^\.\//, '');
+      absoluteUrl = base + rel;
+    }
+
+    // 5. Remove any candidate that matches the absolute URL (case-insensitive, decoded)
+    const cleanCandidates = candidates.filter(c => {
+      try {
+        const u1 = decodeURIComponent(c);
+        const u2 = decodeURIComponent(absoluteUrl);
+        return u1 !== u2;
+      } catch (e) {
+        return c !== absoluteUrl;
+      }
+    });
+
+    // 6. Prepend the correct absolute URL
+    const finalCandidates = [absoluteUrl, ...cleanCandidates];
+
+    console.log(`[createSeasonButtons] Final candidates for "${season}":`, finalCandidates);
+
+    let imageIndex = 0;
     const img = document.createElement('img');
     img.alt = season;
-    img.src = candidates[imageIndex];
 
     img.onerror = function() {
-      if (imageIndex < candidates.length - 1) {
+      console.warn(`[createSeasonButtons] Image load failed for ${this.src}, trying next`);
+      if (imageIndex < finalCandidates.length - 1) {
         imageIndex += 1;
-        this.src = candidates[imageIndex];
+        this.src = finalCandidates[imageIndex];
       } else {
         this.onerror = null;
+        if (this.src !== './Images/placeholder.jpg') {
+          this.src = './Images/placeholder.jpg';
+        }
       }
     };
+
+    img.src = finalCandidates.length ? finalCandidates[imageIndex] : './Images/placeholder.jpg';
+    console.log(`[createSeasonButtons] Set src to: ${img.src}`);
 
     const title = document.createElement('p');
     title.textContent = season;
@@ -5073,10 +5106,8 @@ function createSeasonButtons(seasons, series) {
     folderContainer.appendChild(div);
   });
 
-  // 3. Leave your existing back-button logic intact
   addBackButton();
 }
-
 
 function restoreAllShowsForProfile(profileName) {
   folders.forEach(folder => {
@@ -8014,17 +8045,8 @@ function getStoredFavorites() {
     if (legacyRaw) {
       try {
         const parsed = JSON.parse(legacyRaw);
-        const normalized = normalizeFavoriteList(arr);
-try { localStorage.setItem(perKey, JSON.stringify(normalized)); } catch(e){}
-
-// 🔥 IMPORTANT: refresh star after server load
-try { 
-  if (typeof updateFavoriteButtonUI === 'function') {
-    updateFavoriteButtonUI();
-  }
-} catch(e){}
-
-return normalized;
+        const normalized = normalizeFavoriteList(parsed);
+        try { localStorage.setItem(key, JSON.stringify(normalized)); } catch(e){}
         return normalized;
       } catch (e) {
         console.warn('getStoredFavorites parse legacy failed', e);

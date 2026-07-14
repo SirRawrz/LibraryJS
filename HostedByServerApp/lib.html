@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -277,7 +275,6 @@
   .dropzone .dz-name { font-size: 13px; color: var(--text); font-weight: 700; }
   .dropzone .dz-meta { font-size: 12px; line-height: 1.35; }
 
-  /* Flow mode shell */
   .flow-dock {
     margin: 16px;
     display: none;
@@ -671,7 +668,6 @@
     line-height: 1.45;
   }
 
-  /* Panel head navigation (replaces the old sticky flow-nav) */
   .head-nav {
     display: flex;
     align-items: center;
@@ -1460,8 +1456,16 @@ function applyScoopedLibraryDefaults(sourceTitle, { force = false } = {}) {
   function jsString(value) { return JSON.stringify(String(value ?? '')); }
   function collapseTrailingAdultMarks(value) { return safeText(value).replace(/\*+$/g, '').trim(); }
   function stripAdultMarkers(value) { return safeText(value).replace(/\*/g, '').trim(); }
-  function titleWithAdultMark(title, adult) { const clean = collapseTrailingAdultMarks(title); return clean ? (adult ? `${clean}*` : clean) : ''; }
-  function getDisplayMovieTitle(title, adult) { return titleWithAdultMark(title, adult); }
+  function titleWithAdultMark(title, adult) {
+  const clean = collapseTrailingAdultMarks(title);
+  return clean ? (adult ? `${clean}*` : clean) : '';
+}
+
+// Used only for library.js.
+// Never include the adult marker in a library entry.
+function getDisplayMovieTitle(title) {
+  return collapseTrailingAdultMarks(title);
+}
   function sanitizeSegment(value) {
     return safeText(value)
       .replace(/[’']/g, '')
@@ -1851,8 +1855,6 @@ function applyScoopedLibraryDefaults(sourceTitle, { force = false } = {}) {
       '- For movie collections, put items in movieItems[] and include each movie title in order.',
       '- Keep movie and episode titles in English and in the correct order.',
       '- The file field may be left blank because the page will build final URLs from the server base that I enter.',
-      '- If you include a nested loader function name, follow the same naming tokens used by index.html.',
-      '- Encode special characters in loader names as tokens: & => AmPeRsAnD, - => HyPhEn, . => PeRiOd, , => CoMmA, ! => ExClAmAtIoN.',
       '- When the Mark as Adult checkbox is selected, set "adult" to true and add the star later in mainfolders.js. When it is not selected, set "adult" to false.',
       '- If a movie or series name contains a colon (:), replace it with a spaced hyphen ( - ) in the final title, for example "Example: The Movie" becomes "Example - The Movie".',
       '- Episode file names use S1 001, S1 002, S2 001, etc. Not S01E01.',
@@ -3100,83 +3102,55 @@ function renderMultiEditor() {
   };
 
 function loaderFunctionName(title) {
-    const raw = safeText(title || '').replace(/\.html?$/i, '').trim();
-    const replacements = {
-      '!': 'ExClAmAtIoN',
-      '?': 'QuEsTiOn',
-      '&': 'AnD',
-      ':': 'CoLoN',
-      ';': 'SeMiCoLoN',
-      '.': 'PeRiOd',
-      '/': 'SlAsH',
-      '\\': 'BaCkSlAsH',
-      '*': 'AsTeRiSk',
-      '#': 'HaSh',
-      '+': 'PlUs',
-      '=': 'EqUaLs',
-      '%': 'PeRcEnT',
-      '@': 'At',
-      ',': '',
-      "'": '',
-      '’': '',
-      '"': '',
-      '(': '',
-      ')': '',
-      '[': '',
-      ']': '',
-      '{': '',
-      '}': ''
-    };
+  const raw = safeText(title || '');
+  if (!raw) return 'loadUntitledSeasons';
 
-    const parts = [];
-    let nextUpper = true;
+  // Remove all non‑alphanumeric characters except spaces and hyphens
+  const cleaned = raw
+    .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-    for (const ch of raw) {
-      if (ch === '-' || ch === '–' || ch === '—') {
-        parts.push('HyPhEn');
-        nextUpper = true;
-        continue;
-      }
+  if (!cleaned) return 'loadUntitledSeasons';
 
-      if (ch === ' ') {
-        nextUpper = true;
-        continue;
-      }
+  const parts = [];
+  let nextUpper = true;
 
-      if (Object.prototype.hasOwnProperty.call(replacements, ch)) {
-        const rep = replacements[ch];
-        if (rep) parts.push(rep);
-        continue;
-      }
-
-      if (/^[A-Za-z]$/.test(ch)) {
-        parts.push(nextUpper ? ch.toUpperCase() : ch);
-        nextUpper = false;
-        continue;
-      }
-
-      if (/^[0-9]$/.test(ch)) {
-        parts.push(ch);
-        nextUpper = false;
-        continue;
-      }
+  for (const ch of cleaned) {
+    if (ch === '-' || ch === ' ') {
+      nextUpper = true;
+      continue;
     }
 
-    return `load${parts.join('')}Seasons`;
+    if (/^[A-Za-z]$/.test(ch)) {
+      parts.push(nextUpper ? ch.toUpperCase() : ch);
+      nextUpper = false;
+    } else if (/^[0-9]$/.test(ch)) {
+      parts.push(ch);
+      nextUpper = false;
+    }
+  }
+
+  const base = parts.join('');
+  return base ? `load${base}Seasons` : 'loadUntitledSeasons';
 }
 
-  function titleFromFnName(fnName) {
-    return safeText(fnName || '')
-      .replace(/^load/i, '')
-      .replace(/Seasons$/i, '')
-      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-      .replace(/AmPeRsAnD/g, '&')
-      .replace(/HyPhEn/g, '-')
-      .replace(/PeRiOd/g, '.')
-      .replace(/ExClAmAtIoN/g, '!')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
+function titleFromFnName(fnName) {
+  const raw = safeText(fnName || '');
+  const withoutPrefix = raw
+    .replace(/^load/i, '')
+    .replace(/Seasons$/i, '');
+
+  if (!withoutPrefix) return raw;
+
+  // Split camelCase into words
+  const words = withoutPrefix
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
+    .trim();
+
+  return words || withoutPrefix;
+}
 
   function loaderDisplayTitle(entry) {
     const rawTitle = safeText(entry?.title || '').trim();
@@ -4391,7 +4365,7 @@ function generateSingleMovieLoaderSnippet(targetTitle = currentMovieTargetTitle(
   const fnName = loaderFunctionName(cleanTitle);
   const sourceItem = getCurrentMovieItems()[0] || blankMovieItem(cleanTitle);
   const movieName = safeText(sourceItem.name || cleanTitle);
-  const display = getDisplayMovieTitle(movieName, sourceItem.adult || state.movieAdult || state.adult);
+  const display = getDisplayMovieTitle(movieName);
   return buildLibrarySeasonLoaderTemplate({
     title: cleanTitle,
     fnName,

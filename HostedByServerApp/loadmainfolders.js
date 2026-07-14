@@ -106,19 +106,15 @@ function loadMainFolders() {
         .replace(/[^a-z0-9 ]/g, '');
     });
 
+  // NEW: simple alphanumeric-only normalization (no HyPhEn, PeRiOd, etc.)
   function toLoaderSafeBase(str) {
     return String(str || "")
-      .replace(/&amp;/gi, " ")
-      .replace(/&/g, " AmPeRsAnD ")
-      .replace(/\./g, " PeRiOd ")
-      .replace(/,/g, " CoMmA ")
-      .replace(/!/g, " ExClAmAtIoN ")
-      .replace(/[-–—]/g, " HyPhEn ")
-      .replace(/[^a-zA-Z0-9]+/g, " ")
-      .split(/\s+/)
-      .filter(Boolean)
-      .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-      .join("");
+        .normalize("NFKD")                 // decompose accented characters
+        .replace(/[\u0300-\u036f]/g, "")   // remove combining marks
+        .replace(/&amp;/gi, " ")
+        .replace(/&/g, " ")
+        .replace(/[^a-zA-Z0-9]/g, "")      // drop everything else
+        .trim();
   }
   window.toLoaderSafeBase = toLoaderSafeBase;
 
@@ -152,13 +148,7 @@ function loadMainFolders() {
 
   function hasLoaderForFolder(folderName) {
     if (!folderName) return false;
-    const normalizedFolder = String(folderName || "")
-      .replace(/&amp;/gi, "and")
-      .replace(/&/g, "and")
-      .replace(/\s*[-–—]\s*/g, " HyPhEn ")
-      .replace(/[^a-z0-9]/gi, "")
-      .toLowerCase();
-
+    const normalizedFolder = toLoaderSafeBase(folderName);
     const suffixes = ["seasons", "season", "collectionseasons", "movies", "films", ""];
     const names = Object.getOwnPropertyNames(window);
 
@@ -184,12 +174,7 @@ function loadMainFolders() {
 
   function tryCallCandidates(folderName) {
     if (!folderName) return false;
-    const normalizedFolder = String(folderName || "")
-      .replace(/&amp;/gi, "and")
-      .replace(/&/g, "and")
-      .replace(/\s*[-–—]\s*/g, " HyPhEn ")
-      .replace(/[^a-z0-9]/gi, "")
-      .toLowerCase();
+    const normalizedFolder = toLoaderSafeBase(folderName);
 
     const suffixes = ["seasons", "season", "collectionseasons", "movies", "films", ""];
     const pascalBase = toLoaderSafeBase(folderName);
@@ -266,9 +251,7 @@ function loadMainFolders() {
       if (window._specialFolderHandlers && typeof window._specialFolderHandlers[folderName] === 'function') {
         return true;
       }
-      const base = (typeof toLoaderSafeBase === 'function')
-        ? toLoaderSafeBase(folderName)
-        : folderName.replace(/[^a-zA-Z0-9]+/g,' ').split(/\s+/).filter(Boolean).map(s => s.charAt(0).toUpperCase()+s.slice(1)).join('');
+      const base = toLoaderSafeBase(folderName);
       const candidates = [
         `load${base}Seasons`,
         `load${base}Season`,
