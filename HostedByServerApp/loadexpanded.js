@@ -1,9 +1,84 @@
-// loadexpanded.js – ALWAYS provides enhanced search (sub‑seasons, root detection, games, music, books)
-// plus optional merging of a remote server if expandedstorage.txt contains a port.
-// Also includes click‑outside and double‑tap to clear the search input.
-
+// loadexpanded.js – Enhanced search with dynamic music & library globals loading
 (function() {
   window.__loadexpandedPromise = new Promise(async (resolve) => {
+    // ----------------------------------------------------------------
+    // 0. Ensure musicLibrary and library globals (books, manga, guidebooks)
+    // ----------------------------------------------------------------
+    async function ensureMusicLibrary() {
+      if (window.musicLibrary && Array.isArray(window.musicLibrary)) {
+        console.log('[loadexpanded] musicLibrary already present.');
+        return;
+      }
+      try {
+        const res = await fetch('./musiclibrary.js', { cache: 'no-store' });
+        if (!res.ok) {
+          console.warn('[loadexpanded] musiclibrary.js not found, music search disabled.');
+          return;
+        }
+        const text = await res.text();
+        const fn = new Function(`"use strict"; ${text}; return {
+          musicLibrary: typeof musicLibrary !== 'undefined' ? musicLibrary : null,
+          musicLibraryGenreMap: typeof musicLibraryGenreMap !== 'undefined' ? musicLibraryGenreMap : null
+        };`);
+        const result = fn();
+        if (result.musicLibrary) {
+          window.musicLibrary = result.musicLibrary;
+        }
+        if (result.musicLibraryGenreMap) {
+          window.musicLibraryGenreMap = result.musicLibraryGenreMap;
+        }
+        console.log('[loadexpanded] ✅ musicLibrary loaded dynamically.');
+      } catch (e) {
+        console.warn('[loadexpanded] Failed to load musicLibrary:', e);
+      }
+    }
+
+    async function ensureLibraryGlobals() {
+      // These are the globals we want to populate: books, manga, guidebooks
+      const globals = ['books', 'manga', 'guidebooks'];
+      const toLoad = globals.filter(g => !Array.isArray(window[g]));
+      if (toLoad.length === 0) {
+        console.log('[loadexpanded] All library globals already present.');
+        return;
+      }
+      console.log('[loadexpanded] Loading missing library globals:', toLoad);
+      for (const g of toLoad) {
+        try {
+          const res = await fetch(`./${g}.js`, { cache: 'no-store' });
+          if (!res.ok) {
+            console.warn(`[loadexpanded] ${g}.js not found, skipping.`);
+            continue;
+          }
+          const text = await res.text();
+          // Execute the script in a sandbox and capture the global
+          const fn = new Function(`"use strict"; ${text}; return typeof ${g} !== 'undefined' ? ${g} : null;`);
+          const result = fn();
+          if (Array.isArray(result)) {
+            window[g] = result;
+            console.log(`[loadexpanded] ✅ ${g} loaded dynamically.`);
+          } else {
+            // Some files might set window.libraryData instead (like books.js and guidebooks.js)
+            // We'll also check if the file defined libraryData.items and use that.
+            const sandbox = { window: {} };
+            const fn2 = new Function('window', text);
+            fn2(sandbox.window);
+            if (sandbox.window.libraryData && Array.isArray(sandbox.window.libraryData.items)) {
+              window[g] = sandbox.window.libraryData.items;
+              console.log(`[loadexpanded] ✅ ${g} loaded from libraryData.items.`);
+            } else {
+              console.warn(`[loadexpanded] No data found in ${g}.js`);
+            }
+          }
+        } catch (e) {
+          console.warn(`[loadexpanded] Failed to load ${g}.js:`, e);
+        }
+      }
+    }
+
+    // Load music and library globals before building indices
+    await ensureMusicLibrary();
+    await ensureLibraryGlobals();
+
     // ================================================================
     // 1. ALWAYS install enhanced search (regardless of remote merge)
     // ================================================================
@@ -86,21 +161,22 @@
     }
 
     // ---- Build library index (books, manga, guidebooks) ----
+    // ONLY uses the separate globals, NOT libraryData, to avoid a "Library" category.
     function buildLibraryIndex() {
       const items = [];
-      if (window.libraryData && Array.isArray(window.libraryData.items)) {
-        for (const item of window.libraryData.items) {
-          if (item && item.title) {
-            items.push({ title: item.title, parent: 'Library', source: 'library', cover: item.cover, lib: 'library' });
-          }
-        }
-      }
       const libGlobals = { books: 'Books', manga: 'Manga', guidebooks: 'Guidebooks' };
       for (const [globalKey, category] of Object.entries(libGlobals)) {
         if (Array.isArray(window[globalKey])) {
           for (const item of window[globalKey]) {
             if (item && item.title) {
-              items.push({ title: item.title, parent: category, source: 'library', cover: item.cover, lib: globalKey });
+              items.push({
+                title: item.title,
+                parent: category,
+                source: 'library',
+                cover: item.cover || '',
+                lib: globalKey,
+                rawItem: item
+              });
             }
           }
         }
@@ -563,7 +639,7 @@
       if (typeof showHomeButton === 'function') showHomeButton();
     }
 
-    // ---- Render library matches ----
+    // ---- Render library matches (Books, Manga, Guidebooks) ----
     function renderLibraryMatches(libraryMatches, rawQuery) {
       const container = document.getElementById('folderContainer');
       if (!container) return;
@@ -571,6 +647,15 @@
       if (old && old.parentNode) old.parentNode.removeChild(old);
       if (!libraryMatches || libraryMatches.length === 0) return;
 
+      // Group by parent category (Books, Manga, Guidebooks)
+      const groups = {};
+      for (const item of libraryMatches) {
+        const parent = item.parent || 'Books';
+        if (!groups[parent]) groups[parent] = [];
+        groups[parent].push(item);
+      }
+
+      // If only one category, we can show a combined header; else show each with its own header.
       const section = document.createElement('div');
       section.id = 'librarySearchSection';
       section.style.width = '100%';
@@ -578,19 +663,13 @@
       section.style.paddingTop = '8px';
       section.style.borderTop = '1px solid rgba(255,255,255,0.06)';
 
+      // Main header (optional)
       const header = document.createElement('div');
       header.style.color = '#fff';
       header.style.fontSize = '14px';
       header.style.margin = '8px 12px';
       header.innerText = `Reading matches for "${rawQuery}"`;
       section.appendChild(header);
-
-      const groups = {};
-      for (const item of libraryMatches) {
-        const parent = item.parent || 'Library';
-        if (!groups[parent]) groups[parent] = [];
-        groups[parent].push(item);
-      }
 
       for (const [category, items] of Object.entries(groups)) {
         const subHeader = document.createElement('div');
@@ -1031,11 +1110,6 @@
         container.appendChild(grid);
       }
 
-      // --- Render library matches ---
-      if (libraryMatches.length > 0) {
-        renderLibraryMatches(libraryMatches, raw);
-      }
-
       // --- Render game matches ---
       if (gameMatches.length > 0) {
         renderGameMatches(gameMatches, raw);
@@ -1044,6 +1118,11 @@
       // --- Render music matches ---
       if (musicMatches.length > 0) {
         renderMusicMatches(musicMatches, raw);
+      }
+
+      // --- Render library matches LAST (Books, Manga, Guidebooks) ---
+      if (libraryMatches.length > 0) {
+        renderLibraryMatches(libraryMatches, raw);
       }
 
       if (typeof showHomeButton === 'function') {

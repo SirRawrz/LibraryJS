@@ -3101,39 +3101,15 @@ function renderMultiEditor() {
     sourceUrl: ''
   };
 
-function loaderFunctionName(title) {
-  const raw = safeText(title || '');
-  if (!raw) return 'loadUntitledSeasons';
-
-  // Remove all non‑alphanumeric characters except spaces and hyphens
-  const cleaned = raw
-    .replace(/[^a-zA-Z0-9\s-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!cleaned) return 'loadUntitledSeasons';
-
-  const parts = [];
-  let nextUpper = true;
-
-  for (const ch of cleaned) {
-    if (ch === '-' || ch === ' ') {
-      nextUpper = true;
-      continue;
-    }
-
-    if (/^[A-Za-z]$/.test(ch)) {
-      parts.push(nextUpper ? ch.toUpperCase() : ch);
-      nextUpper = false;
-    } else if (/^[0-9]$/.test(ch)) {
-      parts.push(ch);
-      nextUpper = false;
-    }
+  // FIXED: loaderFunctionName now preserves original case exactly, only removing non-alphanumeric characters.
+  function loaderFunctionName(title) {
+    const raw = safeText(title || '');
+    if (!raw) return 'loadUntitledSeasons';
+    // Remove all characters that are not letters or digits
+    const base = raw.replace(/[^a-zA-Z0-9]/g, '');
+    if (!base) return 'loadUntitledSeasons';
+    return `load${base}Seasons`;
   }
-
-  const base = parts.join('');
-  return base ? `load${base}Seasons` : 'loadUntitledSeasons';
-}
 
 function titleFromFnName(fnName) {
   const raw = safeText(fnName || '');
