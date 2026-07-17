@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -138,7 +137,7 @@ button:disabled{opacity:.45;cursor:not-allowed;transform:none}
   position:relative;
   overflow:hidden;
   cursor:pointer;
-  min-height:238px;
+  min-height:150px;
   padding:0;
   display:flex;
   flex-direction:column;
@@ -149,7 +148,7 @@ button:disabled{opacity:.45;cursor:not-allowed;transform:none}
 .tile.selected{outline:2px solid rgba(121,227,197,.55); border-color:rgba(121,227,197,.32)}
 .tile .art{
   position:relative;
-  height:124px;
+  height:100px;
   background:
     radial-gradient(circle at 30% 20%, rgba(121,227,197,.25), transparent 30%),
     radial-gradient(circle at 70% 80%, rgba(134,170,252,.22), transparent 26%),
@@ -178,18 +177,18 @@ button:disabled{opacity:.45;cursor:not-allowed;transform:none}
   background:linear-gradient(135deg, rgba(12,16,24,.15), rgba(12,16,24,.5));
 }
 .tile .body{
-  padding:10px 10px 11px;
+  padding:4px 8px;
   display:flex;
   flex-direction:column;
-  gap:8px;
-  min-height:58px;
+  gap:2px;
+  min-height:30px;
 }
-.tile .title{font-size:14px;font-weight:800;line-height:1.2}
-.tile .meta{font-size:12px;color:var(--muted)}
-.tile .foot{font-size:11px;color:var(--muted)}
+.tile .title{font-size:12px;font-weight:800;line-height:1.2}
+.tile .meta{font-size:10px;color:var(--muted)}
+.tile .foot{font-size:10px;color:var(--muted)}
 .tile.branchOnly .meta,
 .tile.branchOnly .foot{display:none}
-.tile.branchOnly .body{min-height:34px;padding-top:12px;padding-bottom:12px}
+.tile.branchOnly .body{min-height:20px;padding-top:4px;padding-bottom:4px}
 .tile .pkg{
   position:absolute;top:8px;right:8px;
   width:28px;height:28px;padding:0;border-radius:9px;
@@ -389,7 +388,8 @@ body.embedded-shell .wrap{max-width:none}
 
 const SOURCE_FILES = {
   folders: 'mainfolders.js',
-  loaders: 'loadseasonfunctions.js'
+  loaders: 'loadseasonfunctions.js',
+  library: 'library.js'
 };
 
 const enc = new TextEncoder();
@@ -438,44 +438,46 @@ function unique(arr) {
   return [...new Set((arr || []).filter(Boolean))];
 }
 
+// ---------- Simplified loader naming (as in lib.html) ----------
+function safeText(value) {
+  return String(value ?? '').trim();
+}
 
-function loaderDisplayName(fnName) {
-  const raw = String(fnName || '').trim();
-  const cleaned = raw.replace(/^load/i, '').replace(/seasons?$/i, '');
-  return cleaned
-    .replace(/ApOsTrOpHe/g, "'")
-    .replace(/AmPeRsAnD/g, '&')
-    .replace(/PeRiOd/g, '.')
-    .replace(/CoMmA/g, ',')
-    .replace(/ExClAmAtIoN/g, '!')
-    .replace(/HyPhEn/g, '-')
+function titleFromFnName(fnName) {
+  const raw = safeText(fnName || '');
+  const withoutPrefix = raw
+    .replace(/^load/i, '')
+    .replace(/Seasons$/i, '');
+
+  if (!withoutPrefix) return raw;
+
+  // Split camelCase into words
+  const words = withoutPrefix
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/\s+/g, ' ')
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
     .trim();
+
+  return words || withoutPrefix;
 }
 
-function loaderStrictKey(raw) {
-  return String(raw || '')
-    .replace(/&amp;/gi, 'and')
-    .replace(/&/g, 'and')
-    .replace(/\s+/g, '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
+function loaderFunctionName(title) {
+  const raw = safeText(title || '');
+  if (!raw) return 'loadUntitledSeasons';
+  const base = raw.replace(/[^a-zA-Z0-9]/g, '');
+  if (!base) return 'loadUntitledSeasons';
+  return `load${base}Seasons`;
 }
 
-function tokenParts(raw) {
-  return String(raw || '')
-    .replace(/&amp;/gi, ' and ')
-    .replace(/&/g, ' and ')
-    .replace(/[_/\-]+/g, ' ')
+// For display: clean up the title derived from function name
+function loaderDisplayTitle(fnName) {
+  const rawTitle = safeText(titleFromFnName(fnName));
+  const cleaned = rawTitle
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
+    .trim();
+  return cleaned || rawTitle;
 }
+// -------------------------------------------------------------
 
 function parseLoaders(txt) {
   const out = [];
@@ -494,13 +496,12 @@ function parseLoaders(txt) {
         console.warn(`Could not parse seasons for ${fnName}`, e);
       }
     }
-    const title = loaderDisplayName(fnName);
+    const title = loaderDisplayTitle(fnName);
     out.push({
       fnName,
       title,
       key: compareKey(title),
-      strictKey: loaderStrictKey(title),
-      tokens: tokenParts(title),
+      strictKey: looseKey(loaderFunctionName(title)),
       block,
       seasons
     });
@@ -512,16 +513,48 @@ function parseLoaders(txt) {
 function getLoaderEntryForTitle(title) {
   const clean = cleanTitle(title);
   const key = compareKey(clean);
-  const sKey = loaderStrictKey(clean);
+  const loaderFn = loaderFunctionName(clean);
   const loaders = Array.isArray(window.__shellLoaderEntries) ? window.__shellLoaderEntries : [];
   if (!loaders.length) return null;
 
-  return loaders.find(entry => entry && (
-    entry.key === key ||
-    entry.strictKey === sKey ||
-    loaderStrictKey(entry.title) === sKey ||
-    loaderStrictKey(entry.fnName) === sKey
+  // First try exact function name match
+  let entry = loaders.find(e => e.fnName === loaderFn);
+  if (entry) return entry;
+
+  // Fallback to key-based matching (for backward compatibility)
+  return loaders.find(e => (
+    e.key === key ||
+    e.strictKey === looseKey(loaderFn) ||
+    looseKey(e.fnName) === looseKey(loaderFn)
   )) || null;
+}
+
+// Generate the loader function text for a given root title and seasons
+function generateLoaderFunctionText(rootTitle, seasons) {
+  const clean = cleanTitle(rootTitle);
+  const fnName = loaderFunctionName(clean);
+  const seasonList = seasons.map(s => `        "${s}"`).join(',\n');
+  return `function ${fnName}() {
+    folderContainer.innerHTML = "";
+
+    const seasons = [
+${seasonList}
+    ];
+
+    episodes["${clean}"] = seasons;
+    createSeasonButtons(seasons, "${clean}");
+}`;
+}
+
+// Parse episodes from library.js text
+function parseEpisodesFromLibrary(txt) {
+  try {
+    const fn = new Function(`${txt}\nreturn episodes;`);
+    return fn() || {};
+  } catch (e) {
+    console.warn('Failed to parse episodes from library.js', e);
+    return {};
+  }
 }
 
 function libStyleSegment(value) {
@@ -1006,6 +1039,7 @@ function pathToString(path) {
     search: '',
     folders: [],
     loaders: [],
+    episodes: {},         // from library.js
     selectedBySection: {
       video: new Set(),
       music: new Set()
@@ -1090,6 +1124,52 @@ function pathToString(path) {
       if (!selected.length) selected.push(nodeKey(path));
     }
 
+    const rootTitle = cleanTitle(path[0]);
+    let seasons = [];
+
+    // 1. Try to get seasons from a loader entry (if loadseasonfunctions.js exists)
+    const loaderEntry = getLoaderEntryForTitle(rootTitle);
+    if (loaderEntry && Array.isArray(loaderEntry.seasons) && loaderEntry.seasons.length) {
+      seasons = loaderEntry.seasons;
+    } else {
+      // 2. Fallback: try to get seasons from the episodes object (library.js)
+      if (state.episodes && typeof state.episodes === 'object') {
+        // First try exact key match (rootTitle cleaned)
+        let epValue = state.episodes[rootTitle];
+        // If not found, try to match by compareKey (ignoring ampersand, etc.)
+        if (!epValue) {
+          const key = compareKey(rootTitle);
+          for (const [k, v] of Object.entries(state.episodes)) {
+            if (compareKey(k) === key && Array.isArray(v) && v.every(item => typeof item === 'string')) {
+              epValue = v;
+              break;
+            }
+          }
+        }
+        if (Array.isArray(epValue) && epValue.every(item => typeof item === 'string')) {
+          seasons = epValue;
+        }
+      }
+    }
+
+    const files = [];
+    files.push({ name: 'mainfolders.js', kind: 'mainfolders' });
+    files.push({ name: 'library.js', kind: 'library' });
+
+    // If we have seasons, generate and include the loader function
+    if (seasons.length) {
+      // Use the raw path[0] (with possible '*') to preserve adult marker in the loader function's rootTitle
+      const loaderText = generateLoaderFunctionText(path[0], seasons);
+      files.push({
+        name: 'loadseasonfunctions.js',
+        kind: 'loadseason',
+        content: loaderText
+      });
+      log(`Generated loader function for "${path[0]}" with ${seasons.length} seasons.`);
+    } else {
+      log(`No seasons found for "${path[0]}". Skipping loadseasonfunctions.js.`);
+    }
+
     const payload = {
       version: 1,
       sourcePage: 'shell-backup.html',
@@ -1097,7 +1177,8 @@ function pathToString(path) {
       rootPath: path,
       rootTitle: path[0],
       selectedPaths: unique(selected),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      files: files
     };
 
     const token = `${flowTokenPrefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1198,23 +1279,44 @@ function pathToString(path) {
 
     const currentTitle = cleanTitle(path[path.length - 1] || '');
     const loader = getLoaderEntryForTitle(currentTitle);
-    if (!loader) return [];
+    if (loader) {
+      const childTitles = Array.isArray(loader.seasons) ? loader.seasons : [];
+      return childTitles
+        .map(child => {
+          const title = cleanTitle(child);
+          const childLoader = getLoaderEntryForTitle(title);
+          const childCount = childLoader && Array.isArray(childLoader.seasons) ? childLoader.seasons.length : 0;
+          const hasChildren = childCount > 0;
+          return {
+            title,
+            path: path.concat([title]),
+            kind: hasChildren ? 'branch' : 'leaf',
+            count: childCount
+          };
+        })
+        .filter(node => !state.search || compareKey(node.title).includes(compareKey(state.search)));
+    }
 
-    const childTitles = Array.isArray(loader.seasons) ? loader.seasons : [];
-    return childTitles
-      .map(child => {
-        const title = cleanTitle(child);
-        const childLoader = getLoaderEntryForTitle(title);
-        const childCount = childLoader && Array.isArray(childLoader.seasons) ? childLoader.seasons.length : 0;
-        const hasChildren = childCount > 0;
-        return {
-          title,
-          path: path.concat([title]),
-          kind: hasChildren ? 'branch' : 'leaf',
-          count: childCount
-        };
-      })
-      .filter(node => !state.search || compareKey(node.title).includes(compareKey(state.search)));
+    // If no loader, try to get children from episodes
+    const epValue = state.episodes && state.episodes[currentTitle];
+    if (Array.isArray(epValue) && epValue.every(item => typeof item === 'string')) {
+      return epValue
+        .map(child => {
+          const title = cleanTitle(child);
+          const childLoader = getLoaderEntryForTitle(title);
+          const childCount = childLoader && Array.isArray(childLoader.seasons) ? childLoader.seasons.length : 0;
+          const hasChildren = childCount > 0;
+          return {
+            title,
+            path: path.concat([title]),
+            kind: hasChildren ? 'branch' : 'leaf',
+            count: childCount
+          };
+        })
+        .filter(node => !state.search || compareKey(node.title).includes(compareKey(state.search)));
+    }
+
+    return [];
   }
 
   function visibleNodes() {
@@ -1281,8 +1383,10 @@ function pathToString(path) {
       const isRoot = Array.isArray(node.path) && node.path.length === 1;
       let pkg = null;
       let chk = null;
+      let adultToggle = null;
 
       if (isRoot) {
+        // Package button
         pkg = document.createElement('button');
         pkg.className = 'pkg';
         pkg.type = 'button';
@@ -1292,7 +1396,35 @@ function pathToString(path) {
           ev.stopPropagation();
           packageNode(node.path);
         };
+
+        // Adult toggle checkbox with label – top-left corner, bigger, matching page style
+        adultToggle = document.createElement('label');
+        adultToggle.title = 'Toggle adult content marker (*)';
+        adultToggle.style.cssText = 'position:absolute;top:8px;left:8px;display:flex;align-items:center;gap:6px;z-index:2;background:rgba(10,14,22,.85);padding:6px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.15);font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;backdrop-filter:blur(4px);';
+        // Stop propagation on label click so tile doesn't navigate
+        adultToggle.onclick = (ev) => ev.stopPropagation();
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = node.title.endsWith('*');
+        input.style.cssText = 'width:20px;height:20px;margin:0;cursor:pointer;accent-color:var(--accent);';
+        input.onchange = (ev) => {
+          ev.stopPropagation();
+          const idx = state.folders.findIndex(f => cleanTitle(f) === cleanTitle(node.title));
+          if (idx !== -1) {
+            const newTitle = ev.target.checked ? `${cleanTitle(node.title)}*` : cleanTitle(node.title);
+            state.folders[idx] = newTitle;
+            // If current path starts with this root, update it
+            if (state.currentPath.length > 0 && cleanTitle(state.currentPath[0]) === cleanTitle(node.title)) {
+              state.currentPath[0] = newTitle;
+            }
+            render();
+          }
+        };
+        const labelText = document.createTextNode('Adult');
+        adultToggle.appendChild(input);
+        adultToggle.appendChild(labelText);
       } else {
+        // Selection checkbox for non-root
         chk = document.createElement('label');
         chk.className = 'chk';
         const input = document.createElement('input');
@@ -1325,9 +1457,14 @@ function pathToString(path) {
       art.appendChild(img);
       art.appendChild(fallback);
 
+      const bodyDiv = document.createElement('div');
+      bodyDiv.className = 'body';
+
       const label = document.createElement('div');
       label.className = 'title';
-      label.textContent = node.title;
+      // Show title without the trailing *
+      const displayTitle = isRoot ? cleanTitle(node.title) : node.title;
+      label.textContent = displayTitle;
 
       const meta = document.createElement('div');
       meta.className = 'meta';
@@ -1337,16 +1474,21 @@ function pathToString(path) {
       foot.className = 'foot';
       foot.textContent = node.kind === 'leaf' ? 'Open item' : 'Open branch';
 
+      bodyDiv.appendChild(label);
+      bodyDiv.appendChild(meta);
+      bodyDiv.appendChild(foot);
+
       if (node.kind !== 'leaf') card.classList.add('branchOnly');
 
       if (pkg) card.appendChild(pkg);
+      if (adultToggle) card.appendChild(adultToggle);
       if (chk) card.appendChild(chk);
       card.appendChild(art);
-      card.appendChild(label);
-      card.appendChild(meta);
-      card.appendChild(foot);
+      card.appendChild(bodyDiv);
 
-      card.onclick = () => {
+      card.onclick = (ev) => {
+        // Ignore clicks on checkbox, button, or any label inside the tile
+        if (ev.target.closest && (ev.target.closest('input[type="checkbox"]') || ev.target.closest('button') || ev.target.closest('label'))) return;
         if (node.kind !== 'leaf') {
           state.currentPath = node.path.slice();
           state.search = '';
@@ -1383,18 +1525,23 @@ function pathToString(path) {
   async function init() {
     try {
       log('Loading source files…');
-      const [foldersTxt, loadersTxt] = await Promise.all([
+      const [foldersTxt, loadersTxt, libraryTxt] = await Promise.all([
         fetchTextResource(SOURCE_FILES.folders).then(r => r.text),
-        fetchTextResource(SOURCE_FILES.loaders).then(r => r.text)
+        fetchTextResource(SOURCE_FILES.loaders).then(r => r.text),
+        fetchTextResource(SOURCE_FILES.library).then(r => r.text)
       ]);
 
       const folders = evalVariableSource(foldersTxt, 'folders');
       state.folders = Array.isArray(folders) ? folders : [];
       state.loaders = parseLoaders(loadersTxt || '');
       window.__shellLoaderEntries = state.loaders;
+
+      // Parse episodes from library.js
+      state.episodes = parseEpisodesFromLibrary(libraryTxt || '');
+
       state.loaded = true;
       render();
-      log(`Loaded ${state.folders.length} roots and ${state.loaders.length} loaders.`);
+      log(`Loaded ${state.folders.length} roots, ${state.loaders.length} loaders, and ${Object.keys(state.episodes).length} episode entries.`);
     } catch (e) {
       console.error(e);
       log(`Load failed: ${e && e.message ? e.message : e}`);
