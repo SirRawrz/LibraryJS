@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>FFmpeg Repair</title>
+  <script src="../loadplatform.js"></script>
   <style>
     :root{
       color-scheme: dark;
@@ -268,9 +269,12 @@
         uploadUrl: '',
         objectUrl: '',
         queue: [],
+        expectedSourceSize: 0,
         autoLaunchQueued: false,
         autoLaunchDone: false
       };
+
+      let platform = 'windows';
 
       function q(name) {
         return new URLSearchParams(location.search).get(name) || '';
@@ -280,12 +284,28 @@
       const shouldAutoClose = !!q('close');
       if (isFlowMode) document.documentElement.classList.add('flow-mode');
 
-      function notifyRepairParent(type, payload = {}) {
+      function postRepairMessage(type, payload = {}) {
+        const message = {
+          source: 'SFA_REPAIR_PAGE',
+          type,
+          payload: {
+            ...payload,
+            jobId: getJobId(),
+            pageUrl: location.href
+          }
+        };
         try {
           if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type, ...payload }, window.location.origin);
+            window.parent.postMessage(message, '*');
           }
         } catch {}
+        try {
+          window.postMessage(message, '*');
+        } catch {}
+      }
+
+      function notifyRepairParent(type, payload = {}) {
+        postRepairMessage(type, payload);
       }
 
       function finishFlowIfEmbedded(type, payload = {}) {
@@ -418,7 +438,7 @@
           : state.sourceFile
             ? `${state.sourceFile.name} • ${humanBytes(state.sourceFile.size)}`
             : state.sourceUrl
-              ? state.sourceUrl
+              ? `${state.sourceUrl}${state.expectedSourceSize > 0 ? ` • ${humanBytes(state.expectedSourceSize)}` : ''}`
               : 'none';
 
         const uploadText = state.uploadUrl || 'none';
@@ -433,8 +453,33 @@
         els.processBtn.disabled = state.busy || !(state.sourceBlob || state.sourceFile || state.queue.length || (els.fileInput.files && els.fileInput.files.length));
       }
 
+      postRepairMessage('repair-ready', { sourceSize: state.expectedSourceSize || 0 });
+
       function shouldAutoLaunch() {
         return !!new URLSearchParams(location.search).get('auto');
+      }
+
+      function applyQueryState() {
+        const params = new URLSearchParams(location.search || '');
+        const sourceUrl = normalizeHttpUrl(params.get('sourceUrl') || params.get('source') || '');
+        const uploadUrl = normalizeHttpUrl(params.get('upload') || params.get('targetUrl') || '');
+        const outputName = sanitizeOutputName(params.get('outputName') || params.get('name') || els.outputName.value || 'repaired.mp4');
+        const sourceSize = Number(params.get('sourceSize') || params.get('size') || 0) || 0;
+
+        if (sourceUrl) {
+          els.sourceUrl.value = sourceUrl;
+          state.sourceUrl = sourceUrl;
+        }
+        if (uploadUrl) {
+          els.uploadUrl.value = uploadUrl;
+          state.uploadUrl = uploadUrl;
+        }
+        if (outputName) {
+          els.outputName.value = outputName;
+        }
+        if (sourceSize > 0) {
+          state.expectedSourceSize = sourceSize;
+        }
       }
 
       async function autoLaunchRepairFlow() {
@@ -487,20 +532,29 @@
         return `${base}-${stamp}-${rand}`;
       }
 
+      function isArrayBufferLike(data) {
+        if (!data) return false;
+        const tag = Object.prototype.toString.call(data);
+        return tag === '[object ArrayBuffer]' || tag === '[object SharedArrayBuffer]';
+      }
+
       function toUint8Array(data) {
-        if (!data) return new Uint8Array();
-        if (data instanceof Uint8Array) return data;
-        if (data instanceof ArrayBuffer) return new Uint8Array(data);
+        if (!data) return null;
         if (ArrayBuffer.isView(data)) {
           return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+        }
+        if (isArrayBufferLike(data)) {
+          return new Uint8Array(data);
         }
         return null;
       }
 
+      // ----- fallback upload (old chunked) -----
       async function uploadBytesWithProgress(url, data, onProgress, name = 'upload', mimeType = 'video/mp4') {
         const target = normalizeHttpUrl(url);
         if (!target) throw new Error('Upload target is missing or uses an unsafe protocol.');
-        const bytes = data instanceof Uint8Array ? data : (toUint8Array(data) || new Uint8Array(await data.arrayBuffer()));
+        const bytes = toUint8Array(data) || (data && typeof data.arrayBuffer === 'function' ? new Uint8Array(await data.arrayBuffer()) : null);
+        if (!bytes || !bytes.byteLength) throw new Error('Upload data is empty or unsupported.');
         const total = Number(bytes.byteLength || bytes.length || 0);
         if (!total) throw new Error('Upload data is empty.');
 
@@ -551,6 +605,23 @@
           status: 200,
           text: async () => ''
         };
+      }
+
+      // ----- new upload using platformAPI -----
+      async function uploadWithPlatformAPI(outBytes, outName, uploadTarget, onProgress) {
+        if (!uploadTarget) return;
+        let baseUrl = window.location.origin;
+        let targetPath = uploadTarget;
+        try {
+          const url = new URL(uploadTarget);
+          baseUrl = url.origin;
+          targetPath = url.pathname + (url.search || '');
+        } catch (_) {}
+        const file = new File([outBytes], outName, { type: 'video/mp4' });
+        await window.platformAPI.uploadFile(file, targetPath, baseUrl, (loaded, total) => {
+          const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
+          onProgress?.(loaded, total, pct);
+        });
       }
 
       async function downloadBytesWithProgress(url, onProgress) {
@@ -696,15 +767,19 @@
         if (uploadTarget) {
           setStatus(`Uploading <strong>${outName}</strong>...`);
           log(`Uploading to ${uploadTarget}`);
-          const result = await uploadBytesWithProgress(uploadTarget, outBytes, (loaded, total, partIndex, partCount) => {
-            const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
-            setStatus(`Uploading... <strong>${pct}%</strong> (${partIndex}/${partCount})`, pct);
-          }, outName);
-
-          if (!result.ok) {
-            throw new Error(`Upload failed with HTTP ${result.status}`);
+          if (window.platformAPI && typeof window.platformAPI.uploadFile === 'function') {
+            await uploadWithPlatformAPI(outBytes, outName, uploadTarget, (loaded, total, pct) => {
+              setStatus(`Uploading... <strong>${pct}%</strong>`, pct);
+            });
+          } else {
+            const result = await uploadBytesWithProgress(uploadTarget, outBytes, (loaded, total, partIndex, partCount) => {
+              const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
+              setStatus(`Uploading... <strong>${pct}%</strong> (${partIndex}/${partCount})`, pct);
+            }, outName);
+            if (!result.ok) {
+              throw new Error(`Upload failed with HTTP ${result.status}`);
+            }
           }
-
           setStatus(`Done. <strong>${outName}</strong> uploaded back to the server.`, 100);
           log(`Upload complete: ${uploadTarget}`);
           finishFlowIfEmbedded('repair-complete', { jobId: getJobId(), outputName: outName, uploadTarget, mode: 'upload' });
@@ -737,6 +812,119 @@
 
         setStatus(`All ${files.length} local MP4 file(s) processed.`, 100);
       }
+
+      async function processEmbeddedPlaylistPackage(pkg = {}) {
+        const ffmpeg = await ensureLoaded();
+        const nested = pkg.playlistPackage && typeof pkg.playlistPackage === 'object' ? pkg.playlistPackage : {};
+        const playlistName = sanitizeOutputName(pkg.playlistName || nested.playlistName || 'index.m3u8') || 'index.m3u8';
+        const outName = sanitizeOutputName(pkg.outputName || nested.outputName || els.outputName.value || 'repaired.mp4') || 'repaired.mp4';
+        const uploadTarget = normalizeHttpUrl(pkg.uploadUrl || nested.uploadUrl || els.uploadUrl.value || '') || deriveUploadUrlFromSource(state.sourceUrl, outName);
+        const playlistText = String(pkg.playlistText || nested.playlistText || '');
+        const files = Array.isArray(pkg.files)
+          ? pkg.files.filter((file) => file && file.name && file.blob)
+          : (Array.isArray(nested.files) ? nested.files.filter((file) => file && file.name && file.blob) : []);
+
+        if (!playlistText.trim()) throw new Error('Playlist text is missing.');
+        if (!files.length) throw new Error('No segment files were provided.');
+
+        setBusy(true);
+        state.sourceBlob = null;
+        state.sourceFile = null;
+        state.queue = files.map((file) => file.blob).filter(Boolean);
+        state.sourceUrl = '';
+        state.uploadUrl = uploadTarget;
+        updateSummaries();
+
+        setStatus('Writing playlist and segment files...');
+        log(`Playlist: ${playlistName}`);
+        log(`Segments: ${files.length}`);
+
+        const playlistBytes = new TextEncoder().encode(playlistText);
+        await ffmpeg.writeFile(playlistName, playlistBytes);
+
+        const writtenNames = [];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const inputName = sanitizeOutputName(file.name) || `segment-${String(i + 1).padStart(4, '0')}`;
+          const bytes = toUint8Array(file.blob || file.bytes || file.data)
+            || (file.blob && typeof file.blob.arrayBuffer === 'function'
+              ? new Uint8Array(await file.blob.arrayBuffer())
+              : (file.bytes && typeof file.bytes.arrayBuffer === 'function'
+                ? new Uint8Array(await file.bytes.arrayBuffer())
+                : null));
+          if (!bytes || !bytes.byteLength) {
+            throw new Error(`Unsupported segment payload for ${inputName}.`);
+          }
+          writtenNames.push(inputName);
+          setStatus(`Writing segment <strong>${i + 1}</strong> / ${files.length}...`, Math.floor((i / files.length) * 22));
+          await ffmpeg.writeFile(inputName, bytes);
+        }
+
+        const tmpOut = '__repaired_playlist__.mp4';
+        setStatus('Running ffmpeg on playlist...');
+        log(`Running: ffmpeg -allowed_extensions ALL -protocol_whitelist file,crypto,data,http,https,tcp,tls -i "${playlistName}" -c copy -movflags +faststart "${tmpOut}"`);
+
+        try {
+          await ffmpeg.exec(['-allowed_extensions', 'ALL', '-protocol_whitelist', 'file,crypto,data,http,https,tcp,tls', '-i', playlistName, '-c', 'copy', '-movflags', '+faststart', tmpOut]);
+        } catch (err) {
+          throw new Error(`ffmpeg failed on playlist: ${err?.message || err}`);
+        }
+
+        const outData = await ffmpeg.readFile(tmpOut);
+        const outBytes = outData instanceof Uint8Array ? new Uint8Array(outData) : new Uint8Array(outData);
+        if (!outBytes.byteLength) {
+          throw new Error('Empty output from playlist remux.');
+        }
+
+        try { await ffmpeg.deleteFile?.(playlistName); } catch {}
+        try { await ffmpeg.deleteFile?.(tmpOut); } catch {}
+        for (const name of writtenNames) {
+          try { await ffmpeg.deleteFile?.(name); } catch {}
+        }
+
+        if (uploadTarget) {
+          setStatus(`Uploading <strong>${outName}</strong>...`);
+          log(`Uploading to ${uploadTarget}`);
+          if (window.platformAPI && typeof window.platformAPI.uploadFile === 'function') {
+            await uploadWithPlatformAPI(outBytes, outName, uploadTarget, (loaded, total, pct) => {
+              setStatus(`Uploading... <strong>${pct}%</strong>`, pct);
+            });
+          } else {
+            const result = await uploadBytesWithProgress(uploadTarget, outBytes, (loaded, total, partIndex, partCount) => {
+              const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
+              setStatus(`Uploading... <strong>${pct}%</strong> (${partIndex}/${partCount})`, pct);
+            }, outName);
+            if (!result.ok) throw new Error(`Upload failed with HTTP ${result.status}`);
+          }
+          setStatus(`Done. <strong>${outName}</strong> uploaded back to the server.`, 100);
+          log(`Upload complete: ${uploadTarget}`);
+          finishFlowIfEmbedded('repair-complete', { jobId: getJobId(), outputName: outName, uploadTarget, mode: 'playlist' });
+          maybeCloseWindow();
+        } else {
+          downloadFallback(outBytes, outName);
+          setStatus(`Done. <strong>${outName}</strong> ready for download.`, 100);
+          finishFlowIfEmbedded('repair-complete', { jobId: getJobId(), outputName: outName, mode: 'download' });
+          maybeCloseWindow();
+        }
+      }
+
+      window.addEventListener('message', async (event) => {
+        const data = event?.data || {};
+        if (data.source !== 'SFA_OFFSCREEN' || data.type !== 'SFA_REPAIR_PAYLOAD') return;
+        const pkg = data.payload || {};
+        if (pkg.mode !== 'playlist') return;
+        try {
+          if (state.busy) return;
+          setBusy(true);
+          setStatus('Loading playlist package...');
+          await processEmbeddedPlaylistPackage(pkg);
+        } catch (err) {
+          reportFlowFailure(err, 'playlist');
+        } finally {
+          setBusy(false);
+          updateSummaries();
+        }
+      });
 
       async function loadFromUrl() {
         const url = String(els.sourceUrl.value || '').trim();
@@ -863,7 +1051,25 @@
         setStatus('Batch mode is ready. Choose local MP4 files or paste a source URL.');
       }
 
-      updateSummaries();
+      applyQueryState();
+
+      // ---- detect platform ----
+      (async function initPlatform() {
+        try {
+          platform = await window.platformAPI.getPlatform(window.location.href);
+        } catch (_) {
+          platform = 'windows';
+        }
+        // if platform is arduino, we already have platformAPI – good.
+        // show platform in pills?
+        const platformPill = document.createElement('span');
+        platformPill.className = 'pill';
+        platformPill.textContent = `Platform: ${platform}`;
+        els.pills.appendChild(platformPill);
+        // update summaries with platform info
+        updateSummaries();
+      })();
+
       maybeStartAutoLaunch();
     })();
   </script>

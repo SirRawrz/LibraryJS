@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LibraryJS — Transfer Profile Backup</title>
+  <!-- Load the unified platform API -->
+  <script src="loadplatform.js"></script>
   <style>
     :root{
       --bg:#0c1018;
@@ -277,6 +279,7 @@
     logLines: [],
     destBase: location.origin.endsWith('/') ? location.origin.slice(0, -1) : location.origin,
     platform: 'windows',
+    platformConfig: null,
     busy: false,
     restoreMode: initialProfileMode,
   };
@@ -291,7 +294,82 @@
     if (warning) warning.classList.toggle('show', mode === 'replace');
   }
 
+  // ---- Platform API helpers ----
+  async function detectPlatformWithAPI(destBase) {
+    if (typeof window.platformAPI === 'undefined') {
+      console.warn('platformAPI not available; falling back to windows');
+      return 'windows';
+    }
+    try {
+      const platform = await window.platformAPI.getPlatform(destBase);
+      state.platformConfig = await window.platformAPI.getConfig(destBase);
+      state.platform = platform || 'windows';
+      el.platformInfo.textContent = `Platform: ${state.platform} (max concurrent: ${state.platformConfig.maxConcurrentUploads})`;
+      el.modeText.textContent = `${state.restoreMode} • ${getRestoreConcurrency()} workers`;
+      return state.platform;
+    } catch (e) {
+      console.warn('Platform detection failed, using fallback', e);
+      state.platform = 'windows';
+      state.platformConfig = { maxConcurrentUploads: 6, timeoutMs: 600000, supportsRemoteCopy: false };
+      el.platformInfo.textContent = 'Platform detection failed, using fallback (windows)';
+      el.modeText.textContent = 'windows';
+      return 'windows';
+    }
+  }
 
+  // ---- Replace fetchCurrentText with platform-aware version ----
+  async function fetchCurrentText(destBase, path) {
+    const base = String(destBase || '').trim().replace(/\/+$/, '') || location.origin.replace(/\/+$/, '');
+    if (typeof window.platformAPI !== 'undefined') {
+      try {
+        const url = await window.platformAPI.getDownloadUrl(base, path);
+        const res = await fetch(url, { cache: 'no-store' });
+        if (res.ok) return await res.text();
+      } catch (e) { /* fall through */ }
+    }
+    // Fallback: direct fetch
+    const clean = String(path || '').replace(/^\/+/, '');
+    const urls = [`${base}/${clean}`, `${base}/./${clean}`];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (res.ok) return await res.text();
+      } catch (_) {}
+    }
+    return '';
+  }
+
+  // ---- Replace uploadPath with platformAPI ----
+  async function uploadPath(destBase, targetPath, bytes) {
+    const base = String(destBase || '').trim().replace(/\/+$/, '') || location.origin.replace(/\/+$/, '');
+    const clean = String(targetPath || '').replace(/^\/+/, '');
+    if (!clean) return false;
+    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    const file = new File([blob], clean.split('/').pop() || 'file', { type: 'application/octet-stream' });
+    try {
+      if (typeof window.platformAPI !== 'undefined') {
+        await window.platformAPI.uploadFile(file, clean, base);
+        return true;
+      }
+    } catch (e) {
+      console.warn('platformAPI upload failed, falling back to raw fetch:', e);
+    }
+    // Fallback: raw fetch
+    const urls = [`${base}/${clean}`, `${base}/api/file/upload?path=${encodeURIComponent(clean)}`];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, {
+          method: 'PUT',
+          body: bytes,
+          headers: { 'Content-Type': 'application/octet-stream' }
+        });
+        if (res.ok) return true;
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  // ---- Rest of the logic (unchanged) ----
   function log(msg, reset = false) {
     const text = String(msg || '').trim();
     if (reset) state.logLines = [];
@@ -424,26 +502,10 @@
     return result;
   }
 
-  async function detectPlatform(destBase) {
-    const base = String(destBase || '').trim().replace(/\/+$/, '') || location.origin.replace(/\/+$/, '');
-    const candidates = [`${base}/platform.txt`, `${base}/./platform.txt`];
-    for (const url of candidates) {
-      try {
-        const r = await fetch(url, { cache: 'no-store', credentials: 'omit' });
-        if (r && r.ok) {
-          const txt = (await r.text()).trim().toLowerCase();
-          if (txt) return txt;
-        }
-      } catch (e) {}
-    }
-    return 'windows';
-  }
-
   function updatePlatformText() {
     el.platformInfo.textContent = `platform: ${state.platform}`;
     el.modeText.textContent = `${state.restoreMode} • ${getRestoreConcurrency()} workers`;
   }
-
 
   const PROFILE_ITEMS = [
     { key: 'profile', label: 'Profile data', desc: 'profile avatar path + selected colors from profiles.js' },
@@ -515,41 +577,6 @@
     const backupTitle = extractCustomTitle(backupText);
     const title = currentTitle || backupTitle || '';
     return buildProfilesJsContent(merged, title);
-  }
-
-  function resolveUrl(base, path = '') {
-    const cleanBase = String(base || '').trim().replace(/\/+$/, '') || location.origin.replace(/\/+$/, '');
-    const rel = String(path || '').replace(/^\/+/, '');
-    return new URL(rel, cleanBase + '/').toString();
-  }
-
-  async function fetchBytes(url) {
-    const res = await fetch(url, { cache: 'no-store', credentials: 'omit' });
-    if (!res.ok) return null;
-    return new Uint8Array(await res.arrayBuffer());
-  }
-
-  async function fetchText(url) {
-    const bytes = await fetchBytes(url);
-    if (!bytes) return null;
-    try { return dec.decode(bytes); } catch { return null; }
-  }
-
-  async function fetchCurrentText(destBase, pathOrPaths) {
-    const base = String(destBase || '').trim().replace(/\/+$/, '') || location.origin.replace(/\/+$/, '');
-    const paths = Array.isArray(pathOrPaths) ? pathOrPaths : [pathOrPaths];
-    const candidates = [];
-    for (const path of paths) {
-      const cleaned = normalizePath(path);
-      if (!cleaned) continue;
-      candidates.push(`${base}/${cleaned}`);
-      candidates.push(`${base}/./${cleaned}`);
-    }
-    for (const url of candidates) {
-      const txt = await fetchText(url).catch(() => null);
-      if (typeof txt === 'string' && txt.length) return txt;
-    }
-    return '';
   }
 
   function archiveEntryBytes(pathOrPaths) {
@@ -834,53 +861,27 @@
     return Math.min(64, Math.max(1, Math.floor(raw)));
   }
 
+  function syncProfileCardChildren(card, checked) {
+    if (!card) return;
+    card.querySelectorAll('.itemCheck').forEach(cb => { cb.checked = !!checked; });
+  }
 
-function syncProfileCardChildren(card, checked) {
-  if (!card) return;
-  card.querySelectorAll('.itemCheck').forEach(cb => { cb.checked = !!checked; });
-}
-
-async function runBatch(items, limit, handler) {
-  const results = new Array(items.length);
-  let cursor = 0;
-  const workerCount = Math.max(1, Math.min(items.length || 1, limit | 0));
-  const workers = Array.from({ length: workerCount }, async () => {
-    while (true) {
-      const current = cursor++;
-      if (current >= items.length) return;
-      results[current] = await handler(items[current], current);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
-
-async function uploadPath(destBase, targetPath, bytes) {
-  const base = String(destBase || '').trim().replace(/\/+$/, '') || location.origin.replace(/\/+$/, '');
-  const clean = normalizePath(targetPath).replace(/^\/+/, '');
-  if (!clean) return false;
-  const body = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
-
-  const tryPut = async (url) => {
-    const res = await fetch(url, {
-      method: 'PUT',
-      body,
-      headers: { 'Content-Type': 'application/octet-stream' }
+  async function runBatch(items, limit, handler) {
+    const results = new Array(items.length);
+    let cursor = 0;
+    const workerCount = Math.max(1, Math.min(items.length || 1, limit | 0));
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const current = cursor++;
+        if (current >= items.length) return;
+        results[current] = await handler(items[current], current);
+      }
     });
-    return !!(res && res.ok);
-  };
+    await Promise.all(workers);
+    return results;
+  }
 
-  if (await tryPut(`${base}/${clean}`)) return true;
-
-  const slash = clean.lastIndexOf('/');
-  const uploadDir = slash >= 0 ? `/${clean.slice(0, slash)}` : '/';
-  const filename = slash >= 0 ? clean.slice(slash + 1) : clean;
-  const apiUrl = `${base}/api/file/upload?path=${encodeURIComponent(uploadDir)}&name=${encodeURIComponent(filename)}`;
-  if (await tryPut(apiUrl)) return true;
-
-  return false;
-}
-
+  // ---- scanArchiveView and scanZip (unchanged) ----
   function scanArchiveView() {
     const entries = Array.from(state.entries.entries()).map(([name, bytes]) => ({ name, bytes, size: bytes.length }));
     entries.sort((a, b) => a.name.localeCompare(b.name));
@@ -958,7 +959,8 @@ async function uploadPath(destBase, targetPath, bytes) {
     el.scanBtn.disabled = true;
     try {
       state.destBase = String(el.destBase.value || '').trim().replace(/\/+$/, '') || location.origin.replace(/\/+$/, '');
-      state.platform = await detectPlatform(state.destBase);
+      // Detect platform using the API
+      await detectPlatformWithAPI(state.destBase);
       state.restoreMode = (document.querySelector('input[name="restoreMode"]:checked') || {}).value || 'merge';
       updatePlatformText();
 
@@ -979,7 +981,7 @@ async function uploadPath(destBase, targetPath, bytes) {
 
       const backupProfilesText = getArchiveProfilesText();
       if (selectedManifestEntries.length) {
-        const currentProfilesText = await fetchCurrentText(state.destBase, ['profiles.js', './profiles.js', 'Profiles/profiles.js']);
+        const currentProfilesText = await fetchCurrentText(state.destBase, 'profiles.js');
         const filteredBackupText = buildProfilesJsContent(selectedManifestEntries, extractCustomTitle(currentProfilesText) || extractCustomTitle(backupProfilesText) || '');
         const finalProfilesText = replaceProfiles
           ? filteredBackupText
@@ -1109,9 +1111,8 @@ async function uploadPath(destBase, targetPath, bytes) {
   el.probeBtn.addEventListener('click', async () => {
     try {
       state.destBase = String(el.destBase.value || '').trim().replace(/\/+$/, '') || location.origin.replace(/\/+$/, '');
-      state.platform = await detectPlatform(state.destBase);
-      updatePlatformText();
-      log(`Detected destination platform: ${state.platform}`);
+      const platform = await detectPlatformWithAPI(state.destBase);
+      log(`Detected destination platform: ${platform}`);
     } catch (err) {
       log(`Platform probe failed: ${err && err.message ? err.message : String(err)}`);
     }
@@ -1127,6 +1128,14 @@ async function uploadPath(destBase, targetPath, bytes) {
     el.concurrency.addEventListener('input', updatePlatformText);
     el.concurrency.addEventListener('change', updatePlatformText);
   }
+
+  // Initial platform detection (non-blocking)
+  (async () => {
+    try {
+      state.destBase = String(el.destBase.value || '').trim().replace(/\/+$/, '') || location.origin.replace(/\/+$/, '');
+      await detectPlatformWithAPI(state.destBase);
+    } catch (_) {}
+  })();
 
   updatePlatformText();
   log('Waiting for a zip archive.', true);

@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LibraryJS — Server Profiles Backup</title>
+  <!-- ✅ Load the unified platform API -->
+  <script src="loadplatform.js"></script>
   <style>
     :root{
       --bg:#0b1018;
@@ -553,18 +555,99 @@
     return { name: normalizePath(path), bytes: encodeUtf8(text) };
   }
 
+  // ─── PLATFORM‑AWARE HELPERS ─────────────────────────────────
+
+  let platformCache = null;
+
+  async function getPlatform() {
+    if (platformCache !== null) return platformCache;
+    if (typeof window.platformAPI !== 'undefined') {
+      try {
+        platformCache = await window.platformAPI.getPlatform(window.location.origin);
+        console.log('[profiles-backup] Platform detected:', platformCache);
+        return platformCache;
+      } catch (e) {
+        console.warn('[profiles-backup] platform detection failed, falling back to windows', e);
+      }
+    }
+    platformCache = 'windows';
+    return platformCache;
+  }
+
+  // ─── REPLACED fetchBytes ────────────────────────────────────
+
   async function fetchBytes(path) {
-    const url = path.startsWith('http://') || path.startsWith('https://') ? path : `./${normalizePath(path)}`;
+    let url = path;
+    if (typeof window.platformAPI !== 'undefined') {
+      try {
+        url = await window.platformAPI.getDownloadUrl(window.location.origin, path);
+      } catch (e) {
+        console.warn('[profiles-backup] getDownloadUrl failed, using raw path', e);
+      }
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      url = new URL(url, window.location.href).href;
+    }
     const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
     if (!res.ok) return null;
     return new Uint8Array(await res.arrayBuffer());
   }
 
-  async function fetchText(path) {
-    const bytes = await fetchBytes(path);
-    if (!bytes) return null;
-    try { return dec.decode(bytes); } catch { return null; }
+  // ─── REPLACED listDir ──────────────────────────────────────
+
+  async function listDir(targetDir) {
+    const platform = await getPlatform();
+
+    // iPhone / iPhoneS: use pocket‑server API
+    if (platform === 'iphone' || platform === 'iphones') {
+      if (typeof window.pocketList === 'function') {
+        try {
+          const list = await window.pocketList(targetDir);
+          if (Array.isArray(list) && list.length) return list.map(String);
+        } catch (e) { /* ignore */ }
+      }
+
+      try {
+        const r = await fetch(`/pocketserver-api/list?q=${encodeURIComponent(targetDir)}`, { credentials: 'include' });
+        if (r && r.ok) {
+          const txt = await r.text();
+          try {
+            const parsed = JSON.parse(txt);
+            if (Array.isArray(parsed)) {
+              return parsed.map(item =>
+                typeof item === 'string' ? item : String(item && (item.name || item.path || item.href || ''))
+              ).filter(Boolean);
+            }
+          } catch (e) { /* not JSON */ }
+          return txt.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Fallback: try fetching the directory as an HTML listing
+    try {
+      let dirUrl = targetDir;
+      if (typeof window.platformAPI !== 'undefined') {
+        try {
+          dirUrl = await window.platformAPI.getDownloadUrl(window.location.origin, targetDir);
+        } catch (e) { /* ignore */ }
+      }
+      if (!/^https?:\/\//i.test(dirUrl)) {
+        dirUrl = new URL(dirUrl, window.location.href).href;
+      }
+      const r2 = await fetch(dirUrl, { cache: 'no-store', credentials: 'include' });
+      if (r2 && r2.ok) {
+        const html = await r2.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const anchors = Array.from(doc.querySelectorAll('a[href]')).map(a => a.getAttribute('href')).filter(Boolean);
+        if (anchors.length) return anchors;
+      }
+    } catch (e) { /* ignore */ }
+
+    return [];
   }
+
+  // ─── REST OF THE SCRIPT (unchanged) ──────────────────────
 
   async function tryFetchAny(paths) {
     for (const path of paths) {
@@ -572,36 +655,6 @@
       if (bytes) return { path: normalizePath(path), bytes };
     }
     return null;
-  }
-
-  async function listDir(targetDir) {
-    if (typeof window.pocketList === 'function') {
-      try { const list = await window.pocketList(targetDir); if (Array.isArray(list) && list.length) return list.map(String); } catch (e) {}
-    }
-
-    try {
-      const r = await fetch(`/pocketserver-api/list?q=${encodeURIComponent(targetDir)}`, { credentials: 'include' });
-      if (r && r.ok) {
-        const txt = await r.text();
-        try {
-          const parsed = JSON.parse(txt);
-          if (Array.isArray(parsed)) return parsed.map(item => typeof item === 'string' ? item : String(item && (item.name || item.path || item.href || ''))).filter(Boolean);
-        } catch (e) {}
-        return txt.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      }
-    } catch (e) {}
-
-    try {
-      const r2 = await fetch(targetDir, { cache: 'no-store', credentials: 'include' });
-      if (r2 && r2.ok) {
-        const html = await r2.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        const anchors = Array.from(doc.querySelectorAll('a[href]')).map(a => a.getAttribute('href')).filter(Boolean);
-        if (anchors.length) return anchors;
-      }
-    } catch (e) {}
-
-    return [];
   }
 
   function imageExt(path) {
@@ -658,6 +711,12 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     } catch (e) {
       return '';
     }
+  }
+
+  async function fetchText(path) {
+    const bytes = await fetchBytes(path);
+    if (!bytes) return null;
+    try { return dec.decode(bytes); } catch { return null; }
   }
 
   async function collectProfileFiles(profileName, flags) {
@@ -956,21 +1015,10 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     }
   }
 
-  function updateCounts() {
-    const cards = Array.from(document.querySelectorAll('.profileCard')).filter(card => card.style.display !== 'none');
-    const selected = cards.filter(card => card.querySelector('.profileCheck')?.checked);
-    let itemCount = 0;
-    for (const card of selected) {
-      itemCount += Array.from(card.querySelectorAll('.itemCheck')).filter(cb => cb.checked).length;
-    }
-    el.selectedProfilesCount.textContent = String(selected.length);
-    el.selectedItemsCount.textContent = String(itemCount);
-  }
-
   el.searchBox.addEventListener('input', applyFilter);
   el.selectAllProfilesBtn.addEventListener('click', () => { setAllProfiles(true); });
   el.clearAllBtn.addEventListener('click', () => { setAllProfiles(false); setVisibleItemChecks(false); });
-el.buildBtn.addEventListener('click', downloadBackup);
+  el.buildBtn.addEventListener('click', downloadBackup);
 
   renderProfiles();
   updateCounts();

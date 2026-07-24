@@ -1273,7 +1273,6 @@ function normalizeSeasonsArrayInPlace(arr) {
   <h1 id="siteTitle">
      
     <img src="./Images/clear-cache-icon.png"
-         alt="Clear Cache and Reload"
          onclick="clearCacheAndReload()"
          style="width: 18px; height: 18px; vertical-align: middle; margin-left: 8px;">
   </h1>
@@ -2196,6 +2195,7 @@ function normalizeSeasonsArrayInPlace(arr) {
         <button onclick="playNext()">Yes</button>
         <button onclick="closePopup()">No</button>
     </div>
+    <script src="./loadplatform.js"></script>   
 <script src="./profiles.js"></script>
 <script src="./mainfolders.js"></script>
 <script src="./loadmainfolders.js"></script>
@@ -2203,10 +2203,10 @@ function normalizeSeasonsArrayInPlace(arr) {
 <script src="./loadseasonfunctions.js"></script>
     <script src="./loadgames.js"></script>
     <script src="./screensaver.js"></script>
-	  <script src="./loadimages.js"></script>
-	   <script src="./loadexpanded.js"></script>
-	   <script src="./loadlocalexpanded.js"></script>
-	   
+    <script src="./loadimages.js"></script>
+    <script src="./loadexpanded.js"></script>
+    <script src="./loadlocalexpanded.js"></script>
+       
    <!-- Work in progress feature to unite multiple servers -->
 
     <script>
@@ -2240,7 +2240,7 @@ function normalizeSeasonsArrayInPlace(arr) {
   }
 })();
 
-	// add once at top-level of the TVD overlay injector script
+    // add once at top-level of the TVD overlay injector script
 let preferPageFullscreen = false;
 
         // Global variables  // ─── New “Send to TV” function ───
@@ -2341,7 +2341,7 @@ let preferPageFullscreen = false;
 }
 
     // ───────────────────────────────────────────────────────────────────
-	
+    
 let currentFolder = "";
 let currentEpisodeIndex = 0;
 let lastFolderScroll = 0;
@@ -3726,10 +3726,9 @@ function getSavedProgress(folderName) {
   return raw ? JSON.parse(raw) : null;
 }
 
+// ─── UPDATED backupShowToProfile using platformAPI.upload ───
 async function backupShowToProfile(profileName, showName) {
-  // prefer getCachedPlatform if it exists, otherwise fall back to the value set at startup
-  const platform = (typeof getCachedPlatform === 'function') ? await getCachedPlatform() : (window.detectedPlatform || 'windows');
-  console.log('[backupShowToProfile] platform=', platform, 'profile=', profileName, 'show=', showName);
+  console.log('[backupShowToProfile]', profileName, showName);
 
   // find parent series if any
   let parentSeries = null;
@@ -3740,7 +3739,7 @@ async function backupShowToProfile(profileName, showName) {
     }
   }
 
-  // collect keys/values to include in payload
+  // collect data
   const dataToUpload = {};
   const keyShow  = `progress-${profileName}-${showName}`;
   const valShow  = localStorage.getItem(keyShow);
@@ -3757,276 +3756,107 @@ async function backupShowToProfile(profileName, showName) {
   }
 
   const payload = `[[[${JSON.stringify(dataToUpload)}]]]`;
-  console.log('[backupShowToProfile] payload length=', payload.length);
+  const payloadBlob = new Blob([payload], { type: 'text/plain' });
 
-  // helper: PUT a .txt copy (Windows / fallback)
-  async function putTxtCopy(encodedNameWithoutExt) {
-    try {
-      const url = `/Profiles/${encodedNameWithoutExt}.txt`;
-      const r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload });
-      console.log('[backupShowToProfile] PUT .txt ->', url, r.status);
-      return r.ok;
-    } catch (e) {
-      console.warn('[backupShowToProfile] PUT .txt failed for', encodedNameWithoutExt, e);
-      return false;
-    }
+  // Upload both files – explicitly with .txt suffix
+  try {
+    await platformAPI.upload(payloadBlob, `/Profiles/${profileName}-${showName}.txt`);
+    await platformAPI.upload(payloadBlob, `/Profiles/${profileName}-Resume.txt`);
+    console.log('[backupShowToProfile] uploads succeeded');
+  } catch (e) {
+    console.error('[backupShowToProfile] upload failed:', e);
+    throw e;
   }
-
-  // helper: basic pocketserver upload (upload by name into targetDir)
-  async function pocketUpload(name, targetDir) {
-    try {
-      const blob = new Blob([payload], { type: 'application/json' });
-      const form = new FormData();
-      form.append('files[]', blob, name);
-      form.append('targetDir', targetDir);
-      const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form, credentials: 'include' });
-      const txt = await r.text().catch(()=> '');
-      console.log('[backupShowToProfile] pocketserver upload', name, '->', r.status, txt);
-      return r.ok;
-    } catch (e) {
-      console.warn('[backupShowToProfile] pocketserver upload failed', name, e);
-      return false;
-    }
-  }
-
-  // pocketserver helpers: list + delete
-  async function listProfiles(targetDir) {
-    try {
-      const q = encodeURIComponent(targetDir);
-      const r = await fetch(`/pocketserver-api/list?q=${q}`, { credentials: 'include' });
-      if (!r.ok) { console.warn('[backupShowToProfile] list failed', r.status); return null; }
-      const text = await r.text();
-      try { return JSON.parse(text); } catch { return text; }
-    } catch (e) {
-      console.error('[backupShowToProfile] listProfiles error', e);
-      return null;
-    }
-  }
-  async function deletePath(fullPath) {
-    try {
-      const body = { command: "delete", paths: [ fullPath ], name: "", targetDir: "" };
-      const r = await fetch('/pocketserver-api/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        credentials: 'include'
-      });
-      const txt = await r.text().catch(()=> '');
-      console.log('[backupShowToProfile] deletePath', fullPath, '->', r.status, txt);
-      return r.ok;
-    } catch (e) {
-      console.error('[backupShowToProfile] deletePath error', fullPath, e);
-      return false;
-    }
-  }
-
-  // pocketReplace: temp -> verify -> delete old -> upload final -> cleanup temp
-  async function pocketReplace(baseName, targetDir) {
-    const tempName = baseName + '.__new__';
-    console.log('[backupShowToProfile] pocketReplace start for', baseName);
-
-    // upload temp
-    const tempOk = await pocketUpload(tempName, targetDir);
-    if (!tempOk) {
-      console.warn('[backupShowToProfile] pocketReplace: temp upload failed for', tempName);
-      return false;
-    }
-
-    // verify temp is visible
-    const midList = await listProfiles(targetDir);
-    const midText = midList ? (typeof midList === 'string' ? midList : JSON.stringify(midList)) : '';
-    if (!midText.includes(tempName)) {
-      console.warn('[backupShowToProfile] pocketReplace: temp not visible after upload for', tempName);
-      return false;
-    }
-
-    // delete existing desired
-    const desiredFullPath = targetDir + baseName;
-    const delOk = await deletePath(desiredFullPath);
-    if (!delOk) {
-      console.warn('[backupShowToProfile] pocketReplace: could not delete existing', desiredFullPath);
-      return false;
-    }
-
-    // upload final desired name
-    const finalOk = await pocketUpload(baseName, targetDir);
-    if (!finalOk) {
-      console.warn('[backupShowToProfile] pocketReplace: final upload failed for', baseName);
-      return false;
-    }
-
-    // cleanup temp
-    const tempFullPath = targetDir + tempName;
-    const cleanupOk = await deletePath(tempFullPath);
-    console.log('[backupShowToProfile] pocketReplace cleanup temp ->', cleanupOk);
-    return finalOk;
-  }
-
-  // Platform-specific flows
-  if (platform.includes('android')) {
-    // Android: FormData PUT two files (no extension preferred)
-    try {
-      const blob = new Blob([payload], { type: 'application/json' });
-      const form1 = new FormData(); form1.append('files[]', blob, `${profileName}-${showName}`);
-      const form2 = new FormData(); form2.append('files[]', blob, `${profileName}-Resume`);
-
-      const results = await Promise.allSettled([
-        fetch(`/api/file/upload?path=${encodeURIComponent('/Profiles/')}`, { method: 'PUT', body: form1, credentials: 'include' }),
-        fetch(`/api/file/upload?path=${encodeURIComponent('/Profiles/')}`, { method: 'PUT', body: form2, credentials: 'include' })
-      ]);
-      console.log('[backupShowToProfile] android upload results:', results);
-    } catch (e) {
-      console.warn('[backupShowToProfile] android upload error', e);
-    }
-
-    // best-effort .txt copies for other clients
-    try { await putTxtCopy(`${encodeURIComponent(profileName)}-${encodeURIComponent(showName)}`); } catch(e){/*ignore*/}
-    try { await putTxtCopy(`${encodeURIComponent(profileName)}-Resume`); } catch(e){/*ignore*/}
-
-    return;
-  }
-
-  if (platform.includes('iphone') || platform === 'iphones') {
-    // iPhone safe replace for both show and Resume pointer
-    const targetDir = 'file:///private/var/mobile/Library/LiveFiles/com.apple.filesystems.userfsd/2B3E705A-D115-3563-8EB1-F240305273C0/VideoServer/Profiles/';
-
-    // replace show file
-    try {
-      const showBase = `${profileName}-${showName}`;
-      const okShow = await pocketReplace(showBase, targetDir);
-      if (!okShow) console.warn('[backupShowToProfile] show pocketReplace did not complete', showBase);
-      else console.log('[backupShowToProfile] show pocketReplace success for', showBase);
-    } catch (e) {
-      console.warn('[backupShowToProfile] show pocketReplace error', e);
-    }
-
-    // replace resume pointer using same safe flow
-    try {
-      const resumeBase = `${profileName}-Resume`;
-      const okResume = await pocketReplace(resumeBase, targetDir);
-      if (!okResume) {
-        console.warn('[backupShowToProfile] resume pocketReplace failed, attempting direct upload for', resumeBase);
-        // last-resort: attempt a direct upload (keeps behavior resilient)
-        await pocketUpload(resumeBase, targetDir).catch(()=>{});
-      } else {
-        console.log('[backupShowToProfile] resume pocketReplace success for', resumeBase);
-      }
-    } catch (e) {
-      console.warn('[backupShowToProfile] resume pocketReplace exception', e);
-      try { await pocketUpload(`${profileName}-Resume`, targetDir); } catch(_) { /* ignore */ }
-    }
-
-    // do NOT attempt .txt PUTs for iPhone branch
-    return;
-  }
-
-  // Windows: existing behavior (PUT .txt after short delay)
-  if (platform === 'windows') {
-    // Windows: attempt immediate .txt PUTs with retries/backoff (surgically replace the old 5s delayed PUT)
-    async function attemptPutTxtCopies(attempts = 4, baseDelay = 700) {
-      const fileShow  = `${encodeURIComponent(profileName)}-${encodeURIComponent(showName)}.txt`;
-      const fileResume = `${encodeURIComponent(profileName)}-Resume.txt`;
-      for (let attempt = 0; attempt < attempts; ++attempt) {
-        try {
-          const [r1, r2] = await Promise.all([
-            fetch(`/Profiles/${fileShow}`,  { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload, credentials: 'include' }),
-            fetch(`/Profiles/${fileResume}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload, credentials: 'include' })
-          ]);
-          console.log('[backupShowToProfile] windows put attempt', attempt+1, 'statuses', r1.status, r2.status);
-          if (r1.ok && r2.ok) {
-            console.log('[backupShowToProfile] windows put success on attempt', attempt+1);
-            return true;
-          }
-        } catch (e) {
-          console.warn('[backupShowToProfile] windows put attempt error', e);
-        }
-        const waitMs = baseDelay * Math.pow(2, attempt);
-        await new Promise(res => setTimeout(res, waitMs));
-      }
-      console.error('[backupShowToProfile] windows put all attempts failed');
-      return false;
-    }
-
-    // Await the attempts so callers (like sendToTV) see consistent behavior.
-    await attemptPutTxtCopies(4, 700).catch(e => { console.error('[backupShowToProfile] windows put aborted', e); });
-    return;
-  }
-
-
-  // Fallback: conservative .txt write
-  setTimeout(() => {
-    const fileShow  = `${encodeURIComponent(profileName)}-${encodeURIComponent(showName)}.txt`;
-    const fileResume = `${encodeURIComponent(profileName)}-Resume.txt`;
-    Promise.allSettled([
-      fetch(`/Profiles/${fileShow}`,  { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload }),
-      fetch(`/Profiles/${fileResume}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload })
-    ]).then(results => {
-      console.log('[backupShowToProfile] fallback txt put results:', results);
-    });
-  }, 5000);
 }
 
+// ─── UPDATED saveFavoritesToServer using platformAPI.upload ───
+async function saveFavoritesToServer(arr) {
+  const profile = localStorage.getItem('activeProfile') || 'Guest';
+  const slug = 'favorites';
+  const payload = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
+  const payloadBlob = new Blob([payload], { type: 'text/plain' });
+
+  try {
+    await platformAPI.upload(payloadBlob, `/Profiles/${profile}-${slug}.txt`);
+    console.log('[saveFavoritesToServer] upload succeeded');
+  } catch (e) {
+    console.error('[saveFavoritesToServer] upload failed:', e);
+    throw e;
+  }
+}
+
+// ─── UPDATED restoreShowFromProfile: uses platformAPI for download ───
 async function restoreShowFromProfile(profile, show) {
   if (show === 'Resume') {
     console.warn('Skipping restore from Profile-Resume');
     return;
   }
 
-  const platform = (typeof getCachedPlatform === 'function') ? await getCachedPlatform() : (window.detectedPlatform || 'windows');
+  const fileId = `${encodeURIComponent(profile)}-${encodeURIComponent(show)}.txt`;
+  // Get the platform-correct download URL
+  const baseUrl = window.location.href;
+  const rawUrl = await platformAPI.getDownloadUrl(baseUrl, `/Profiles/${fileId}`);
+  const url = `${rawUrl}?_=${Date.now()}`;
 
-  // build candidate list for Resume pointer / show file
-  const safeId = `${encodeURIComponent(profile)}-${encodeURIComponent(show)}`;
-  const candidates = [];
-  if (platform.includes('iphone') || platform === 'iphones') {
-    candidates.push(safeId);           // no-extension first for iPhone
-    candidates.push(safeId + '.txt'); // fallback .txt
-  } else if (platform.includes('android')) {
-    candidates.push(safeId);           // android prefers no-extension
-    candidates.push(safeId + '.txt');
-  } else {
-    // windows/unknown: prefer .txt
-    candidates.push(safeId + '.txt');
-    candidates.push(safeId);
-  }
-
-  // attempt each candidate until one succeeds
   let txt = null;
-  let lastError = null;
-  for (const fileId of candidates) {
-    const url = `/Profiles/${fileId}?_=${Date.now()}`;
-    try {
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) {
-        lastError = new Error(`HTTP ${res.status} for ${fileId}`);
-        continue;
-      }
-      txt = await res.text();
-      if (txt) break;
-    } catch (e) {
-      lastError = e;
-      continue;
-    }
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${fileId}`);
+    txt = await res.text();
+  } catch (e) {
+    throw new Error('Could not find profile file: ' + fileId);
   }
 
-  if (!txt) {
-    throw new Error('Could not find profile file (tried candidates). ' + (lastError ? `Last error: ${lastError.message}` : 'No response.'));
-  }
-
-  // parse JSON payload between markers
   const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
   if (!m) throw new Error('No backup JSON found between markers');
   let data;
   try { data = JSON.parse(m[1]); }
   catch (e) { throw new Error('Backup JSON malformed: ' + e.message); }
 
-  // restore into localStorage
   Object.entries(data).forEach(([key, val]) => {
     if (val != null) localStorage.setItem(key, val);
     else localStorage.removeItem(key);
   });
 }
+// ─── UPDATED loadFavoritesFromServer: uses platformAPI for download ───
+async function loadFavoritesFromServer() {
+  const profile = localStorage.getItem('activeProfile') || 'Guest';
+  const slug = 'favorites';
+  const fileName = `${profile}-${slug}.txt`;
+  const perKey = _favoritesKeyForProfile(profile);
 
+  try {
+    const baseUrl = window.location.href;
+    const rawUrl = await platformAPI.getDownloadUrl(baseUrl, `/Profiles/${encodeURIComponent(fileName)}`);
+    const url = `${rawUrl}?_=${Date.now()}`;
 
+    const r = await fetch(url, {
+      cache: 'no-store',
+      credentials: 'include'
+    });
+    if (!r.ok) {
+      try { localStorage.removeItem(perKey); } catch(e){}
+      return [];
+    }
+    const text = await r.text();
+    const m = text.match(/\[\[\[\s*([\s\S]*?)\s*\]\]\]/);
+    let arr = null;
+    if (m && m[1]) arr = JSON.parse(m[1]);
+    else arr = JSON.parse(text);
+    if (Array.isArray(arr)) {
+      const normalized = normalizeFavoriteList(arr);
+      try { localStorage.setItem(perKey, JSON.stringify(normalized)); } catch(e){}
+      return normalized;
+    } else {
+      try { localStorage.removeItem(perKey); } catch(e){}
+      return [];
+    }
+  } catch (e) {
+    console.warn('[loadFavoritesFromServer] fetch failed', e);
+    try { localStorage.removeItem(perKey); } catch(e){}
+    return [];
+  }
+}
 // Add this function above playNext()
 function getNextSeason(currentSeason) {
   // Look for any key in `episodes` whose array includes the currentSeason
@@ -4067,8 +3897,8 @@ function playNext() {
     function toggleAutoplay() {
         autoplayEnabled = document.getElementById("autoplay").checked;
     }
-	// Toggle Subtitles on or off
-	function toggleSubtitles() {
+    // Toggle Subtitles on or off
+    function toggleSubtitles() {
     const subtitleTrack = document.getElementById("subtitleTrack");
     const enabled = document.getElementById("subtitlesEnabled").checked;
     subtitleTrack.mode = enabled ? "showing" : "disabled";
@@ -4228,12 +4058,13 @@ function returnToFolderSelection() {
  //   window.onload = function() {
  //       initializePlayer();
  //       checkVersion();
-//		updateActiveProfileIcon(); 
+//      updateActiveProfileIcon(); 
 //        const savedBackgroundImage = localStorage.getItem('backgroundImage');
 //        if (savedBackgroundImage) {
 //            document.body.style.backgroundImage = `url(${savedBackgroundImage})`;
  //       }
  //   };
+ // ===== UPDATED QR FUNCTIONS (dynamic QR using origin) =====
  // Add these new functions for QR handling
     let currentQRKind = 'original';
     let currentQRSource = 'local';
@@ -4243,7 +4074,11 @@ function returnToFolderSelection() {
         if (source === 'tailscale') {
             return isKids ? './Images/tailscale-kids-qr.png' : './Images/tailscale-regular-qr.png';
         }
-        return isKids ? './Images/kids-qr.png' : './Images/regular-qr.png';
+        // local: generate QR code with current origin + ?I or ?l
+        const baseUrl = window.location.origin;                // e.g. http://192.168.254.27:8080
+        const query = isKids ? 'l' : 'I';
+        const data = baseUrl + '/?' + query;                  // e.g. http://192.168.254.27:8080/?I
+        return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}`;
     }
 
     function getQRPopupTint(kind, source) {
@@ -4306,6 +4141,7 @@ function returnToFolderSelection() {
             popup.setAttribute('aria-hidden', 'true');
         }
     }
+    // ===== END UPDATED QR FUNCTIONS =====
 
     // Full Screen button function
     function enterFullscreen() {
@@ -4322,14 +4158,14 @@ function returnToFolderSelection() {
     document.getElementById("video").addEventListener("play", function () {
         maybeAutoFullscreenActivePlayback();
     });
-	
+    
 document.getElementById("video").addEventListener("ended", () => {
  if (autoplayEnabled) {
  playNext();
  }
  });
 
-	
+    
 function setupCustomVideoControls() {
  const video = document.getElementById("video");
 
@@ -6005,71 +5841,16 @@ function setStoredFavorites(arr) {
 async function saveFavoritesToServer(arr) {
   const profile = localStorage.getItem('activeProfile') || 'Guest';
   const slug = 'favorites';
-  // 1) If the app already provides the playlist save helper (radio.html style), prefer it:
-  if (typeof window.savePlaylistFileToServer === 'function') {
-    try {
-      await window.savePlaylistFileToServer(profile, slug, arr);
-      console.log('[saveFavoritesToServer] saved via savePlaylistFileToServer');
-      return true;
-    } catch (e) {
-      console.warn('[saveFavoritesToServer] savePlaylistFileToServer failed', e);
-    }
-  }
+  const payload = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
+  const payloadBlob = new Blob([payload], { type: 'text/plain' });
 
-  // 2) Try pocketReplace (iPhone pocketserver flow) if available globally
   try {
-    const fileName = `${profile}-${slug}.txt`;
-    const payloadText = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
-    if (typeof pocketReplace === 'function') {
-      const ok = await pocketReplace(fileName, null, payloadText).catch(()=>false);
-      if (ok) { console.log('[saveFavoritesToServer] saved via pocketReplace'); return true; }
-    }
+    await platformAPI.upload(payloadBlob, `/Profiles/${profile}-${slug}.txt`);
+    console.log('[saveFavoritesToServer] upload succeeded');
   } catch (e) {
-    console.warn('[saveFavoritesToServer] pocketReplace attempt failed', e);
+    console.error('[saveFavoritesToServer] upload failed:', e);
+    throw e;
   }
-
-  // 3) Try Android-style upload if helper exists (non-blocking fallback)
-  try {
-    if (typeof isAndroidUpload === 'function' && isAndroidUpload()) {
-      const fileName = `${profile}-favorites.txt`;
-      const blob = new Blob([JSON.stringify(arr)], { type: 'application/json' });
-      const form = new FormData();
-      form.append('files[]', blob, fileName);
-      // try server endpoint used elsewhere in index/radio
-      const r = await fetch(`/pocketserver-api/upload`, { method: 'POST', body: form });
-      if (r && r.ok) { console.log('[saveFavoritesToServer] saved via android upload'); return true; }
-    }
-  } catch (e) {
-    console.warn('[saveFavoritesToServer] android upload failed', e);
-  }
-
-  // 4) Final fallback: Windows/Generic PUT to /Profiles/<name>.txt with retries + credentials
-  try {
-    const nameNoExt = `${profile}-${slug}`;
-    const url = `/Profiles/${encodeURIComponent(nameNoExt)}.txt`;
-    const payloadText = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
-    const maxAttempts = 3;
-    const baseDelay = 250;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        const r = await fetch(url + `?_=${Date.now()}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'text/plain' },
-          body: payloadText,
-          credentials: 'include'
-        });
-        console.log('[saveFavoritesToServer] PUT attempt', attempt+1, '->', r.status);
-        if (r.ok) return true;
-      } catch (e) {
-        console.warn('[saveFavoritesToServer] PUT attempt error', e);
-      }
-      await new Promise(res => setTimeout(res, baseDelay * Math.pow(2, attempt)));
-    }
-    console.error('[saveFavoritesToServer] all PUT attempts failed for', url);
-  } catch (e) {
-    console.warn('[saveFavoritesToServer] fallback failed', e);
-  }
-  return false;
 }
 
 async function loadFavoritesFromServer() {

@@ -1,10 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Music Player</title>
+  <script src="./loadplatform.js"></script>
   <style>
  #sys-toast {
     position: fixed;
@@ -1178,8 +1178,7 @@ async function savePlaylistFileToServer(profile, playlistSlug, arr) {
   profile = profile || getActiveProfileName();
   if (!playlistSlug) return false;
   const fileName = `${profile}-${playlistSlug}.txt`;
-  const androidPath = '/Profiles/';
-
+  
   // Normalize elements to basenames (strip any leading path/ Music/ )
   const basenames = (Array.isArray(arr) ? arr : []).map(a => {
     if (!a) return a;
@@ -1187,29 +1186,18 @@ async function savePlaylistFileToServer(profile, playlistSlug, arr) {
   });
 
   const sanitized = `[[[\n${JSON.stringify(basenames, null, 2)}\n]]]`;
+  const payloadBlob = new Blob([sanitized], { type: 'text/plain' });
+  const targetPath = `/Profiles/${encodeURIComponent(fileName)}`;
 
-  // Try Windows PUT
   try {
-    await fetch(`/Profiles/${encodeURIComponent(fileName)}`, { method: 'PUT', headers: { 'Content-Type':'text/plain' }, body: sanitized });
+    await platformAPI.upload(payloadBlob, targetPath);
+    console.log(`[savePlaylistFileToServer] uploaded ${targetPath}`);
     return true;
-  } catch(e){ /* continue to other attempts */ }
-
-  // Try API PUT (android-style)
-  try {
-    const blob = new Blob([sanitized], { type: 'text/plain' });
-    const form = new FormData();
-    form.append('files[]', blob, fileName);
-    await fetch(`/api/file/upload?path=${encodeURIComponent(androidPath)}`, { method: 'PUT', body: form });
-    return true;
-  } catch(e){}
-
-  // final fallback: attempt simpler put
-  try {
-    await fetch(`/Profiles/${encodeURIComponent(fileName)}`, { method: 'PUT', headers: { 'Content-Type':'text/plain' }, body: sanitized });
-    return true;
-  } catch(e){ console.warn('savePlaylistFileToServer failed', e); return false; }
+  } catch (e) {
+    console.error('[savePlaylistFileToServer] upload failed:', e);
+    return false;
+  }
 }
-
 
     async function loadMasterPlaylistsFromServer(profile) {
       profile = profile || getActiveProfileName();
@@ -1227,24 +1215,31 @@ async function savePlaylistFileToServer(profile, playlistSlug, arr) {
     async function saveMasterPlaylistsToServer(profile, arr) {
       profile = profile || getActiveProfileName();
       const fileName = `${profile}-playlists.txt`;
-      try { await savePlaylistFileToServer(profile, 'playlists', arr); return true; } catch(e){ return false; }
+      const sanitized = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
+      const payloadBlob = new Blob([sanitized], { type: 'text/plain' });
+      const targetPath = `/Profiles/${encodeURIComponent(fileName)}`;
+      try {
+        await platformAPI.upload(payloadBlob, targetPath);
+        console.log(`[saveMasterPlaylistsToServer] uploaded ${targetPath}`);
+        return true;
+      } catch (e) {
+        console.error('[saveMasterPlaylistsToServer] upload failed:', e);
+        return false;
+      }
     }
 
     async function uploadPlaylistImage(profile, playlistSlug, file) {
-      // adapted from radio.html: try both api upload and direct PUT
       const ext = (file && file.name && file.name.match(/\.\w+$/)) ? file.name.match(/\.\w+$/)[0] : '.jpg';
       const targetName = `${playlistSlug}${ext}`;
-      const androidPath = '/Music/Images/';
+      const targetPath = `/Music/Images/${encodeURIComponent(targetName)}`;
       try {
-        const form = new FormData();
-        form.append('files[]', file, targetName);
-        await fetch(`/api/file/upload?path=${encodeURIComponent(androidPath)}`, { method: 'PUT', body: form });
+        await platformAPI.upload(file, targetPath);
+        console.log(`[uploadPlaylistImage] uploaded ${targetPath}`);
         return true;
-      } catch (e) { /* fallback */ }
-      try {
-        await fetch(`/Profiles/${encodeURIComponent(targetName)}`, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
-        return true;
-      } catch (e) { console.warn('uploadPlaylistImage failed', e); return false; }
+      } catch (e) {
+        console.error('[uploadPlaylistImage] upload failed:', e);
+        return false;
+      }
     }
 
     // deterministic hash used to pick a playlistN.jpg fallback
@@ -3240,6 +3235,22 @@ function renderManageLikes() {
       }
     }
 
+    // New: save liked songs using platformAPI
+    async function saveLikedSongsToServer(likedSongs) {
+      const profile = getActiveProfileName();
+      const fileName = `${profile}-likedsongs.txt`;
+      const cleaned = flattenStoredList(likedSongs);
+      const sanitized = `[[[\n${JSON.stringify(cleaned, null, 2)}\n]]]`;
+      const payloadBlob = new Blob([sanitized], { type: 'text/plain' });
+      const targetPath = `/Profiles/${encodeURIComponent(fileName)}`;
+      try {
+        await platformAPI.upload(payloadBlob, targetPath);
+        console.log(`[saveLikedSongsToServer] uploaded ${targetPath}`);
+      } catch (e) {
+        console.error('[saveLikedSongsToServer] upload failed:', e);
+      }
+    }
+
     async function loadLikedSongsFromServer() {
       const profile = getActiveProfileName();
       const fileName = `${profile}-likedsongs.txt`;
@@ -4089,6 +4100,8 @@ function setNowPlayingMetadata(artist, title, imagePath) {
     } catch (e) { return raw; }
   }
 
+  // ===== Expose globally so playSong and other callers can use it =====
+  window._resolveTrackUrlSafe = _resolveTrackUrlSafe;
 
   // provide a safe formatTime if not defined elsewhere
   if (typeof formatTime !== 'function') {
@@ -4204,9 +4217,6 @@ function setNowPlayingMetadata(artist, title, imagePath) {
   audioEl.addEventListener('pause', function(){ barPlay.textContent = '▶︎'; });
 
 })()
-
-// Intercept clicks on any buttons with inline playNext/playPrevious onclicks and provide single-vs-double handling
-
 </script>
 
 <!-- Injected platform-aware upload helpers (iPhone pocketserver flow copied from index.html) -->
@@ -4347,91 +4357,33 @@ async function uploadPlaylistToServer(playlistArray) {
 
   const jsonArray = JSON.stringify(basenames, null, 2);
   const sanitized = `[[[\n${jsonArray}\n]]]`;
+  const payloadBlob = new Blob([sanitized], { type: 'text/plain' });
+  const targetPath = `/Profiles/${encodeURIComponent(fileNameTxt)}`;
 
-  // stash payload for pocket helpers (keeps compatibility with your iPhone helpers)
-  window.__pocketPayload = sanitized;
-
-  // iPhone branch (unchanged) — attempts pocketReplace/pocketUpload then fallback
-  if (isIphoneUpload && isIphoneUpload()) {
-    const targetDir = 'file:///private/var/mobile/Library/LiveFiles/com.apple.filesystems.userfsd/2B3E705A-D115-3563-8EB1-F240305273C0/VideoServer/Profiles/';
-    try {
-      const ok = await pocketReplace(fileNameNoExt, targetDir, sanitized);
-      if (ok) { console.log('[uploadPlaylistToServer] iphone pocketReplace OK'); return; }
-      const up = await pocketUpload(fileNameNoExt, targetDir, sanitized);
-      if (up) return;
-    } catch(e) { console.warn('[uploadPlaylistToServer] iphone flow exception', e); }
-    await putTxtCopy(encodeURIComponent(fileNameNoExt), sanitized);
-    return;
-  }
-
-  // Android branch: FormData upload — same as before but payload uses basenames
-  if (isAndroidUpload && isAndroidUpload()) {
-    try {
-      const blob = new Blob([sanitized], { type: "application/json" });
-      const form = new FormData();
-      form.append("files[]", blob, fileNameTxt);
-      form.append("files[]", blob, fileNameNoExt);
-      await fetch(`/api/file/upload?path=${encodeURIComponent(androidPath)}`, { method: 'PUT', body: form });
-      return;
-    } catch (err) {
-      console.error('Playlist upload (android) failed:', err);
-    }
-  }
-
-  // Windows or fallback: PUT .txt then try no-ext variant (same endpoints, but payload is basenames)
+  // Use platformAPI.upload (auto-detects from current origin)
   try {
-    await fetch(`/Profiles/${encodeURIComponent(fileNameTxt)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'text/plain' },
-      body: sanitized
-    });
-  } catch (err) { console.warn('Playlist upload (windows .txt) failed:', err); }
-
-  try {
-    await fetch(`/Profiles/${encodeURIComponent(fileNameNoExt)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'text/plain' },
-      body: sanitized
-    });
-  } catch (err) { console.warn('Playlist upload (windows no-ext) failed:', err); }
+    await platformAPI.upload(payloadBlob, targetPath);
+    console.log('[uploadPlaylistToServer] upload succeeded via platformAPI');
+  } catch (e) {
+    console.error('[uploadPlaylistToServer] upload failed:', e);
+    // optional fallback to old methods if you want to keep them as fallback
+  }
 }
-
 
 /* ====== Replace saveLikedSongsToServer similarly ====== */
 async function saveLikedSongsToServer(likedSongs) {
   const profile = getActiveProfileName();
   const fileName = `${profile}-likedsongs.txt`;
-  const fileBase = fileName.replace(/\.txt$/, '');
-  const androidPath = '/Profiles/';
-  const sanitized = `[[[\n${JSON.stringify(likedSongs, null, 2)}\n]]]`;
-
-  window.__pocketPayload = sanitized;
-
-  if (isIphoneUpload()) {
-    const targetDir = 'file:///private/var/mobile/Library/LiveFiles/com.apple.filesystems.userfsd/2B3E705A-D115-3563-8EB1-F240305273C0/VideoServer/Profiles/';
-    try {
-      const ok = await pocketReplace(fileName, targetDir, sanitized);
-      if (ok) return;
-      if (await pocketUpload(fileName, targetDir, sanitized)) return;
-    } catch (e) { console.warn('[saveLikedSongsToServer] iphone flow error', e); }
-    await putTxtCopy(encodeURIComponent(fileBase), sanitized);
-    return;
-  }
-
-  if (isAndroidUpload()) {
-    try {
-      const blob = new Blob([JSON.stringify(likedSongs)], {type: "application/json"});
-      const form = new FormData();
-      form.append("files[]", blob, fileName);
-      await fetch(`/api/file/upload?path=${encodeURIComponent(androidPath)}`, { method: 'PUT', body: form });
-      return;
-    } catch (err) { console.error('Liked songs upload (android) failed:', err); }
-  }
-
-  // windows fallback
+  const cleaned = flattenStoredList(likedSongs);
+  const sanitized = `[[[\n${JSON.stringify(cleaned, null, 2)}\n]]]`;
+  const payloadBlob = new Blob([sanitized], { type: 'text/plain' });
+  const targetPath = `/Profiles/${encodeURIComponent(fileName)}`;
   try {
-    await fetch(`/Profiles/${encodeURIComponent(fileName)}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: sanitized });
-  } catch (err) { console.error('Liked songs upload (windows) failed:', err); }
+    await platformAPI.upload(payloadBlob, targetPath);
+    console.log('[saveLikedSongsToServer] upload succeeded');
+  } catch (e) {
+    console.error('[saveLikedSongsToServer] upload failed:', e);
+  }
 }
 </script>
 <script>

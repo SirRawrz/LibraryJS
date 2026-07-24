@@ -62,6 +62,8 @@ body.autoCompact .expandedOnly{display:none!important}
 body.autoCompact .archivePanel{display:none!important}
     @media (max-width:1080px){ .main{grid-template-columns:1fr} .controls{justify-content:flex-start} }
   </style>
+  <!-- Include the unified platform API -->
+  <script src="./loadplatform.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -1144,47 +1146,45 @@ function normalizeLoadSeasonFunctionsText(source) {
     }
   }
 
-  async function fetchCurrentText(path) {
-    if (!currentOrigin) return '';
-    const res = await fetch(`${currentOrigin}/${normalizePath(path)}`, { cache:'no-store' });
-    if (!res.ok) return '';
-    return await res.text();
-  }
-
+  // ---- Platform-aware upload functions ----
   async function uploadText(path, text) {
-    const res = await fetch(`${currentOrigin}/${normalizePath(path)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-      body: text
-    });
-    if (!res.ok) throw new Error(`PUT ${path} failed with HTTP ${res.status}`);
+    const fileName = path.split('/').pop() || 'file.txt';
+    const file = new File([text], fileName, { type: 'text/plain;charset=utf-8' });
+    await window.platformAPI.uploadFile(file, path);
   }
 
   async function uploadBytes(path, bytes) {
-    const res = await fetch(`${currentOrigin}/${normalizePath(path)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: bytes
-    });
-    if (!res.ok) throw new Error(`PUT ${path} failed with HTTP ${res.status}`);
+    const fileName = path.split('/').pop() || 'file.bin';
+    const file = new File([bytes], fileName, { type: 'application/octet-stream' });
+    await window.platformAPI.uploadFile(file, path);
   }
 
-  function manifestSummaryText() {
-    const m = state.manifest || {};
-    const p = m.payload || {};
-    return JSON.stringify({
-      version: m.version,
-      sourcePage: m.sourcePage,
-      section: p.section,
-      rootTitle: p.rootTitle,
-      selectedPaths: p.selectedPaths,
-      createdAt: m.createdAt
-    }, null, 2);
+  // ---- Directory creation for Arduino/ESP ----
+  async function createDirectory(dirPath) {
+    const platform = window.platformAPI.getPlatformSync();
+    if (platform !== 'arduino' && platform !== 'esp') return;
+    let path = dirPath.trim();
+    if (!path.startsWith('/')) path = '/' + path;
+    if (!path.endsWith('/')) path += '/';
+    const emptyFile = new File([], 'dummy', { type: 'application/octet-stream' });
+    try {
+      await window.platformAPI.uploadFile(emptyFile, path);
+      log(`Created directory: ${path}`);
+    } catch (err) {
+      log(`Directory creation warning for ${path}: ${err.message}`);
+    }
   }
 
+  // ---- Restore logic ----
   async function startRestore() {
     if (state.busy) return;
     if (!state.manifest) throw new Error('Scan a shell archive first.');
+
+    // Ensure platform detection is ready
+    if (window.platformAPI && window.platformAPI.ready) {
+      await window.platformAPI.ready;
+    }
+
     state.busy = true;
     setReady(false);
     try {
@@ -1255,8 +1255,21 @@ function normalizeLoadSeasonFunctionsText(source) {
         log(`loadseasonfunctions.js merge warning: ${err.message || err}`);
       }
 
-      setProgress(3, 4, 'Uploading shell assets');
+      setProgress(3, 4, 'Preparing directories and uploading shell assets');
+
+      // ---- Create directories for assets (only needed for Arduino/ESP) ----
       const assetEntries = state.entries.filter(e => e.kind === 'asset');
+      const uniqueDirs = new Set();
+      for (const entry of assetEntries) {
+        const dir = entry.name.substring(0, entry.name.lastIndexOf('/'));
+        if (dir) uniqueDirs.add(dir);
+      }
+      const sortedDirs = Array.from(uniqueDirs).sort((a, b) => a.split('/').length - b.split('/').length);
+      for (const dir of sortedDirs) {
+        await createDirectory(dir);
+      }
+
+      // ---- Upload assets ----
       const assetCount = assetEntries.length;
       let assetDone = 0;
       for (const entry of assetEntries) {
@@ -1308,6 +1321,13 @@ function normalizeLoadSeasonFunctionsText(source) {
       state.busy = false;
       setReady(!!state.manifest);
     }
+  }
+
+  async function fetchCurrentText(path) {
+    if (!currentOrigin) return '';
+    const res = await fetch(`${currentOrigin}/${normalizePath(path)}`, { cache:'no-store' });
+    if (!res.ok) return '';
+    return await res.text();
   }
 
   async function handleFile(file) {

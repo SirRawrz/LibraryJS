@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Expanded Settings</title>
+  <!-- Unified platform detection API -->
+  <script src="../loadplatform.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #1e1e1e;
+      color: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      margin: 0;
+    }
+    .container {
+      background: #2a2a2a;
+      border-radius: 16px;
+      padding: 24px 28px 28px 28px;
+      max-width: 720px;
+      width: 100%;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.08);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-left svg {
+      width: 26px;
+      height: 26px;
+      stroke: #eee;
+      flex-shrink: 0;
+    }
+    .header-left span {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: 0.02em;
+    }
+    .header-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn-top {
+      background: rgba(128,128,128,0.25);
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      color: #ddd;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .btn-top.save { background: #2f8cff; color: white; }
+    .btn-top.save:hover { background: #4a9aff; }
+    .btn-top.save:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-top.cancel { background: rgba(128,128,128,0.2); color: #aaa; }
+    .btn-top.cancel:hover { background: rgba(128,128,128,0.35); }
+
+    .scroll-area {
+      overflow-y: auto;
+      padding-right: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    /* Custom Scrollbar */
+    .scroll-area::-webkit-scrollbar { width: 6px; }
+    .scroll-area::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+    .scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #cfe6ff;
+      letter-spacing: 0.02em;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .dynamic-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(0,0,0,0.25);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: opacity 0.2s;
+    }
+    .dynamic-row.disabled {
+      opacity: 0.45;
+    }
+    .dynamic-row.disabled input[type="text"] {
+      text-decoration: line-through;
+      color: #888;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    .checkbox-container input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #2f8cff;
+    }
+
+    .inputs-wrapper {
+      flex: 1;
+      display: flex;
+      gap: 8px;
+      min-width: 0;
+    }
+    .inputs-wrapper input[type="text"] {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+      min-width: 0;
+    }
+    .inputs-wrapper input:focus {
+      outline: none;
+      border-color: #4a8cff;
+      box-shadow: 0 0 0 2px rgba(74,140,255,0.2);
+    }
+
+    .btn-icon {
+      background: rgba(128,128,128,0.15);
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: #ff7c7c;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .btn-icon:hover { background: rgba(255, 124, 124, 0.2); color: #ff4c4c; }
+
+    .btn-add {
+      background: rgba(255,255,255,0.05);
+      border: 1px dashed rgba(255,255,255,0.2);
+      color: #aaa;
+      padding: 10px;
+      border-radius: 8px;
+      width: 100%;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      margin-top: 4px;
+    }
+    .btn-add:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.4); }
+
+    #status {
+      margin-top: 16px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.3);
+      font-size: 0.85rem;
+      min-height: 2.2em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #ccc;
+      flex-shrink: 0;
+    }
+    #status.success { color: #7cff7c; background: rgba(0,180,0,0.12); }
+    #status.error { color: #ff7c7c; background: rgba(180,0,0,0.12); }
+
+    @media (max-width: 580px) {
+      .header-row { flex-direction: column; align-items: stretch; }
+      .header-actions { justify-content: center; }
+      .inputs-wrapper { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header-row">
+    <div class="header-left">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+        <line x1="6" y1="6" x2="6.01" y2="6"></line>
+        <line x1="6" y1="18" x2="6.01" y2="18"></line>
+      </svg>
+      <span>Expanded Settings</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn-top save" id="saveBtn">Save</button>
+      <button class="btn-top cancel" id="cancelBtn">Cancel</button>
+    </div>
+  </div>
+
+  <div class="scroll-area">
+    <!-- PORTS SECTION -->
+    <div class="section">
+      <div class="section-title">
+        Remote Expanded Ports
+        <span style="font-size: 0.75rem; color: #666; font-weight: normal;">/expandedstorage.txt</span>
+      </div>
+      <div id="portsList" class="list-container"></div>
+      <button class="btn-add" id="addPortBtn">+ Add Port</button>
+    </div>
+
+    <!-- NODES SECTION -->
+    <div class="section">
+      <div class="section-title">
+        Local Expanded Nodes
+        <span style="font-size: 0.75rem; color: #666; font-weight: normal;">/localexpanded.txt</span>
+      </div>
+      <div id="nodesList" class="list-container"></div>
+      <button class="btn-add" id="addNodeBtn">+ Add Node</button>
+    </div>
+  </div>
+
+  <div id="status">Loading existing settings…</div>
+
+</div>
+
+<script>
+  (async function() {
+    // Wait for Unified Platform API
+    while (typeof window.platformAPI === 'undefined') {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    try {
+      await platformAPI.refreshPlatform(window.location.origin);
+    } catch(e) { console.warn('[expandedsettings] platform refresh failed', e); }
+
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const status = document.getElementById('status');
+    const portsList = document.getElementById('portsList');
+    const nodesList = document.getElementById('nodesList');
+    const addPortBtn = document.getElementById('addPortBtn');
+    const addNodeBtn = document.getElementById('addNodeBtn');
+
+    function setStatus(text, type = '') {
+      status.textContent = text;
+      status.className = type;
+    }
+
+    function closeOverlay() {
+      try {
+        const parentDoc = window.parent.document;
+        // Search for the wrapper overlay id if running in an iframe
+        const overlay = parentDoc.getElementById('settingsIframe') ? parentDoc.getElementById('settingsIframe').parentElement : null;
+        if (overlay) { overlay.style.display = 'none'; }
+        else { window.parent.postMessage({ type: 'closeSettingsOverlay' }, '*'); }
+      } catch(e) { 
+        console.warn('Could not close overlay:', e); 
+        setStatus('Closed (close manually)', 'success'); 
+      }
+    }
+    cancelBtn.addEventListener('click', closeOverlay);
+
+    // ---- DOM Row Builders ----
+
+    function createRow(container, htmlContent, onCheckboxToggle) {
+      const row = document.createElement('div');
+      row.className = 'dynamic-row';
+      row.innerHTML = htmlContent;
+
+      // Handle Disable/Enable checkbox
+      const cb = row.querySelector('input[type="checkbox"]');
+      if (cb) {
+        cb.addEventListener('change', (e) => {
+          if (e.target.checked) row.classList.remove('disabled');
+          else row.classList.add('disabled');
+        });
+        if (!cb.checked) row.classList.add('disabled');
+      }
+
+      // Handle Delete button
+      const delBtn = row.querySelector('.btn-icon');
+      if (delBtn) {
+        delBtn.addEventListener('click', () => {
+          container.removeChild(row);
+        });
+      }
+
+      container.appendChild(row);
+      return row;
+    }
+
+    function addPortRow(portValue = '', isEnabled = true) {
+      const checkedAttr = isEnabled ? 'checked' : '';
+      const html = `
+        <div class="checkbox-container" title="Enable/Disable">
+          <input type="checkbox" ${checkedAttr}>
+        </div>
+        <div class="inputs-wrapper">
+          <input type="text" class="port-input" placeholder="e.g. 8081" value="${portValue}">
+        </div>
+        <button class="btn-icon" title="Delete">✕</button>
+      `;
+      createRow(portsList, html);
+    }
+
+    function addNodeRow(primaryUrl = '', tailscaleUrl = '', isEnabled = true) {
+      const checkedAttr = isEnabled ? 'checked' : '';
+      const html = `
+        <div class="checkbox-container" title="Enable/Disable">
+          <input type="checkbox" ${checkedAttr}>
+        </div>
+        <div class="inputs-wrapper">
+          <input type="text" class="node-primary" placeholder="Primary (http://192...)" value="${primaryUrl}">
+          <input type="text" class="node-tailscale" placeholder="Tailscale (Optional)" value="${tailscaleUrl}">
+        </div>
+        <button class="btn-icon" title="Delete">✕</button>
+      `;
+      createRow(nodesList, html);
+    }
+
+    addPortBtn.addEventListener('click', () => addPortRow('', true));
+    addNodeBtn.addEventListener('click', () => addNodeRow('', '', true));
+
+    // ---- Fetch existing ----
+    async function fetchFileContent(path) {
+      try {
+        const url = await platformAPI.getDownloadUrl(window.location.origin, path);
+        const resp = await fetch(url, { cache: 'no-store' });
+        if (!resp.ok) return null;
+        return await resp.text();
+      } catch(e) { return null; }
+    }
+
+    async function loadExisting() {
+      // 1. Load Ports (expandedstorage.txt)
+      const rawPorts = await fetchFileContent('/expandedstorage.txt');
+      if (rawPorts) {
+        const ports = rawPorts.split(',').map(p => p.trim()).filter(p => p);
+        ports.forEach(p => {
+          const isEnabled = !p.startsWith('#');
+          const val = isEnabled ? p : p.substring(1).trim();
+          addPortRow(val, isEnabled);
+        });
+      }
+      
+      // 2. Load Nodes (localexpanded.txt)
+      const rawNodes = await fetchFileContent('/localexpanded.txt');
+      if (rawNodes) {
+        const lines = rawNodes.split('\n').map(l => l.trim()).filter(l => l);
+        lines.forEach(line => {
+          const isEnabled = !line.startsWith('#');
+          const val = isEnabled ? line : line.substring(1).trim();
+          const parts = val.split(',').map(p => p.trim());
+          addNodeRow(parts[0] || '', parts[1] || '', isEnabled);
+        });
+      }
+
+      setStatus('Settings loaded. You can edit and save.', 'success');
+    }
+
+    await loadExisting();
+
+ saveBtn.addEventListener('click', async () => {
+  // Collect Ports
+  const finalPorts = [];
+  document.querySelectorAll('#portsList .dynamic-row').forEach(row => {
+    const val = row.querySelector('.port-input').value.trim();
+    const enabled = row.querySelector('input[type="checkbox"]').checked;
+    if (val) {
+      finalPorts.push(enabled ? val : `#${val}`);
+    }
+  });
+  const portsContent = finalPorts.join(', ');
+
+  // Collect Nodes
+  const finalNodes = [];
+  document.querySelectorAll('#nodesList .dynamic-row').forEach(row => {
+    const primary = row.querySelector('.node-primary').value.trim();
+    const tailscale = row.querySelector('.node-tailscale').value.trim();
+    const enabled = row.querySelector('input[type="checkbox"]').checked;
+    if (primary || tailscale) {
+      const lineStr = tailscale ? `${primary}, ${tailscale}` : primary;
+      finalNodes.push(enabled ? lineStr : `#${lineStr}`);
+    }
+  });
+  const nodesContent = finalNodes.join('\n');
+
+  // Determine which files have content
+  const uploadTasks = [];
+
+  if (portsContent.trim() !== '') {
+    const portsBlob = new Blob([portsContent], { type: 'text/plain' });
+    uploadTasks.push(
+      platformAPI.uploadFile(portsBlob, '/expandedstorage.txt', window.location.origin)
+    );
+  }
+
+  if (nodesContent.trim() !== '') {
+    const nodesBlob = new Blob([nodesContent], { type: 'text/plain' });
+    uploadTasks.push(
+      platformAPI.uploadFile(nodesBlob, '/localexpanded.txt', window.location.origin)
+    );
+  }
+
+  if (uploadTasks.length === 0) {
+    setStatus('No changes to save (empty content).', 'warning');
+    return;
+  }
+
+  setStatus('Uploading…', '');
+  saveBtn.disabled = true;
+
+  try {
+    await Promise.all(uploadTasks);
+    setStatus('✅ Expanded settings saved!', 'success');
+    setTimeout(closeOverlay, 1500);
+  } catch (err) {
+    console.error('Upload failed:', err);
+    setStatus('❌ Upload failed: ' + err.message, 'error');
+    saveBtn.disabled = false;
+  }
+});
+
+  })();
+</script>
+</body>
+</html>

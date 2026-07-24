@@ -4,6 +4,8 @@
 <head>
 <meta charset="utf-8"/>
 <title>TV Auto Resume</title>
+<!-- ── Load platformAPI FIRST ── -->
+<script src="./loadplatform.js"></script>
 <style>
     /* ── Basic reset & container styling ── */
     * {
@@ -823,40 +825,27 @@ playPauseBtn.onclick = () => {
   window._tvFocusPlayNow = function(ms = 100){ _focusPlaySoon(ms); };
 
 })();
- // ---- helper: cached platform detection (uses window.detectedPlatform if present) ----
-async function getCachedPlatform() {
-  if (window._cachedPlatform) return window._cachedPlatform;
-  // prefer externally-detected value (set once by index.html on startup)
-  if (window.detectedPlatform) {
-    window._cachedPlatform = (window.detectedPlatform || '').toLowerCase();
-    return window._cachedPlatform;
-  }
 
-  // otherwise try reading platform.txt once, then cache it
-  let platform = 'windows';
-  try {
-    const r = await fetch('./platform.txt', { cache: 'no-store' });
-    if (r && r.ok) {
-      platform = (await r.text() || '').trim().toLowerCase() || 'windows';
-    }
-  } catch (e) {
-    console.warn('Could not load platform.txt (getCachedPlatform), defaulting to "windows"', e);
-  }
-  window._cachedPlatform = platform;
-  // also mirror into window.detectedPlatform so other code benefits
-  window.detectedPlatform = window._cachedPlatform;
-  return window._cachedPlatform;
-}
-
-// ---- backup: upload just the style appropriate for the platform ----
-// robust backup + restore — avoids .txt PUTs for iPhone (iphones)
-// backupShowToProfile — ensures both show and Resume use the pocketserver safe-replace flow on iPhone
+// ---- Unified backup: always use .txt with platformAPI.upload ----
 async function backupShowToProfile(profileName, showName) {
-  // 0) detect platform (cached)
-  const platform = (typeof getCachedPlatform === 'function') ? await getCachedPlatform() : (window.detectedPlatform || 'windows');
-  console.log('[backupShowToProfile] platform=', platform, 'profile=', profileName, 'show=', showName);
+  console.log('[backupShowToProfile]', profileName, showName);
 
-  // 1) Gather keys & values
+  // Safety: ensure platformAPI is available
+  if (typeof platformAPI === 'undefined') {
+    console.error('platformAPI is not defined – loadplatform.js may not have loaded correctly.');
+    throw new Error('platformAPI is not defined');
+  }
+
+  // find parent series if any
+  let parentSeries = null;
+  for (const [series, seasons] of Object.entries(episodes || {})) {
+    if (Array.isArray(seasons) && seasons.includes(showName)) {
+      parentSeries = series;
+      break;
+    }
+  }
+
+  // collect data
   const dataToUpload = {};
   const keyShow  = `progress-${profileName}-${showName}`;
   const valShow  = localStorage.getItem(keyShow);
@@ -866,266 +855,49 @@ async function backupShowToProfile(profileName, showName) {
   const valResume = localStorage.getItem(keyResume);
   if (valResume != null) dataToUpload[keyResume] = valResume;
 
-  for (const [parent, seasons] of Object.entries(episodes || {})) {
-    if (Array.isArray(seasons) && seasons.includes(showName)) {
-      const keyParent = `progress-${profileName}-${parent}`;
-      const valParent = localStorage.getItem(keyParent);
-      if (valParent != null) dataToUpload[keyParent] = valParent;
-      break;
-    }
+  if (parentSeries) {
+    const keyParent = `progress-${profileName}-${parentSeries}`;
+    const valParent = localStorage.getItem(keyParent);
+    if (valParent != null) dataToUpload[keyParent] = valParent;
   }
 
-  // 2) build payload
   const payload = `[[[${JSON.stringify(dataToUpload)}]]]`;
-  console.log('[backupShowToProfile] payload length=', payload.length);
+  const payloadBlob = new Blob([payload], { type: 'text/plain' });
 
-  // helper: put .txt style copy (Windows) — kept for non-iPhone platforms
-  async function putTxtCopy(encodedNameWithoutExt) {
-    try {
-      const url = `/Profiles/${encodedNameWithoutExt}.txt`;
-      const r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload });
-      console.log('[backupShowToProfile] PUT .txt ->', url, r.status);
-      return r.ok;
-    } catch (e) {
-      console.warn('[backupShowToProfile] PUT .txt failed for', encodedNameWithoutExt, e);
-      return false;
-    }
+  // Upload both files – explicitly with .txt suffix
+  try {
+    await platformAPI.upload(payloadBlob, `/Profiles/${profileName}-${showName}.txt`);
+    await platformAPI.upload(payloadBlob, `/Profiles/${profileName}-Resume.txt`);
+    console.log('[backupShowToProfile] uploads succeeded');
+  } catch (e) {
+    console.error('[backupShowToProfile] upload failed:', e);
+    throw e;
   }
-
-  // helper: pocketserver upload (simple upload by name)
-  async function pocketUpload(name, targetDir) {
-    try {
-      const blob = new Blob([payload], { type: 'application/json' });
-      const form = new FormData();
-      form.append('files[]', blob, name);
-      form.append('targetDir', targetDir);
-      const r = await fetch('/pocketserver-api/upload', { method: 'POST', body: form, credentials: 'include' });
-      const txt = await r.text().catch(()=> '');
-      console.log('[backupShowToProfile] pocketserver upload', name, '->', r.status, txt);
-      return r.ok;
-    } catch (e) {
-      console.warn('[backupShowToProfile] pocketserver upload failed', name, e);
-      return false;
-    }
-  }
-
-  // helper: list and delete for pocketserver
-  async function listProfiles(targetDir) {
-    try {
-      const q = encodeURIComponent(targetDir);
-      const r = await fetch(`/pocketserver-api/list?q=${q}`, { credentials: 'include' });
-      if (!r.ok) { console.warn('[backupShowToProfile] list failed', r.status); return null; }
-      const text = await r.text();
-      try { return JSON.parse(text); } catch { return text; }
-    } catch (e) {
-      console.error('[backupShowToProfile] listProfiles error', e);
-      return null;
-    }
-  }
-  async function deletePath(fullPath) {
-    try {
-      const body = { command: "delete", paths: [ fullPath ], name: "", targetDir: "" };
-      const r = await fetch('/pocketserver-api/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        credentials: 'include'
-      });
-      const txt = await r.text().catch(()=>'');
-      console.log('[backupShowToProfile] deletePath', fullPath, '->', r.status, txt);
-      return r.ok;
-    } catch (e) {
-      console.error('[backupShowToProfile] deletePath error', fullPath, e);
-      return false;
-    }
-  }
-
-  // pocketReplace: upload temp, verify, delete old, upload final, cleanup temp
-  async function pocketReplace(baseName, targetDir) {
-    const tempName = baseName + '.__new__';
-    console.log('[backupShowToProfile] pocketReplace start for', baseName);
-
-    // 1) upload temp
-    const tempOk = await pocketUpload(tempName, targetDir);
-    if (!tempOk) {
-      console.warn('[backupShowToProfile] pocketReplace: temp upload failed for', tempName);
-      return false;
-    }
-
-    // 2) verify temp exists in listing
-    const midList = await listProfiles(targetDir);
-    const midText = midList ? (typeof midList === 'string' ? midList : JSON.stringify(midList)) : '';
-    if (!midText.includes(tempName)) {
-      console.warn('[backupShowToProfile] pocketReplace: temp not visible after upload for', tempName);
-      return false;
-    }
-
-    // 3) delete existing desired (if any)
-    const desiredFullPath = targetDir + baseName;
-    const delOk = await deletePath(desiredFullPath);
-    if (!delOk) {
-      // If delete failed, we do not overwrite — leave temp as safety (consistent with prior behavior)
-      console.warn('[backupShowToProfile] pocketReplace: could not delete existing', desiredFullPath);
-      return false;
-    }
-
-    // 4) upload final desired name
-    const finalOk = await pocketUpload(baseName, targetDir);
-    if (!finalOk) {
-      console.warn('[backupShowToProfile] pocketReplace: final upload failed for', baseName);
-      return false;
-    }
-
-    // 5) cleanup temp
-    const tempFullPath = targetDir + tempName;
-    const cleanupOk = await deletePath(tempFullPath);
-    console.log('[backupShowToProfile] pocketReplace cleanup temp ->', cleanupOk);
-    return finalOk;
-  }
-
-  // 3) platform-specific upload behaviour
-  if (platform.includes('android')) {
-    // Android: send two FormData blobs (no extension preferred)
-    try {
-      const blob = new Blob([payload], { type: 'application/json' });
-      const form1 = new FormData(); form1.append('files[]', blob, `${profileName}-${showName}`);
-      const form2 = new FormData(); form2.append('files[]', blob, `${profileName}-Resume`);
-
-      const results = await Promise.allSettled([
-        fetch(`/api/file/upload?path=${encodeURIComponent('/Profiles/')}`, { method: 'PUT', body: form1, credentials: 'include' }),
-        fetch(`/api/file/upload?path=${encodeURIComponent('/Profiles/')}`, { method: 'PUT', body: form2, credentials: 'include' })
-      ]);
-      console.log('[backupShowToProfile] android upload results:', results);
-    } catch (e) {
-      console.warn('[backupShowToProfile] android upload error', e);
-    }
-
-    // also best-effort write .txt copies for other clients
-    try { await putTxtCopy(`${encodeURIComponent(profileName)}-${encodeURIComponent(showName)}`); } catch(e){/*ignore*/} 
-    try { await putTxtCopy(`${encodeURIComponent(profileName)}-Resume`); } catch(e){/*ignore*/}
-
-    return;
-  }
-
-  // iPhone / "iphones": use safe replace for both the show file and the Resume pointer
-  if (platform.includes('iphone') || platform === 'iphones') {
-    const targetDir = 'file:///private/var/mobile/Library/LiveFiles/com.apple.filesystems.userfsd/2B3E705A-D115-3563-8EB1-F240305273C0/VideoServer/Profiles/';
-
-    // Replace the show file (use pocketReplace)
-    try {
-      const showBase = `${profileName}-${showName}`;
-      const okShow = await pocketReplace(showBase, targetDir);
-      if (!okShow) {
-        console.warn('[backupShowToProfile] show pocketReplace did not complete successfully for', showBase);
-      } else {
-        console.log('[backupShowToProfile] show pocketReplace success for', showBase);
-      }
-    } catch (e) {
-      console.warn('[backupShowToProfile] show pocketReplace error', e);
-    }
-
-    // Always attempt to replace the Resume pointer using the same safe method
-    try {
-      const resumeBase = `${profileName}-Resume`;
-      const okResume = await pocketReplace(resumeBase, targetDir);
-      if (!okResume) {
-        // If replace fails, try at least a direct upload (keeps previous behavior fallback)
-        console.warn('[backupShowToProfile] resume pocketReplace failed, attempting direct upload for', resumeBase);
-        await pocketUpload(resumeBase, targetDir).catch(()=>{});
-      } else {
-        console.log('[backupShowToProfile] resume pocketReplace success for', resumeBase);
-      }
-    } catch (e) {
-      console.warn('[backupShowToProfile] resume pocketReplace exception', e);
-      // attempt direct upload as a last resort
-      try { await pocketUpload(`${profileName}-Resume`, targetDir); } catch(_) { /* ignore */ }
-    }
-
-    // Do NOT attempt .txt PUTs for iPhone branch.
-    return;
-  }
-
-  // Windows: after ~5s, PUT two .txt files (existing behavior)
-  if (platform === 'windows') {
-    setTimeout(() => {
-      const fileShow  = `${encodeURIComponent(profileName)}-${encodeURIComponent(showName)}.txt`;
-      const fileResume = `${encodeURIComponent(profileName)}-Resume.txt`;
-      Promise.allSettled([
-        fetch(`/Profiles/${fileShow}`,  { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload }),
-        fetch(`/Profiles/${fileResume}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload })
-      ]).then(results => {
-        console.log('[backupShowToProfile] windows put results:', results);
-        results.forEach((res, i) => {
-          if (res.status === 'rejected') console.error('[backupShowToProfile] TXT upload failed:', i+1, res.reason);
-        });
-      });
-    }, 5000);
-    return;
-  }
-
-  // Fallback (unknown platform): conservative .txt write
-  setTimeout(() => {
-    const fileShow  = `${encodeURIComponent(profileName)}-${encodeURIComponent(showName)}.txt`;
-    const fileResume = `${encodeURIComponent(profileName)}-Resume.txt`;
-    Promise.allSettled([
-      fetch(`/Profiles/${fileShow}`,  { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload }),
-      fetch(`/Profiles/${fileResume}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: payload })
-    ]).then(results => {
-      console.log('[backupShowToProfile] fallback txt put results:', results);
-    });
-  }, 5000);
 }
 
-// ---- restore: prefer platform-specific filename and only try both when unknown ----
+// ---- Unified restore: always look for .txt ----
 async function restoreShowFromProfile(profileName /*, showNameIgnored */) {
-  // 0) detect platform (cached)
-  const platform = (typeof getCachedPlatform === 'function') ? await getCachedPlatform() : (window.detectedPlatform || 'windows');
+  // Always use .txt for the Resume pointer file
+  const fileId = `${encodeURIComponent(profileName)}-Resume.txt`;
+  const url = `/Profiles/${fileId}?_=${Date.now()}`;
 
-  // 1) candidate filenames for the Resume pointer
-  const safeId = `${encodeURIComponent(profileName)}-Resume`;
-  const candidates = [];
-
-  // Prefer no-extension on iPhone, but allow .txt fallback.
-  if (platform.includes('iphone') || platform === 'iphones') {
-    candidates.push(safeId);
-    candidates.push(safeId + '.txt');
-  } else if (platform.includes('android')) {
-    candidates.push(safeId);
-    candidates.push(safeId + '.txt');
-  } else {
-    candidates.push(safeId + '.txt');
-    candidates.push(safeId);
-  }
-
-  // 2) attempt fetching each candidate until one succeeds
   let txt = null;
-  let lastError = null;
-  for (const fileId of candidates) {
-    const url = `/Profiles/${fileId}?_=${Date.now()}`;
-    try {
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) { lastError = new Error(`HTTP ${res.status} for ${fileId}`); continue; }
-      txt = await res.text();
-      if (txt) break;
-    } catch (e) {
-      lastError = e;
-      continue;
-    }
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${fileId}`);
+    txt = await res.text();
+  } catch (e) {
+    throw new Error('Could not find Resume file: ' + fileId);
   }
 
-  if (!txt) {
-    throw new Error('Could not find Profile-Resume file (tried candidates). ' +
-                    (lastError ? `Last error: ${lastError.message}` : 'No response.'));
-  }
-
-  // 3) parse JSON payload inside [[[ ... ]]]
+  // parse JSON payload inside [[[ ... ]]]
   const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
   if (!m) throw new Error('No backup JSON found between markers in resume file');
   let data;
   try { data = JSON.parse(m[1]); }
   catch (e) { throw new Error('Backup JSON malformed: ' + e.message); }
 
-  // 4) restore to localStorage
+  // restore to localStorage
   Object.entries(data).forEach(([key, val]) => {
     if (val != null) localStorage.setItem(key, val);
     else localStorage.removeItem(key);
@@ -1588,13 +1360,23 @@ async function playEpisode(folderName, epIndex = 0, startTime = 0, options = {})
       timestamp: nowMs
      };
      localStorage.setItem(key, JSON.stringify(resumeData));
+     
+     // ✅ FIX: Update master resume pointer so Profile-Resume.txt uploads the active show
+     const resumeKey = `progress-${profile}-Resume`;
+     localStorage.setItem(resumeKey, JSON.stringify({ folderName: folderName, timestamp: nowMs }));
+
      backupShowToProfile(profile, folderName);
     }
    }
   };
 }
  // Function to start resume logic
+// Function to start resume logic
  async function initVideo() {
+  // ── CRITICAL: Wait for expanded merges to complete ──
+  if (window.__loadexpandedPromise) await window.__loadexpandedPromise;
+  if (window.__loadlocalexpandedPromise) await window.__loadlocalexpandedPromise;
+
   const profile = localStorage.getItem("activeProfile") || "Guest";
 
   if (profile) {
@@ -1604,8 +1386,10 @@ async function playEpisode(folderName, epIndex = 0, startTime = 0, options = {})
   }
 
   const resumeKey = `progress-${profile}-Resume`;
-  const allFolders = Object.keys(episodes).filter((k) => {
-   const v = episodes[k];
+  // ✅ FIX: Use merged window.episodes so expanded libraries are included
+  const eps = window.episodes || (typeof episodes !== 'undefined' ? episodes : {});
+  const allFolders = Object.keys(eps).filter((k) => {
+   const v = eps[k];
    return Array.isArray(v) && v.length > 0 && typeof v[0] === "object";
   });
 
@@ -1671,6 +1455,10 @@ async function playEpisode(folderName, epIndex = 0, startTime = 0, options = {})
 btnTV.addEventListener('click', async () => {
   overlay.style.display = 'none';
 
+  // ── CRITICAL: Wait for expanded merges to complete ──
+  if (window.__loadexpandedPromise) await window.__loadexpandedPromise;
+  if (window.__loadlocalexpandedPromise) await window.__loadlocalexpandedPromise;
+
   const profile = localStorage.getItem('activeProfile') || 'Guest';
   const resumeKey = `progress-${profile}-Resume`;
   let resumeData = {};
@@ -1679,7 +1467,7 @@ btnTV.addEventListener('click', async () => {
   } catch (e) {}
   const folder = resumeData.folderName;
 
-  // Check if folder exists in current episodes
+  // Check if folder exists in current episodes (now fully merged)
   let eps;
   try { eps = eval('episodes'); } catch(e) { eps = window.episodes || {}; }
 
@@ -1689,19 +1477,8 @@ btnTV.addEventListener('click', async () => {
     return;
   }
 
-  // Folder missing; wait for remote merges to finish (if they are running)
-  if (window.__loadexpandedPromise) await window.__loadexpandedPromise;
-  if (window.__loadlocalexpandedPromise) await window.__loadlocalexpandedPromise;
-
-  // Re-check after merges
-  try { eps = eval('episodes'); } catch(e) { eps = window.episodes || {}; }
-  if (folder && eps[folder]) {
-    initVideo();
-  } else {
-    // Still not found – fallback to the original behaviour (first folder)
-    // This ensures the TV button always does something, even if the folder never appears.
-    initVideo();
-  }
+  // If folder not found, fallback to first folder
+  initVideo();
 });
   btnRadio.addEventListener('click', () => {
    window.location.href = './radio.html';
@@ -2198,6 +1975,7 @@ document.addEventListener('fullscreenchange', () => {
 <!-- QR fixes injected  -->
 <script>
 (function(){
+  // QR_IMAGES used for static Tailscale fallback
   const QR_IMAGES = {
     original: {
       local: './Images/regular-qr.png',
@@ -2230,9 +2008,18 @@ document.addEventListener('fullscreenchange', () => {
     } catch (e) { console.warn('QR popup relocation failed', e); }
   }
 
+  // ---- DYNAMIC QR: use origin + ?I or ?l ----
   function getQRImageSrc(kind, source) {
-    const k = QR_IMAGES[kind] || QR_IMAGES.original;
-    return k[source] || k.local;
+    const isKids = kind === 'kids';
+    if (source === 'tailscale') {
+      // static Tailscale PNGs
+      return isKids ? './Images/tailscale-kids-qr.png' : './Images/tailscale-regular-qr.png';
+    }
+    // local: generate QR code with current origin + ?I or ?l
+    const baseUrl = window.location.origin;
+    const query = isKids ? 'l' : 'I';
+    const data = baseUrl + '/?' + query;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}`;
   }
 
   function getQRPopupTint(kind, source) {
@@ -3522,8 +3309,3 @@ document.addEventListener("keydown", (e) => {
 
 </body>
 </html>
-
-
-
-
-

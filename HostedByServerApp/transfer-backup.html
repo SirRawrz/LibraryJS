@@ -1,10 +1,11 @@
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LibraryJS — Transfer Backup</title>
+  <!-- Load unified platform API -->
+  <script src="loadplatform.js"></script>
   <style>
     :root{
       --bg:#0c1018;
@@ -471,7 +472,7 @@
     archiveFileLookup: new Map(),
     manifest: null,
     sourceBase: location.origin.endsWith('/') ? location.origin.slice(0, -1) : location.origin,
-    destination: { type: 'server', base: '', resolvedBase: '', platform: null, method: 'put', endpoint: '' },
+    destination: { type: 'server', base: '', resolvedBase: '', platform: null, method: 'put', endpoint: '', httpsBase: '', supportsRemoteCopy: false, maxConcurrentUploads: 6 },
     transferList: [],
     transferQueue: [],
     rewrittenLibraryText: '',
@@ -849,10 +850,28 @@
     return item.path || 'file';
   }
 
+   // ------------------------------------------------------------
+  // processTransferItem using platformAPI (updated for Arduino source proxy)
+  // ------------------------------------------------------------
   async function processTransferItem({ item, preserveSetup, dest, strategy, total, index, batchMode = false }) {
     const label = itemKindLabel(item);
     const sourceUrl = item.sourceUrl || '';
-    const canRemoteCopy = (item.kind === 'media' || item.kind === 'artwork') && !!sourceUrl && (String(strategy.method || '').toLowerCase() === 'copy' || String(strategy.platform || '').toLowerCase() === 'android');
+
+    // Determine source platform to decide if we should use remote copy.
+    // If source is Arduino/ESP, we want the browser to proxy chunks,
+    // so we force canRemoteCopy = false even if destination supports it.
+    let sourcePlatform = 'unknown';
+    try {
+      sourcePlatform = await platformAPI.getPlatform(state.sourceBase);
+    } catch (_) {}
+    const isSourceArduino = (sourcePlatform === 'arduino' || sourcePlatform === 'esp');
+
+    // Remote copy is allowed only if destination supports it AND source is NOT Arduino.
+    const canRemoteCopy = strategy.supportsRemoteCopy && !!sourceUrl && !isSourceArduino;
+
+    if (isSourceArduino) {
+      console.log(`[processTransferItem] Source is Arduino, using browser proxy (remote copy disabled).`);
+    }
 
     if (!batchMode) {
       setProgress(index, total, `Preparing ${label} (${index}/${total})`);
@@ -865,6 +884,7 @@
       log(`Preparing setup file ${label}.`);
     }
 
+    // ---- Artwork candidates ----
     if (item.kind === 'artwork' && Array.isArray(item.artworkCandidates) && item.artworkCandidates.length) {
       const candidates = item.artworkCandidates;
       let lastError = null;
@@ -875,11 +895,17 @@
         try {
           if (canRemoteCopy) {
             log(`Trying ${candidatePath} for ${label} via remote-copy.`);
-            await uploadToServer(dest, candidatePath, null, strategy, candidateSourceUrl);
+            await platformAPI.copyFile(candidateSourceUrl, candidatePath, dest);
           } else {
-            const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
-            log(`Fetched ${candidatePath} for ${label}.`);
-            await uploadToServer(dest, candidatePath, candidatePayload, strategy, candidateSourceUrl);
+            // If source is Arduino, we pass the URL directly to uploadFile (streaming).
+            // Otherwise, download the whole blob first.
+            if (isSourceArduino) {
+              await platformAPI.uploadFile(candidateSourceUrl, candidatePath, dest);
+            } else {
+              const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
+              log(`Fetched ${candidatePath} for ${label}.`);
+              await platformAPI.uploadFile(candidatePayload, candidatePath, dest);
+            }
           }
           if (candidatePath !== item.path) {
             log(`Selected ${candidatePath} for ${label}.`);
@@ -895,100 +921,114 @@
       throw lastError || new Error(`All artwork candidates failed for ${label}.`);
     }
 
+    // ---- Audiobook ----
+    if (item.kind === 'audiobook') {
+      const manifestCandidates = Array.isArray(item.audiobookManifestCandidates) && item.audiobookManifestCandidates.length
+        ? item.audiobookManifestCandidates
+        : [{ path: item.path, sourceUrl }];
+      const manifestPayload = item.blob || null;
+      let payloadToUse = manifestPayload;
+      let manifestSourceUrl = sourceUrl;
+      let manifestSourcePath = item.path;
 
-if (item.kind === 'audiobook') {
-  const manifestCandidates = Array.isArray(item.audiobookManifestCandidates) && item.audiobookManifestCandidates.length
-    ? item.audiobookManifestCandidates
-    : [{ path: item.path, sourceUrl }];
-  const manifestPayload = item.blob || null;
-  let payloadToUse = manifestPayload;
-  let manifestSourceUrl = sourceUrl;
-  let manifestSourcePath = item.path;
+      if (!payloadToUse) {
+        let lastManifestError = null;
 
-  if (!payloadToUse) {
-    let lastManifestError = null;
-
-    for (const candidate of manifestCandidates) {
-      const candidatePath = normalizeRelativePath(candidate.path || item.path);
-      const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
-      try {
-        payloadToUse = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(candidateSourceUrl), { retries: 2, delay: 250 });
-        manifestSourceUrl = candidateSourceUrl;
-        manifestSourcePath = candidatePath;
-        if (candidatePath !== item.path) {
-          log(`Using audiobook manifest source ${candidatePath} for ${item.path}.`);
+        for (const candidate of manifestCandidates) {
+          const candidatePath = normalizeRelativePath(candidate.path || item.path);
+          const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
+          try {
+            if (isSourceArduino) {
+              // For Arduino source, pass the URL directly to uploadFile
+              payloadToUse = candidateSourceUrl; // URL string
+              manifestSourceUrl = candidateSourceUrl;
+              manifestSourcePath = candidatePath;
+              log(`Using audiobook manifest source URL ${candidatePath} for ${item.path}.`);
+              break;
+            } else {
+              payloadToUse = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(candidateSourceUrl), { retries: 2, delay: 250 });
+              manifestSourceUrl = candidateSourceUrl;
+              manifestSourcePath = candidatePath;
+              if (candidatePath !== item.path) {
+                log(`Using audiobook manifest source ${candidatePath} for ${item.path}.`);
+              }
+              break;
+            }
+          } catch (err) {
+            lastManifestError = err;
+            const message = err?.message || String(err);
+            log(`Audiobook manifest candidate failed for ${candidatePath}: ${message}`);
+          }
         }
-        break;
-      } catch (err) {
-        lastManifestError = err;
-        const message = err?.message || String(err);
-        log(`Audiobook manifest candidate failed for ${candidatePath}: ${message}`);
+
+        if (!payloadToUse) {
+          const message = lastManifestError?.message || `Unable to find audiobook manifest for ${item.path}.`;
+          if (item.optional && /HTTP\s+404/i.test(message)) {
+            log(`Skipped ${label}: not found on source.`);
+            return { skipped: true };
+          }
+          throw lastManifestError || new Error(message);
+        }
+
+        if (manifestSourcePath && manifestSourcePath !== item.path) {
+          log(`Resolved audiobook manifest to ${manifestSourcePath}.`);
+        } else {
+          log(`Downloaded source bytes for ${label}.`);
+        }
       }
-    }
 
-    if (!payloadToUse) {
-      const message = lastManifestError?.message || `Unable to find audiobook manifest for ${item.path}.`;
-      if (item.optional && /HTTP\s+404/i.test(message)) {
-        log(`Skipped ${label}: not found on source.`);
-        return { skipped: true };
-      }
-      throw lastManifestError || new Error(message);
-    }
-
-    if (manifestSourcePath && manifestSourcePath !== item.path) {
-      log(`Resolved audiobook manifest to ${manifestSourcePath}.`);
-    } else {
-      log(`Downloaded source bytes for ${label}.`);
-    }
-  }
-
-  const uploadMode = canRemoteCopy ? 'copy' : strategy.method;
-  log(`Uploading ${label} via ${uploadMode.toUpperCase()}.`);
-  await withRetry(
-    `upload ${label}`,
-    () => uploadToServer(dest, item.path, payloadToUse, strategy, manifestSourceUrl),
-    { retries: 3, delay: 600 }
-  );
-  log(`Uploaded ${label}.`);
-
-  const candidates = Array.isArray(item.audiobookCandidates) ? item.audiobookCandidates : [];
-  if (!candidates.length) return { manifestUploaded: true, missingAudio: true };
-
-  let lastAudioError = null;
-  for (const candidate of candidates) {
-    const candidatePath = normalizeRelativePath(candidate.path || item.path);
-    const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
-    try {
+      const uploadMode = canRemoteCopy ? 'copy' : strategy.method;
+      log(`Uploading ${label} via ${uploadMode.toUpperCase()}.`);
       if (canRemoteCopy) {
-        log(`Trying ${candidatePath} for audiobook audio via remote-copy.`);
-        await uploadToServer(dest, candidatePath, null, strategy, candidateSourceUrl);
+        await withRetry(`upload ${label}`, () => platformAPI.copyFile(manifestSourceUrl, item.path, dest), { retries: 3, delay: 600 });
       } else {
-        const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
-        log(`Fetched ${candidatePath} for audiobook audio.`);
-        await uploadToServer(dest, candidatePath, candidatePayload, strategy, candidateSourceUrl);
+        await withRetry(`upload ${label}`, () => platformAPI.uploadFile(payloadToUse, item.path, dest), { retries: 3, delay: 600 });
       }
-      if (candidatePath !== item.path) {
-        log(`Selected ${candidatePath} for audiobook audio.`);
-      }
-      return { selectedPath: candidatePath, manifestUploaded: true };
-    } catch (err) {
-      lastAudioError = err;
-      const message = err?.message || String(err);
-      log(`Audiobook audio candidate failed for ${candidatePath}: ${message}`);
-    }
-  }
+      log(`Uploaded ${label}.`);
 
-  if (lastAudioError) {
-    const message = lastAudioError?.message || String(lastAudioError);
-    if (/HTTP\s+404/i.test(message)) {
-      log(`Skipped audiobook audio for ${item.path}: not found on source.`);
+      const candidates = Array.isArray(item.audiobookCandidates) ? item.audiobookCandidates : [];
+      if (!candidates.length) return { manifestUploaded: true, missingAudio: true };
+
+      let lastAudioError = null;
+      for (const candidate of candidates) {
+        const candidatePath = normalizeRelativePath(candidate.path || item.path);
+        const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
+        try {
+          if (canRemoteCopy) {
+            log(`Trying ${candidatePath} for audiobook audio via remote-copy.`);
+            await platformAPI.copyFile(candidateSourceUrl, candidatePath, dest);
+          } else {
+            if (isSourceArduino) {
+              await platformAPI.uploadFile(candidateSourceUrl, candidatePath, dest);
+            } else {
+              const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
+              log(`Fetched ${candidatePath} for audiobook audio.`);
+              await platformAPI.uploadFile(candidatePayload, candidatePath, dest);
+            }
+          }
+          if (candidatePath !== item.path) {
+            log(`Selected ${candidatePath} for audiobook audio.`);
+          }
+          return { selectedPath: candidatePath, manifestUploaded: true };
+        } catch (err) {
+          lastAudioError = err;
+          const message = err?.message || String(err);
+          log(`Audiobook audio candidate failed for ${candidatePath}: ${message}`);
+        }
+      }
+
+      if (lastAudioError) {
+        const message = lastAudioError?.message || String(lastAudioError);
+        if (/HTTP\s+404/i.test(message)) {
+          log(`Skipped audiobook audio for ${item.path}: not found on source.`);
+          return { manifestUploaded: true, missingAudio: true };
+        }
+      }
+
       return { manifestUploaded: true, missingAudio: true };
     }
-  }
 
-  return { manifestUploaded: true, missingAudio: true };
-}
-
+    // ---- Music media with candidates ----
     if (item.kind === 'media' && Array.isArray(item.musicCandidates) && item.musicCandidates.length) {
       const candidates = item.musicCandidates;
       let lastError = null;
@@ -999,11 +1039,16 @@ if (item.kind === 'audiobook') {
         try {
           if (canRemoteCopy) {
             log(`Trying ${candidatePath} for ${label} via remote-copy.`);
-            await uploadToServer(dest, candidatePath, null, strategy, candidateSourceUrl);
+            await platformAPI.copyFile(candidateSourceUrl, candidatePath, dest);
           } else {
-            const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
-            log(`Fetched ${candidatePath} for ${label}.`);
-            await uploadToServer(dest, candidatePath, candidatePayload, strategy, candidateSourceUrl);
+            if (isSourceArduino) {
+              // Stream directly from Arduino
+              await platformAPI.uploadFile(candidateSourceUrl, candidatePath, dest);
+            } else {
+              const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
+              log(`Fetched ${candidatePath} for ${label}.`);
+              await platformAPI.uploadFile(candidatePayload, candidatePath, dest);
+            }
           }
           if (candidatePath !== item.path) {
             log(`Selected ${candidatePath} for ${label}.`);
@@ -1019,18 +1064,35 @@ if (item.kind === 'audiobook') {
       throw lastError || new Error(`All music candidates failed for ${label}.`);
     }
 
+        // ---- Regular media ----
     if (item.kind === 'media') {
       if (canRemoteCopy) {
         log(`Using remote-copy for ${label}.`);
-      } else if (!payload) {
-        payload = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(sourceUrl), { retries: 3, delay: 500 });
-        log(`Downloaded source bytes for ${label}.`);
+      } else {
+        // Use streaming from source URL if available (avoids downloading whole file)
+        if (sourceUrl) {
+          log(`Streaming ${label} from source via ranges.`);
+          // payload stays null; we'll pass sourceUrl as string to uploadFile later
+        } else {
+          // Fallback (should not happen for media, but keep for safety)
+          payload = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(sourceUrl), { retries: 3, delay: 500 });
+          log(`Downloaded source bytes for ${label}.`);
+        }
       }
     } else if (item.kind === 'subtitle' || item.kind === 'artwork') {
+      // For small files, we can still download whole, but if sourceUrl is available and we want to stream,
+      // we could set payload = sourceUrl as well. Keeping existing behaviour for now.
       if (!payload) {
         try {
-          payload = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(sourceUrl), { retries: 3, delay: 350 });
-          log(`Downloaded source bytes for ${label}.`);
+          if (sourceUrl) {
+            // Optionally stream small files too – uncomment the next line to enable
+            // payload = sourceUrl;
+            // For now, download to keep compatibility
+            payload = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(sourceUrl), { retries: 3, delay: 350 });
+            log(`Downloaded source bytes for ${label}.`);
+          } else {
+            throw new Error('No source URL available for small file.');
+          }
         } catch (err) {
           const message = err?.message || String(err);
           if (item.optional && /HTTP\s+404/i.test(message)) {
@@ -1042,13 +1104,21 @@ if (item.kind === 'audiobook') {
       }
     }
 
+    // ---- Setup files merging ----
     if (preserveSetup && item.kind && item.kind !== 'media' && item.kind !== 'artwork' && item.kind !== 'subtitle') {
       const existingText = await withRetry(
         `read destination ${label}`,
         () => fetchCurrentText(dest, item.path),
         { retries: 2, delay: 300 }
       );
-      const generatedText = await payloadToText(payload);
+      // If payload is a URL, we need to download it first to get the text
+      let generatedText;
+      if (typeof payload === 'string' && /^https?:\/\//i.test(payload)) {
+        const blob = await fetch(payload).then(r => r.blob());
+        generatedText = await blob.text();
+      } else {
+        generatedText = await payloadToText(payload);
+      }
 
       let mergedText = generatedText;
       if (item.kind === 'mainfolders') mergedText = mergeMainfoldersText(existingText, generatedText, state.mandatedMainFolderTitles || []);
@@ -1060,15 +1130,20 @@ if (item.kind === 'audiobook') {
       log(`Merged destination setup into ${label}.`);
     }
 
+    // ---- Upload ----
     const uploadMode = canRemoteCopy ? 'copy' : strategy.method;
     log(`Uploading ${label} via ${uploadMode.toUpperCase()}.`);
-    await withRetry(
-      `upload ${label}`,
-      () => uploadToServer(dest, item.path, payload, strategy, sourceUrl),
-      { retries: 3, delay: 600 }
-    );
+    if (canRemoteCopy) {
+      await withRetry(`upload ${label}`, () => platformAPI.copyFile(sourceUrl, item.path, dest), { retries: 3, delay: 600 });
+    } else {
+      // If payload is a URL string, pass it directly to uploadFile (streaming)
+      const uploadPayload = payload || sourceUrl;
+      // Pass destination platform explicitly to avoid re-detection issues
+      await withRetry(`upload ${label}`, () => platformAPI.uploadFile(uploadPayload, item.path, dest, null, { destPlatform: strategy.platform }), { retries: 3, delay: 600 });
+    }
     log(`Uploaded ${label}.`);
 
+    // ---- Artist artwork (async) ----
     if (item.kind === 'media' && Array.isArray(item.artistArtworkCandidates) && item.artistArtworkCandidates.length) {
       const artworkTask = processTransferItem({
         item: {
@@ -1289,7 +1364,6 @@ if (item.kind === 'audiobook') {
     return { text: txt, rewriteCount };
   }
 
-  
     
 function normalizeLibraryEpisodesText(text) {
   const source = String(text ?? '').replace(/\r\n?/g, '\n');
@@ -3675,197 +3749,9 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     return '';
   }
 
-  async function probePlatform() {
-    const dest = String(el.destBase.value || '').trim().replace(/\/+$/, '');
-    if (!dest) {
-      el.platformInfo.textContent = 'Enter a destination server URL first.';
-      return null;
-    }
+  // ---- probePlatform has been removed; we now use platformAPI directly ----
 
-    const platformProbe = await fetchTextFromCandidates(dest, ['platform.txt', './platform.txt']);
-    let platformText = platformProbe ? platformProbe.text : '';
-    let platformUrl = platformProbe ? platformProbe.url : '';
-    let lastErr = null;
-
-    const info = {
-      raw: platformText,
-      platform: '',
-      method: 'put',
-      endpoint: '',
-      mode: 'put',
-      resolvedBase: dest,
-      httpsBase: '',
-      httpsProbeBase: '',
-      platformUrl: platformUrl
-    };
-
-    const lines = String(platformText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-    let methodWasExplicit = false;
-    for (const line of lines) {
-      const m = line.match(/^([a-z0-9_-]+)\s*=\s*(.+)$/i);
-      if (m) {
-        const key = m[1].toLowerCase();
-        const val = m[2].trim();
-        if (key === 'method' || key === 'uploadmethod' || key === 'transfermethod') {
-          info.method = val.toLowerCase();
-          methodWasExplicit = true;
-        }
-        if (key === 'endpoint' || key === 'uploadendpoint' || key === 'transferendpoint') info.endpoint = val;
-        if (key === 'platform') info.platform = val;
-        continue;
-      }
-      if (!info.platform && /android|windows|iphone|ipad|linux/i.test(line)) {
-        info.platform = line;
-      }
-      if (/put|post|patch|webdav|filesystem|copy/i.test(line) && !/^platform\s*=/i.test(line)) {
-        info.method = line.toLowerCase();
-        methodWasExplicit = true;
-      }
-    }
-
-    // Keep the user-selected destination base authoritative for writes.
-    // Platform probing should only influence the upload transport, not redirect
-    // the destination to the source/origin advertised by serverip.txt.
-
-    const httpsProbe = await fetchTextFromCandidates(dest, ['httpsserverip.txt', './httpsserverip.txt']);
-    const probedHttpsBase = httpsProbe && httpsProbe.text ? normalizeHttpsServerBase(httpsProbe.text) : '';
-    const derivedHttpsBase = deriveDestinationHttpsBase(dest);
-    if (httpsProbe && httpsProbe.text) {
-      info.httpsProbeBase = probedHttpsBase;
-    }
-    info.httpsBase = derivedHttpsBase || probedHttpsBase;
-
-    if (!lines.length && lastErr) {
-      info.method = 'put';
-    }
-
-    // Normalize aliases.
-    const alias = {
-      'direct-put': 'put',
-      'http-put': 'put',
-      'put-direct': 'put',
-      'direct': 'put',
-      'webdav': 'put',
-      'filesystem': 'filesystem',
-      'fs': 'filesystem',
-      'local': 'filesystem',
-      'post-form': 'post',
-      'multipart': 'post',
-      'post': 'post',
-      'remote-copy': 'copy',
-      'copy': 'copy'
-    };
-    info.method = alias[info.method] || info.method || 'put';
-    if (!['put', 'post', 'filesystem', 'copy'].includes(info.method)) info.method = 'put';
-    if (info.platform && /android|windows/i.test(info.platform) && !methodWasExplicit && info.method === 'put') {
-      info.method = 'copy';
-    }
-    if (!info.endpoint) info.endpoint = el.endpoint.value.trim();
-    if (!info.resolvedBase) info.resolvedBase = dest;
-    return info;
-  }
-
-  async function uploadToServer(base, destPath, payload, strategy, sourceUrl = '') {
-    const cleanBase = String(base || '').trim().replace(/\/+$/, '');
-    const resolvedBase = String(cleanBase || strategy.resolvedBase || '').trim().replace(/\/+$/, '');
-    const path = stripLeadingDotSlash(destPath);
-    const endpoint = String(strategy.endpoint || '').trim();
-    const platform = String(strategy.platform || '').trim().toLowerCase();
-    const hasSourceUrl = String(sourceUrl || '').trim().length > 0;
-
-    const joinEndpoint = (fallbackPath) => {
-      if (endpoint) {
-        return endpoint.startsWith('http')
-          ? endpoint
-          : joinBase(resolvedBase, endpoint.replace(/^\/+/, ''));
-      }
-      return joinBase(resolvedBase, fallbackPath);
-    };
-
-    // Prefer the destination server's copy API for sourceUrl-backed transfers on Android and Windows.
-    if (hasSourceUrl && (strategy.method === 'copy' || platform === 'android' || platform === 'windows')) {
-      const url = normalizeRequestUrl(joinEndpoint('api/file/copy'));
-      // Remote copy can take a long time for multi-gigabyte media because the server
-      // is streaming from the source URL to the destination file. Do not abort this
-      // request at the default 90s timeout; let the server finish the stream.
-      const res = await fetchWithTimeout(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceUrl,
-          targetPath: path
-        })
-      }, 0);
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Remote copy failed for ${path}: HTTP ${res.status}${text ? ` — ${text.slice(0, 240)}` : ''}`);
-      }
-      return;
-    }
-
-    if (strategy.method === 'post' || (platform === 'android' && !isReadableStream(payload))) {
-      if (isReadableStream(payload)) {
-        throw new Error(`POST upload for ${path} requires a Blob-like payload.`);
-      }
-      const url = normalizeRequestUrl(joinEndpoint(path));
-      const body = new FormData();
-      body.append('path', path);
-      body.append('file', payload, path.split('/').pop() || 'file.bin');
-      const res = await fetch(url, {
-        method: 'POST',
-        body
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`POST failed for ${path}: HTTP ${res.status}${text ? ` — ${text.slice(0, 240)}` : ''}`);
-      }
-      return;
-    }
-
-    // Default and fallback: direct PUT to the mirrored path.
-    const url = normalizeRequestUrl(joinBase(resolvedBase, path));
-    const init = {
-      method: 'PUT',
-      body: payload
-    };
-    if (isReadableStream(payload)) init.duplex = 'half';
-
-    let res;
-    try {
-      res = await fetchWithTimeout(url, init, 120000);
-    } catch (err) {
-      if (isReadableStream(payload)) {
-        throw new Error(`PUT stream failed for ${path}: ${err?.message || err}`);
-      }
-      throw err;
-    }
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`PUT failed for ${path}: HTTP ${res.status}${text ? ` — ${text.slice(0, 240)}` : ''}`);
-    }
-  }
-
-  async function uploadToUSB(rootHandle, destPath, payload) {
-    const path = stripLeadingDotSlash(destPath);
-    const parts = path.split('/').filter(Boolean);
-    let dir = rootHandle;
-    for (let i = 0; i < parts.length - 1; i++) {
-      dir = await dir.getDirectoryHandle(parts[i], { create: true });
-    }
-    const fileHandle = await dir.getFileHandle(parts[parts.length - 1], { create: true });
-    const writable = await fileHandle.createWritable();
-    try {
-      if (isReadableStream(payload)) {
-        await payload.pipeTo(writable);
-      } else {
-        await writable.write(payload);
-        await writable.close();
-      }
-    } catch (err) {
-      try { await writable.abort?.(err); } catch {}
-      throw err;
-    }
-  }
+  // ---- uploadToServer has been removed; replaced by platformAPI methods ----
 
   async function buildTransferPlan() {
     if (!state.archiveFile) throw new Error('Load a zip archive first.');
@@ -4023,6 +3909,9 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     }
   }
 
+  // ------------------------------------------------------------
+  // transferArchive using platformAPI
+  // ------------------------------------------------------------
   async function transferArchive() {
     if (!validateDistinctServerBases()) {
       throw new Error('Destination server base must be different from the source server base.');
@@ -4101,36 +3990,41 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     const dest = String(el.destBase.value || '').trim().replace(/\/+$/, '');
     if (!dest) throw new Error('Enter a destination server URL first.');
 
-    const platform = await probePlatform();
+    // ---- Use platformAPI instead of local probe ----
+    const info = await platformAPI.getPlatformInfo(dest);
+    const config = await platformAPI.getConfig(dest);
     state.destination = {
       type: 'server',
       base: dest,
-      resolvedBase: platform ? platform.resolvedBase || dest : dest,
-      platform: platform ? platform.platform : '',
-      method: platform ? platform.method : 'put',
-      endpoint: platform ? platform.endpoint : ''
+      resolvedBase: dest,
+      platform: info.platform,
+      method: info.method,
+      endpoint: info.endpoint,
+      httpsBase: info.httpsBase,
+      supportsRemoteCopy: config.supportsRemoteCopy,
+      maxConcurrentUploads: config.maxConcurrentUploads || 6
     };
     el.modeText.textContent = state.destination.method;
 
     const preserveSetup = (document.querySelector('input[name="setupMode"]:checked') || {}).value !== 'replace';
     const strategyLabel = [
       `Destination: ${state.destination.resolvedBase || dest}`,
-      platform && platform.platform ? `Platform: ${platform.platform}` : 'Platform: unknown',
+      `Platform: ${info.platform || 'unknown'}`,
       `Upload method: ${state.destination.method}`,
-      platform && platform.endpoint ? `Endpoint override: ${platform.endpoint}` : 'Endpoint override: none',
+      `Remote copy supported: ${state.destination.supportsRemoteCopy}`,
       `Setup files: ${preserveSetup ? 'merge existing setup files' : 'overwrite with archive files when present'}`,
       '',
       preserveSetup && state.destination.type === 'server'
         ? 'When possible, the page fetches the destination’s current setup files first and weaves the backup into them.'
-        : state.destination.method === 'copy'
-          ? 'Using remote-copy for media items when the source URL is available. Small generated files still fall back to normal uploads.'
+        : state.destination.supportsRemoteCopy
+          ? 'Using server-side copy for media items when the source URL is available. Small generated files still fall back to normal uploads.'
           : state.destination.method === 'post'
             ? 'Using POST upload because platform.txt requested it. The page will send FormData with path + file.'
             : 'Using direct PUT to each mirrored path.'
     ].join('\n');
     el.strategyText.textContent = strategyLabel;
-    el.platformInfo.textContent = platform
-      ? `Detected ${platform.platform || 'platform'}; method=${platform.method}; endpoint=${platform.endpoint || '(none)'}; https=${platform.httpsBase || 'not found'}${platform.httpsProbeBase && platform.httpsProbeBase !== platform.httpsBase ? ` (probe: ${platform.httpsProbeBase})` : ''}`
+    el.platformInfo.textContent = info
+      ? `Detected ${info.platform || 'platform'}; method=${info.method}; endpoint=${info.endpoint || '(none)'}; https=${info.httpsBase || 'not found'}`
       : 'platform.txt not found; using direct PUT fallback.';
 
     const sourceNumericGamesLinks = collectNumericServerLinks(plan.gamesText || '');
@@ -4281,7 +4175,30 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     }
   }
 
+  // ---- USB upload helper (unchanged) ----
+  async function uploadToUSB(rootHandle, destPath, payload) {
+    const path = stripLeadingDotSlash(destPath);
+    const parts = path.split('/').filter(Boolean);
+    let dir = rootHandle;
+    for (let i = 0; i < parts.length - 1; i++) {
+      dir = await dir.getDirectoryHandle(parts[i], { create: true });
+    }
+    const fileHandle = await dir.getFileHandle(parts[parts.length - 1], { create: true });
+    const writable = await fileHandle.createWritable();
+    try {
+      if (isReadableStream(payload)) {
+        await payload.pipeTo(writable);
+      } else {
+        await writable.write(payload);
+        await writable.close();
+      }
+    } catch (err) {
+      try { await writable.abort?.(err); } catch {}
+      throw err;
+    }
+  }
 
+  // ---- injectProfileFrame and related helpers (unchanged) ----
   function setFrameFileInput(frameEl, file) {
     try {
       const doc = frameEl && frameEl.contentDocument;
@@ -4409,6 +4326,7 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     window.addEventListener('message', handleProfileFlowMessage);
   }
 
+  // ---- Event listeners ----
   el.scanBtn.addEventListener('click', async () => {
     try {
       setProgress(0, 1, 'Scanning archive');
@@ -4454,17 +4372,24 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     }
   });
 
+  // ---- New probe handler using platformAPI ----
   el.probeBtn.addEventListener('click', async () => {
     try {
-      const info = await probePlatform();
-      if (!info) return;
+      const dest = String(el.destBase.value || '').trim().replace(/\/+$/, '');
+      if (!dest) {
+        el.platformInfo.textContent = 'Enter a destination server URL first.';
+        return;
+      }
+      const info = await platformAPI.getPlatformInfo(dest);
+      const config = await platformAPI.getConfig(dest);
       state.destination.method = info.method;
       state.destination.endpoint = info.endpoint;
       state.destination.platform = info.platform;
-      state.destination.resolvedBase = el.destBase.value.trim() || state.destination.resolvedBase || info.resolvedBase || '';
+      state.destination.httpsBase = info.httpsBase;
+      state.destination.supportsRemoteCopy = config.supportsRemoteCopy;
       el.modeText.textContent = info.method;
-      el.platformInfo.textContent = info.raw
-        ? `Detected ${info.platform || 'platform'}; method=${info.method}; endpoint=${info.endpoint || '(none)'}${info.resolvedBase ? `; resolved=${info.resolvedBase}` : ''}`
+      el.platformInfo.textContent = info
+        ? `Detected ${info.platform || 'platform'}; method=${info.method}; endpoint=${info.endpoint || '(none)'}; remote-copy=${config.supportsRemoteCopy}`
         : 'platform.txt not found; using direct PUT fallback.';
       log('platform.txt checked and destination strategy refreshed.');
     } catch (e) {
@@ -4474,6 +4399,7 @@ function collectLibraryAssets(out, data, kind, currentSourceBase) {
     }
   });
 
+  // ---- Radio and input event handlers (unchanged) ----
   document.querySelectorAll('input[name="destType"]').forEach(radio => {
     radio.addEventListener('change', () => {
       const mode = (document.querySelector('input[name="destType"]:checked') || {}).value || 'server';

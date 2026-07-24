@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload Test (platformAPI)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; background: #0d1117; color: #e5e7eb; }
+    h1 { color: #60a5fa; }
+    .card { background: #111827; border: 1px solid #253046; border-radius: 16px; padding: 1.5rem; margin-bottom: 1rem; }
+    label { display: block; margin: 1rem 0 0.3rem; color: #9ca3af; }
+    input[type="text"], input[type="file"] { width: 100%; padding: 0.6rem; background: #0f172a; border: 1px solid #253046; color: #e5e7eb; border-radius: 8px; box-sizing: border-box; }
+    button { background: #60a5fa; color: #0d1117; border: none; padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 1rem; }
+    button:disabled { opacity: 0.5; }
+    pre { background: #0f172a; padding: 1rem; border-radius: 8px; overflow: auto; font-size: 0.9rem; border: 1px solid #253046; max-height: 300px; }
+    .progress-bar { background: #0f172a; border: 1px solid #253046; border-radius: 20px; height: 20px; overflow: hidden; margin: 1rem 0; }
+    .progress-fill { background: linear-gradient(90deg, #60a5fa, #6ee7b7); height: 100%; width: 0%; transition: width 0.2s; }
+    .status { color: #9ca3af; }
+  </style>
+</head>
+<body>
+
+<h1>📤 Upload Test (platformAPI)</h1>
+
+<div class="card">
+  <label for="serverUrl">Server base URL (origin where /platform.txt is served)</label>
+  <input type="text" id="serverUrl" placeholder="e.g., http://192.168.1.100:8080 or leave empty for same origin">
+
+  <label for="targetDir">Target directory (e.g., /Animated Movies/Encanto/)</label>
+  <input type="text" id="targetDir" value="/test/" placeholder="/Animated Movies/Encanto/">
+
+  <label for="targetPath">Final path (auto-generated)</label>
+  <input type="text" id="targetPath" placeholder="Select a file to see the final path..." readonly style="background:#1a2332; color:#9ca3af;">
+
+  <label for="fileInput">Choose file</label>
+  <input type="file" id="fileInput">
+
+  <button id="uploadBtn">Upload</button>
+  <span id="platformInfo" style="margin-left: 1rem; color: #9ca3af;"></span>
+</div>
+
+<div class="card">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <pre id="log">Ready.</pre>
+  <div class="status" id="statusText"></div>
+</div>
+
+<!-- ========== loadplatform.js ========== -->
+<script>
+// ---- platformAPI (loadplatform.js) ----
+(function() {
+  const platformCache = new Map();
+  const loadingPromises = new Map();
+
+  const PLATFORM_CONFIG = {
+    windows:   { uploadPort: null, uploadPath: null, method: 'PUT', useFormData: false },
+    android:   { uploadPort: null, uploadPath: '/api/file/upload', method: 'PUT', useFormData: true },
+    iphone:    { uploadPort: null, uploadPath: '/pocketserver-api/upload', method: 'POST', useFormData: true },
+    iphones:   { uploadPort: null, uploadPath: '/pocketserver-api/upload', method: 'POST', useFormData: true },
+    arduino:   { uploadPort: 81,   uploadPath: '/upload', method: 'PUT', useFormData: false },
+    esp:       { uploadPort: 81,   uploadPath: '/upload', method: 'PUT', useFormData: false }
+  };
+
+  function normalizeBaseUrl(base) {
+    let url = String(base || '').trim().replace(/\/+$/, '');
+    if (!url) url = window.location.origin;
+    return url;
+  }
+
+  async function loadPlatformForBase(baseUrl) {
+    const key = normalizeBaseUrl(baseUrl);
+    if (platformCache.has(key)) return platformCache.get(key);
+    if (loadingPromises.has(key)) return loadingPromises.get(key);
+
+    const promise = (async () => {
+      try {
+        const url = `${key}/platform.txt`;
+        console.log(`[loadplatform] Fetching ${url} ...`);
+        const res = await fetch(url, { cache: 'no-store' });
+        let platform = 'windows';
+        if (res.ok) {
+          const text = await res.text();
+          const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+          if (lines.length) {
+            let p = lines[0].toLowerCase();
+            if (lines[0].includes('=')) {
+              const parsed = Object.fromEntries(lines.map(line => {
+                const [key, ...vals] = line.split('=');
+                return [key.trim().toLowerCase(), vals.join('=').trim()];
+              }));
+              p = parsed.platform || parsed['platform.txt'] || p;
+            }
+            platform = p || 'windows';
+          }
+        } else {
+          console.warn(`[loadplatform] ${url} returned ${res.status} – falling back to windows`);
+        }
+        console.log(`[loadplatform] Platform for ${key}: ${platform}`);
+        platformCache.set(key, platform);
+        return platform;
+      } catch (e) {
+        console.warn(`[loadplatform] Could not fetch platform from ${key}, falling back to windows:`, e.message);
+        platformCache.set(key, 'windows');
+        return 'windows';
+      } finally {
+        loadingPromises.delete(key);
+      }
+    })();
+
+    loadingPromises.set(key, promise);
+    return promise;
+  }
+
+  function parseTargetPath(targetPath) {
+    const lastSlash = targetPath.lastIndexOf('/');
+    if (lastSlash === -1) {
+      return { dirPath: '', fileName: targetPath };
+    }
+    return {
+      dirPath: targetPath.substring(0, lastSlash + 1),
+      fileName: targetPath.substring(lastSlash + 1)
+    };
+  }
+
+  const platformAPI = {
+    getPlatform: async function(baseUrl) {
+      const key = normalizeBaseUrl(baseUrl);
+      return loadPlatformForBase(key);
+    },
+
+    getUploadUrl: async function(baseUrl, targetPath) {
+      if (typeof targetPath === 'undefined') {
+        targetPath = baseUrl;
+        baseUrl = window.location.href;
+      }
+      if (!targetPath) return targetPath;
+
+      const platform = await this.getPlatform(baseUrl);
+      if (!platform) return targetPath;
+
+      const config = PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.windows;
+
+      let base = baseUrl || window.location.href;
+      if (!base.endsWith('/')) base += '/';
+
+      if (platform === 'arduino' || platform === 'esp') {
+        let filePath = targetPath;
+        filePath = filePath.replace(/^\.\//, '').replace(/^\.\.\//, '');
+        if (!filePath.startsWith('/')) filePath = '/' + filePath;
+        const host = new URL(base).hostname;
+        const port = config.uploadPort || 81;
+        const url = `http://${host}:${port}${config.uploadPath}?path=${encodeURIComponent(filePath)}`;
+        console.log('[platformAPI] Upload URL (Arduino):', url);
+        return url;
+      } else if (platform === 'android') {
+        const url = new URL(config.uploadPath, base);
+        const { dirPath } = parseTargetPath(targetPath);
+        url.searchParams.set('path', dirPath);
+        console.log('[platformAPI] Upload URL (Android):', url.toString());
+        return url.toString();
+      } else if (platform === 'iphone' || platform === 'iphones') {
+        const url = new URL(config.uploadPath, base);
+        console.log('[platformAPI] Upload URL (iPhone):', url.toString());
+        return url.toString();
+      } else {
+        const cleanPath = targetPath.startsWith('/') ? targetPath.slice(1) : targetPath;
+        const url = new URL(cleanPath, base);
+        console.log('[platformAPI] Upload URL (PUT):', url.toString());
+        return url.toString();
+      }
+    },
+
+    uploadFile: async function(file, targetPath, baseUrl, onProgress) {
+      if (typeof baseUrl === 'function') {
+        onProgress = baseUrl;
+        baseUrl = window.location.href;
+      }
+      baseUrl = baseUrl || window.location.href;
+
+      const platform = await this.getPlatform(baseUrl);
+      const config = PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.windows;
+      const url = await this.getUploadUrl(baseUrl, targetPath);
+      const method = config.method || 'PUT';
+      const useFormData = config.useFormData;
+
+      let body;
+      if (useFormData) {
+        const formData = new FormData();
+        const fileName = targetPath.split('/').pop() || 'file';
+        formData.append('files[]', file, fileName);
+        if (platform === 'iphone' || platform === 'iphones') {
+          const { dirPath } = parseTargetPath(targetPath);
+          formData.append('targetDir', dirPath);
+        }
+        body = formData;
+      } else {
+        body = file;
+      }
+
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+
+        if (!useFormData) {
+          xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+        }
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            onProgress(e.loaded, e.total);
+          }
+        };
+
+        xhr.onload = () => {
+          console.log('[platformAPI] Upload response status:', xhr.status);
+          console.log('[platformAPI] Upload response text:', xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(xhr.responseText);
+          } else {
+            reject(new Error(`Upload failed: HTTP ${xhr.status} – ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = () => {
+          console.error('[platformAPI] Upload network error');
+          reject(new Error('Network error during upload'));
+        };
+
+        xhr.send(body);
+      });
+    },
+
+    getPlatformSync: function(baseUrl) {
+      const key = normalizeBaseUrl(baseUrl);
+      return platformCache.has(key) ? platformCache.get(key) : null;
+    }
+  };
+
+  window.platformAPI = platformAPI;
+  console.log('[loadplatform] platformAPI installed');
+})();
+</script>
+
+<!-- ========== Application logic ========== -->
+<script>
+  const serverUrlInput = document.getElementById('serverUrl');
+  const targetDirInput = document.getElementById('targetDir');
+  const targetPathInput = document.getElementById('targetPath');
+  const fileInput = document.getElementById('fileInput');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const progressFill = document.getElementById('progressFill');
+  const logEl = document.getElementById('log');
+  const statusText = document.getElementById('statusText');
+  const platformInfo = document.getElementById('platformInfo');
+
+  // Set default server URL to current origin (so it works without entering anything)
+  serverUrlInput.value = window.location.origin;
+
+  function log(msg) {
+    logEl.textContent += msg + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setStatus(msg) {
+    statusText.textContent = msg;
+  }
+
+  function setProgress(pct) {
+    progressFill.style.width = Math.min(100, pct) + '%';
+  }
+
+  // Auto-generate target path
+  function updateTargetPath() {
+    let dir = targetDirInput.value.trim();
+    if (dir && !dir.startsWith('/')) dir = '/' + dir;
+    if (dir && !dir.endsWith('/')) dir += '/';
+    if (!dir) dir = '/';
+
+    const file = fileInput.files[0];
+    if (file) {
+      targetPathInput.value = dir + file.name;
+    } else {
+      targetPathInput.value = '';
+    }
+  }
+
+  targetDirInput.addEventListener('input', updateTargetPath);
+  fileInput.addEventListener('change', updateTargetPath);
+
+  // Detect platform
+  async function detectPlatform() {
+    const base = serverUrlInput.value.trim() || window.location.origin;
+    try {
+      const platform = await window.platformAPI.getPlatform(base);
+      platformInfo.textContent = 'Platform: ' + platform;
+      log('🔧 Platform detected: ' + platform);
+    } catch (e) {
+      platformInfo.textContent = 'Platform detection failed';
+      log('⚠️ ' + e.message);
+    }
+  }
+
+  // Upload
+  uploadBtn.addEventListener('click', async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      alert('Please select a file.');
+      return;
+    }
+
+    const base = serverUrlInput.value.trim() || window.location.origin;
+    let target = targetPathInput.value.trim();
+    if (!target) {
+      alert('Target path is empty. Select a file first.');
+      return;
+    }
+    if (!target.startsWith('/')) target = '/' + target;
+
+    log(`🚀 Starting upload to ${target} on ${base}`);
+    setStatus('Uploading...');
+    uploadBtn.disabled = true;
+    setProgress(0);
+
+    try {
+      const result = await window.platformAPI.uploadFile(
+        file,
+        target,
+        base,
+        (loaded, total) => {
+          const pct = Math.round((loaded / total) * 100);
+          setProgress(pct);
+          setStatus(`${pct}% – ${loaded}/${total} bytes`);
+        }
+      );
+      log('✅ Upload complete! Response: ' + JSON.stringify(result));
+      setStatus('Done!');
+      setProgress(100);
+    } catch (err) {
+      log('❌ ' + err.message);
+      setStatus('Upload failed');
+    } finally {
+      uploadBtn.disabled = false;
+    }
+  });
+
+  // Initialise
+  detectPlatform();
+  updateTargetPath();
+</script>
+
+</body>
+</html>

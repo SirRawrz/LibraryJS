@@ -42,9 +42,6 @@ h1{margin:0;font-size:18px}
 .muted{color:var(--muted);font-size:13px}
 .empty{padding:14px;border-radius:8px;background:rgba(255,255,255,0.01);color:var(--muted)}
 .uploader{margin-top:12px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.02)}
-.staged-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.staged-tile{width:84px;height:84px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:center}
-.staged-tile img{width:100%;height:100%;object-fit:cover}
 #sys-toast{position:fixed;right:20px;bottom:20px;background:#000;padding:10px 14px;border-radius:8px;color:#fff;display:none;z-index:9999;border-left:4px solid var(--accent)}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:999}
 .modal{background:var(--panel);padding:18px;border-radius:10px;width:360px}
@@ -139,11 +136,207 @@ small.note{display:block;color:var(--muted);margin-top:10px}
 
 <div id="sys-toast"></div>
 
+<!-- ========== loadplatform.js ========== -->
 <script>
-/* Albums — platform.txt-aware uploads with Windows default
-   - Reads ./platform.txt (no-store) and falls back to window.SERVER_UPLOAD_STYLE/window.detectedPlatform/local default 'windows'
-   - Uses same upload strategies as radio.html/Music.html: putFileByPUT, /api/file/upload?path=, /pocketserver-api/upload
-   - On success updates album JSON and master library so images appear instantly
+// ---- platformAPI (loadplatform.js) ----
+(function() {
+  const platformCache = new Map();
+  const loadingPromises = new Map();
+
+  const PLATFORM_CONFIG = {
+    windows:   { uploadPort: null, uploadPath: null, method: 'PUT', useFormData: false },
+    android:   { uploadPort: null, uploadPath: '/api/file/upload', method: 'PUT', useFormData: true },
+    iphone:    { uploadPort: null, uploadPath: '/pocketserver-api/upload', method: 'POST', useFormData: true },
+    iphones:   { uploadPort: null, uploadPath: '/pocketserver-api/upload', method: 'POST', useFormData: true },
+    arduino:   { uploadPort: 81,   uploadPath: '/upload', method: 'PUT', useFormData: false },
+    esp:       { uploadPort: 81,   uploadPath: '/upload', method: 'PUT', useFormData: false }
+  };
+
+  function normalizeBaseUrl(base) {
+    let url = String(base || '').trim().replace(/\/+$/, '');
+    if (!url) url = window.location.origin;
+    return url;
+  }
+
+  async function loadPlatformForBase(baseUrl) {
+    const key = normalizeBaseUrl(baseUrl);
+    if (platformCache.has(key)) return platformCache.get(key);
+    if (loadingPromises.has(key)) return loadingPromises.get(key);
+
+    const promise = (async () => {
+      try {
+        const url = `${key}/platform.txt`;
+        console.log(`[loadplatform] Fetching ${url} ...`);
+        const res = await fetch(url, { cache: 'no-store' });
+        let platform = 'windows';
+        if (res.ok) {
+          const text = await res.text();
+          const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+          if (lines.length) {
+            let p = lines[0].toLowerCase();
+            if (lines[0].includes('=')) {
+              const parsed = Object.fromEntries(lines.map(line => {
+                const [key, ...vals] = line.split('=');
+                return [key.trim().toLowerCase(), vals.join('=').trim()];
+              }));
+              p = parsed.platform || parsed['platform.txt'] || p;
+            }
+            platform = p || 'windows';
+          }
+        } else {
+          console.warn(`[loadplatform] ${url} returned ${res.status} – falling back to windows`);
+        }
+        console.log(`[loadplatform] Platform for ${key}: ${platform}`);
+        platformCache.set(key, platform);
+        return platform;
+      } catch (e) {
+        console.warn(`[loadplatform] Could not fetch platform from ${key}, falling back to windows:`, e.message);
+        platformCache.set(key, 'windows');
+        return 'windows';
+      } finally {
+        loadingPromises.delete(key);
+      }
+    })();
+
+    loadingPromises.set(key, promise);
+    return promise;
+  }
+
+  function parseTargetPath(targetPath) {
+    const lastSlash = targetPath.lastIndexOf('/');
+    if (lastSlash === -1) {
+      return { dirPath: '', fileName: targetPath };
+    }
+    return {
+      dirPath: targetPath.substring(0, lastSlash + 1),
+      fileName: targetPath.substring(lastSlash + 1)
+    };
+  }
+
+  const platformAPI = {
+    getPlatform: async function(baseUrl) {
+      const key = normalizeBaseUrl(baseUrl);
+      return loadPlatformForBase(key);
+    },
+
+    getUploadUrl: async function(baseUrl, targetPath) {
+      if (typeof targetPath === 'undefined') {
+        targetPath = baseUrl;
+        baseUrl = window.location.href;
+      }
+      if (!targetPath) return targetPath;
+
+      const platform = await this.getPlatform(baseUrl);
+      if (!platform) return targetPath;
+
+      const config = PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.windows;
+
+      let base = baseUrl || window.location.href;
+      if (!base.endsWith('/')) base += '/';
+
+      if (platform === 'arduino' || platform === 'esp') {
+        let filePath = targetPath;
+        filePath = filePath.replace(/^\.\//, '').replace(/^\.\.\//, '');
+        if (!filePath.startsWith('/')) filePath = '/' + filePath;
+        const host = new URL(base).hostname;
+        const port = config.uploadPort || 81;
+        const url = `http://${host}:${port}${config.uploadPath}?path=${encodeURIComponent(filePath)}`;
+        console.log('[platformAPI] Upload URL (Arduino):', url);
+        return url;
+      } else if (platform === 'android') {
+        const url = new URL(config.uploadPath, base);
+        const { dirPath } = parseTargetPath(targetPath);
+        url.searchParams.set('path', dirPath);
+        console.log('[platformAPI] Upload URL (Android):', url.toString());
+        return url.toString();
+      } else if (platform === 'iphone' || platform === 'iphones') {
+        const url = new URL(config.uploadPath, base);
+        console.log('[platformAPI] Upload URL (iPhone):', url.toString());
+        return url.toString();
+      } else {
+        const cleanPath = targetPath.startsWith('/') ? targetPath.slice(1) : targetPath;
+        const url = new URL(cleanPath, base);
+        console.log('[platformAPI] Upload URL (PUT):', url.toString());
+        return url.toString();
+      }
+    },
+
+    uploadFile: async function(file, targetPath, baseUrl, onProgress) {
+      if (typeof baseUrl === 'function') {
+        onProgress = baseUrl;
+        baseUrl = window.location.href;
+      }
+      baseUrl = baseUrl || window.location.href;
+
+      const platform = await this.getPlatform(baseUrl);
+      const config = PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.windows;
+      const url = await this.getUploadUrl(baseUrl, targetPath);
+      const method = config.method || 'PUT';
+      const useFormData = config.useFormData;
+
+      let body;
+      if (useFormData) {
+        const formData = new FormData();
+        const fileName = targetPath.split('/').pop() || 'file';
+        formData.append('files[]', file, fileName);
+        if (platform === 'iphone' || platform === 'iphones') {
+          const { dirPath } = parseTargetPath(targetPath);
+          formData.append('targetDir', dirPath);
+        }
+        body = formData;
+      } else {
+        body = file;
+      }
+
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+
+        if (!useFormData) {
+          xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+        }
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            onProgress(e.loaded, e.total);
+          }
+        };
+
+        xhr.onload = () => {
+          console.log('[platformAPI] Upload response status:', xhr.status);
+          console.log('[platformAPI] Upload response text:', xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(xhr.responseText);
+          } else {
+            reject(new Error(`Upload failed: HTTP ${xhr.status} – ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = () => {
+          console.error('[platformAPI] Upload network error');
+          reject(new Error('Network error during upload'));
+        };
+
+        xhr.send(body);
+      });
+    },
+
+    getPlatformSync: function(baseUrl) {
+      const key = normalizeBaseUrl(baseUrl);
+      return platformCache.has(key) ? platformCache.get(key) : null;
+    }
+  };
+
+  window.platformAPI = platformAPI;
+  console.log('[loadplatform] platformAPI installed');
+})();
+</script>
+
+<!-- ========== Albums application logic ========== -->
+<script>
+/* Albums — now uses platformAPI for all uploads.
+   Library is cached in localStorage to survive listing failures (e.g., Arduino).
+   On upload success, file is added to masterLibrary and grid is updated immediately.
 */
 
 const AlbumsRoot = '/Albums/';
@@ -195,46 +388,30 @@ function getUploadTargetDisplay(value){
 /* ---------- state ---------- */
 let activeProfile = getStoredProfile();
 let profiles = [];
-let masterLibrary = []; // absolute-ish paths to images
+let masterLibrary = []; // absolute paths
 let customAlbums = [];
-let stagedUploads = []; // {file, previewUrl}
+let stagedUploads = [];
 let currentView = 'all';
 let uploadTarget = getStoredUploadTarget();
 
-/* ---------- platform detection (cached) ---------- */
+/* ---------- platform detection using platformAPI ---------- */
+let detectedPlatform = 'unknown';
 async function detectPlatform(){
-  if (window.__albums_detectedPlatform) return window.__albums_detectedPlatform;
-  // 1) try platform.txt (no-store)
   try {
-    const r = await fetch('./platform.txt', { cache: 'no-store' });
-    if (r && r.ok) {
-      const txt = (await r.text()).trim().toLowerCase();
-      if (txt) { window.__albums_detectedPlatform = txt; updateMethodBadge(txt); return txt; }
-    }
-  } catch(e){ /* ignore */ }
-
-  // 2) check global overrides (other pages set this)
-  const globalChoices = [window.SERVER_UPLOAD_STYLE, window.detectedPlatform];
-  for (const g of globalChoices){
-    if (typeof g === 'string' && g.trim()) { window.__albums_detectedPlatform = g.trim().toLowerCase(); updateMethodBadge(window.__albums_detectedPlatform); return window.__albums_detectedPlatform; }
+    const platform = await window.platformAPI.getPlatform(window.location.origin);
+    detectedPlatform = platform;
+    updateMethodBadge(platform);
+    return platform;
+  } catch(e){
+    console.warn('Platform detection via platformAPI failed:', e);
+    detectedPlatform = 'windows';
+    updateMethodBadge('windows (fallback)');
+    return 'windows';
   }
-
-  // 3) fallback to saved local override if present
-  try {
-    const saved = localStorage.getItem('server_upload_platform');
-    if (saved) { window.__albums_detectedPlatform = saved.toLowerCase(); updateMethodBadge(window.__albums_detectedPlatform); return window.__albums_detectedPlatform; }
-  } catch(e){}
-
-  // 4) final default: windows (explicit as requested)
-  window.__albums_detectedPlatform = 'windows';
-  updateMethodBadge('windows');
-  return 'windows';
 }
-
 function updateMethodBadge(text){
   const el = $id('detectedMethod');
-  if (!el) return;
-  el.textContent = `platform: ${text}`;
+  if (el) el.textContent = `platform: ${text}`;
 }
 
 /* ---------- listDir (multi-fallback) ---------- */
@@ -271,43 +448,33 @@ async function listDir(targetDir){
     }
   } catch(e){ /* ignore */ }
 
-  return [];
+  return []; // return empty array, not null
 }
 
 function normalizePath(s){ if (!s) return ''; s = String(s).replace(/\\/g,'/'); if (!s.startsWith('/')) s = '/' + s; return s; }
 function basenameFromPath(p){ if (!p) return ''; const parts = p.split('/').filter(Boolean); return parts.length ? parts[parts.length-1] : p; }
 
-/* ---------- upload primitives (same multi-strategy used elsewhere) ---------- */
-
-/* pocketUpload: multipart POST to /pocketserver-api/upload */
-async function pocketUpload(name, targetDir, blobOrFile){
+/* ---------- Library cache (localStorage) ---------- */
+function getCachedFiles(profile){
   try {
-    let fileToSend = blobOrFile;
-    if (!(blobOrFile instanceof Blob)) fileToSend = new Blob([blobOrFile || ''], { type: 'application/octet-stream' });
-    const fd = new FormData();
-    fd.append('files[]', fileToSend, name);
-    fd.append('targetDir', targetDir);
-    const r = await fetch('/pocketserver-api/upload', { method:'POST', body: fd, credentials:'include' });
-    console.log('[pocketUpload]', targetDir, name, '->', r.status);
-    return r.ok;
-  } catch(e){ console.warn('pocketUpload error', e); return false; }
+    const data = localStorage.getItem(`album_files_${profile}`);
+    return data ? JSON.parse(data) : null;
+  } catch(e){ return null; }
+}
+function setCachedFiles(profile, files){
+  try {
+    localStorage.setItem(`album_files_${profile}`, JSON.stringify(files));
+  } catch(e){ console.warn('Could not cache files', e); }
+}
+function addToCache(profile, filePath){
+  const cached = getCachedFiles(profile) || [];
+  if (!cached.includes(filePath)) {
+    cached.push(filePath);
+    setCachedFiles(profile, cached);
+  }
 }
 
-/* pocketReplace: upload temp then replace */
-async function pocketReplace(name, targetDir, blob){
-  try {
-    const temp = name + '.__new__';
-    const okTemp = await pocketUpload(temp, targetDir, blob);
-    if (!okTemp) { console.warn('pocketReplace temp failed'); return false; }
-    // attempt to delete original then upload real
-    try { await pocketDelete(targetDir + name); } catch(e){}
-    const ok = await pocketUpload(name, targetDir, blob);
-    try { await pocketDelete(targetDir + temp); } catch(e){}
-    return ok;
-  } catch(e){ console.warn('pocketReplace error', e); return false; }
-}
-
-/* pocketDelete: use pocketserver-api/command */
+/* ---------- DELETE (kept internal) ---------- */
 async function pocketDelete(fullPath){
   try {
     const res = await fetch('/pocketserver-api/command', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ command:'delete', paths:[fullPath] }), credentials:'include' });
@@ -315,75 +482,6 @@ async function pocketDelete(fullPath){
     return res.ok;
   } catch(e){ console.warn('pocketDelete failed', e); return false; }
 }
-
-/* apiUpload: FormData PUT to /api/file/upload?path= */
-async function apiUpload(targetDir, blob, filename){
-  try {
-    const fd = new FormData();
-    fd.append('files[]', blob, filename);
-    const r = await fetch(`/api/file/upload?path=${encodeURIComponent(targetDir)}`, { method:'PUT', body: fd, credentials:'include' });
-    console.log('[apiUpload]', targetDir, filename, '->', r.status);
-    return r.ok;
-  } catch(e){ console.warn('apiUpload failed', e); return false; }
-}
-
-/* putFileByPUT: attempt direct PUT to a constructed path */
-async function putFileByPUT(fullPath, blob){
-  try {
-    // try raw first
-    try {
-      const r = await fetch(fullPath, { method:'PUT', body: blob, credentials:'include' });
-      console.log('[putFileByPUT] try1', fullPath, '->', r.status);
-      if (r.ok) return true;
-    } catch(e){ console.warn('put try1 failed', e); }
-    // try with ./ prefix
-    try {
-      const r2 = await fetch(`.${fullPath}`, { method:'PUT', body: blob, credentials:'include' });
-      console.log('[putFileByPUT] try2', '.'+fullPath, '->', r2.status);
-      if (r2.ok) return true;
-    } catch(e){ console.warn('put try2 failed', e); }
-    return false;
-  } catch(e){ console.warn('putFileByPUT error', e); return false; }
-}
-
-/* high-level uploadFileToPath — order depends on detected platform (windows default) */
-async function uploadFileToPath(targetDir, filename, fileBlob){
-  const platform = (await detectPlatform()).toLowerCase();
-  console.log('[uploadFileToPath] platform', platform, 'targetDir', targetDir, 'filename', filename);
-  // Helper to show chosen method
-  function showMethod(m){ console.log('[upload] method ->', m); toast(`${m} → ${filename}`, 1200); }
-
-  // iOS / iPhone branch: pocket helpers are favored
-  if (platform.includes('iphone') || platform.includes('ios')) {
-    showMethod('pocketReplace/pocketUpload');
-    if (typeof window.pocketReplace === 'function') {
-      try { if (await window.pocketReplace(filename, targetDir, fileBlob)) return true; } catch(e){ console.warn(e); }
-    }
-    if (await pocketReplace(filename, targetDir, fileBlob)) return true;
-    if (await pocketUpload(filename, targetDir, fileBlob)) return true;
-    // fallback to direct PUT
-    if (await putFileByPUT(targetDir + encodeURIComponent(filename), fileBlob)) return true;
-    return false;
-  }
-
-  // Android branch: apiUpload preferred
-  if (platform.includes('android')) {
-    showMethod('apiUpload → putFile → pocketUpload');
-    if (await apiUpload(targetDir, fileBlob, filename)) return true;
-    if (await putFileByPUT(targetDir + encodeURIComponent(filename), fileBlob)) return true;
-    if (await pocketUpload(filename, targetDir, fileBlob)) return true;
-    return false;
-  }
-
-  // WINDOWS or default branch: try direct PUT first (explicit requested default)
-  showMethod('putFileByPUT → apiUpload → pocketUpload');
-  if (await putFileByPUT(targetDir + encodeURIComponent(filename), fileBlob)) return true;
-  if (await apiUpload(targetDir, fileBlob, filename)) return true;
-  if (await pocketUpload(filename, targetDir, fileBlob)) return true;
-  return false;
-}
-
-/* deletePathImpl: prefer pocketCommand / pocketDelete */
 async function deletePathImpl(fullPath){
   if (typeof window.pocketCommand === 'function') {
     try { const res = await window.pocketCommand({ command: 'delete', paths: [ fullPath ] }); return !!res; } catch(e){ console.warn('pocketCommand failed', e); }
@@ -391,7 +489,7 @@ async function deletePathImpl(fullPath){
   return await pocketDelete(fullPath);
 }
 
-/* ---------- metadata JSON helpers ---------- */
+/* ---------- metadata JSON helpers (using platformAPI) ---------- */
 async function fetchJson(filename){
   try {
     const r = await fetch(`./Profiles/${filename}?t=${Date.now()}`, { cache:'no-store' });
@@ -401,19 +499,14 @@ async function fetchJson(filename){
 }
 async function saveJson(filename, data){
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  // Try PUT to ./Profiles/filename first (windows)
+  const targetPath = `/Profiles/${filename}`;
   try {
-    if (await putFileByPUT(`/Profiles/${encodeURIComponent(filename)}`, blob)) return true;
-  } catch(e){ console.warn('saveJson putFileByPUT failed', e); }
-  // fallback to pocketUpload into /Profiles/
-  try {
-    if (await pocketUpload(filename, '/Profiles/', blob)) return true;
-  } catch(e){ console.warn('saveJson pocketUpload failed', e); }
-  // fallback to apiUpload (if server accepts)
-  try {
-    if (await apiUpload('/Profiles/', blob, filename)) return true;
-  } catch(e){ console.warn('saveJson apiUpload failed', e); }
-  return false;
+    await window.platformAPI.uploadFile(blob, targetPath, window.location.origin);
+    return true;
+  } catch(e){
+    console.warn('saveJson via platformAPI failed:', e);
+    return false;
+  }
 }
 
 /* ---------- library & album management ---------- */
@@ -461,16 +554,34 @@ async function setActiveProfile(name){
 
 async function loadLibrary(){
   const dir = `${AlbumsRoot}${activeProfile}/`;
-  const listing = await listDir(dir) || [];
-  const files = [];
-  (listing || []).forEach(entry => {
-    const bn = basenameFromPath(entry);
-    if (IMAGE_RE.test(bn)) {
-      const p = entry.startsWith('/') ? entry : (dir + bn);
-      files.push(p);
+  let files = [];
+  try {
+    const listing = await listDir(dir);
+    if (listing && listing.length) {
+      files = listing
+        .map(entry => {
+          const bn = basenameFromPath(entry);
+          if (IMAGE_RE.test(bn)) {
+            return entry.startsWith('/') ? entry : (dir + bn);
+          }
+          return null;
+        })
+        .filter(Boolean);
     }
-  });
+  } catch(e){ console.warn('listDir failed, using cache', e); }
+
+  // If listing gave no files, try cache
+  if (!files || files.length === 0) {
+    const cached = getCachedFiles(activeProfile);
+    if (cached && cached.length) {
+      files = cached.filter(p => IMAGE_RE.test(basenameFromPath(p)));
+      console.log('[loadLibrary] using cached files', files);
+    }
+  }
+
+  // Update masterLibrary and cache
   masterLibrary = files;
+  if (files.length) setCachedFiles(activeProfile, files);
 }
 
 async function loadAlbumMetadata(){
@@ -564,8 +675,10 @@ async function renderGridForView(view){
         const blob = await fetch(img.src, { cache:'no-store' }).then(r=>r.blob());
         const targetDir = `${AlbumsRoot}shared/`;
         const targetName = `${activeProfile}-${filename}`;
-        const ok = await uploadFileToPath(targetDir, targetName, blob);
-        if (ok) { toast('Shared'); await refreshAll(); } else toast('Share failed (see console)');
+        const targetPath = targetDir + targetName;
+        await window.platformAPI.uploadFile(blob, targetPath, window.location.origin);
+        toast('Shared');
+        await refreshAll();
       } catch(e){ console.warn(e); toast('Share failed'); }
     };
     left.appendChild(shareBtn);
@@ -580,7 +693,13 @@ async function renderGridForView(view){
       ev.stopPropagation();
       if (!confirm('Delete this photo?')) return;
       const ok = await deletePathImpl(`${AlbumsRoot}${activeProfile}/${filename}`);
-      if (ok) { toast('Deleted'); await refreshAll(); } else toast('Delete failed');
+      if (ok) {
+        // Remove from cache and masterLibrary
+        masterLibrary = masterLibrary.filter(p => basenameFromPath(p) !== filename);
+        setCachedFiles(activeProfile, masterLibrary);
+        toast('Deleted');
+        await renderGridForView(currentView);
+      } else toast('Delete failed');
     };
 
     actions.appendChild(left);
@@ -603,7 +722,7 @@ function createAlbumModal(){
     if (!slug) return alert('Invalid album name');
     customAlbums.push({ name, slug, owner: activeProfile });
     const ok = await saveJson(`${activeProfile}-albums.json`, customAlbums);
-    if (!ok) toast('Could not persist album metadata (save not implemented)');
+    if (!ok) toast('Could not persist album metadata');
     await saveJson(`${activeProfile}-album-${slug}.json`, []);
     closeModal();
     await refreshAll();
@@ -621,12 +740,12 @@ async function addToAlbumDialog(filename){
   const list = await fetchJson(`${activeProfile}-album-${album.slug}.json`) || [];
   if (!list.includes(filename)) list.push(filename);
   const ok = await saveJson(`${activeProfile}-album-${album.slug}.json`, list);
-  if (!ok) toast('Could not save album list (save not implemented)');
+  if (!ok) toast('Could not save album list');
   else toast(`Added to ${album.name}`);
   await refreshAll();
 }
 
-/* ---------- uploads ---------- */
+/* ---------- uploads using platformAPI ---------- */
 function handleUpload(files){
   const list = files && files.length !== undefined ? Array.from(files) : [];
   if (!list.length) return;
@@ -645,16 +764,31 @@ async function uploadFiles(files){
   }
   if (failed === 0) toast(`Uploaded to ${displayTarget}`);
   else toast(`${failed} upload(s) failed`);
-  await refreshAll();
+  // After upload, refresh the grid (using cached library)
+  await renderGridForView(currentView);
 }
 
 async function uploadSingleFile(file, target){
   const filename = file.name;
   const safeTarget = normalizeUploadTarget(target);
   const targetDir = `${AlbumsRoot}${activeProfile}/`;
-  const ok = await uploadFileToPath(targetDir, filename, file);
-  if (!ok) return false;
+  const targetPath = targetDir + filename;
 
+  // Upload using platformAPI
+  try {
+    await window.platformAPI.uploadFile(file, targetPath, window.location.origin);
+  } catch(e){
+    console.warn('Upload failed:', e);
+    return false;
+  }
+
+  // Add to library cache
+  if (!masterLibrary.includes(targetPath)) {
+    masterLibrary.push(targetPath);
+    addToCache(activeProfile, targetPath);
+  }
+
+  // If target is not 'unsorted', add to album
   if (safeTarget !== 'unsorted') {
     const album = customAlbums.find(a => a.slug === safeTarget || a.name === safeTarget);
     if (album) {
@@ -667,10 +801,6 @@ async function uploadSingleFile(file, target){
     }
   }
   return true;
-}
-
-async function commitUploads(){
-  return toast('Use the drop zone to upload now');
 }
 
 /* ---------- search filter ---------- */
@@ -696,7 +826,7 @@ async function refreshAll(){
 async function init(){
   $id('activeProfileName').textContent = activeProfile;
   $id('activeProfileLabel').textContent = activeProfile;
-  await detectPlatform(); // pre-populate badge
+  await detectPlatform();
   await refreshAll();
   const dropZone = $id('dropZone');
   const fileInput = $id('fileInput');
@@ -715,8 +845,8 @@ init();
 
 /* ---------- debug exports ---------- */
 window.AlbumsUI = {
-  detectPlatform, listDir, uploadFileToPath, pocketUpload, apiUpload, putFileByPUT, deletePathImpl: pocketDelete,
-  fetchJson, saveJson, stagedUploads, commitUploads, refreshAll, setActiveProfile, uploadFiles, setUploadDestination
+  detectPlatform, listDir, deletePathImpl: pocketDelete,
+  fetchJson, saveJson, refreshAll, setActiveProfile, uploadFiles, setUploadDestination
 };
 </script>
 </body>

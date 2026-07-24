@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Backup Profile and Server Content</title>
+  <!-- Unified platform API for cross‑platform uploads -->
+  <script src="loadplatform.js"></script>
   <style>
     :root {
       --bg:#212222;
@@ -242,6 +244,85 @@
   
   <script>
   (() => {
+    // --- IndexedDB helpers for large blob storage ---
+    const BACKUP_STORE_KEY = 'libraryjs.currentBackupBundle';
+
+    function openBackupDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('BackupStorage', 1);
+        request.onupgradeneeded = (ev) => {
+          const db = ev.target.result;
+          if (!db.objectStoreNames.contains('backups')) {
+            db.createObjectStore('backups', { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function storeBackupInIndexedDB(id, blob, metadata) {
+      const db = await openBackupDB();
+      const tx = db.transaction('backups', 'readwrite');
+      const store = tx.objectStore('backups');
+      store.put({ id, blob, metadata, timestamp: Date.now() });
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // Keep the old base64 fallback for compatibility (but we'll use IndexedDB primarily)
+    function bytesToBase64(bytes) {
+      const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < arr.length; i += chunkSize) {
+        binary += String.fromCharCode(...arr.subarray(i, i + chunkSize));
+      }
+      return btoa(binary);
+    }
+
+    async function saveCurrentBackupForRestore(bytes, name) {
+      try {
+        // Use IndexedDB for large blobs
+        const blob = new Blob([bytes], { type: 'application/zip' });
+        const id = `backup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const metadata = { name: String(name || 'current-backup.zip'), size: blob.size, type: 'application/zip' };
+        await storeBackupInIndexedDB(id, blob, metadata);
+        // Store a small pointer in localStorage so Restore-flow can find it
+        localStorage.setItem(BACKUP_STORE_KEY, JSON.stringify({ id, name: metadata.name, size: blob.size }));
+        console.log(`Backup stored in IndexedDB with id: ${id} (${blob.size} bytes)`);
+        return true;
+      } catch (err) {
+        console.warn('IndexedDB storage failed, falling back to localStorage (may fail for large backups):', err);
+        // Fallback to old base64 method
+        try {
+          const payload = {
+            name: String(name || 'current-backup.zip'),
+            type: 'application/zip',
+            data: bytesToBase64(bytes)
+          };
+          localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(payload));
+          return true;
+        } catch (e) {
+          console.error('Both IndexedDB and localStorage failed:', e);
+          return false;
+        }
+      }
+    }
+
+    // Wait for platformAPI to be available (loaded via script tag)
+    const platformReady = new Promise(resolve => {
+      if (typeof window.platformAPI !== 'undefined') return resolve();
+      const check = setInterval(() => {
+        if (typeof window.platformAPI !== 'undefined') {
+          clearInterval(check);
+          resolve();
+        }
+      }, 50);
+    });
+
     const params = new URLSearchParams(location.search);
     const flowMode = params.has('flow');
 
@@ -406,33 +487,6 @@
 
     function encodeUtf8(text) {
       return new TextEncoder().encode(String(text || ''));
-    }
-
-    const CURRENT_BACKUP_STORAGE_KEY = 'libraryjs.currentBackupBundle';
-
-    function bytesToBase64(bytes) {
-      const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
-      let binary = '';
-      const chunkSize = 0x8000;
-      for (let i = 0; i < arr.length; i += chunkSize) {
-        binary += String.fromCharCode(...arr.subarray(i, i + chunkSize));
-      }
-      return btoa(binary);
-    }
-
-    function saveCurrentBackupForRestore(bytes, name) {
-      try {
-        const payload = {
-          name: String(name || 'current-backup.zip'),
-          type: 'application/zip',
-          data: bytesToBase64(bytes)
-        };
-        localStorage.setItem(CURRENT_BACKUP_STORAGE_KEY, JSON.stringify(payload));
-        return true;
-      } catch (err) {
-        console.warn('Could not cache backup for Restore-flow:', err);
-        return false;
-      }
     }
 
     const crcTable = (() => {
@@ -731,25 +785,27 @@
       }
     }
 
+    // --- UPLOAD USING UNIFIED PLATFORM API ---
     async function uploadFinalBundle() {
       if (state.busy) return;
       state.busy = true;
       el.downloadBtn.disabled = true;
       el.serverBtn.disabled = true;
       try {
+        // Wait for platformAPI to be ready
+        await platformReady;
+        if (typeof window.platformAPI === 'undefined') {
+          throw new Error('platformAPI not available – loadplatform.js may have failed to load.');
+        }
+
         const bytes = await buildFinalBundle();
         const blob = new Blob([bytes], { type: 'application/zip' });
-        const res = await fetch(`/backups/${encodeURIComponent(state.finalName)}`, {
-          method: 'PUT',
-          cache: 'no-store',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/zip' },
-          body: blob
-        });
-        if (!res.ok) {
-          const body = await res.text().catch(() => '');
-          throw new Error(`${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 160)}` : ''}`);
-        }
+        // Create a File object from the blob so the API can handle it properly
+        const file = new File([blob], state.finalName, { type: 'application/zip' });
+        const targetPath = `/backups/${state.finalName}`;
+
+        // Use the unified upload method; baseUrl is the current origin
+        await window.platformAPI.uploadFile(file, targetPath, window.location.origin);
         setStatus(`Backed up to server as ${state.finalName}.`);
       } catch (err) {
         console.error(err);
@@ -879,8 +935,13 @@
           try {
             el.continueBtn.disabled = true;
             const bytes = await buildFinalBundle();
-            const cached = saveCurrentBackupForRestore(bytes, state.finalName || finalNameForLanes(state.lanes));
-            window.location.href = cached ? './Restore-flow.html?currentBackup=1' : './Restore-flow.html';
+            const cached = await saveCurrentBackupForRestore(bytes, state.finalName || finalNameForLanes(state.lanes));
+            if (cached) {
+              window.location.href = './Restore-flow.html?currentBackup=1';
+            } else {
+              setStatus('Could not store backup – please use Download instead.');
+              el.continueBtn.disabled = false;
+            }
           } catch (err) {
             console.error(err);
             setStatus(`Could not prepare current backup for restore: ${err && err.message ? err.message : String(err)}`);

@@ -4,6 +4,9 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Radio Player</title>
+<!-- ===== ADD THIS LINE TO LOAD PLATFORM API ===== -->
+<script src="./loadplatform.js"></script>
+<!-- ============================================= -->
 <style>
 /* ---------- Base reset & variables ---------- */
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -582,6 +585,8 @@ html, body {
 
 /* ---------- End of stylesheet ---------- */
 </style>
+<!-- Load the master music library -->
+<script src="musiclibrary.js"></script>
 </head>
 <script>
 (function(){
@@ -1537,51 +1542,21 @@ async function loadLikedSongsFromServer() {
   }
 }
 
+// ===== REPLACED WITH platformAPI VERSION =====
 async function saveLikedSongsToServer(likedSongs) {
   const profile = getActiveProfileName();
   const fileName = `${profile}-likedsongs.txt`;
-  const fileBase = fileName.replace(/\.txt$/, '');
   const cleaned = _normalizeLikedSongsArray(flattenStoredList(likedSongs));
   const sanitized = `[[[
 ${JSON.stringify(cleaned, null, 2)}
 ]]]`;
-
-  window.__pocketPayload = sanitized;
-
-  if (typeof isIphoneUpload === 'function' && isIphoneUpload()) {
-    const targetDir = 'file:///private/var/mobile/Library/LiveFiles/com.apple.filesystems.userfsd/2B3E705A-D115-3563-8EB1-F240305273C0/VideoServer/Profiles/';
-    try {
-      const ok = await pocketReplace(fileName, targetDir, sanitized);
-      if (ok) return;
-      const up = await pocketUpload(fileName, targetDir, sanitized);
-      if (up) return;
-    } catch (e) {
-      console.warn('[saveLikedSongsToServer] iphone flow error', e);
-    }
-    await putTxtCopy(encodeURIComponent(fileBase), sanitized);
-    return;
-  }
-
-  if (typeof isAndroidUpload === 'function' && isAndroidUpload()) {
-    try {
-      const blob = new Blob([JSON.stringify(cleaned)], { type: 'application/json' });
-      const form = new FormData();
-      form.append('files[]', blob, fileName);
-      await fetch(`/api/file/upload?path=${encodeURIComponent('/Profiles/')}`, { method: 'PUT', body: form });
-      return;
-    } catch (err) {
-      console.error('Liked songs upload (android) failed:', err);
-    }
-  }
-
+  const payloadBlob = new Blob([sanitized], { type: 'text/plain' });
+  const targetPath = `/Profiles/${encodeURIComponent(fileName)}`;
   try {
-    await fetch(`/Profiles/${encodeURIComponent(fileName)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'text/plain' },
-      body: sanitized
-    });
-  } catch (err) {
-    console.error('Liked songs upload (windows) failed:', err);
+    await platformAPI.upload(payloadBlob, targetPath);
+    console.log(`[saveLikedSongsToServer] uploaded ${targetPath}`);
+  } catch (e) {
+    console.error('[saveLikedSongsToServer] upload failed:', e);
   }
 }
 
@@ -1654,6 +1629,7 @@ document.addEventListener('visibilitychange', function() {
   if (!document.hidden) refreshLikedSongsIfProfileChanged();
 });
 
+// ===== REPLACED WITH platformAPI VERSION =====
 function uploadPlaylistToServer(playlistArray) {
   const profile = getActiveProfileName();
   const fileName = `${profile}-radio.txt`;
@@ -1663,24 +1639,14 @@ function uploadPlaylistToServer(playlistArray) {
   const sanitized = `[[[
 ${JSON.stringify(cleaned, null, 2)}
 ]]]`;
-
-  if (typeof isWindowsUpload === 'function' && isWindowsUpload()) {
-    return fetch(`/Profiles/${encodeURIComponent(fileName)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'text/plain' },
-      body: sanitized
-    }).catch(err => console.error('Playlist upload (windows) failed:', err));
-  }
-
-  const blob = new Blob([sanitized], { type: 'application/json' });
-  const form = new FormData();
-  form.append('files[]', blob, fileName);
-  return fetch(`/api/file/upload?path=${encodeURIComponent('/Profiles/')}`, {
-    method: 'PUT',
-    body: form
-  }).catch(err => console.error('Playlist upload (android) failed:', err));
+  const payloadBlob = new Blob([sanitized], { type: 'text/plain' });
+  const targetPath = `/Profiles/${encodeURIComponent(fileName)}`;
+  return platformAPI.upload(payloadBlob, targetPath)
+    .then(() => console.log(`[uploadPlaylistToServer] uploaded ${targetPath}`))
+    .catch(err => console.error('[uploadPlaylistToServer] upload failed:', err));
 }
 
+// Keep restorePlaylistFromProfile (download) as is – it uses fetch.
 async function restorePlaylistFromProfile(profileName) {
   const profile = profileName || (localStorage.getItem('activeProfile') || 'Guest');
   const fileName = `${profile}-radio.txt`;
@@ -2850,51 +2816,24 @@ async function loadMasterPlaylistsFromServer(profile) {
   return [];
 }
 
+// ===== REPLACED WITH platformAPI VERSION =====
 async function saveMasterPlaylistsToServer(profile, arr) {
   profile = profile || (localStorage.getItem('activeProfile') || 'Guest');
   const fileName = `${profile}-playlists.txt`;
-  const androidPath = '/Profiles/';
-  
-  // iPhone branch: try pocketReplace -> pocketUpload -> fallback to putTxtCopy
-  if (typeof isIphoneUpload === 'function' && isIphoneUpload()) {
-    const targetDir = 'file:///private/var/mobile/Library/LiveFiles/com.apple.filesystems.userfsd/2B3E705A-D115-3563-8EB1-F240305273C0/VideoServer/Profiles/';
-    const sanitized = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
-    window.__pocketPayload = sanitized;
-    try {
-      const ok = await pocketReplace(fileName, targetDir, sanitized);
-      if (ok) { console.log('[saveMasterPlaylistsToServer] iphone pocketReplace OK'); return; }
-      const up = await pocketUpload(fileName, targetDir, sanitized);
-      if (up) return;
-    } catch(e) { console.warn('[saveMasterPlaylistsToServer] iphone flow exception', e); }
-    await putTxtCopy(encodeURIComponent(fileName.replace(/\.txt$/, '')), sanitized);
-    return;
-  }
-if (typeof isWindowsUpload === 'function' && isWindowsUpload()) {
-    const sanitized = `[[[\n${JSON.stringify(arr, null, 2)}\n]]]`;
-    try {
-      await fetch(`/Profiles/${encodeURIComponent(fileName)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'text/plain' },
-        body: sanitized
-      });
-    } catch (err) {
-      console.error('playlists upload (windows) failed:', err);
-    }
-  } else {
-    try {
-      const blob = new Blob([JSON.stringify(arr)], {type: "application/json"});
-      const form = new FormData();
-      form.append("files[]", blob, fileName);
-      await fetch(`/api/file/upload?path=${encodeURIComponent(androidPath)}`, {
-        method: 'PUT',
-        body: form
-      });
-    } catch (err) {
-      console.error('playlists upload (android) failed:', err);
-    }
+  const sanitized = `[[[
+${JSON.stringify(arr, null, 2)}
+]]]`;
+  const payloadBlob = new Blob([sanitized], { type: 'text/plain' });
+  const targetPath = `/Profiles/${encodeURIComponent(fileName)}`;
+  try {
+    await platformAPI.upload(payloadBlob, targetPath);
+    console.log(`[saveMasterPlaylistsToServer] uploaded ${targetPath}`);
+  } catch (e) {
+    console.error('[saveMasterPlaylistsToServer] upload failed:', e);
   }
 }
 
+// Keep loadPlaylistFileFromServer (download) as is.
 async function loadPlaylistFileFromServer(profile, playlistSlug) {
   profile = profile || getActiveProfileName();
   if (!playlistSlug) return [];
@@ -2909,57 +2848,25 @@ async function loadPlaylistFileFromServer(profile, playlistSlug) {
   return [];
 }
 
+// ===== REPLACED WITH platformAPI VERSION =====
 async function savePlaylistFileToServer(profile, playlistSlug, arr) {
   profile = profile || getActiveProfileName();
   if (!playlistSlug) return false;
   const fileName = `${profile}-${playlistSlug}.txt`;
-  const androidPath = '/Profiles/';
-
-  // Normalize elements to basenames so songs match the current library naming.
   const cleaned = normalizeLoadedPlaylist(arr);
   const sanitized = `[[[
 ${JSON.stringify(cleaned, null, 2)}
 ]]]`;
-
-  if (typeof isIphoneUpload === 'function' && isIphoneUpload()) {
-    const targetDir = 'file:///private/var/mobile/Library/LiveFiles/com.apple.filesystems.userfsd/2B3E705A-D115-3563-8EB1-F240305273C0/VideoServer/Profiles/';
-    window.__pocketPayload = sanitized;
-    try {
-      const ok = await pocketReplace(fileName, targetDir, sanitized);
-      if (ok) { console.log('[savePlaylistFileToServer] iphone pocketReplace OK'); return true; }
-      const up = await pocketUpload(fileName, targetDir, sanitized);
-      if (up) return true;
-    } catch(e) { console.warn('[savePlaylistFileToServer] iphone flow exception', e); }
-    await putTxtCopy(encodeURIComponent(fileName.replace(/\.txt$/, '')), sanitized);
+  const payloadBlob = new Blob([sanitized], { type: 'text/plain' });
+  const targetPath = `/Profiles/${encodeURIComponent(fileName)}`;
+  try {
+    await platformAPI.upload(payloadBlob, targetPath);
+    console.log(`[savePlaylistFileToServer] uploaded ${targetPath}`);
     return true;
+  } catch (e) {
+    console.error('[savePlaylistFileToServer] upload failed:', e);
+    return false;
   }
-
-  if (typeof isWindowsUpload === 'function' && isWindowsUpload()) {
-    try {
-      await fetch(`/Profiles/${encodeURIComponent(fileName)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'text/plain' },
-        body: sanitized
-      });
-      return true;
-    } catch (err) {
-      console.error('playlist upload (windows) failed:', err);
-    }
-  } else {
-    try {
-      const blob = new Blob([JSON.stringify(cleaned)], { type: 'application/json' });
-      const form = new FormData();
-      form.append('files[]', blob, fileName);
-      await fetch(`/api/file/upload?path=${encodeURIComponent(androidPath)}`, {
-        method: 'PUT',
-        body: form
-      });
-      return true;
-    } catch (err) {
-      console.error('playlist upload (android) failed:', err);
-    }
-  }
-  return false;
 }
 
 async function appendSongToPlaylist(profile, playlistSlug, songPath) {
@@ -3026,24 +2933,17 @@ async function checkPlaylistImageUrl(profile, slug, index) {
   return 'Music/Images/default.jpg';
 }
 
-
+// ===== REPLACED WITH platformAPI VERSION =====
 async function uploadPlaylistImage(profile, playlistSlug, file) {
   const ext = (file.name.match(/\.\w+$/)||[])[0] || '.jpg';
   const targetName = `${playlistSlug}${ext}`;
-  const androidPath = '/Music/Images/';
+  const targetPath = `/Music/Images/${encodeURIComponent(targetName)}`;
   try {
-    const form = new FormData();
-    form.append('files[]', file, targetName);
-    await fetch(`/api/file/upload?path=${encodeURIComponent(androidPath)}`, { method: 'PUT', body: form });
+    await platformAPI.upload(file, targetPath);
+    console.log(`[uploadPlaylistImage] uploaded ${targetPath}`);
     return true;
   } catch (e) {
-    console.warn('android-style image upload failed, trying fallback', e);
-  }
-  try {
-    await fetch(`/Profiles/${encodeURIComponent(targetName)}`, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
-    return true;
-  } catch (e) {
-    console.error('image upload failed', e);
+    console.error('[uploadPlaylistImage] upload failed:', e);
     return false;
   }
 }
@@ -3477,7 +3377,93 @@ tile.addEventListener('keydown', function(ev) {
       } catch(e){ console.warn('append exiled tile failed', e); }
     }
 
+    // --- Newest tile appended after Exiled tile ---
+    if (!document.getElementById('newestTile')) {
+      const newestTile = document.createElement('div');
+      newestTile.className = 'playlist-tile';
+      newestTile.id = 'newestTile';
+      newestTile.tabIndex = 0;
+      newestTile.setAttribute('role','button');
+      newestTile.setAttribute('aria-label','Newest');
 
+      const nimg = document.createElement('img');
+      nimg.alt = 'Newest';
+      nimg.onerror = function(){ this.onerror = null; this.src = 'Music/Images/default.jpg'; };
+      nimg.src = 'Music/Images/Newest.jpg';
+      newestTile.appendChild(nimg);
+
+      const nname = document.createElement('div');
+      nname.className = 'tile-name';
+      nname.textContent = 'Newest';
+      newestTile.appendChild(nname);
+
+      // click handler
+      newestTile.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+
+        // Ensure musicLibrary is loaded (if not already)
+        if (!window.musicLibrary || !Array.isArray(window.musicLibrary) || window.musicLibrary.length === 0) {
+          // Try to load musiclibrary.js dynamically (same as genres)
+          try {
+            await new Promise((resolve, reject) => {
+              const s = document.createElement('script');
+              s.src = './musiclibrary.js';
+              s.async = true;
+              s.onload = () => resolve();
+              s.onerror = () => reject(new Error('Failed to load musiclibrary.js'));
+              document.head.appendChild(s);
+            });
+            // Re-run refresh after load
+            refreshMusicLibraryIndex();
+          } catch (e) {
+            console.warn('musiclibrary.js load failed', e);
+            alert('Could not load music library. Please check that musiclibrary.js exists.');
+            return;
+          }
+        }
+
+        // Get the last 50 songs from musicLibrary
+        const lib = window.musicLibrary || [];
+        const last50 = lib.slice(-50);
+        const playlistSongs = last50
+          .map(entry => {
+            // Use normalizeSongBase to strip any $code and file extension
+            return normalizeSongBase(entry);
+          })
+          .filter(Boolean);
+        if (!playlistSongs.length) {
+          alert('No songs found in the last 50 entries.');
+          return;
+        }
+        // Shuffle the list (copy to avoid mutating original)
+        playlist = shuffle(playlistSongs.slice());
+        isPlayingLiked = false;
+        // Close the playlist dialog
+        hidePlaylistDialog();
+        // Load the first track
+        if (playlist.length) {
+          loadAndPlay(0);
+        }
+      });
+
+      // keyboard support (Enter/Space)
+      newestTile.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          ev.stopPropagation();
+          newestTile.click();
+        }
+      });
+
+      // Insert after the Exiled tile if it exists, otherwise append to the row
+      const exiledTile = document.getElementById('exiledTile');
+      if (exiledTile && exiledTile.parentNode) {
+        exiledTile.parentNode.insertBefore(newestTile, exiledTile.nextSibling);
+      } else {
+        const tilesRow = document.getElementById('playlistTilesRow');
+        if (tilesRow) tilesRow.appendChild(newestTile);
+      }
+    }
 
     tilesRow.appendChild(genresTile);
   }
@@ -3794,6 +3780,7 @@ async function loadExiledFromServer(profile) {
   }
 }
 
+// ===== REPLACED WITH platformAPI VERSION =====
 async function saveExiledToServer(profile, arr) {
   profile = profile || (localStorage.getItem('activeProfile') || 'Guest');
   try {
@@ -3922,7 +3909,7 @@ rem.onclick = async function() {
     console.warn('remove exiled', e);
     alert('Remove failed (see console)');
   }
-      };
+};
         row.appendChild(n);
         row.appendChild(rem);
         listWrap.appendChild(row);
@@ -4158,6 +4145,7 @@ try{ if (typeof refreshExiledCache === 'function') refreshExiledCache(localStora
     return [];
   }
 
+  // ===== REPLACED WITH platformAPI VERSION =====
   async function saveExiledToServer(profile, arr) {
     profile = profile || (localStorage.getItem('activeProfile') || 'Guest');
     try {

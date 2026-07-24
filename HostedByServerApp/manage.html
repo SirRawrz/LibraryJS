@@ -8,6 +8,9 @@
        but the manager will use its own fetch/merge logic. -->
   <script src="./loadexpanded.js"></script>
   <script src="./loadlocalexpanded.js"></script>
+  <!-- ===== ADD THIS LINE TO LOAD PLATFORM API ===== -->
+  <script src="./loadplatform.js"></script>
+  <!-- ============================================= -->
   <style>
     :root {
       --bg: #0d1117;
@@ -36,7 +39,10 @@
       padding: 20px;
     }
     .container { max-width: 1600px; margin: 0 auto; }
+
+    /* ==== ADDED: position relative for wifi button ==== */
     .header {
+      position: relative; /* <-- ADDED */
       display: flex;
       align-items: stretch;
       justify-content: space-between;
@@ -51,6 +57,100 @@
       flex-wrap: nowrap;
       min-width: 0;
     }
+
+    /* ==== ADDED: Wi‑Fi button styles ==== */
+    .wifi-btn {
+  position: fixed;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100000;
+  transition: transform 0.15s, background 0.15s;
+}
+    .wifi-btn:focus { outline: 2px solid rgba(47,140,255,0.6); }
+    .wifi-btn svg { width:18px; height:18px; fill:#ddd; }
+
+    /* ==== ADDED: Wi‑Fi overlay styles ==== */
+    #wifiOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200000 !important;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    #wifiOverlay iframe {
+      width: 100%;
+      max-width: 800px;
+      height: 90vh;
+      border: none;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    }
+    #wifiOverlay .close-wifi {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 32px;
+      color: #fff;
+      background: none;
+      border: none;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    #wifiOverlay .close-wifi:hover { opacity: 1; }
+
+    /* ==== ADDED: Expanded Settings (SD) overlay ==== */
+    #expandedSettingsOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200000 !important;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    #expandedSettingsOverlay iframe {
+      width: 100%;
+      max-width: 800px;
+      height: 90vh;
+      border: none;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    }
+    #expandedSettingsOverlay .close-settings {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 32px;
+      color: #fff;
+      background: none;
+      border: none;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    #expandedSettingsOverlay .close-settings:hover { opacity: 1; }
+
+    /* ==== rest of existing styles (unchanged) ==== */
     .header-home,
     .header-brand {
       display: flex;
@@ -144,65 +244,65 @@
       display: inline-block;
     }
 
-.home-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.home-stack .home-btn { width: fit-content; }
-.repair-batch-launch {
-  align-self: flex-start;
-  min-width: 0;
-  width: fit-content;
-  padding: 6px 10px;
-  font-size: 11px;
-  border-radius: 8px;
-  line-height: 1.1;
-}
-.repair-batch-launch.hidden { display: none !important; }
-.repair-batch-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 42px;
-  min-height: 32px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: rgba(255,255,255,0.02);
-  color: var(--text);
-  cursor: pointer;
-}
-.repair-batch-toggle input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--ok);
-  cursor: pointer;
-}
-.repair-batch-toggle.is-done {
-  border-color: rgba(52,211,153,0.55);
-  background: rgba(52,211,153,0.12);
-  color: var(--ok);
-  font-weight: 700;
-}
-.repair-batch-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  min-height: 32px;
-  padding: 0 8px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  font-size: 16px;
-}
-.repair-batch-status.done {
-  color: var(--ok);
-  background: rgba(52,211,153,0.12);
-  border-color: rgba(52,211,153,0.45);
-}
-.repair-batch-status.failed {
-  color: var(--danger);
-  background: rgba(251,113,133,0.12);
-  border-color: rgba(251,113,133,0.45);
-}
+    .home-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    .home-stack .home-btn { width: fit-content; }
+    .repair-batch-launch {
+      align-self: flex-start;
+      min-width: 0;
+      width: fit-content;
+      padding: 6px 10px;
+      font-size: 11px;
+      border-radius: 8px;
+      line-height: 1.1;
+    }
+    .repair-batch-launch.hidden { display: none !important; }
+    .repair-batch-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 42px;
+      min-height: 32px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.02);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .repair-batch-toggle input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--ok);
+      cursor: pointer;
+    }
+    .repair-batch-toggle.is-done {
+      border-color: rgba(52,211,153,0.55);
+      background: rgba(52,211,153,0.12);
+      color: var(--ok);
+      font-weight: 700;
+    }
+    .repair-batch-status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      min-height: 32px;
+      padding: 0 8px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-size: 16px;
+    }
+    .repair-batch-status.done {
+      color: var(--ok);
+      background: rgba(52,211,153,0.12);
+      border-color: rgba(52,211,153,0.45);
+    }
+    .repair-batch-status.failed {
+      color: var(--danger);
+      background: rgba(251,113,133,0.12);
+      border-color: rgba(251,113,133,0.45);
+    }
     @media (max-width: 1280px) {
       .header { gap: 10px; padding: 14px 14px; }
       .header-brand { flex: 0 1 auto; gap: 0; }
@@ -464,6 +564,30 @@
     }
     .toolbar .btn-wrapper { position: relative; }
 
+    /* Wrapper for Expanded button + SD button */
+    .expanded-group {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .expanded-group .btn {
+      padding: 6px 10px;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+    .expanded-group .btn-sd {
+      padding: 6px 8px;
+      font-size: 15px;
+      line-height: 1;
+    }
+    .expanded-group .expanded-dropdown {
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 170px;
+    }
+
     .library-switcher {
       position: relative;
       display: inline-flex;
@@ -627,26 +751,26 @@
       transform: none;
       filter: none;
     }
- .repair-modal-meta {
-   display: inline-flex;
-   align-items: center;
-   gap: 10px;
-   color: var(--muted);
-   font-size: 12px;
-   white-space: nowrap;
-   flex: 1 1 320px;
-   min-width: 0;
- }
-     .modal-close {
-       background: none;
-       border: none;
-       color: var(--muted);
-       font-size: 24px;
-       cursor: pointer;
-       padding: 0 8px;
-       margin-left: auto;
-       flex: 0 0 auto;
-     }
+    .repair-modal-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      flex: 1 1 320px;
+      min-width: 0;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 8px;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
     .missing-group {
       margin-bottom: 20px;
     }
@@ -867,7 +991,7 @@
           <span class="btn-icon">🔄</span> <span class="btn-label">Reload</span>
         </button>
 
-            <button class="btn btn-secondary" id="browseShellsBtn" title="Shells">
+        <button class="btn btn-secondary" id="browseShellsBtn" title="Shells">
           <span class="btn-icon">📦</span> <span class="btn-label">Shells</span>
         </button>
         <button class="btn btn-secondary" id="backupBtn"
@@ -970,6 +1094,16 @@
 
     </div>
 
+    <!-- ===== ADDED: Wi‑Fi button ===== -->
+    <div class="wifi-btn" id="wifiBtn" role="button" aria-haspopup="dialog" aria-label="Wi‑Fi Settings" title="Wi‑Fi Settings" style="display:none;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+        <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+        <path d="M8.53 16.11a6 6 0 0 1 6.94 0" />
+        <path d="M12 20h.01" />
+      </svg>
+    </div>
+
   </div>
 </div>
 <script>
@@ -1017,9 +1151,16 @@
     <button class="btn" id="collapseAllBtn">📁 Collapse all</button>
     <span class="badge muted" id="visibleCount">—</span>
 
-    <!-- Expanded button and dropdown -->
-    <div class="btn-wrapper">
-      <button class="btn" id="expandedBtn">Expanded</button>
+    <!-- Expanded button, SD button, and dropdown -->
+    <div class="expanded-group">
+      <button class="btn" id="expandedBtn">Expanded</button><button class="btn btn-sd" id="expandedSettingsBtn" title="Expanded Settings" aria-label="Expanded Settings">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block;">
+    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+  </svg>
+</button>
       <div id="expandedDropdown" class="expanded-dropdown">
         <label><input type="checkbox" id="chkExpanded" /> Expanded Port</label>
         <label><input type="checkbox" id="chkLocal" /> Local Expanded</label>
@@ -1058,7 +1199,6 @@
   </div>
 </div>
 
-
 <!-- Modal for add-content flow -->
 <div id="addContentModal" class="modal-overlay" style="display: none;">
   <div class="modal add-modal">
@@ -1071,7 +1211,17 @@
   </div>
 </div>
 
+<!-- ===== ADDED: Wi‑Fi overlay ===== -->
+<div id="wifiOverlay">
+  <button class="close-wifi" id="closeWifiBtn" aria-label="Close Wi‑Fi settings">&times;</button>
+  <iframe id="wifiIframe" src="./wifisettings.html" allow="fullscreen"></iframe>
+</div>
 
+<!-- ===== ADDED: Expanded Settings (SD) overlay ===== -->
+<div id="expandedSettingsOverlay">
+  <button class="close-settings" id="closeSettingsBtn" aria-label="Close Expanded Settings">&times;</button>
+  <iframe id="settingsIframe" src="./expandedsettings.html" allow="fullscreen"></iframe>
+</div>
 
 <script>
 (function(){
@@ -1125,8 +1275,34 @@
 	backupBtn: document.getElementById('backupBtn'),
     restoreBtn: document.getElementById('restoreBtn'),
     browseShellsBtn: document.getElementById('browseShellsBtn'),
-    footnote: document.querySelector('.footnote')
+    footnote: document.querySelector('.footnote'),
+    // SD button and overlay
+    expandedSettingsBtn: document.getElementById('expandedSettingsBtn'),
+    settingsOverlay: document.getElementById('expandedSettingsOverlay'),
+    settingsIframe: document.getElementById('settingsIframe'),
+    closeSettingsBtn: document.getElementById('closeSettingsBtn')
   };
+
+  // ---- SD button logic ----
+  if (els.expandedSettingsBtn && els.settingsOverlay && els.settingsIframe) {
+    els.expandedSettingsBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      els.settingsIframe.src = './expandedsettings.html?' + Date.now();
+      els.settingsOverlay.style.display = 'flex';
+    });
+
+    if (els.closeSettingsBtn) {
+      els.closeSettingsBtn.addEventListener('click', function() {
+        els.settingsOverlay.style.display = 'none';
+      });
+    }
+
+    els.settingsOverlay.addEventListener('click', function(e) {
+      if (e.target === els.settingsOverlay) {
+        els.settingsOverlay.style.display = 'none';
+      }
+    });
+  }
 
   els.addContentFrame?.addEventListener('load', () => {
     wireAddContentModalActions();
@@ -1274,6 +1450,9 @@
   let subtitleGroupHoldTimer = null;
   let subtitleGroupHoldCandidate = null;
   let subtitleGroupHoldTriggered = false;
+
+  // ---- Platform detection ----
+  let currentPlatform = 'windows';
 
   function clearRepairBatchState() {
     repairBatchMode = false;
@@ -1564,8 +1743,10 @@
     return fn(window, document);
   }
 
+  // ---- FIXED regex: avoid String.raw to prevent syntax error ----
   function extractArrayLiteral(text, varName) {
-    const re = new RegExp(String.raw`(?:const|let|var)\s+${varName}\s*=\s*(\[[\s\S]*?\]);`);
+    const pattern = '(?:const|let|var)\\s+' + varName + '\\s*=\\s*(\\[[\\s\\S]*?\\]);';
+    const re = new RegExp(pattern);
     const match = text.match(re);
     if (!match) throw new Error(`Could not find ${varName} array in source`);
     return match[1];
@@ -3590,13 +3771,15 @@ function closeRepairIfNeeded() {
 
 
 function buildRepairPageUrl(ep) {
+  const isArduino = currentPlatform === 'arduino' || currentPlatform === 'esp';
+  const basePage = isArduino ? '/ffmpeg/repair-ffmpeg-wasm.html' : '/ffmpeg/repair.html';
   const sourceUrl = String(ep?.primaryUrl || '').trim();
   const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
   const outputName = decodeURIComponent(sourceUrl.split('/').pop() || 'video');
   const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
   const params = new URLSearchParams({
     source: sourceUrl,
-    sourceUrl,
+    sourceUrl: sourceUrl,
     name: outputName,
     folder: folderUrl,
     upload: uploadUrl,
@@ -3608,7 +3791,7 @@ function buildRepairPageUrl(ep) {
     proxy: '1',
     jobId: String(ep?.id || '')
   });
-  return `/ffmpeg/repair.html?${params.toString()}`;
+  return `${basePage}?${params.toString()}`;
 }
 
 function openRepairModal(ep, options = {}) {
@@ -3757,61 +3940,9 @@ function toggleWheel(force) {
     return uploadInput;
   }
 
-  function makeUploadId(targetUrl, file) {
-    const base = String(file?.name || targetUrl || 'upload').replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'upload';
-    const stamp = Date.now().toString(36);
-    const rand = Math.random().toString(36).slice(2, 10);
-    return `${base}-${stamp}-${rand}`;
-  }
-
-  async function uploadFileInSlices(targetUrl, file, onProgress) {
-    const total = Number(file?.size || 0);
-    if (!total) throw new Error('Selected file is empty.');
-
-    const chunkSize = Math.max(1024 * 1024, Math.min(8 * 1024 * 1024, total));
-    const partCount = Math.max(1, Math.ceil(total / chunkSize));
-    const uploadId = makeUploadId(targetUrl, file);
-    let sent = 0;
-
-    for (let partIndex = 0; partIndex < partCount; partIndex++) {
-      const start = partIndex * chunkSize;
-      const end = Math.min(total, start + chunkSize);
-      const chunk = file.slice(start, end, file.type || 'application/octet-stream');
-
-      const res = await fetch(targetUrl, {
-        method: 'PUT',
-        body: chunk,
-        cache: 'no-store',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Range': `bytes ${start}-${end - 1}/${total}`,
-          'X-LibraryJS-Upload-Id': uploadId,
-          'X-LibraryJS-Upload-Name': file.name || 'upload',
-          'X-LibraryJS-Upload-Size': String(total),
-          'X-LibraryJS-Upload-Offset': String(start),
-          'X-LibraryJS-Chunk-Index': String(partIndex),
-          'X-LibraryJS-Chunk-Count': String(partCount),
-          'X-Upload-Id': uploadId,
-          'X-Upload-Name': file.name || 'upload',
-          'X-Upload-Size': String(total),
-          'X-Upload-Offset': String(start),
-          'X-Upload-Part': String(partIndex),
-          'X-Upload-Count': String(partCount)
-        }
-      });
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`Upload slice ${partIndex + 1}/${partCount} failed: HTTP ${res.status}${body ? ` - ${body.slice(0, 240)}` : ''}`);
-      }
-
-      sent = end;
-      onProgress?.(sent, total, partIndex + 1, partCount);
-    }
-
-    return { ok: true, status: 200, slices: partCount };
-  }
-
+  // ============================================================
+  // UPLOAD USING platformAPI (no slicing, no direct fetch)
+  // ============================================================
   async function promptUpload(node, which) {
     const targetUrl = getUploadTarget(node, which);
     if (!targetUrl) {
@@ -3825,15 +3956,36 @@ function toggleWheel(force) {
       const file = input.files && input.files[0];
       if (!file) return;
 
-      setStatus(`Uploading ${file.name}…`);
+      // Extract path and base URL from the target URL
+      let targetPath = targetUrl;
+      let baseUrl = window.location.origin;
+      try {
+        const url = new URL(targetUrl, window.location.href);
+        targetPath = url.pathname + (url.search || '');
+        baseUrl = url.origin;
+      } catch (e) {
+        // If targetUrl is not a valid URL, treat it as a path
+        targetPath = targetUrl.startsWith('/') ? targetUrl : '/' + targetUrl;
+        baseUrl = window.location.origin;
+      }
+
+      setStatus(`Uploading ${file.name} to ${targetPath}…`);
       setProgressDisplay(0, 1, `Uploading ${file.name}`);
 
       try {
-        await uploadFileInSlices(targetUrl, file, (loaded, total, partIndex, partCount) => {
-          setUploadProgress(loaded, total, partIndex, partCount, file.name);
-          const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
-          setStatus(`Uploading ${file.name}… ${pct}% (${partIndex}/${partCount})`);
-        });
+        // Use platformAPI.uploadFile (supports all platforms)
+        await window.platformAPI.uploadFile(
+          file,           // File object
+          targetPath,     // path part (e.g., "/Profiles/Guest-Resume.txt")
+          baseUrl,        // base URL (e.g., "http://192.168.1.100")
+          (loaded, total) => {
+            const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
+            setStatus(`Uploading ${file.name}… ${pct}%`);
+            setUploadProgress(loaded, total, 1, 1, file.name);
+          }
+        );
+
+        // Mark as existing
         if (which === 'primary') node.primaryStatus = STATUS.EXISTS;
         else node.secondaryStatus = STATUS.EXISTS;
         setStatus(`✅ Uploaded ${file.name}`);
@@ -4075,30 +4227,31 @@ function toggleWheel(force) {
     return mergedData;
   }
 
-  async function switchLibrary(key) {
-    if (!LIBRARIES[key] || key === activeKey) {
-      toggleWheel(false);
-      return;
-    }
-    scanQueue = [];
-    scanIndex = 0;
-    scanning = false;
-    paused = false;
-    els.pauseBtn.disabled = true;
-    els.stopBtn.disabled = true;
-    els.scanPrimaryBtn.disabled = false;
-    els.scanSecondaryBtn.disabled = false;
-    els.search.value = '';
-    activeKey = key;
-    activeConfig = LIBRARIES[key];
-    hierarchyRoots = [];
-    flatItems = [];
-    nodeMap = new Map();
-    expandedNodes = new Set();
-    els.tree.innerHTML = '<div class="empty-message">Loading…</div>';
+ async function switchLibrary(key) {
+  if (!LIBRARIES[key] || key === activeKey) {
     toggleWheel(false);
-    await loadLibrary();
+    return;
   }
+  scanQueue = [];
+  scanIndex = 0;
+  scanning = false;
+  paused = false;
+  els.pauseBtn.disabled = true;
+  els.stopBtn.disabled = true;
+  els.scanPrimaryBtn.disabled = false;
+  els.scanSecondaryBtn.disabled = false;
+  els.search.value = '';
+  activeKey = key;
+  activeConfig = LIBRARIES[key];
+  setLibraryUI(activeKey);   // <-- ADD THIS LINE
+  hierarchyRoots = [];
+  flatItems = [];
+  nodeMap = new Map();
+  expandedNodes = new Set();
+  els.tree.innerHTML = '<div class="empty-message">Loading…</div>';
+  toggleWheel(false);
+  await loadLibrary();
+}
 
   async function repairOrUploadFromAction(node, action) {
     if (action === 'repair-leaf') {
@@ -4619,6 +4772,12 @@ els.tree.addEventListener('change', async (e) => {
 
   // Wait for expanded scripts only to ensure they don't interfere (they are loaded but we ignore their globals)
   async function init() {
+    // ----- fetch platform -----
+    try {
+      currentPlatform = await window.platformAPI.getPlatform(window.location.href);
+    } catch (_) {
+      currentPlatform = 'windows';
+    }
     setLibraryUI(activeKey);
     try {
       await loadLibrary();
@@ -4631,6 +4790,62 @@ els.tree.addEventListener('change', async (e) => {
   }
 
   init();
+
+  // ================================================================
+  // ==== ADDED: Wi‑Fi button logic (same as profile.html) =========
+  // ================================================================
+  (async function initWifiButton() {
+    // Wait for platformAPI (already defined via loadplatform.js)
+    while (typeof window.platformAPI === 'undefined') {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    let platform = 'windows';
+    try {
+      platform = await platformAPI.refreshPlatform(window.location.origin);
+      console.log('[manage] platform detected:', platform);
+    } catch (e) {
+      console.warn('[manage] platform detection failed, using fallback', e);
+    }
+    const isArduino = (platform === 'arduino' || platform === 'esp');
+    const wifiBtn = document.getElementById('wifiBtn');
+    if (wifiBtn) {
+      if (isArduino) {
+        wifiBtn.style.display = 'flex';
+        wifiBtn.setAttribute('aria-hidden', 'false');
+      } else {
+        wifiBtn.style.display = 'none';
+        wifiBtn.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    // Open overlay on click
+    wifiBtn?.addEventListener('click', function(e) {
+      e.preventDefault();
+      const overlay = document.getElementById('wifiOverlay');
+      const iframe = document.getElementById('wifiIframe');
+      if (overlay) {
+        if (iframe) iframe.src = './wifisettings.html?' + Date.now();
+        overlay.style.display = 'flex';
+      }
+    });
+
+    // Close overlay
+    const closeWifi = document.getElementById('closeWifiBtn');
+    if (closeWifi) {
+      closeWifi.addEventListener('click', function() {
+        document.getElementById('wifiOverlay').style.display = 'none';
+      });
+    }
+    const overlay = document.getElementById('wifiOverlay');
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+          overlay.style.display = 'none';
+        }
+      });
+    }
+  })();
+
 })();
 </script>
 

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Setup Wizard</title>
 <style>
+  /* Same styles as before – kept for brevity */
   :root {
     --bg: #0c1018;
     --panel: #121826;
@@ -483,7 +484,7 @@
     <h1 id="pageTitle">Setup Wizard</h1>
     <div class="mini" id="pageSubtitle">Create the server files, profile list, and profile images for a fresh install.</div>
   </div>
-  <div class="pill" id="targetPill">Outputs: platform.txt · serverip.txt · tailscaleip.txt · profiles.js</div>
+  <div class="pill" id="targetPill">Outputs: platform.txt · tailscaleip.txt · profiles.js</div>
 </header>
 
 <div class="flow-nav" id="flowNav">
@@ -506,8 +507,6 @@
       <p>Fill the server details, add all profiles, drop or upload each profile image, then export or upload the generated files.</p>
     </div>
     <div class="body">
-      
-
       <div class="section-title">Quick actions</div>
       <div class="row">
         <button type="button" id="addProfileBtn">Add profile</button>
@@ -522,7 +521,6 @@
       <div class="section-title">Files that will be created</div>
       <div class="box mini">
         <div><strong>platform.txt</strong> — platform label used by the server.</div>
-        <div><strong>serverip.txt</strong> — local server IP or host name.</div>
         <div><strong>tailscaleip.txt</strong> — your Tailscale address.</div>
         <div><strong>profiles.js</strong> — the profile list and title used by the app.</div>
       </div>
@@ -532,9 +530,9 @@
   <section class="panel">
     <div class="head">
       <h2>Editor</h2>
-      
     </div>
-    <div class="body">      <div data-flow-step="server" class="flow-stage">
+    <div class="body">
+      <div data-flow-step="server" class="flow-stage">
         <div class="section-title">Server details</div>
         <div class="grid2">
           <div class="field">
@@ -546,21 +544,19 @@
             <select id="platformSelect">
               <option value="windows">windows</option>
               <option value="android">android</option>
+              <option value="arduino">arduino</option>
+              <option value="esp">esp</option>
               <option value="iphone">iphone</option>
               <option value="linux">linux</option>
               <option value="unknown">unknown</option>
             </select>
           </div>
           <div class="field">
-            <label for="serverIp">serverip.txt</label>
-            <input id="serverIp" type="text" placeholder="http(s)://192.168.1.100" />
-          </div>
-          <div class="field">
             <label for="tailscaleIp">tailscaleip.txt</label>
             <input id="tailscaleIp" type="text" placeholder="http(s)://100.x.x.x" />
           </div>
         </div>
-        <div class="mini">These text files are exported exactly as typed, so you can use hostnames, LAN IPs, or Tailscale addresses.</div>
+        <div class="mini">These text files are exported exactly as typed, so you can use hostnames or Tailscale addresses. The platform selection writes the chosen value to <code>platform.txt</code>.</div>
       </div>
 
       <div data-flow-step="profiles" class="flow-stage">
@@ -580,78 +576,23 @@
       <div data-flow-step="qrs" class="flow-stage">
         <div class="section-title">QR codes</div>
         <div class="mini">
-          Build four QR images: two from <strong>serverip.txt</strong> and two from <strong>tailscaleip.txt</strong>.
-          The QR route suffix stays the same for each pair: <code>/index.html?I</code> for Original and <code>/index.html?l</code> for Kid Safe.
+          Two QR images are generated automatically from your <strong>tailscaleip.txt</strong> when you enter this tab.
+          The route suffixes are <code>/index.html?I</code> (Original) and <code>/index.html?l</code> (Kid Safe).
         </div>
 
         <div class="row" style="margin: 12px 0 4px;">
-          <button type="button" id="generateAllQrBtn">Generate All QRs</button>
-          <button type="button" class="secondary" id="fillAllQrUrlsBtn">Fill all QR URLs</button>
+          <button type="button" id="regenerateQrsBtn" class="secondary">Regenerate QRs</button>
         </div>
-        <div class="mini">Generate All QRs creates all four PNGs in the hidden helper, and Fill all QR URLs only updates the address fields.</div>
+        <div class="mini">If you change the Tailscale IP, click "Regenerate QRs" to update the images.</div>
 
         <div class="qr-tool-grid">
-          <div class="qr-tool-card" data-qr-mode="regular">
-            <div>
-              <div class="qr-title">Server Original QR</div>
-              <div class="qr-sub">Uses <code>serverip.txt</code> + <code>/index.html?I</code>. Saves as <code>regular-qr.png</code>.</div>
-            </div>
-            <div class="row">
-              <button type="button" data-qr-action="use-source">Use server IP</button>
-              <button type="button" class="secondary" data-qr-action="generate">Generate this QR</button>
-            </div>
-            <div class="field compact">
-              <label>Upload QR image</label>
-              <div class="dropzone" data-qr-role="dropzone" tabindex="0" role="button" aria-label="Drop or choose QR image">
-                <img class="dz-preview hidden" data-qr-role="dropPreview" alt="QR preview" />
-                <div class="dz-name">Drop PNG here</div>
-                <div class="dz-meta">Or click to choose a file.</div>
-                <input type="file" accept="image/*" data-qr-field="file" />
-              </div>
-            </div>
-            <div class="qr-preview">
-              <img data-qr-role="preview" alt="Server Original QR preview" class="hidden" />
-              <div class="mini" data-qr-role="empty">No QR image yet.</div>
-            </div>
-            <div class="qr-status" data-qr-role="status">Waiting for QR.</div>
-          </div>
-
-          <div class="qr-tool-card" data-qr-mode="kids">
-            <div>
-              <div class="qr-title">Server Kid Safe QR</div>
-              <div class="qr-sub">Uses <code>serverip.txt</code> + <code>/index.html?l</code>. Saves as <code>kids-qr.png</code>.</div>
-            </div>
-            <div class="row">
-              <button type="button" data-qr-action="use-source">Use server IP</button>
-              <button type="button" class="secondary" data-qr-action="generate">Generate this QR</button>
-            </div>
-            <div class="field compact">
-              <label>Upload QR image</label>
-              <div class="dropzone" data-qr-role="dropzone" tabindex="0" role="button" aria-label="Drop or choose QR image">
-                <img class="dz-preview hidden" data-qr-role="dropPreview" alt="QR preview" />
-                <div class="dz-name">Drop PNG here</div>
-                <div class="dz-meta">Or click to choose a file.</div>
-                <input type="file" accept="image/*" data-qr-field="file" />
-              </div>
-            </div>
-            <div class="qr-preview">
-              <img data-qr-role="preview" alt="Server Kid Safe QR preview" class="hidden" />
-              <div class="mini" data-qr-role="empty">No QR image yet.</div>
-            </div>
-            <div class="qr-status" data-qr-role="status">Waiting for QR.</div>
-          </div>
-
           <div class="qr-tool-card" data-qr-mode="tailscaleRegular">
             <div>
               <div class="qr-title">Tailscale Original QR</div>
               <div class="qr-sub">Uses <code>tailscaleip.txt</code> + <code>/index.html?I</code>. Saves as <code>tailscale-regular-qr.png</code>.</div>
             </div>
-            <div class="row">
-              <button type="button" data-qr-action="use-source">Use Tailscale IP</button>
-              <button type="button" class="secondary" data-qr-action="generate">Generate this QR</button>
-            </div>
             <div class="field compact">
-              <label>Upload QR image</label>
+              <label>Upload QR image (optional)</label>
               <div class="dropzone" data-qr-role="dropzone" tabindex="0" role="button" aria-label="Drop or choose QR image">
                 <img class="dz-preview hidden" data-qr-role="dropPreview" alt="QR preview" />
                 <div class="dz-name">Drop PNG here</div>
@@ -671,12 +612,8 @@
               <div class="qr-title">Tailscale Kid Safe QR</div>
               <div class="qr-sub">Uses <code>tailscaleip.txt</code> + <code>/index.html?l</code>. Saves as <code>tailscale-kids-qr.png</code>.</div>
             </div>
-            <div class="row">
-              <button type="button" data-qr-action="use-source">Use Tailscale IP</button>
-              <button type="button" class="secondary" data-qr-action="generate">Generate this QR</button>
-            </div>
             <div class="field compact">
-              <label>Upload QR image</label>
+              <label>Upload QR image (optional)</label>
               <div class="dropzone" data-qr-role="dropzone" tabindex="0" role="button" aria-label="Drop or choose QR image">
                 <img class="dz-preview hidden" data-qr-role="dropPreview" alt="QR preview" />
                 <div class="dz-name">Drop PNG here</div>
@@ -698,7 +635,7 @@
       <div data-flow-step="review" class="flow-stage">
         <div class="section-title">Review and export</div>
         <div class="flow-summary" id="summaryBox"></div>
-        <div class="section-title">Generated files and QR images and QR images</div>
+        <div class="section-title">Generated files and QR images</div>
         <div class="review-grid" id="reviewGrid"></div>
         <div class="small-actions" style="margin-top:14px;">
           <button type="button" id="downloadAllBtn">Download all files</button>
@@ -769,6 +706,7 @@
   </div>
 </template>
 
+<script src="loadplatform.js"></script>
 <script>
 (() => {
   const FLOW_PARAMS = new URLSearchParams(window.location.search || '');
@@ -785,37 +723,17 @@
     const outputPanel = flowOutputPanel();
     if (outputPanel) outputPanel.hidden = state.flowStep !== 'review';
   }
+
   const state = {
     flowStep: 'server',
     serverTitle: '',
-    platform: 'windows',
-    serverIp: '',
+    platform: 'windows', // will be updated after server detection
     tailscaleIp: '',
     profiles: [blankProfile(0)],
     qrHelperUrl: 'six-two-qr.html',
     activeOutput: 'platform.txt',
     draftKey: 'setupWizardDraft_v1',
     qrTargets: {
-      regular: {
-        mode: 'regular',
-        source: 'server',
-        label: 'Original QR',
-        fileName: 'regular-qr.png',
-        url: '',
-        dataUrl: '',
-        file: null,
-        status: 'Waiting for QR'
-      },
-      kids: {
-        mode: 'kids',
-        source: 'server',
-        label: 'Kid Safe QR',
-        fileName: 'kids-qr.png',
-        url: '',
-        dataUrl: '',
-        file: null,
-        status: 'Waiting for QR'
-      },
       tailscaleRegular: {
         mode: 'tailscaleRegular',
         source: 'tailscale',
@@ -840,9 +758,9 @@
   };
 
   const stepList = [
-    { key: 'server', label: '1', main: 'Server details', sub: 'platform and IP files.' },
+    { key: 'server', label: '1', main: 'Server details', sub: 'platform and Tailscale files.' },
     { key: 'profiles', label: '2', main: 'Profiles', sub: 'Add names and images.' },
-    { key: 'qrs', label: '3', main: 'QR codes', sub: 'Generate or upload four QR images.' },
+    { key: 'qrs', label: '3', main: 'QR codes', sub: 'Generate or upload two Tailscale QR images.' },
     { key: 'review', label: '4', main: 'Update Server', sub: 'Upload everything at the end.' }
   ];
 
@@ -856,16 +774,6 @@
       imageName: '',
       lastStatus: 'Waiting for image'
     };
-  }
-
-  function slugify(str) {
-    return String(str ?? '')
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\w\s-]/g, '')
-      .trim()
-      .replace(/[\s_-]+/g, '_')
-      .replace(/^_+|_+$/g, '');
   }
 
   function profileImagePathForName(name) {
@@ -896,7 +804,6 @@
   function readStateFromUi() {
     state.serverTitle = el('serverTitle').value.trim();
     state.platform = el('platformSelect').value.trim() || 'windows';
-    state.serverIp = normalizeIpLike(el('serverIp').value);
     state.tailscaleIp = normalizeIpLike(el('tailscaleIp').value);
 
     const cards = Array.from(document.querySelectorAll('[data-profile-card]'));
@@ -915,7 +822,6 @@
   function syncUiFromState() {
     el('serverTitle').value = state.serverTitle;
     el('platformSelect').value = state.platform;
-    el('serverIp').value = state.serverIp;
     el('tailscaleIp').value = state.tailscaleIp;
     el('profileCount').value = state.profiles.length;
   }
@@ -976,7 +882,6 @@
     const chips = [];
     chips.push({ text: `${state.profiles.length} profile${state.profiles.length === 1 ? '' : 's'}` });
     chips.push({ text: state.serverTitle ? `Title set` : `Title empty` });
-    chips.push({ text: state.serverIp ? `LAN IP set` : `LAN IP empty` });
     chips.push({ text: state.tailscaleIp ? `Tailscale set` : `Tailscale empty` });
     chips.push({ text: `Flow: ${FLOW_MODE ? 'on' : 'off'}` });
     const box = el('statusChips');
@@ -1010,9 +915,12 @@
     el('flowStepMain').textContent = step.main;
     el('flowStepSub').textContent = step.sub;
     el('flowStepKicker').textContent = FLOW_MODE ? 'Flow mode' : 'Editor mode';
+
+    // Auto‑generate QRs when entering the QR tab
+    if (stepKey === 'qrs') {
+      autoGenerateQrs();
+    }
   }
-
-
 
   function requestSetupClose() {
     try {
@@ -1021,11 +929,8 @@
         return;
       }
     } catch (e) {}
-
     try { window.close(); } catch (e) {}
   }
-
-
 
   async function finishSetupFlow() {
     try {
@@ -1033,11 +938,7 @@
       renderReview();
     } catch (e) {}
 
-    if (!state.serverIp) {
-      setStatus('Server IP is required before finishing.', 'bad');
-      return false;
-    }
-
+    // Tailscale IP is not required — we can finish even if empty
     try {
       setStatus('Uploading setup files...', 'good');
       const ok = await uploadAllFiles();
@@ -1055,7 +956,6 @@
     requestSetupClose();
     return true;
   }
-
 
   function renderFlowNav() {
     const bar = el('flowStepBar');
@@ -1081,7 +981,6 @@
         setFlowStep(stepList[idx + 1].key);
         return;
       }
-
       await finishSetupFlow();
     });
 
@@ -1122,14 +1021,6 @@
     renderAllOutputs();
   }
 
-  function handleProfileNameChange(index, value) {
-    state.profiles[index].name = value;
-    updateProfileDerived(state.profiles[index]);
-    renderProfiles(false);
-    saveDraft();
-    renderAllOutputs();
-  }
-
   function setProfileImageFromFile(index, file) {
     const p = state.profiles[index];
     if (!p || !file) return;
@@ -1161,7 +1052,7 @@
     }
   }
 
-  function renderProfiles(resetHandlers = true) {
+  function renderProfiles() {
     const list = el('profilesList');
     list.innerHTML = '';
 
@@ -1284,8 +1175,6 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     return {
       'platform.txt': `${state.platform}
 `,
-      'serverip.txt': `${state.serverIp}
-`,
       'tailscaleip.txt': `${state.tailscaleIp}
 `,
       'profiles.js': generateProfilesJs()
@@ -1296,8 +1185,8 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     return state.qrTargets[mode] || null;
   }
 
-  function normalizeServerBase() {
-    const raw = String(state.serverIp || '').trim();
+  function normalizeHostBase(value) {
+    const raw = String(value || '').trim();
     if (!raw) return '';
     const clean = raw.replace(/\/+$/, '');
     if (/^[a-z][a-z0-9+.-]*:\/\//i.test(clean)) return clean;
@@ -1306,18 +1195,6 @@ window._customServerTitle = ${JSON.stringify(titleString)};
 
   function getQrConfig(mode) {
     const configs = {
-      regular: {
-        source: 'server',
-        label: 'Original QR',
-        description: 'Uses serverip.txt + /index.html?I',
-        fileName: 'regular-qr.png'
-      },
-      kids: {
-        source: 'server',
-        label: 'Kid Safe QR',
-        description: 'Uses serverip.txt + /index.html?l',
-        fileName: 'kids-qr.png'
-      },
       tailscaleRegular: {
         source: 'tailscale',
         label: 'Tailscale Original QR',
@@ -1338,19 +1215,8 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     return String(mode).toLowerCase().includes('kids') ? 'l' : 'I';
   }
 
-  function normalizeHostBase(value) {
-    const raw = String(value || '').trim();
-    if (!raw) return '';
-    const clean = raw.replace(/\/+$/, '');
-    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(clean)) return clean;
-    return `http://${clean}`;
-  }
-
   function defaultQrUrl(mode) {
-    const config = getQrConfig(mode);
-    const base = config?.source === 'tailscale'
-      ? normalizeHostBase(state.tailscaleIp)
-      : normalizeHostBase(state.serverIp);
+    const base = normalizeHostBase(state.tailscaleIp);
     if (!base) return '';
     return `${base}/index.html?${qrRouteSuffix(mode)}`;
   }
@@ -1375,77 +1241,6 @@ window._customServerTitle = ${JSON.stringify(titleString)};
         preview.removeAttribute('src');
       }
     });
-  }
-
-  async function svgElementToPngDataUrl(svgEl) {
-    const serializer = new XMLSerializer();
-    const svgText = serializer.serializeToString(svgEl);
-    const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-
-    try {
-      const img = await new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = reject;
-        image.src = url;
-      });
-
-      const width = Math.max(1, img.naturalWidth || (svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.width) || 512);
-      const height = Math.max(1, img.naturalHeight || (svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.height) || width);
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
-      return canvas.toDataURL('image/png');
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
-
-  function dataUrlToBlob(dataUrl) {
-    const match = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) throw new Error('Invalid data URL');
-    const mime = match[1];
-    const bin = atob(match[2]);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new Blob([bytes], { type: mime });
-  }
-
-  async function fileToJpegBlob(file, quality = 0.92) {
-    const input = file instanceof Blob ? file : new Blob([file], { type: 'image/jpeg' });
-    if (!input.type || /^image\/jpe?g$/i.test(input.type)) {
-      return input;
-    }
-    const url = URL.createObjectURL(input);
-    try {
-      const img = await new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = reject;
-        image.src = url;
-      });
-      const width = Math.max(1, img.naturalWidth || img.width || 1);
-      const height = Math.max(1, img.naturalHeight || img.height || 1);
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas unavailable');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
-      const blob = await new Promise((resolve, reject) => {
-        canvas.toBlob((out) => out ? resolve(out) : reject(new Error('JPEG conversion failed')), 'image/jpeg', quality);
-      });
-      return blob;
-    } finally {
-      URL.revokeObjectURL(url);
-    }
   }
 
   function setQrStatus(mode, message, kind = '') {
@@ -1489,7 +1284,10 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     if (!data) return false;
 
     const targetUrl = String(data.url || defaultQrUrl(mode)).trim();
-    if (!targetUrl) throw new Error('Set a server address first.');
+    if (!targetUrl) {
+      setQrStatus(mode, 'No Tailscale IP set.', 'warn');
+      return false;
+    }
 
     const helperUrl = String(state.qrHelperUrl || 'six-two-qr.html').trim() || 'six-two-qr.html';
     state.qrHelperUrl = helperUrl;
@@ -1558,27 +1356,24 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     return true;
   }
 
-  async function generateBothQrs() {
-    try {
-      const modes = ['regular', 'kids', 'tailscaleRegular', 'tailscaleKids'];
-      for (const mode of modes) {
-        setQrUrl(mode, defaultQrUrl(mode));
+  async function autoGenerateQrs() {
+    const modes = ['tailscaleRegular', 'tailscaleKids'];
+    for (const mode of modes) {
+      setQrUrl(mode, defaultQrUrl(mode));
+      if (state.tailscaleIp) {
         setQrStatus(mode, 'Generating QR...');
+        try {
+          await captureQrFromHelper(mode);
+        } catch (e) {
+          console.warn(`Auto‑gen failed for ${mode}:`, e);
+          setQrStatus(mode, e?.message || 'Generation failed.', 'bad');
+        }
+      } else {
+        setQrStatus(mode, 'Tailscale IP missing.', 'warn');
       }
-      for (const mode of modes) {
-        await captureQrFromHelper(mode);
-      }
-      saveDraft();
-      renderAllOutputs();
-      setStatus('All QR images are ready.', 'good');
-    } catch (e) {
-      console.warn('QR generation failed', e);
-      const message = e?.message || 'QR generation failed.';
-      for (const mode of ['regular', 'kids', 'tailscaleRegular', 'tailscaleKids']) {
-        setQrStatus(mode, message, 'bad');
-      }
-      setStatus(message, 'bad');
     }
+    saveDraft();
+    renderAllOutputs();
   }
 
   function downloadDataUrl(filename, dataUrl) {
@@ -1605,14 +1400,29 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     const data = getQrModeData(mode);
     if (!data) return;
     let blob = null;
-    if (data.dataUrl) blob = dataUrlToBlob(data.dataUrl);
-    else if (data.file) blob = data.file;
+    if (data.dataUrl) {
+      const match = data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        const bin = atob(match[2]);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        blob = new Blob([bytes], { type: match[1] });
+      }
+    } else if (data.file) {
+      blob = data.file;
+    }
     if (!blob) {
       setStatus(`No ${data.fileName} image to upload.`, 'warn');
       return;
     }
-    const ok = await uploadFileToServer(blob, `/Images/${data.fileName}`);
-    setStatus(ok ? `Uploaded ${data.fileName}.` : `Upload failed for ${data.fileName}.`, ok ? 'good' : 'bad');
+    try {
+      const targetPath = `/Images/${data.fileName}`;
+      setStatus(`Uploading ${data.fileName}...`);
+      await window.platformAPI.upload(blob, targetPath, window.location.href);
+      setStatus(`Uploaded ${data.fileName}.`, 'good');
+    } catch (e) {
+      setStatus(`Upload failed for ${data.fileName}: ${e.message}`, 'bad');
+    }
   }
 
   function buildSummaryLines() {
@@ -1620,18 +1430,14 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     return [
       ['Server title', state.serverTitle || 'Not set'],
       ['Platform', state.platform || 'Not set'],
-      ['Server IP', state.serverIp || 'Not set'],
       ['Tailscale IP', state.tailscaleIp || 'Not set'],
       ['Profiles', `${state.profiles.length}`],
-      ['Server Original QR', (state.qrTargets.regular.dataUrl || state.qrTargets.regular.file) ? 'Ready' : 'Not ready'],
-      ['Server Kid Safe QR', (state.qrTargets.kids.dataUrl || state.qrTargets.kids.file) ? 'Ready' : 'Not ready'],
       ['Tailscale Original QR', (state.qrTargets.tailscaleRegular.dataUrl || state.qrTargets.tailscaleRegular.file) ? 'Ready' : 'Not ready'],
       ['Tailscale Kid Safe QR', (state.qrTargets.tailscaleKids.dataUrl || state.qrTargets.tailscaleKids.file) ? 'Ready' : 'Not ready']
     ];
   }
 
   function renderSummary() {
-
     const box = el('summaryBox');
     box.innerHTML = '';
     buildSummaryLines().forEach(([label, value]) => {
@@ -1647,7 +1453,7 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     const grid = el('reviewGrid');
     grid.innerHTML = '';
 
-    const order = ['platform.txt', 'serverip.txt', 'tailscaleip.txt', 'profiles.js'];
+    const order = ['platform.txt', 'tailscaleip.txt', 'profiles.js'];
     order.forEach(filename => {
       const content = outputs[filename];
       const card = document.createElement('div');
@@ -1669,8 +1475,6 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     });
 
     [
-      ['regular', 'Original QR', 'regular-qr.png'],
-      ['kids', 'Kid Safe QR', 'kids-qr.png'],
       ['tailscaleRegular', 'Tailscale Original QR', 'tailscale-regular-qr.png'],
       ['tailscaleKids', 'Tailscale Kid Safe QR', 'tailscale-kids-qr.png']
     ].forEach(([mode, title, filename]) => {
@@ -1700,8 +1504,6 @@ window._customServerTitle = ${JSON.stringify(titleString)};
   }
 
   function renderOutputTabs() {
-
-
     const tabs = el('outputTabs');
     tabs.innerHTML = '';
     const files = Object.keys(generateOutputs());
@@ -1745,103 +1547,23 @@ window._customServerTitle = ${JSON.stringify(titleString)};
     setStatus(`Prepared ${filename} for download.`, 'good');
   }
 
-
-    function normalizeUploadedText(text) {
-    return String(text ?? '').replace(/\r\n/g, '\n').trim();
-  }
-
-  async function verifyTextUpload(targetPath, expectedText, maxAttempts = 6, delayMs = 250) {
-    const expected = normalizeUploadedText(expectedText);
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        const r = await fetch(encodeURI(targetPath + `?_verify=${Date.now()}_${attempt}`), { cache: 'no-store', credentials: 'include' });
-        if (r && r.ok) {
-          const actual = normalizeUploadedText(await r.text());
-          if (actual === expected) return true;
-        }
-      } catch (e) {}
-      await new Promise(res => setTimeout(res, delayMs));
-    }
-    return false;
-  }
-
-async function uploadTextToServer(targetPath, text) {
-    const url = new URL('/api/file/upload', window.location.href);
-    const normalized = String(targetPath || '/').startsWith('/') ? String(targetPath) : '/' + String(targetPath || '');
-    const parts = normalized.split('/').filter(Boolean);
-    const filename = parts.pop() || '';
-    const uploadDir = parts.length ? '/' + parts.join('/') : '/';
-    url.searchParams.set('path', uploadDir);
-    url.searchParams.set('name', filename);
-    const body = String(text ?? '');
-    const contentType = filename.endsWith('.js')
-      ? 'application/javascript; charset=utf-8'
-      : 'text/plain; charset=utf-8';
-
-    try {
-      const r = await fetch(url.toString(), {
-        method: 'POST',
-        headers: { 'Content-Type': contentType },
-        body,
-        credentials: 'include'
-      });
-      if (r && r.ok) return true;
-    } catch (e) {}
-    try {
-      const r2 = await fetch(url.toString(), {
-        method: 'PUT',
-        headers: { 'Content-Type': contentType },
-        body,
-        credentials: 'include'
-      });
-      if (r2 && r2.ok) return true;
-    } catch (e) {}
-    return false;
-  }
-
-
-  async function uploadFileToServer(file, targetPath) {
-    const url = new URL('/api/file/upload', window.location.href);
-    const normalized = String(targetPath || '/').startsWith('/') ? String(targetPath) : '/' + String(targetPath || '');
-    const parts = normalized.split('/').filter(Boolean);
-    const filename = parts.pop() || '';
-    const uploadDir = parts.length ? '/' + parts.join('/') : '/';
-    url.searchParams.set('path', uploadDir);
-    url.searchParams.set('name', filename);
-
-    try {
-      const r = await fetch(url.toString(), {
-        method: 'POST',
-        headers: { 'Content-Type': file?.type || 'application/octet-stream' },
-        body: file,
-        credentials: 'include'
-      });
-      if (r && r.ok) return true;
-    } catch (e) {}
-    try {
-      const r2 = await fetch(url.toString(), {
-        method: 'PUT',
-        headers: { 'Content-Type': file?.type || 'application/octet-stream' },
-        body: file,
-        credentials: 'include'
-      });
-      if (r2 && r2.ok) return true;
-    } catch (e) {}
-    return false;
-  }
-
   async function uploadGeneratedFile(filename, content) {
-    const ok = await uploadTextToServer(`/${filename}`, content);
-    setStatus(ok ? `Uploaded ${filename}.` : `Upload failed for ${filename}.`, ok ? 'good' : 'bad');
+    try {
+      const blob = new Blob([content], { type: filename.endsWith('.js') ? 'application/javascript' : 'text/plain' });
+      const targetPath = `/${filename}`;
+      setStatus(`Uploading ${filename}...`);
+      await window.platformAPI.upload(blob, targetPath, window.location.href);
+      setStatus(`Uploaded ${filename}.`, 'good');
+    } catch (e) {
+      setStatus(`Upload failed for ${filename}: ${e.message}`, 'bad');
+    }
   }
-
 
   async function uploadAllFiles() {
     readStateFromUi();
     const outputs = generateOutputs();
     const items = [
       ['platform.txt', `/platform.txt`],
-      ['serverip.txt', `/serverip.txt`],
       ['tailscaleip.txt', `/tailscaleip.txt`],
       ['profiles.js', `/profiles.js`]
     ];
@@ -1849,41 +1571,52 @@ async function uploadTextToServer(targetPath, text) {
     for (const [filename, target] of items) {
       setStatus(`Uploading ${filename}...`);
       const content = outputs[filename];
-      const ok = await uploadTextToServer(target, content);
-      if (!ok) {
-        setStatus(`Upload failed for ${filename}.`, 'bad');
-        return false;
-      }
-
-      const verified = await verifyTextUpload(target, content);
-      if (!verified) {
-        setStatus(`Upload verification failed for ${filename}.`, 'bad');
+      try {
+        const blob = new Blob([content], { type: filename.endsWith('.js') ? 'application/javascript' : 'text/plain' });
+        await window.platformAPI.upload(blob, target, window.location.href);
+        setStatus(`Uploaded ${filename}.`, 'good');
+      } catch (e) {
+        setStatus(`Upload failed for ${filename}: ${e.message}`, 'bad');
         return false;
       }
     }
 
+    // Upload profile images
     for (const profile of state.profiles) {
       if (profile.imageFile) {
         const targetPath = `/Profiles/${String(profile.name || 'Guest').trim() || 'Guest'}.jpg`;
         setStatus(`Uploading ${targetPath}...`);
-        const jpegBlob = await fileToJpegBlob(profile.imageFile);
-        const ok = await uploadFileToServer(jpegBlob, targetPath);
-        if (!ok) {
-          setStatus(`Image upload failed for ${profile.name}.`, 'bad');
+        try {
+          await window.platformAPI.upload(profile.imageFile, targetPath, window.location.href);
+        } catch (e) {
+          setStatus(`Image upload failed for ${profile.name}: ${e.message}`, 'bad');
           return false;
         }
       }
     }
 
+    // Upload QR images
     for (const mode of Object.keys(state.qrTargets)) {
       const data = getQrModeData(mode);
-      const blob = data?.dataUrl ? dataUrlToBlob(data.dataUrl) : data?.file || null;
+      let blob = null;
+      if (data?.dataUrl) {
+        const match = data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          const bin = atob(match[2]);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          blob = new Blob([bytes], { type: match[1] });
+        }
+      } else if (data?.file) {
+        blob = data.file;
+      }
       if (blob) {
         const fileName = data.fileName;
         setStatus(`Uploading /Images/${fileName}...`);
-        const ok = await uploadFileToServer(blob, `/Images/${fileName}`);
-        if (!ok) {
-          setStatus(`QR upload failed for ${fileName}.`, 'bad');
+        try {
+          await window.platformAPI.upload(blob, `/Images/${fileName}`, window.location.href);
+        } catch (e) {
+          setStatus(`QR upload failed for ${fileName}: ${e.message}`, 'bad');
           return false;
         }
       }
@@ -1893,13 +1626,11 @@ async function uploadTextToServer(targetPath, text) {
     return true;
   }
 
-
   function saveDraft() {
     readStateFromUi();
     const payload = {
       serverTitle: state.serverTitle,
       platform: state.platform,
-      serverIp: state.serverIp,
       tailscaleIp: state.tailscaleIp,
       profiles: state.profiles.map(p => ({
         name: p.name,
@@ -1930,7 +1661,6 @@ async function uploadTextToServer(targetPath, text) {
       const data = JSON.parse(raw);
       state.serverTitle = data.serverTitle || '';
       state.platform = data.platform || 'windows';
-      state.serverIp = data.serverIp || '';
       state.tailscaleIp = data.tailscaleIp || '';
       state.profiles = Array.isArray(data.profiles) && data.profiles.length
         ? data.profiles.map((p, i) => ({
@@ -1965,7 +1695,6 @@ async function uploadTextToServer(targetPath, text) {
   function resetAll() {
     state.serverTitle = '';
     state.platform = 'windows';
-    state.serverIp = '';
     state.tailscaleIp = '';
     state.profiles = [blankProfile(0)];
     for (const mode of Object.keys(state.qrTargets)) {
@@ -1981,7 +1710,6 @@ async function uploadTextToServer(targetPath, text) {
   }
 
   function setCount(count) {
-
     count = Math.max(1, Math.min(50, Number(count) || 1));
     while (state.profiles.length < count) state.profiles.push(blankProfile(state.profiles.length));
     while (state.profiles.length > count) state.profiles.pop();
@@ -1991,13 +1719,13 @@ async function uploadTextToServer(targetPath, text) {
   }
 
   function wireTopInputs() {
-    ['serverTitle','platformSelect','serverIp','tailscaleIp'].forEach(id => {
+    ['serverTitle','platformSelect','tailscaleIp'].forEach(id => {
       el(id).addEventListener('input', () => {
         renderStatusChips();
         renderSummary();
         renderOutputText();
         renderReview();
-        if (id === 'serverIp' || id === 'tailscaleIp') {
+        if (id === 'tailscaleIp') {
           for (const mode of Object.keys(state.qrTargets)) {
             setQrUrl(mode, defaultQrUrl(mode));
           }
@@ -2014,8 +1742,6 @@ async function uploadTextToServer(targetPath, text) {
       const mode = card.dataset.qrMode;
       const fileInput = card.querySelector('[data-qr-field="file"]');
       const dropzone = card.querySelector('[data-qr-role="dropzone"]');
-      const useBtn = card.querySelector('[data-qr-action="use-source"]');
-      const generateBtn = card.querySelector('[data-qr-action="generate"]');
 
       fileInput?.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
@@ -2039,71 +1765,62 @@ async function uploadTextToServer(targetPath, text) {
         if (file) setQrImageFromFile(mode, file);
         saveDraft();
       });
-
-      useBtn?.addEventListener('click', () => {
-        const url = defaultQrUrl(mode);
-        setQrUrl(mode, url);
-        saveDraft();
-        renderReview();
-        setStatus(`Filled ${getQrConfig(mode)?.label || mode} from its source address.`, 'good');
-      });
-
-      generateBtn?.addEventListener('click', async () => {
-        try {
-          setQrUrl(mode, state.qrTargets[mode].url || defaultQrUrl(mode));
-          setQrStatus(mode, 'Generating via the hidden helper...');
-          await captureQrFromHelper(mode);
-          saveDraft();
-          renderAllOutputs();
-        } catch (e) {
-          console.warn('QR generation failed', e);
-          setQrStatus(mode, e?.message || 'QR generation failed.', 'bad');
-          setStatus(e?.message || 'QR generation failed.', 'bad');
-        }
-      });
     });
 
-    el('generateAllQrBtn')?.addEventListener('click', generateBothQrs);
-    el('fillAllQrUrlsBtn')?.addEventListener('click', () => {
-      for (const mode of Object.keys(state.qrTargets)) {
-        setQrUrl(mode, defaultQrUrl(mode));
-      }
-      saveDraft();
-      renderReview();
-      setStatus('Filled all QR URLs from the current addresses.', 'good');
-    });
+    el('regenerateQrsBtn')?.addEventListener('click', autoGenerateQrs);
   }
 
-  el('addProfileBtn').addEventListener('click', () => addProfile());
-
-  el('resetBtn').addEventListener('click', resetAll);
-  el('saveDraftBtn').addEventListener('click', saveDraft);
-  el('loadDraftBtn').addEventListener('click', loadDraft);
-  el('setCountBtn').addEventListener('click', () => setCount(el('profileCount').value));
-  el('downloadAllBtn').addEventListener('click', () => {
-    const outputs = generateOutputs();
-    Object.entries(outputs).forEach(([name, content]) => downloadText(name, content));
-    setStatus('All files prepared for download.', 'good');
-  });
-  el('updateServerBtn').addEventListener('click', async () => {
-    if (FLOW_MODE) {
-      await finishSetupFlow();
-      return;
-    }
-    const ok = await uploadAllFiles();
-    setStatus(ok ? 'Server updated with all files and QR images.' : 'Upload failed. Fix the server connection or endpoint, then try again.', ok ? 'good' : 'bad');
-  });
-  el('copyBtn').addEventListener('click', async () => {
+  // ─── Load existing profiles from server ───
+  async function loadProfilesFromServer() {
     try {
-      await navigator.clipboard.writeText(el('outputText').value || '');
-      setStatus('Copied to clipboard.', 'good');
+      const r = await fetch('/profiles.js?_=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const text = await r.text();
+      const match = text.match(/window\.profiles\s*=\s*(\[[\s\S]*?\]);/);
+      if (!match) return;
+      const profilesArray = JSON.parse(match[1]);
+      if (!Array.isArray(profilesArray) || profilesArray.length === 0) return;
+      const loadedProfiles = profilesArray.map(p => ({
+        name: p.name || 'Guest',
+        imageFile: null,
+        imagePath: p.image || profileImagePathForName(p.name),
+        imagePreview: p.image || '',
+        imageName: '',
+        lastStatus: 'Loaded from server'
+      }));
+      state.profiles = loadedProfiles;
+      const titleMatch = text.match(/window\._customServerTitle\s*=\s*(["'])(.*?)\1/);
+      if (titleMatch) {
+        state.serverTitle = titleMatch[2];
+      }
+      syncUiFromState();
+      renderProfiles();
+      renderAllOutputs();
+      setStatus('Profiles loaded from server.', 'good');
     } catch (e) {
-      setStatus('Copy failed.', 'bad');
+      console.warn('Could not load profiles from server', e);
     }
-  });
-  el('downloadBtn').addEventListener('click', () => downloadText(state.activeOutput, el('outputText').value || ''));
-  el('uploadBtn').addEventListener('click', () => uploadGeneratedFile(state.activeOutput, el('outputText').value || ''));
+  }
 
+  // ─── Detect server platform and set dropdown ───
+  async function detectServerPlatform() {
+    try {
+      const platform = await window.platformAPI.getPlatform(window.location.href);
+      if (platform && platform !== 'windows') {
+        state.platform = platform;
+        el('platformSelect').value = platform;
+        setStatus(`Detected server platform: ${platform}`, 'good');
+      } else {
+        // fallback: if platform is 'windows' or detection fails, keep existing (maybe from draft)
+        el('platformSelect').value = state.platform;
+      }
+    } catch (e) {
+      console.warn('Platform detection failed, using current value.', e);
+      el('platformSelect').value = state.platform;
+    }
+  }
+
+  // ─── Init ───
   wireTopInputs();
   syncUiFromState();
   renderProfiles();
@@ -2114,11 +1831,16 @@ async function uploadTextToServer(targetPath, text) {
   renderSummary();
   renderReview();
 
+  // Load server profiles (non‑blocking)
+  loadProfilesFromServer();
+
+  // Detect server platform and update dropdown (non‑blocking)
+  detectServerPlatform();
+
+  // Draft fallback
   const saved = localStorage.getItem(state.draftKey);
-  if (saved) {
+  if (saved && state.profiles.length === 1 && state.profiles[0].name === 'Guest' && !state.profiles[0].imageFile) {
     try { loadDraft(); } catch (e) {}
-  } else {
-    setFlowStep(state.flowStep);
   }
 
   setInterval(() => {

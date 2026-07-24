@@ -16,17 +16,12 @@
   const MEDIA_RE = /(?:\.(?:mp4|m4v|webm|mov|aac|mp3|flv|mkv))(?:$|[?#])/i;
   const SUBTITLE_RE = /(?:\.(?:vtt|srt|sbv|ttml|dfxp|sub))(?:$|[?#])/i;
   const KNOWN_SUBTITLE_URLS = new Set();
+
   const SERVER_CONFIG = (() => {
     try { return window.__SFA_SERVER_CONFIG__ || {}; } catch { return {}; }
   })();
   const SERVER_ORIGIN = (() => {
     try { return String(SERVER_CONFIG.serverOrigin || '').trim(); } catch { return ''; }
-  })();
-  const ARCHIVE_FOLDER = (() => {
-    try { return normalizeArchiveFolder(SERVER_CONFIG.archiveFolder || '/videodownloader/'); } catch { return '/videodownloader/'; }
-  })();
-  const UPLOAD_BASE = (() => {
-    try { return String(SERVER_CONFIG.uploadBase || '').trim(); } catch { return ''; }
   })();
 
   function canonicalSubtitleUrl(url) {
@@ -34,23 +29,10 @@
       const u = new URL(url, location.href);
       let path = (u.pathname || '').replace(/\/+$/g, '');
       path = path.replace(/([._-](?:seg|segment|chunk|part|frag)?\d{1,5})(?=\.(?:vtt|srt|sbv|ttml|dfxp|sub)(?:$|[?#]))/i, '');
-      path = path.replace(/([._-]\d{1,5})(?=\.(?:vtt|srt|sbv|ttml|dfxp|sub)(?:$|[?#]))/i, '');
       return `${u.origin}|${path.toLowerCase()}`;
     } catch {
       return String(url || '').split('#')[0].split('?')[0].toLowerCase();
     }
-  }
-
-  function normalizeArchiveFolder(raw) {
-    let txt = String(raw || '').trim();
-    if (!txt) return '/videodownloader/';
-    txt = txt.replace(/\\/g, '/');
-    if (/^https?:\/\//i.test(txt)) {
-      try { txt = new URL(txt).pathname || '/videodownloader/'; } catch {}
-    }
-    if (!txt.startsWith('/')) txt = '/' + txt;
-    if (!txt.endsWith('/')) txt += '/';
-    return txt;
   }
 
   const M3U_MIME_RE = /(?:mpegurl|vnd\.apple\.mpegurl|application\/x-mpegurl)/i;
@@ -101,8 +83,7 @@
   }
 
   function syncListeningState() {
-    const visible = document.visibilityState === 'visible';
-    listeningPaused = !visible;
+    listeningPaused = document.visibilityState !== 'visible';
     emitMonitorState();
     if (!listeningPaused) scanMediaElements();
   }
@@ -139,18 +120,12 @@
 
   function shouldIgnore(url) {
     try {
+      if (!url) return true;
       const u = new URL(url, location.href);
-      if (u.protocol === 'chrome-extension:') return true;
-      if (UPLOAD_BASE) {
-        const base = new URL(UPLOAD_BASE, u.origin).toString().toLowerCase();
-        if (u.toString().toLowerCase().startsWith(base)) return true;
-      }
+      if (u.protocol === 'chrome-extension:' || u.protocol === 'blob:') return true;
       if (SERVER_ORIGIN) {
         const server = new URL(SERVER_ORIGIN);
-        // Only ignore the exact configured server origin. This keeps the archive
-        // endpoint quiet without accidentally swallowing unrelated same-host streams.
         if (u.origin === server.origin) return true;
-        if (location.origin === server.origin) return true;
       }
       return false;
     } catch {
@@ -159,13 +134,11 @@
   }
 
   function rememberSubtitleUrl(url) {
-    if (!url) return;
-    KNOWN_SUBTITLE_URLS.add(canonicalSubtitleUrl(url));
+    if (url) KNOWN_SUBTITLE_URLS.add(canonicalSubtitleUrl(url));
   }
 
   function isKnownSubtitleUrl(url) {
-    if (!url) return false;
-    return KNOWN_SUBTITLE_URLS.has(canonicalSubtitleUrl(url));
+    return url ? KNOWN_SUBTITLE_URLS.has(canonicalSubtitleUrl(url)) : false;
   }
 
   function looksLikeHlsSubtitleNoise(url, contentType, bodyText = '') {
@@ -196,33 +169,6 @@
     emit(payload);
   }
 
-  function emitTrackSubtitle(trackEl, index, isActive = false) {
-    if (listeningPaused) return;
-    const src = trackEl?.src || '';
-    if (!src || shouldIgnore(src)) return;
-    rememberSubtitleUrl(src);
-    const parentMedia = trackEl.parentElement;
-    const mediaUrl = parentMedia?.currentSrc || parentMedia?.src || '';
-    const trackObj = trackEl.track || {};
-    emit({
-      kind: 'subtitle',
-      url: src,
-      sourceUrl: mediaUrl || '',
-      contentType: '',
-      pageUrl: location.href,
-      title: document.title,
-      subtitleLang: trackEl.srclang || trackObj.language || '',
-      subtitleLabel: trackEl.label || trackObj.label || '',
-      subtitleKind: trackEl.kind || trackObj.kind || '',
-      subtitleDefault: !!trackEl.default,
-      subtitleActive: !!isActive,
-      subtitleTrackIndex: Number(index || 0),
-      sessionId,
-      ts: Date.now(),
-      source: 'dom-track'
-    });
-  }
-
   function scanMediaElements() {
     if (listeningPaused) return;
     const mediaEls = Array.from(document.querySelectorAll('video, audio'));
@@ -241,19 +187,6 @@
           source: 'dom-scan'
         });
       }
-    }
-
-    const tracks = Array.from(document.querySelectorAll('track[src]'));
-    for (let i = 0; i < tracks.length; i++) {
-      const track = tracks[i];
-      if (!track) continue;
-      const src = track.getAttribute('src') || track.src || '';
-      if (!src || shouldIgnore(src)) continue;
-      const kind = String(track.kind || track.track?.kind || '').toLowerCase();
-      const trackObj = track.track || null;
-      const isActive = !!(track.default || trackObj?.mode === 'showing' || (trackObj?.activeCues && trackObj.activeCues.length > 0));
-      if (kind && kind !== 'subtitles' && kind !== 'captions' && !isActive) continue;
-      emitTrackSubtitle(track, i, isActive);
     }
   }
 
@@ -275,20 +208,20 @@
       const url = typeof input === 'string' ? input : (input && input.url) ? input.url : '';
       const response = await origFetch.apply(this, args);
       try {
-        const headers = response && response.headers && typeof response.headers.get === 'function' ? response.headers : null;
-        const ct = headers ? (headers.get('content-type') || '') : '';
-        if (shouldIgnore(url)) return response;
-        if (looksLikePlaylist(url, ct)) {
-          const text = truncatedText(await response.clone().text());
-          emitIfUseful({ kind: 'playlist', url, contentType: ct, text });
-        } else if (looksLikeSubtitle(url, ct)) {
-          const text = truncatedText(await response.clone().text().catch(() => ''));
-          if (isKnownSubtitleUrl(url) || !looksLikeHlsSubtitleNoise(url, ct, text)) {
-            rememberSubtitleUrl(url);
-            emitIfUseful({ kind: 'subtitle', url, contentType: ct, text });
+        if (!shouldIgnore(url)) {
+          const ct = response?.headers?.get?.('content-type') || '';
+          if (looksLikePlaylist(url, ct)) {
+            const text = truncatedText(await response.clone().text().catch(() => ''));
+            emitIfUseful({ kind: 'playlist', url, contentType: ct, text });
+          } else if (looksLikeSubtitle(url, ct)) {
+            const text = truncatedText(await response.clone().text().catch(() => ''));
+            if (isKnownSubtitleUrl(url) || !looksLikeHlsSubtitleNoise(url, ct, text)) {
+              rememberSubtitleUrl(url);
+              emitIfUseful({ kind: 'subtitle', url, contentType: ct, text });
+            }
+          } else if (looksLikeMedia(url, ct)) {
+            emitIfUseful({ kind: 'media', url, contentType: ct });
           }
-        } else if (looksLikeMedia(url, ct)) {
-          emitIfUseful({ kind: 'media', url, contentType: ct });
         }
       } catch {}
       return response;
@@ -299,15 +232,14 @@
   const origSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.open = function(method, url, ...rest) {
     this.__sfa_url = url;
-    this.__sfa_method = method;
     return origOpen.call(this, method, url, ...rest);
   };
   XMLHttpRequest.prototype.send = function(...args) {
     this.addEventListener('loadend', () => {
       try {
         const url = this.__sfa_url || '';
-        const ct = typeof this.getResponseHeader === 'function' ? (this.getResponseHeader('content-type') || '') : '';
         if (shouldIgnore(url)) return;
+        const ct = typeof this.getResponseHeader === 'function' ? (this.getResponseHeader('content-type') || '') : '';
         if (looksLikePlaylist(url, ct)) {
           let text = '';
           try { text = truncatedText(this.responseText || ''); } catch {}
@@ -339,35 +271,9 @@
     }
   };
 
-  function onLocationChange(reason) {
-    if (!IS_TOP_FRAME) return;
-    resetSession(reason);
-  }
-
   document.addEventListener('visibilitychange', syncListeningState, { passive: true });
   window.addEventListener('pageshow', syncListeningState, { passive: true });
-  window.addEventListener('pagehide', () => {
-    listeningPaused = true;
-    emitMonitorState();
-  }, { passive: true });
-
-  if (IS_TOP_FRAME) {
-    const origPushState = history.pushState;
-    const origReplaceState = history.replaceState;
-    history.pushState = function(...args) {
-      const ret = origPushState.apply(this, args);
-      window.dispatchEvent(new Event('sfa-locationchange'));
-      return ret;
-    };
-    history.replaceState = function(...args) {
-      const ret = origReplaceState.apply(this, args);
-      window.dispatchEvent(new Event('sfa-locationchange'));
-      return ret;
-    };
-    window.addEventListener('sfa-locationchange', () => onLocationChange('history-change'), { passive: true });
-    window.addEventListener('popstate', () => onLocationChange('popstate'), { passive: true });
-    window.addEventListener('hashchange', () => onLocationChange('hashchange'), { passive: true });
-  }
+  window.addEventListener('pagehide', () => { listeningPaused = true; emitMonitorState(); }, { passive: true });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', startObserver, { once: true });

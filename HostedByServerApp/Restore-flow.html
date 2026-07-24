@@ -225,7 +225,6 @@
         <div class="panelHead">
           <div>
             <h2>Restore bundle and destination</h2>
-            <div class="meta">Load the zip once here, then push it into the detailed restore page.</div>
           </div>
           <div class="meta" id="choiceMeta">Nothing loaded yet</div>
         </div>
@@ -238,11 +237,9 @@
             <label class="field">
               <div class="label">Destination</div>
               <input id="destBase" type="text" placeholder="https://192.168.254.16:8083" />
-              <div class="small" style="margin-top:8px;">This gets copied into the restore workspace so the detailed page can use it directly.</div>
             </label>
             <div class="field" style="grid-column:1 / -1;">
               <div class="label">What are we restoring?</div>
-              <div class="small" style="margin-bottom:10px;">Select one or both. When both are on, the flow runs profile first, then content.</div>
 
               <div class="laneGrid">
                 <div class="laneCard">
@@ -491,13 +488,39 @@
       autoLaunched: false,
       isShellBundle: false,
       lastText: '',
-      lastText: '',
       laneState: {
         profile: { done: 0, total: 0, label: 'Waiting for profile restore…', status: 'Waiting for profile restore…', complete: false },
         content: { done: 0, total: 0, label: 'Waiting for content restore…', status: 'Waiting for content restore…', complete: false }
       }
     };
 
+    // ---- IndexedDB helpers (mirroring Backup-flow) ----
+    function openBackupDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('BackupStorage', 1);
+        request.onupgradeneeded = (ev) => {
+          const db = ev.target.result;
+          if (!db.objectStoreNames.contains('backups')) {
+            db.createObjectStore('backups', { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function retrieveBackupFromIndexedDB(id) {
+      const db = await openBackupDB();
+      const tx = db.transaction('backups', 'readonly');
+      const store = tx.objectStore('backups');
+      return new Promise((resolve, reject) => {
+        const get = store.get(id);
+        get.onsuccess = () => resolve(get.result);
+        get.onerror = () => reject(get.error);
+      });
+    }
+
+    // ---- Legacy base64 fallback ----
     function base64ToBytes(base64) {
       const clean = String(base64 || '').replace(/\s+/g, '');
       if (!clean) return new Uint8Array();
@@ -512,17 +535,45 @@
         const raw = localStorage.getItem(CURRENT_BACKUP_STORAGE_KEY);
         if (!raw) return null;
         const payload = JSON.parse(raw);
-        if (!payload || !payload.data) return null;
-        return payload;
+        // Check if it's the new IndexedDB pointer
+        if (payload && typeof payload.id === 'string') {
+          return payload; // will be handled separately
+        }
+        // Legacy base64 payload
+        if (payload && payload.data) return payload;
+        return null;
       } catch (err) {
         console.warn('Could not read cached backup:', err);
         return null;
       }
     }
 
-    function createFileFromCachedBackup() {
+    async function createFileFromCachedBackup() {
       const payload = readCurrentBackupPayload();
       if (!payload) return null;
+
+      // New IndexedDB pointer
+      if (typeof payload.id === 'string') {
+        try {
+          const record = await retrieveBackupFromIndexedDB(payload.id);
+          if (!record || !record.blob) {
+            console.warn('IndexedDB record not found or blob missing');
+            return null;
+          }
+          // record.blob is a Blob, create a File from it
+          const file = new File([record.blob], String(record.metadata?.name || payload.name || 'current-backup.zip'), {
+            type: record.blob.type || 'application/zip',
+            lastModified: record.timestamp || Date.now()
+          });
+          console.log(`Restored ${file.size} bytes from IndexedDB (id: ${payload.id})`);
+          return file;
+        } catch (err) {
+          console.warn('Could not retrieve backup from IndexedDB:', err);
+          // fall through to try legacy method
+        }
+      }
+
+      // Legacy base64
       try {
         const bytes = base64ToBytes(payload.data);
         return new File([bytes], String(payload.name || 'current-backup.zip'), {
@@ -530,7 +581,7 @@
           lastModified: Date.now()
         });
       } catch (err) {
-        console.warn('Could not rebuild cached backup file:', err);
+        console.warn('Could not rebuild cached backup file from base64:', err);
         return null;
       }
     }
@@ -859,7 +910,7 @@
         const total = Number.isFinite(snapshot.total) ? snapshot.total : laneState.total;
         const label = snapshot.label || text || laneState.label;
         const status = label || laneProgressText(done, total, laneState.label);
-        const complete = /complete(?:d)?/i.test(text) || (Number.isFinite(pct) && pct >= 99.5);
+        const complete = /\bcomplete(?:d)?\b/i.test(text) || (Number.isFinite(pct) && pct >= 99.5);
 
         if (selectedScope().includes(lane)) {
           updateCompactLane(lane, {
@@ -1141,11 +1192,22 @@
     syncModeWarnings();
     updatePrimaryActionLabel();
 
+    // ---- Check for currentBackup parameter and load from IndexedDB ----
     if (new URLSearchParams(location.search).has('currentBackup')) {
-      const cached = createFileFromCachedBackup();
-      if (cached) {
-        setBundleFileInput(cached);
-      }
+      createFileFromCachedBackup().then(file => {
+        if (file) {
+          setBundleFileInput(file);
+          // Auto-detect scope but do NOT auto-start
+          autoDetectScopeFromFile(file);
+          // The user will click "Begin Restore" to start
+        } else {
+          console.warn('No valid backup found in cache (IndexedDB or localStorage)');
+          el.choiceMeta.textContent = 'No cached backup found. Please load a zip manually.';
+        }
+      }).catch(err => {
+        console.warn('Error loading cached backup:', err);
+        el.choiceMeta.textContent = 'Error loading cached backup. Please load a zip manually.';
+      });
     }
   })();
   </script>

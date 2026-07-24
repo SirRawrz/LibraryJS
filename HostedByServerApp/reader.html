@@ -2,6 +2,7 @@
 
 <html lang="en">
 <head>
+  <base href="/">
 <style>
 /* Bookmark Dialog Styling */
 #bookmarkDialog {
@@ -90,6 +91,9 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Book Library</title>
+<!-- ===== ADD PLATFORM API ===== -->
+<script src="../loadplatform.js"></script>
+<!-- =========================== -->
 <script>
 (function () {
   const params = new URLSearchParams(window.location.search);
@@ -3194,112 +3198,123 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </script>
 <script>
-  // ==== SERVER-BASED PROGRESS MANAGEMENT ====
-  const PROGRESS_PATH = '/Books/progress/';
-  function wrapPayload(obj) {
-    return `[[[${JSON.stringify(obj)}]]]`;
+// ==== SERVER-BASED PROGRESS MANAGEMENT ====
+const PROGRESS_PATH = '/Books/progress/';
+function wrapPayload(obj) {
+  return `[[[${JSON.stringify(obj)}]]]`;
+}
+
+// ===== REPLACED WITH platformAPI VERSION =====
+async function uploadPageProgress(profile, bookKey, page) {
+  console.log('Uploading page', page);
+  const payload = wrapPayload({ [bookKey]: page });
+  const payloadBlob = new Blob([payload], { type: 'application/json' });
+  // Append .txt so the Arduino server treats it as a file (not a directory)
+  const targetPath = `${PROGRESS_PATH}${encodeURIComponent(profile + '-' + bookKey)}.txt`;
+  try {
+    await window.platformAPI.upload(payloadBlob, targetPath);
+    console.log('Progress uploaded.');
+  } catch (err) {
+    console.error('Progress upload failed:', err);
   }
-  async function uploadPageProgress(profile, bookKey, page) {
-    console.log('Uploading page', page);
-    const blob = new Blob([wrapPayload({ [bookKey]: page })], { type: 'application/json' });
-    const form = new FormData();
-    form.append('files[]', blob, `${profile}-${bookKey}`);
+}
+
+async function loadPageProgress(profile, rawUrl) {
+  const scopedBookKey = getProgressBookKey(rawUrl);
+  const legacyBookKey = getLegacyProgressBookKey(rawUrl);
+  const bookKeys = scopedBookKey === legacyBookKey
+    ? [scopedBookKey]
+    : [scopedBookKey, legacyBookKey];
+
+  for (const bookKey of bookKeys) {
     try {
-      await fetch(`/api/file/upload?path=${encodeURIComponent(PROGRESS_PATH)}`, { method: 'PUT', body: form });
-      console.log('Progress uploaded.');
+      // Use platformAPI to get the correct download URL for the current platform
+      const baseUrl = window.location.href;
+      // Append .txt so the server treats it as a file
+      const downloadUrl = await window.platformAPI.getDownloadUrl(
+        baseUrl,
+        `${PROGRESS_PATH}${encodeURIComponent(profile + '-' + bookKey)}.txt`
+      );
+      const res = await fetch(downloadUrl, { cache: 'no-store' });
+      if (!res.ok) continue;
+      const txt = await res.text();
+      const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
+      if (!m) continue;
+      const parsed = JSON.parse(m[1]);
+      const page = parseInt(parsed[bookKey], 10);
+      if (Number.isFinite(page) && page > 0) {
+        return page;
+      }
+      const legacyPage = parseInt(parsed[legacyBookKey], 10);
+      if (Number.isFinite(legacyPage) && legacyPage > 0) {
+        return legacyPage;
+      }
     } catch (err) {
-      console.error('Progress upload failed:', err);
+      console.warn('Could not load server progress:', err);
     }
   }
-  async function loadPageProgress(profile, rawUrl) {
-    const scopedBookKey = getProgressBookKey(rawUrl);
-    const legacyBookKey = getLegacyProgressBookKey(rawUrl);
-    const bookKeys = scopedBookKey === legacyBookKey
-      ? [scopedBookKey]
-      : [scopedBookKey, legacyBookKey];
 
-    for (const bookKey of bookKeys) {
-      try {
-        const res = await fetch(`${PROGRESS_PATH}${encodeURIComponent(profile + '-' + bookKey)}`, { cache: 'no-store' });
-        if (!res.ok) continue;
-        const txt = await res.text();
-        const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
-        if (!m) continue;
-        const parsed = JSON.parse(m[1]);
-        const page = parseInt(parsed[bookKey], 10);
-        if (Number.isFinite(page) && page > 0) {
-          return page;
-        }
-        const legacyPage = parseInt(parsed[legacyBookKey], 10);
-        if (Number.isFinite(legacyPage) && legacyPage > 0) {
-          return legacyPage;
-        }
-      } catch (err) {
-        console.warn('Could not load server progress:', err);
-      }
+  return null;
+}
+// Prefer server progress across devices, then fall back to local cache.
+(function(){
+  const origOpen = window.openPDF;
+  window.openPDF = async function(url, title, startPage = null) {
+    const explicitStartPage = Number.isFinite(startPage) && startPage > 0 ? startPage : null;
+    if (explicitStartPage) {
+      if (typeof origOpen === 'function') origOpen(url, title, startPage);
+      return;
     }
 
-    return null;
-  }
-  // Prefer server progress across devices, then fall back to local cache.
-  (function(){
-    const origOpen = window.openPDF;
-    window.openPDF = async function(url, title, startPage = null) {
-      const explicitStartPage = Number.isFinite(startPage) && startPage > 0 ? startPage : null;
-      if (explicitStartPage) {
-        if (typeof origOpen === 'function') origOpen(url, title, startPage);
-        return;
-      }
-
-      const sessionId = readerSessionId;
-      const profile = localStorage.getItem('activeProfile') || 'Guest';
-      const serverPage = await loadPageProgress(profile, url);
-      if (sessionId !== readerSessionId) return;
-
-      const fallbackLocalPage = readPersistedProgress(profile, url);
-      const start = Number.isFinite(serverPage) && serverPage > 0
-        ? serverPage
-        : (Number.isFinite(fallbackLocalPage) && fallbackLocalPage > 0 ? fallbackLocalPage : null);
-
-      if (typeof origOpen === 'function') origOpen(url, title, start);
-    };
-  })();
-  // Hook into page rendering  // Hook into page rendering
-  const origRender = window.renderDoublePage;
-  window.renderDoublePage = function(num) {
-    if (!pdfDoc || !currentBook) return;
-    if (typeof origRender === 'function') origRender(num);
-    if (!pdfDoc || !currentBook) return;
+    const sessionId = readerSessionId;
     const profile = localStorage.getItem('activeProfile') || 'Guest';
-    persistProgress(profile, currentBook, num);
-  };
+    const serverPage = await loadPageProgress(profile, url);
+    if (sessionId !== readerSessionId) return;
 
-  // Bookmark Dialog Search Functionality
-  bindClick('btnSearchDialog', function() {
-    const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
-    if (!pdfDoc || !term) return;
-    const resultsList = document.getElementById('resultsListDialog');
-    resultsList.innerHTML = '';
-    document.getElementById('searchResultsDialog').style.display = 'block';
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      pdfDoc.getPage(i).then(page => {
-        page.getTextContent().then(tc => {
-          const text = tc.items.map(it => it.str).join(' ').toLowerCase();
-          if (text.includes(term)) {
-      const li = document.createElement('li');
-      const idx = text.indexOf(term);
-      const start = Math.max(0, idx - 30);
-      const end = Math.min(text.length, idx + term.length + 30);
-      const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
-      li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
-            li.style.cursor = 'pointer';
-            li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
-            resultsList.appendChild(li);
-          }
-        });
+    const fallbackLocalPage = readPersistedProgress(profile, url);
+    const start = Number.isFinite(serverPage) && serverPage > 0
+      ? serverPage
+      : (Number.isFinite(fallbackLocalPage) && fallbackLocalPage > 0 ? fallbackLocalPage : null);
+
+    if (typeof origOpen === 'function') origOpen(url, title, start);
+  };
+})();
+// Hook into page rendering  // Hook into page rendering
+const origRender = window.renderDoublePage;
+window.renderDoublePage = function(num) {
+  if (!pdfDoc || !currentBook) return;
+  if (typeof origRender === 'function') origRender(num);
+  if (!pdfDoc || !currentBook) return;
+  const profile = localStorage.getItem('activeProfile') || 'Guest';
+  persistProgress(profile, currentBook, num);
+};
+
+// Bookmark Dialog Search Functionality
+bindClick('btnSearchDialog', function() {
+  const term = document.getElementById('searchTermDialog').value.trim().toLowerCase();
+  if (!pdfDoc || !term) return;
+  const resultsList = document.getElementById('resultsListDialog');
+  resultsList.innerHTML = '';
+  document.getElementById('searchResultsDialog').style.display = 'block';
+  for (let i = 1; i <= pdfDoc.numPages; i++) {
+    pdfDoc.getPage(i).then(page => {
+      page.getTextContent().then(tc => {
+        const text = tc.items.map(it => it.str).join(' ').toLowerCase();
+        if (text.includes(term)) {
+    const li = document.createElement('li');
+    const idx = text.indexOf(term);
+    const start = Math.max(0, idx - 30);
+    const end = Math.min(text.length, idx + term.length + 30);
+    const snippet = (start > 0 ? '...':'') + text.substring(start, end) + (end < text.length ? '...':'');
+    li.innerHTML = '<strong>Page ' + i + ':</strong> ' + snippet;
+          li.style.cursor = 'pointer';
+          li.onclick = () => { jumpToPageAndSyncAudio(i, { closeDialog: true }); };
+          resultsList.appendChild(li);
+        }
       });
-    }
-  })
+    });
+  }
+})
 
 </script>
 <script>
@@ -3309,24 +3324,31 @@ const BOOKMARK_PATH = '/Books/progress/';
 function wrapPayload(obj) {
   return `[[[${JSON.stringify(obj)}]]]`;
 }
+
+// ===== REPLACED WITH platformAPI VERSION =====
 async function uploadBookmarks(profile, bookKey, bookmarks) {
   const payload = wrapPayload(bookmarks);
-  const blob = new Blob([payload], { type: 'application/json' });
-  const form = new FormData();
-  form.append('files[]', blob, `${profile}-${bookKey}-Bookmarks`);
+  const payloadBlob = new Blob([payload], { type: 'application/json' });
+  // Append .txt so the Arduino server treats it as a file
+  const targetPath = `${BOOKMARK_PATH}${encodeURIComponent(profile + '-' + bookKey + '-Bookmarks')}.txt`;
   try {
-    await fetch(`/api/file/upload?path=${encodeURIComponent(BOOKMARK_PATH)}`, {
-      method: 'PUT',
-      body: form
-    });
+    await window.platformAPI.upload(payloadBlob, targetPath);
     console.log('Bookmarks uploaded');
   } catch (err) {
     console.error('Bookmark upload failed:', err);
   }
 }
+
 async function loadServerBookmarks(profile, bookKey) {
   try {
-    const res = await fetch(`${BOOKMARK_PATH}${encodeURIComponent(profile + '-' + bookKey + '-Bookmarks')}`, { cache: 'no-store' });
+    // Use platformAPI to get the correct download URL for the current platform
+    const baseUrl = window.location.href;
+    // Append .txt so the server treats it as a file
+    const downloadUrl = await window.platformAPI.getDownloadUrl(
+      baseUrl,
+      `${BOOKMARK_PATH}${encodeURIComponent(profile + '-' + bookKey + '-Bookmarks')}.txt`
+    );
+    const res = await fetch(downloadUrl, { cache: 'no-store' });
     if (!res.ok) throw new Error('No server save');
     const txt = await res.text();
     const m = txt.match(/\[\[\[([\s\S]*?)\]\]\]/);
@@ -3337,8 +3359,12 @@ async function loadServerBookmarks(profile, bookKey) {
     return null;
   }
 }
+
+// Updated getBookKey to use the same scoped key as progress
 function getBookKey(bookUrl) {
-  return bookUrl.replace(/[^a-z0-9]/gi, '_');
+  const scope = new URLSearchParams(window.location.search).get('lib') || 'books';
+  const legacy = bookUrl.replace(/[^a-z0-9]/gi, '_');
+  return `${scope}__${legacy}`;
 }
 
 // Bookmark dialog functionality
@@ -3736,7 +3762,10 @@ async function openBookmarkDialog() {
   }
 
   try {
-    const response = await fetch(chapterSource.chapters, { cache: 'no-store' });
+    // Use platformAPI to get the correct download URL for the current platform
+    const baseUrl = window.location.href;
+    const downloadUrl = await window.platformAPI.getDownloadUrl(baseUrl, chapterSource.chapters);
+    const response = await fetch(downloadUrl, { cache: 'no-store' });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -4543,7 +4572,7 @@ window.addEventListener("DOMContentLoaded", function() {
       const original = window[name];
       if (typeof original !== 'function') return;
       window[name] = function (...args) {
-        const result = original.apply(this, args);
+        const result = original.apply(this, arguments);
         queueMicrotask(sync);
         return result;
       };
