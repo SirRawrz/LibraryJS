@@ -6,7 +6,9 @@ LibraryJS is about making your media a portable digital archive that can be **gi
 
 ## What's special about LibraryJS?
 
-Most of what you experience of LibraryJS happens in your browser. The server applications simply provide access to your library, allowing even low-powered devices to act as servers without needing expensive hardware. In many cases, the only thing you need to buy is storage, which means it's easy to gift and copy your collections to friends and family, building a lived-in backup that your friends will use and love, spreading the LibraryJS experience.
+Most of what you experience of LibraryJS happens in your browser. The server applications simply provide access to your library, allowing even low-powered devices to act as servers without needing expensive hardware. You can run it on an ESP32, Android or windows device currently. In many cases, the only thing you need to buy is storage, which means it's easy to gift and copy your collections to friends and family, building a lived-in backup that your friends will use and love, spreading the LibraryJS experience.
+
+Servers can display content from other servers now as well! So having content on 2 servers will display them seamlessly on either server you visit when enabled!
 
 To gift content, you hit "Backup," select the content you want to share, enter your friend's LibraryJS IP and port, and click **"Begin Restore!"** LibraryJS reads their existing library, merging any of the gifted content into their existing collections seamlessly. Your friends walk away with permanent copies, not streaming links. Either locally or with Tailscale, you can share this way, gifting your friends a start to their self-hosted independence and giving youself a backup of your collected content. Your files are safe and your friends are happier for it. LibraryJS is about spreading these feelings of generosity, ownership and resilience.
 
