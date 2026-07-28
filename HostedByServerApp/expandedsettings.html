@@ -7,11 +7,12 @@
   <!-- Unified platform detection API -->
   <script src="../loadplatform.js"></script>
   <style>
+    /* ── base (matches manage.html dark theme) ── */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: Arial, sans-serif;
-      background: #1e1e1e;
-      color: #eee;
+      background: #0d1117;
+      color: #e5e7eb;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -20,22 +21,24 @@
       margin: 0;
     }
     .container {
-      background: #2a2a2a;
+      background: #111827;
+      border: 1px solid #253046;
       border-radius: 16px;
       padding: 24px 28px 28px 28px;
-      max-width: 720px;
+      max-width: 820px;
       width: 100%;
       box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-      border: 1px solid rgba(255,255,255,0.08);
-      max-height: 90vh;
+      max-height: 94vh;
       display: flex;
       flex-direction: column;
     }
+
+    /* ── header ── */
     .header-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       border-bottom: 1px solid rgba(255,255,255,0.08);
       padding-bottom: 12px;
       flex-wrap: wrap;
@@ -50,14 +53,14 @@
     .header-left svg {
       width: 26px;
       height: 26px;
-      stroke: #eee;
+      stroke: #e5e7eb;
       flex-shrink: 0;
     }
     .header-left span {
       font-size: 1.3rem;
-      font-weight: 600;
+      font-weight: 650;
       color: #fff;
-      letter-spacing: 0.02em;
+      letter-spacing: -0.02em;
     }
     .header-actions {
       display: flex;
@@ -69,33 +72,66 @@
       background: rgba(128,128,128,0.25);
       border: none;
       border-radius: 6px;
-      padding: 6px 12px;
+      padding: 6px 14px;
       color: #ddd;
       font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
       transition: background 0.2s;
-      letter-spacing: 0.02em;
     }
-    .btn-top.save { background: #2f8cff; color: white; }
+    .btn-top.save { background: #2f8cff; color: #fff; }
     .btn-top.save:hover { background: #4a9aff; }
     .btn-top.save:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-top.cancel { background: rgba(128,128,128,0.2); color: #aaa; }
     .btn-top.cancel:hover { background: rgba(128,128,128,0.35); }
 
-    .scroll-area {
+    /* ── tabs ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 18px;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #9ca3af;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      text-align: center;
+    }
+    .tab-btn.active {
+      background: #1f2937;
+      color: #e5e7eb;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.04); color: #c8d6e6; }
+
+    /* ── tab content ── */
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
       overflow-y: auto;
       padding-right: 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
+      flex: 1 1 auto;
     }
-    /* Custom Scrollbar */
-    .scroll-area::-webkit-scrollbar { width: 6px; }
-    .scroll-area::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
-    .scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    .tab-pane.active { display: flex; }
 
+    .tab-pane::-webkit-scrollbar { width: 6px; }
+    .tab-pane::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+    .tab-pane::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+    /* ── existing sections (ports + nodes) ── */
     .section-title {
       font-size: 0.95rem;
       font-weight: 600;
@@ -106,13 +142,11 @@
       justify-content: space-between;
       align-items: center;
     }
-    
     .list-container {
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
-
     .dynamic-row {
       display: flex;
       gap: 8px;
@@ -123,14 +157,8 @@
       border: 1px solid rgba(255,255,255,0.05);
       transition: opacity 0.2s;
     }
-    .dynamic-row.disabled {
-      opacity: 0.45;
-    }
-    .dynamic-row.disabled input[type="text"] {
-      text-decoration: line-through;
-      color: #888;
-    }
-
+    .dynamic-row.disabled { opacity: 0.45; }
+    .dynamic-row.disabled input[type="text"] { text-decoration: line-through; color: #888; }
     .checkbox-container {
       display: flex;
       align-items: center;
@@ -143,7 +171,6 @@
       cursor: pointer;
       accent-color: #2f8cff;
     }
-
     .inputs-wrapper {
       flex: 1;
       display: flex;
@@ -166,7 +193,6 @@
       border-color: #4a8cff;
       box-shadow: 0 0 0 2px rgba(74,140,255,0.2);
     }
-
     .btn-icon {
       background: rgba(128,128,128,0.15);
       border: none;
@@ -179,7 +205,6 @@
       flex-shrink: 0;
     }
     .btn-icon:hover { background: rgba(255, 124, 124, 0.2); color: #ff4c4c; }
-
     .btn-add {
       background: rgba(255,255,255,0.05);
       border: 1px dashed rgba(255,255,255,0.2);
@@ -195,6 +220,258 @@
     }
     .btn-add:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.4); }
 
+    /* ── scanner UI ── */
+    .scanner-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .scanner-ip-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      background: rgba(0,0,0,0.2);
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .scanner-ip-row .octet {
+      width: 54px;
+      padding: 8px 4px;
+      background: #0a0f17;
+      border: 1px solid #253046;
+      border-radius: 6px;
+      color: #e5e7eb;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      font-family: 'SF Mono', monospace;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .scanner-ip-row .octet:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,0.15); }
+    .scanner-ip-row .dot { color: #445566; font-size: 20px; font-weight: 700; padding: 0 2px; }
+    .scanner-ip-row .hint { color: #556677; font-size: 13px; margin-left: 4px; }
+    .scanner-ip-row .hint span { color: #6ee7b7; }
+
+    .scanner-port-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      background: rgba(0,0,0,0.15);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .scanner-port-row label {
+      font-size: 14px;
+      color: #9ca3af;
+      font-weight: 500;
+    }
+    .scanner-port-row .port-number {
+      width: 70px;
+      padding: 6px 8px;
+      background: #0a0f17;
+      border: 1px solid #253046;
+      border-radius: 6px;
+      color: #e5e7eb;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      font-family: 'SF Mono', monospace;
+      outline: none;
+    }
+    .scanner-port-row .port-number:focus { border-color: #60a5fa; }
+
+    .scanner-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .scanner-actions .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.15s, filter 0.15s;
+      background: #1e2a3a;
+      color: #e5e7eb;
+    }
+    .scanner-actions .btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); }
+    .scanner-actions .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; }
+    .scanner-actions .btn-primary {
+      background: linear-gradient(145deg, rgba(96,165,250,0.2), rgba(15,23,42,0.9));
+      border: 1px solid rgba(96,165,250,0.4);
+    }
+    .scanner-actions .btn-primary:hover:not(:disabled) { border-color: rgba(96,165,250,0.7); }
+    .scanner-actions .btn-danger {
+      background: linear-gradient(145deg, rgba(251,113,133,0.15), rgba(15,23,42,0.9));
+      border: 1px solid rgba(251,113,133,0.35);
+      color: #fb7185;
+    }
+    .scanner-actions .btn-danger:hover:not(:disabled) { border-color: rgba(251,113,133,0.6); }
+    .scanner-actions .btn-success {
+      background: linear-gradient(145deg, rgba(110,231,183,0.12), rgba(15,23,42,0.9));
+      border: 1px solid rgba(110,231,183,0.35);
+      color: #6ee7b7;
+    }
+    .scanner-actions .btn-success:hover:not(:disabled) { border-color: rgba(110,231,183,0.6); }
+    .scanner-actions .btn .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: #60a5fa;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    .scanner-actions .btn.scanning .spinner { display: inline-block; }
+    .scanner-actions .btn.scanning .btn-text { opacity: 0.7; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .scanner-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      flex-wrap: wrap;
+    }
+    .scanner-status .status-text {
+      flex: 1;
+      font-size: 14px;
+      color: #aab8c8;
+    }
+    .scanner-status .status-text .highlight { color: #60a5fa; }
+    .scanner-status .status-text .found-count { color: #6ee7b7; font-weight: 600; }
+    .scanner-status .progress-track {
+      width: 100px;
+      height: 4px;
+      background: #1a2636;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .scanner-status .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #60a5fa, #6ee7b7);
+      transition: width 0.2s;
+    }
+    .scanner-status .progress-label {
+      font-size: 13px;
+      color: #8896a6;
+      min-width: 50px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .scanner-results {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 12px;
+      max-height: 260px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .scanner-results::-webkit-scrollbar { width: 4px; }
+    .scanner-results::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+    .scanner-results::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+    .scanner-result-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      border: 1px solid transparent;
+      transition: border-color 0.2s;
+      animation: fadeSlide 0.2s ease;
+    }
+    .scanner-result-item.found {
+      border-color: rgba(110,231,183,0.2);
+      background: rgba(0,0,0,0.3);
+    }
+    .scanner-result-item .status-icon { font-size: 14px; width: 22px; text-align: center; }
+    .scanner-result-item .ip { font-family: monospace; font-weight: 500; font-size: 14px; flex: 0 0 auto; }
+    .scanner-result-item .title {
+      font-size: 13px;
+      color: #b0c4de;
+      flex: 0 1 auto;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-left: 6px;
+      font-style: italic;
+    }
+    .scanner-result-item .title:empty { display: none; }
+    .scanner-result-item .proto {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #1a2636;
+      color: #8896a6;
+      text-transform: uppercase;
+    }
+    .scanner-result-item .proto.http { background: rgba(96,165,250,0.12); color: #60a5fa; }
+    .scanner-result-item .proto.https { background: rgba(110,231,183,0.12); color: #6ee7b7; }
+    .scanner-result-item .platform {
+      font-size: 13px;
+      color: #aab8c8;
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .scanner-result-item .platform .tag {
+      display: inline-block;
+      padding: 0 8px;
+      border-radius: 4px;
+      background: #1a2636;
+      color: #aab8c8;
+      font-size: 12px;
+    }
+    .scanner-result-item .action-btn {
+      background: transparent;
+      border: none;
+      color: #8896a6;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .scanner-result-item .action-btn:hover { background: #1a2636; color: #e5e7eb; }
+    .scanner-result-item .action-btn.add-btn:hover { color: #6ee7b7; }
+    .scanner-result-item .action-btn.copy-btn:hover { color: #60a5fa; }
+
+    .scanner-empty {
+      color: #556677;
+      font-size: 14px;
+      text-align: center;
+      padding: 24px 10px;
+      border: 1px dashed #1a2636;
+      border-radius: 10px;
+    }
+    .scanner-empty .big-icon { font-size: 32px; display: block; margin-bottom: 6px; }
+
+    @keyframes fadeSlide {
+      0% { opacity: 0; transform: translateY(-4px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── status bar ── */
     #status {
       margin-top: 16px;
       padding: 8px 12px;
@@ -211,10 +488,21 @@
     #status.success { color: #7cff7c; background: rgba(0,180,0,0.12); }
     #status.error { color: #ff7c7c; background: rgba(180,0,0,0.12); }
 
-    @media (max-width: 580px) {
+    /* ── responsive ── */
+    @media (max-width: 640px) {
+      .container { padding: 16px; }
+      .scanner-ip-row .octet { width: 44px; font-size: 14px; }
+      .scanner-port-row { flex-wrap: wrap; }
+      .scanner-actions .btn { padding: 6px 12px; font-size: 13px; }
+      .scanner-status { flex-direction: column; align-items: stretch; gap: 8px; }
+      .scanner-status .progress-track { width: 100%; }
+      .inputs-wrapper { flex-direction: column; }
+    }
+    @media (max-width: 420px) {
       .header-row { flex-direction: column; align-items: stretch; }
       .header-actions { justify-content: center; }
-      .inputs-wrapper { flex-direction: column; }
+      .tabs { flex-direction: column; }
+      .tab-btn { padding: 10px; }
     }
   </style>
 </head>
@@ -238,35 +526,93 @@
     </div>
   </div>
 
-  <div class="scroll-area">
-    <!-- PORTS SECTION -->
-    <div class="section">
+  <!-- TABS -->
+  <div class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="portsNodes" role="tab" aria-selected="true">Ports &amp; Nodes</button>
+    <button class="tab-btn" data-tab="scanner" role="tab" aria-selected="false">Network Scanner</button>
+  </div>
+
+  <!-- TAB 1: Ports & Nodes -->
+  <div class="tab-pane active" id="portsNodesTab" role="tabpanel">
+    <!-- Remote Expanded Ports -->
+    <div>
       <div class="section-title">
         Remote Expanded Ports
-        <span style="font-size: 0.75rem; color: #666; font-weight: normal;">/expandedstorage.txt</span>
+        <span style="font-size:0.75rem;color:#666;font-weight:400;">/expandedstorage.txt</span>
       </div>
       <div id="portsList" class="list-container"></div>
       <button class="btn-add" id="addPortBtn">+ Add Port</button>
     </div>
 
-    <!-- NODES SECTION -->
-    <div class="section">
+    <!-- Local Expanded Nodes -->
+    <div>
       <div class="section-title">
         Local Expanded Nodes
-        <span style="font-size: 0.75rem; color: #666; font-weight: normal;">/localexpanded.txt</span>
+        <span style="font-size:0.75rem;color:#666;font-weight:400;">/localexpanded.txt</span>
       </div>
       <div id="nodesList" class="list-container"></div>
       <button class="btn-add" id="addNodeBtn">+ Add Node</button>
     </div>
   </div>
 
+  <!-- TAB 2: Network Scanner -->
+  <div class="tab-pane" id="scannerTab" role="tabpanel">
+    <div class="scanner-section">
+      <!-- IP -->
+      <div class="scanner-ip-row">
+        <input class="octet" id="scannerOctet1" type="number" min="0" max="255" value="192" />
+        <span class="dot">.</span>
+        <input class="octet" id="scannerOctet2" type="number" min="0" max="255" value="168" />
+        <span class="dot">.</span>
+        <input class="octet" id="scannerOctet3" type="number" min="0" max="255" value="254" />
+        <span class="dot">.</span>
+        <input class="octet" id="scannerOctet4" type="number" min="0" max="255" value="16" />
+        <span class="hint">← starting point, scans <span>outward</span></span>
+      </div>
+
+      <!-- Port -->
+      <div class="scanner-port-row">
+        <label for="scannerPort">🔌 Main port</label>
+        <input class="port-number" id="scannerPort" type="number" min="1" max="65535" value="60064" />
+        <span style="color:#556677;font-size:12px;margin-left:4px;">(default 60064)</span>
+      </div>
+
+      <!-- Actions -->
+      <div class="scanner-actions">
+        <button class="btn btn-primary" id="scannerScanBtn">
+          <span class="spinner"></span>
+          <span class="btn-text">▶ Start Scan</span>
+        </button>
+        <button class="btn btn-danger" id="scannerStopBtn" disabled>⏹ Stop</button>
+        <button class="btn btn-success" id="scannerClearBtn" disabled>✕ Clear</button>
+      </div>
+
+      <!-- Status -->
+      <div class="scanner-status">
+        <span class="status-text" id="scannerStatusText">Ready — press <span class="highlight">Start Scan</span></span>
+        <div class="progress-track"><div class="progress-fill" id="scannerProgressFill"></div></div>
+        <span class="progress-label" id="scannerProgressLabel">0 / 254</span>
+      </div>
+
+      <!-- Results -->
+      <div class="scanner-results" id="scannerResultsList">
+        <div class="scanner-empty">
+          <span class="big-icon">🔍</span>
+          No servers discovered yet.<br/>
+          Click <strong>Start Scan</strong> to begin searching.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar (shared) -->
   <div id="status">Loading existing settings…</div>
 
 </div>
 
 <script>
   (async function() {
-    // Wait for Unified Platform API
+    // ── wait for platformAPI ──
     while (typeof window.platformAPI === 'undefined') {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
@@ -274,6 +620,7 @@
       await platformAPI.refreshPlatform(window.location.origin);
     } catch(e) { console.warn('[expandedsettings] platform refresh failed', e); }
 
+    // ── DOM refs ──
     const saveBtn = document.getElementById('saveBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const status = document.getElementById('status');
@@ -282,6 +629,28 @@
     const addPortBtn = document.getElementById('addPortBtn');
     const addNodeBtn = document.getElementById('addNodeBtn');
 
+    // Tabs
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const panes = {
+      portsNodes: document.getElementById('portsNodesTab'),
+      scanner: document.getElementById('scannerTab')
+    };
+
+    // Scanner elements
+    const octet1 = document.getElementById('scannerOctet1');
+    const octet2 = document.getElementById('scannerOctet2');
+    const octet3 = document.getElementById('scannerOctet3');
+    const octet4 = document.getElementById('scannerOctet4');
+    const scannerPort = document.getElementById('scannerPort');
+    const scanBtn = document.getElementById('scannerScanBtn');
+    const stopBtn = document.getElementById('scannerStopBtn');
+    const clearBtn = document.getElementById('scannerClearBtn');
+    const scannerStatusText = document.getElementById('scannerStatusText');
+    const scannerProgressFill = document.getElementById('scannerProgressFill');
+    const scannerProgressLabel = document.getElementById('scannerProgressLabel');
+    const scannerResultsList = document.getElementById('scannerResultsList');
+
+    // ── Helper: set status (shared) ──
     function setStatus(text, type = '') {
       status.textContent = text;
       status.className = type;
@@ -290,25 +659,34 @@
     function closeOverlay() {
       try {
         const parentDoc = window.parent.document;
-        // Search for the wrapper overlay id if running in an iframe
-        const overlay = parentDoc.getElementById('settingsIframe') ? parentDoc.getElementById('settingsIframe').parentElement : null;
-        if (overlay) { overlay.style.display = 'none'; }
-        else { window.parent.postMessage({ type: 'closeSettingsOverlay' }, '*'); }
-      } catch(e) { 
-        console.warn('Could not close overlay:', e); 
-        setStatus('Closed (close manually)', 'success'); 
+        const overlay = parentDoc.getElementById('settingsIframe')?.parentElement;
+        if (overlay) overlay.style.display = 'none';
+        else window.parent.postMessage({ type: 'closeSettingsOverlay' }, '*');
+      } catch(e) {
+        console.warn('Could not close overlay:', e);
+        setStatus('Closed (close manually)', 'success');
       }
     }
     cancelBtn.addEventListener('click', closeOverlay);
 
-    // ---- DOM Row Builders ----
+    // ── Tab switching ──
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        const target = btn.dataset.tab;
+        Object.keys(panes).forEach(key => {
+          panes[key].classList.toggle('active', key === target);
+        });
+      });
+    });
 
+    // ── ROW BUILDERS (ports & nodes) ──
     function createRow(container, htmlContent, onCheckboxToggle) {
       const row = document.createElement('div');
       row.className = 'dynamic-row';
       row.innerHTML = htmlContent;
-
-      // Handle Disable/Enable checkbox
       const cb = row.querySelector('input[type="checkbox"]');
       if (cb) {
         cb.addEventListener('change', (e) => {
@@ -317,15 +695,10 @@
         });
         if (!cb.checked) row.classList.add('disabled');
       }
-
-      // Handle Delete button
       const delBtn = row.querySelector('.btn-icon');
       if (delBtn) {
-        delBtn.addEventListener('click', () => {
-          container.removeChild(row);
-        });
+        delBtn.addEventListener('click', () => { container.removeChild(row); });
       }
-
       container.appendChild(row);
       return row;
     }
@@ -362,7 +735,7 @@
     addPortBtn.addEventListener('click', () => addPortRow('', true));
     addNodeBtn.addEventListener('click', () => addNodeRow('', '', true));
 
-    // ---- Fetch existing ----
+    // ── Fetch existing files ──
     async function fetchFileContent(path) {
       try {
         const url = await platformAPI.getDownloadUrl(window.location.origin, path);
@@ -373,7 +746,7 @@
     }
 
     async function loadExisting() {
-      // 1. Load Ports (expandedstorage.txt)
+      // Ports
       const rawPorts = await fetchFileContent('/expandedstorage.txt');
       if (rawPorts) {
         const ports = rawPorts.split(',').map(p => p.trim()).filter(p => p);
@@ -383,8 +756,7 @@
           addPortRow(val, isEnabled);
         });
       }
-      
-      // 2. Load Nodes (localexpanded.txt)
+      // Nodes
       const rawNodes = await fetchFileContent('/localexpanded.txt');
       if (rawNodes) {
         const lines = rawNodes.split('\n').map(l => l.trim()).filter(l => l);
@@ -395,73 +767,457 @@
           addNodeRow(parts[0] || '', parts[1] || '', isEnabled);
         });
       }
-
       setStatus('Settings loaded. You can edit and save.', 'success');
     }
 
     await loadExisting();
 
- saveBtn.addEventListener('click', async () => {
-  // Collect Ports
-  const finalPorts = [];
-  document.querySelectorAll('#portsList .dynamic-row').forEach(row => {
-    const val = row.querySelector('.port-input').value.trim();
-    const enabled = row.querySelector('input[type="checkbox"]').checked;
-    if (val) {
-      finalPorts.push(enabled ? val : `#${val}`);
+    // ── Save ──
+    saveBtn.addEventListener('click', async () => {
+      // Collect Ports
+      const finalPorts = [];
+      document.querySelectorAll('#portsList .dynamic-row').forEach(row => {
+        const val = row.querySelector('.port-input').value.trim();
+        const enabled = row.querySelector('input[type="checkbox"]').checked;
+        if (val) finalPorts.push(enabled ? val : `#${val}`);
+      });
+      const portsContent = finalPorts.join(', ');
+
+      // Collect Nodes
+      const finalNodes = [];
+      document.querySelectorAll('#nodesList .dynamic-row').forEach(row => {
+        const primary = row.querySelector('.node-primary').value.trim();
+        const tailscale = row.querySelector('.node-tailscale').value.trim();
+        const enabled = row.querySelector('input[type="checkbox"]').checked;
+        if (primary || tailscale) {
+          const lineStr = tailscale ? `${primary}, ${tailscale}` : primary;
+          finalNodes.push(enabled ? lineStr : `#${lineStr}`);
+        }
+      });
+      const nodesContent = finalNodes.join('\n');
+
+      const uploadTasks = [];
+      if (portsContent.trim() !== '') {
+        const portsBlob = new Blob([portsContent], { type: 'text/plain' });
+        uploadTasks.push(platformAPI.uploadFile(portsBlob, '/expandedstorage.txt', window.location.origin));
+      }
+      if (nodesContent.trim() !== '') {
+        const nodesBlob = new Blob([nodesContent], { type: 'text/plain' });
+        uploadTasks.push(platformAPI.uploadFile(nodesBlob, '/localexpanded.txt', window.location.origin));
+      }
+
+      if (uploadTasks.length === 0) {
+        setStatus('No changes to save (empty content).', 'warning');
+        return;
+      }
+
+      setStatus('Uploading…', '');
+      saveBtn.disabled = true;
+      try {
+        await Promise.all(uploadTasks);
+        setStatus('✅ Expanded settings saved!', 'success');
+        setTimeout(closeOverlay, 1500);
+      } catch (err) {
+        console.error('Upload failed:', err);
+        setStatus('❌ Upload failed: ' + err.message, 'error');
+        saveBtn.disabled = false;
+      }
+    });
+
+    // ──────────────────────────────────────────────────────────────
+    // ── NETWORK SCANNER (integrated from add-node.html) ──
+    // ──────────────────────────────────────────────────────────────
+
+    let scannerRunning = false;
+    let scannerStopped = false;
+    let scannerAbortController = null;
+    let scannerFoundServers = [];
+    let scannerScannedCount = 0;
+    const scannerTotalToScan = 254;
+    // Cache for custom server titles (keyed by IP)
+    const titleCache = {};
+
+    function scannerShowToast(msg, duration = 2000) {
+      setStatus('🔍 ' + msg, '');
     }
-  });
-  const portsContent = finalPorts.join(', ');
 
-  // Collect Nodes
-  const finalNodes = [];
-  document.querySelectorAll('#nodesList .dynamic-row').forEach(row => {
-    const primary = row.querySelector('.node-primary').value.trim();
-    const tailscale = row.querySelector('.node-tailscale').value.trim();
-    const enabled = row.querySelector('input[type="checkbox"]').checked;
-    if (primary || tailscale) {
-      const lineStr = tailscale ? `${primary}, ${tailscale}` : primary;
-      finalNodes.push(enabled ? lineStr : `#${lineStr}`);
+    // Fetch custom server title from profiles.js
+    async function fetchServerTitle(ip, proto, port) {
+      const url = `${proto}://${ip}:${port}/profiles.js`;
+      try {
+        const resp = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+        if (!resp.ok) return null;
+        const text = await resp.text();
+        // Extract window._customServerTitle = "..."
+        const match = text.match(/window\._customServerTitle\s*=\s*"([^"]*)"/);
+        if (match && match[1]) {
+          return match[1];
+        }
+        return null;
+      } catch (e) {
+        return null;
+      }
     }
-  });
-  const nodesContent = finalNodes.join('\n');
 
-  // Determine which files have content
-  const uploadTasks = [];
+    // Update a specific result item with its title (if available)
+    function updateResultItemTitle(ip, title) {
+      const items = scannerResultsList.querySelectorAll('.scanner-result-item');
+      for (const item of items) {
+        const ipSpan = item.querySelector('.ip');
+        if (ipSpan && ipSpan.textContent === ip) {
+          const titleSpan = item.querySelector('.title');
+          if (titleSpan) {
+            titleSpan.textContent = title ? `“${title}”` : '';
+            titleSpan.style.display = title ? 'inline' : 'none';
+          }
+          break;
+        }
+      }
+    }
 
-  if (portsContent.trim() !== '') {
-    const portsBlob = new Blob([portsContent], { type: 'text/plain' });
-    uploadTasks.push(
-      platformAPI.uploadFile(portsBlob, '/expandedstorage.txt', window.location.origin)
-    );
-  }
+    function scannerRenderResults() {
+      if (scannerFoundServers.length === 0) {
+        scannerResultsList.innerHTML = `
+          <div class="scanner-empty">
+            <span class="big-icon">🔍</span>
+            ${scannerRunning ? 'Scanning…' : 'No servers discovered yet.'}<br/>
+            ${scannerRunning ? 'Please wait…' : 'Click <strong>Start Scan</strong> to begin searching.'}
+          </div>
+        `;
+        return;
+      }
 
-  if (nodesContent.trim() !== '') {
-    const nodesBlob = new Blob([nodesContent], { type: 'text/plain' });
-    uploadTasks.push(
-      platformAPI.uploadFile(nodesBlob, '/localexpanded.txt', window.location.origin)
-    );
-  }
+      const sorted = [...scannerFoundServers].sort((a, b) => {
+        const aParts = a.ip.split('.').map(Number);
+        const bParts = b.ip.split('.').map(Number);
+        for (let i = 0; i < 4; i++) {
+          if (aParts[i] !== bParts[i]) return aParts[i] - bParts[i];
+        }
+        return 0;
+      });
 
-  if (uploadTasks.length === 0) {
-    setStatus('No changes to save (empty content).', 'warning');
-    return;
-  }
+      let html = '';
+      for (const entry of sorted) {
+        const protoClass = entry.proto === 'https' ? 'https' : 'http';
+        const protoLabel = entry.proto.toUpperCase();
+        const platformLabel = entry.platform || 'unknown';
+        const title = titleCache[entry.ip] || '';
+        const titleHtml = title ? `<span class="title">“${title}”</span>` : '<span class="title" style="display:none;"></span>';
+        html += `
+          <div class="scanner-result-item found">
+            <span class="status-icon">✅</span>
+            <span class="ip">${entry.ip}</span>
+            ${titleHtml}
+            <span class="proto ${protoClass}">${protoLabel}</span>
+            <span class="platform"><span class="tag">${platformLabel}</span></span>
+            <button class="action-btn add-btn" data-ip="${entry.ip}" title="Add to Local Expanded Nodes">➕</button>
+            <button class="action-btn copy-btn" data-ip="${entry.ip}" title="Copy IP">📋</button>
+          </div>
+        `;
+      }
+      scannerResultsList.innerHTML = html;
 
-  setStatus('Uploading…', '');
-  saveBtn.disabled = true;
+      // Add button handlers
+      scannerResultsList.querySelectorAll('.add-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const ip = this.dataset.ip;
+          addNodeRow(`http://${ip}`, '', false);
+          scannerShowToast(`➕ Added ${ip} to nodes list (disabled). Save to persist.`, 2000);
+        });
+      });
+      scannerResultsList.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const ip = this.dataset.ip;
+          navigator.clipboard?.writeText(ip).then(() => {
+            scannerShowToast(`📋 Copied ${ip}`, 1200);
+          }).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = ip;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (_) {}
+            document.body.removeChild(ta);
+            scannerShowToast(`📋 Copied ${ip}`, 1200);
+          });
+        });
+      });
+    }
 
-  try {
-    await Promise.all(uploadTasks);
-    setStatus('✅ Expanded settings saved!', 'success');
-    setTimeout(closeOverlay, 1500);
-  } catch (err) {
-    console.error('Upload failed:', err);
-    setStatus('❌ Upload failed: ' + err.message, 'error');
-    saveBtn.disabled = false;
-  }
-});
+    function scannerUpdateProgress(scanned, total) {
+      const pct = total > 0 ? Math.min(100, (scanned / total) * 100) : 0;
+      scannerProgressFill.style.width = pct + '%';
+      scannerProgressLabel.textContent = `${scanned} / ${total}`;
+    }
 
+    function scannerSetStatus(text, isHighlight = false) {
+      if (isHighlight) {
+        scannerStatusText.innerHTML = text;
+      } else {
+        scannerStatusText.textContent = text;
+      }
+    }
+
+    function scannerGetBaseIp() {
+      const a = parseInt(octet1.value) || 0;
+      const b = parseInt(octet2.value) || 0;
+      const c = parseInt(octet3.value) || 0;
+      return { a, b, c };
+    }
+
+    function scannerGetStartOctet() {
+      return parseInt(octet4.value) || 1;
+    }
+
+    function scannerBuildUrl(ip, proto, path = '') {
+      const port = parseInt(scannerPort.value) || 60064;
+      return `${proto}://${ip}:${port}${path}`;
+    }
+
+    function scannerIsValidOctet(v) {
+      const n = Number(v);
+      return Number.isInteger(n) && n >= 0 && n <= 255;
+    }
+
+    function scannerClamp(v, min, max) { return Math.min(Math.max(v, min), max); }
+
+    function scannerGetScanOrder(start) {
+      const order = [];
+      const maxVal = 254, minVal = 1;
+      order.push(start);
+      let offset = 1;
+      while (order.length < maxVal) {
+        const nextPlus = start + offset;
+        const nextMinus = start - offset;
+        if (nextPlus <= maxVal && !order.includes(nextPlus)) order.push(nextPlus);
+        if (nextMinus >= minVal && !order.includes(nextMinus)) order.push(nextMinus);
+        offset++;
+        if (offset > 255) break;
+      }
+      return order;
+    }
+
+    async function scannerCheckIp(ip, proto, signal) {
+      const url = scannerBuildUrl(ip, proto, '/platform.txt');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const mergedSignal = controller.signal;
+      if (signal) {
+        signal.addEventListener('abort', () => controller.abort());
+      }
+
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          cache: 'no-store',
+          signal: mergedSignal,
+          headers: { 'Accept': 'text/plain' }
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const text = await res.text();
+          const platform = text.trim().split(/\r?\n/)[0] || 'unknown';
+          return { ip, proto, platform, found: true };
+        }
+        return { ip, proto, found: false };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        return { ip, proto, found: false };
+      }
+    }
+
+    async function scannerRunScan() {
+      if (scannerRunning) return;
+
+      const base = scannerGetBaseIp();
+      if (!scannerIsValidOctet(base.a) || !scannerIsValidOctet(base.b) || !scannerIsValidOctet(base.c)) {
+        scannerShowToast('❌ Please enter valid IP octets (0–255)', 1800);
+        return;
+      }
+      const startOctet = scannerGetStartOctet();
+      if (!scannerIsValidOctet(startOctet) || startOctet < 1 || startOctet > 254) {
+        scannerShowToast('❌ Last octet must be between 1 and 254', 1800);
+        return;
+      }
+
+      scannerRunning = true;
+      scannerStopped = false;
+      scannerFoundServers = [];
+      scannerScannedCount = 0;
+      // Clear title cache for fresh scan
+      for (const key in titleCache) delete titleCache[key];
+
+      scannerAbortController = new AbortController();
+      const signal = scannerAbortController.signal;
+
+      scanBtn.disabled = true;
+      scanBtn.classList.add('scanning');
+      scanBtn.querySelector('.btn-text').textContent = 'Scanning…';
+      stopBtn.disabled = false;
+      clearBtn.disabled = true;
+
+      const baseStr = `${base.a}.${base.b}.${base.c}`;
+      const order = scannerGetScanOrder(startOctet);
+      scannerSetStatus(`🔄 Scanning from <span class="highlight">${baseStr}.${startOctet}</span> on port <span class="highlight">${scannerPort.value}</span>`, true);
+      scannerRenderResults();
+      scannerUpdateProgress(0, scannerTotalToScan);
+
+      const CONCURRENCY = 10;
+      const queue = [...order];
+      const workers = [];
+
+      async function worker() {
+        while (queue.length > 0 && !scannerStopped && !signal.aborted) {
+          const oct = queue.shift();
+          if (oct === undefined) break;
+          const ip = `${baseStr}.${oct}`;
+
+          const httpPromise = scannerCheckIp(ip, 'http', signal);
+          const httpsPromise = scannerCheckIp(ip, 'https', signal);
+
+          let httpResult = null, httpsResult = null;
+          try {
+            [httpResult, httpsResult] = await Promise.allSettled([httpPromise, httpsPromise]);
+          } catch (err) {
+            if (err.name === 'AbortError') break;
+          }
+
+          scannerScannedCount++;
+          scannerUpdateProgress(scannerScannedCount, scannerTotalToScan);
+
+          // Helper to handle a successful detection
+          const handleDetection = (result, proto) => {
+            if (result && result.status === 'fulfilled' && result.value && result.value.found) {
+              const { ip, platform } = result.value;
+              scannerFoundServers.push({ ip, proto, platform });
+              scannerRenderResults();
+
+              // Fetch custom title in background (only once per IP)
+              if (!titleCache[ip]) {
+                (async () => {
+                  const title = await fetchServerTitle(ip, proto, parseInt(scannerPort.value) || 60064);
+                  if (title) {
+                    titleCache[ip] = title;
+                    updateResultItemTitle(ip, title);
+                    // Also update the entry in the array (optional)
+                  } else {
+                    titleCache[ip] = null; // mark as fetched
+                  }
+                })();
+              }
+            }
+          };
+
+          handleDetection(httpResult, 'http');
+          handleDetection(httpsResult, 'https');
+
+          if (scannerScannedCount % 5 === 0 || scannerScannedCount === scannerTotalToScan) {
+            scannerSetStatus(`🔍 Scanning ${ip} …  <span class="found-count">${scannerFoundServers.length} found</span>`, true);
+          }
+        }
+      }
+
+      const workerCount = Math.min(CONCURRENCY, order.length);
+      for (let i = 0; i < workerCount; i++) workers.push(worker());
+
+      await Promise.allSettled(workers);
+
+      scannerRunning = false;
+      scanBtn.disabled = false;
+      scanBtn.classList.remove('scanning');
+      scanBtn.querySelector('.btn-text').textContent = '▶ Start Scan';
+      stopBtn.disabled = true;
+      clearBtn.disabled = false;
+
+      if (scannerStopped) {
+        scannerSetStatus(`⏹ Scan stopped. ${scannerFoundServers.length} server${scannerFoundServers.length !== 1 ? 's' : ''} found.`, true);
+      } else {
+        scannerSetStatus(`✅ Scan complete. ${scannerFoundServers.length} server${scannerFoundServers.length !== 1 ? 's' : ''} found.`, true);
+      }
+      scannerUpdateProgress(scannerScannedCount, scannerTotalToScan);
+      scannerRenderResults();
+
+      if (scannerFoundServers.length === 0 && !scannerStopped) {
+        scannerShowToast(`🔍 No LibraryJS servers found on port ${scannerPort.value} in this subnet.`, 2500);
+      }
+    }
+
+    function scannerStopScan() {
+      if (!scannerRunning) return;
+      scannerStopped = true;
+      if (scannerAbortController) {
+        scannerAbortController.abort();
+        scannerAbortController = null;
+      }
+      scannerRunning = false;
+      scanBtn.disabled = false;
+      scanBtn.classList.remove('scanning');
+      scanBtn.querySelector('.btn-text').textContent = '▶ Start Scan';
+      stopBtn.disabled = true;
+      clearBtn.disabled = false;
+      scannerSetStatus(`⏹ Scan stopped. ${scannerFoundServers.length} server${scannerFoundServers.length !== 1 ? 's' : ''} found.`, true);
+    }
+
+    function scannerClearResults() {
+      if (scannerRunning) return;
+      scannerFoundServers = [];
+      scannerScannedCount = 0;
+      for (const key in titleCache) delete titleCache[key];
+      scannerUpdateProgress(0, scannerTotalToScan);
+      scannerRenderResults();
+      scannerSetStatus('Ready — press <span class="highlight">Start Scan</span> to begin', true);
+      clearBtn.disabled = true;
+    }
+
+    // ── Scanner event listeners ──
+    scanBtn.addEventListener('click', scannerRunScan);
+    stopBtn.addEventListener('click', scannerStopScan);
+    clearBtn.addEventListener('click', scannerClearResults);
+
+    // detect IP
+    (function scannerDetectIp() {
+      try {
+        const host = window.location.hostname;
+        if (host) {
+          const parts = host.split('.');
+          if (parts.length === 4 && parts.every(p => /^\d+$/.test(p))) {
+            const nums = parts.map(Number);
+            if (nums.every(n => n >= 0 && n <= 255)) {
+              octet1.value = nums[0];
+              octet2.value = nums[1];
+              octet3.value = nums[2];
+              octet4.value = nums[3];
+            }
+          }
+        }
+      } catch(e) {}
+    })();
+
+    // Clamp octets on blur
+    document.querySelectorAll('.scanner-ip-row .octet').forEach(inp => {
+      inp.addEventListener('blur', () => {
+        let v = parseInt(inp.value);
+        if (isNaN(v)) v = 0;
+        v = scannerClamp(v, 0, 255);
+        inp.value = v;
+      });
+    });
+
+    // Keyboard shortcut: Escape to stop
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && scannerRunning) {
+        scannerStopScan();
+        scannerShowToast('⏹ Scan stopped', 1000);
+      }
+    });
+
+    // ── Initial scanner state ──
+    scannerRenderResults();
+    clearBtn.disabled = true;
+    stopBtn.disabled = true;
+
+    console.log('[expandedsettings] Integrated network scanner ready.');
   })();
 </script>
 </body>

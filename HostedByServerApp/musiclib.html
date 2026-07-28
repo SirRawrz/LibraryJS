@@ -1,10 +1,11 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Music Library Manager</title>
+<!-- Include platform detection -->
+<script src="./loadplatform.js"></script>
 <style>
   :root {
     --bg: #0c1018;
@@ -723,13 +724,20 @@ Stressed Out - Twenty One Pilots$A
     return window.location.origin || '';
   }
 
-  function uploadTargetUrl(url) {
-    const raw = String(url || '').trim();
-    if (!raw) return '';
-    if (/^https?:\/\//i.test(raw)) return raw;
-    const base = getConfiguredStorageBaseUrl();
-    if (!base) return raw;
-    return new URL(raw, base.endsWith('/') ? base : `${base}/`).href;
+  // Platform-aware upload using loadplatform.js
+  async function platformUpload(file, targetPath, onProgress) {
+    const baseUrl = window.location.origin;
+    // Wait for platformAPI to be available (it's loaded via loadplatform.js)
+    if (!window.platformAPI) {
+      throw new Error('platformAPI not loaded. Please include loadplatform.js.');
+    }
+    // Determine the platform
+    const platform = await window.platformAPI.getPlatform(baseUrl);
+    // Build the absolute server path
+    const cleanPath = targetPath.startsWith('/') ? targetPath : '/' + targetPath;
+    // Use platformAPI.uploadFile
+    const result = await window.platformAPI.uploadFile(file, cleanPath, baseUrl, onProgress);
+    return result;
   }
 
   function setFlowStatus(message, kind = '') {
@@ -829,6 +837,24 @@ Stressed Out - Twenty One Pilots$A
     return new File([blob], fileName, { type });
   }
 
+  // NEW: fetch audio from server proxy
+  async function fetchAudioFromProxy(sourceUrl, proxyUrl) {
+    const response = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: sourceUrl,
+        method: 'GET',
+        responseType: 'blob'
+      })
+    });
+    if (!response.ok) {
+      throw new Error(`Proxy fetch failed: HTTP ${response.status}`);
+    }
+    const blob = await response.blob();
+    return blob;
+  }
+
   function clampProgress(value) {
     const n = Number(value);
     if (!Number.isFinite(n)) return 0;
@@ -877,7 +903,17 @@ Stressed Out - Twenty One Pilots$A
     try {
       setFlowActivity('busy', { phase: 'Importing stream', progress: 72, title: 'MusicLib receiving file…' });
       updateFlowProgress(72, 'Receiving stream', 'Downloading the source file into MusicLib.', 'Importing');
-      const file = await makeFileFromTransfer(payload);
+
+      let file;
+      if (payload.sourceUrl && payload.proxyUrl) {
+        // Use the server proxy to download the audio
+        const blob = await fetchAudioFromProxy(payload.sourceUrl, payload.proxyUrl);
+        const fileName = sanitizeText(payload.fileName || payload.filename || 'audio.mp3');
+        file = new File([blob], fileName, { type: blob.type || 'audio/mpeg' });
+      } else {
+        file = await makeFileFromTransfer(payload);
+      }
+
       applyFlowAudio(file);
       setFlowStatus(`Received <strong>${escapeHtml(file.name)}</strong> from the extension.`, 'good');
       updateFlowProgress(100, 'Import complete', `Loaded ${file.name} into the flow page.`, 'Ready');
@@ -1116,34 +1152,17 @@ Stressed Out - Twenty One Pilots$A
     return { file, originalName: file.name, converted: false };
   }
 
-  async function uploadBinaryToUrl(file, url) {
-    const requestUrl = uploadTargetUrl(url);
-    let response;
-    try {
-      response = await fetch(requestUrl, { method: 'PUT', body: file, credentials: 'omit' });
-    } catch (fetchErr) {
-      response = await new Promise((resolve, reject) => {
-        try {
-          const xhr = new XMLHttpRequest();
-          xhr.open('PUT', requestUrl, true);
-          xhr.withCredentials = false;
-          xhr.onload = () => resolve({
-            ok: xhr.status >= 200 && xhr.status < 300,
-            status: xhr.status,
-            statusText: xhr.statusText,
-            text: async () => xhr.responseText || ''
-          });
-          xhr.onerror = () => reject(fetchErr || new Error('Failed to fetch'));
-          xhr.send(file);
-        } catch (xhrErr) {
-          reject(xhrErr);
-        }
-      });
+  // Platform-aware upload
+  async function uploadWithPlatform(file, targetPath, onProgress) {
+    const baseUrl = window.location.origin;
+    if (!window.platformAPI) {
+      throw new Error('platformAPI not loaded. Please include loadplatform.js.');
     }
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`${response.status} ${response.statusText}${body ? ` — ${body.slice(0, 160)}` : ''}`);
-    }
+    // The targetPath should be a server path like "/Music/song.mp3"
+    const cleanPath = targetPath.startsWith('/') ? targetPath : '/' + targetPath;
+    // Use platformAPI.uploadFile – it will handle the platform-specific endpoint
+    const result = await window.platformAPI.uploadFile(file, cleanPath, baseUrl, onProgress);
+    return result;
   }
 
   function encodeUploadSegment(segment) {
@@ -1222,7 +1241,9 @@ Stressed Out - Twenty One Pilots$A
     const uploaded = [];
     for (const item of tasks) {
       setFlowStatus(`Uploading ${item.label}: <strong>${escapeHtml(item.sourceName || item.file.name)}</strong>…`);
-      await uploadBinaryToUrl(item.file, item.targetUrl);
+      await uploadWithPlatform(item.file, item.targetPath, (loaded, total) => {
+        // optional progress callback
+      });
       uploaded.push(item);
     }
     return uploaded;
@@ -1546,7 +1567,8 @@ Stressed Out - Twenty One Pilots$A
 
 
   window.addEventListener('message', (event) => {
-    if (event.source !== window) return;
+    // Allow window.parent to support the Android iframe architecture
+    if (event.source !== window && event.source !== window.parent) return; 
     const data = event.data;
     if (!data || data.source !== 'UD_EXT') return;
     if (data.type === 'UD_FLOW_IMPORT') {
@@ -1956,6 +1978,8 @@ Stressed Out - Twenty One Pilots$A
     await renderLibrary();
     await renderPreview();
     updateCounts();
+    // Re‑sync the parent modal controls after refresh
+    syncManagedFlowControls();
   }
 
   function closeMusicLibTabSoon(delayMs = 250) {
@@ -2020,19 +2044,30 @@ Stressed Out - Twenty One Pilots$A
   async function saveMusicLibraryToServer({ closeAfterSave = false } = {}) {
     const text = $('outputText').value || buildOutputText(state.entries);
     const baseUrl = await getServerBaseUrl();
-    const targetUrl = new URL('./musiclibrary.js', baseUrl).href;
-
+    const targetPath = '/musiclibrary.js';
     try {
       setOutputStatus('Saving musiclibrary.js to server...');
-      await uploadBinaryToUrl(new Blob([text], { type: 'text/javascript;charset=utf-8' }), targetUrl);
-      setOutputStatus(`musiclibrary.js updated on server at ${targetUrl}.`);
+      await uploadWithPlatform(new Blob([text], { type: 'text/javascript;charset=utf-8' }), targetPath);
+      setOutputStatus(`musiclibrary.js updated on server.`);
       closeExportModal();
-      if (closeAfterSave) closeMusicLibTabSoon();
+      if (closeAfterSave && !MANAGED_FLOW_MODE) {
+        closeMusicLibTabSoon();
+      }
       return true;
     } catch (err) {
       setOutputStatus(`Could not update musiclibrary.js: ${err.message}`, 'bad');
       return false;
     }
+  }
+
+  // ---- postFlowMessage for parent communication ----
+  function postFlowMessage(type) {
+    const payload = { type };
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+    } catch {}
   }
 
   function downloadOutput() {
@@ -2100,6 +2135,8 @@ Stressed Out - Twenty One Pilots$A
       }
 
       if (flowMode === 'audiobook') {
+        // For audiobook, we just upload and finish
+        postFlowMessage('lib-flow-complete');
         return;
       }
 
@@ -2112,7 +2149,11 @@ Stressed Out - Twenty One Pilots$A
         $('outputText').value = buildOutputText(state.entries);
         await refreshAll();
         const saved = await saveMusicLibraryToServer({ closeAfterSave: true });
-        if (!saved) openExportModal();
+        if (saved) {
+          postFlowMessage('lib-flow-complete');
+        } else {
+          openExportModal();
+        }
       }
     };
 
@@ -2146,6 +2187,12 @@ Stressed Out - Twenty One Pilots$A
         clearFlowFiles();
         $('outputText').value = buildOutputText(state.entries);
         await refreshAll();
+        const saved = await saveMusicLibraryToServer({ closeAfterSave: true });
+        if (saved) {
+          postFlowMessage('lib-flow-complete');
+        } else {
+          openExportModal();
+        }
       }
     };
 
@@ -2265,6 +2312,24 @@ Stressed Out - Twenty One Pilots$A
         hideFlowProgress();
         setFlowActivity('idle', { phase: 'Manager flow ready', progress: 100, title: 'MusicLib quick add' });
       } else {
+        // Send UD_FLOW_READY to the extension to request the transfer payload
+        const transferId = flowParams.get('transferId') || '';
+        const sourceUrl = flowParams.get('sourceUrl') || '';
+        const proxyUrl = flowParams.get('musicProxyUrl') || '';
+        try {
+          window.postMessage({
+            source: 'UD_PAGE',
+            type: 'UD_FLOW_READY',
+            payload: {
+              transferId,
+              sourceUrl,
+              proxyUrl,
+              pageUrl: window.location.href
+            }
+          }, '*');
+        } catch (e) {
+          // ignore
+        }
         updateFlowProgress(6, 'Waiting for handoff', 'The extension will pass the downloaded stream into this page.', 'Idle');
         setFlowActivity('busy', { phase: 'Waiting for handoff', progress: 6, title: 'MusicLib receiving file…' });
       }

@@ -1,17 +1,15 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>📚 Library Manager</title>
-  <!-- Include the expanded scripts so they can populate globals for other pages,
-       but the manager will use its own fetch/merge logic. -->
-  <script src="./loadexpanded.js"></script>
-  <script src="./loadlocalexpanded.js"></script>
-  <!-- ===== ADD THIS LINE TO LOAD PLATFORM API ===== -->
+  <!-- ===== ONLY load platform API – remote scripts are loaded dynamically ===== -->
   <script src="./loadplatform.js"></script>
   <!-- ============================================= -->
   <style>
+    /* (all existing styles unchanged) */
     :root {
       --bg: #0d1117;
       --panel: #111827;
@@ -40,9 +38,8 @@
     }
     .container { max-width: 1600px; margin: 0 auto; }
 
-    /* ==== ADDED: position relative for wifi button ==== */
     .header {
-      position: relative; /* <-- ADDED */
+      position: relative;
       display: flex;
       align-items: stretch;
       justify-content: space-between;
@@ -58,29 +55,27 @@
       min-width: 0;
     }
 
-    /* ==== ADDED: Wi‑Fi button styles ==== */
     .wifi-btn {
-  position: fixed;
-  top: 6px;
-  right: 6px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.15);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 100000;
-  transition: transform 0.15s, background 0.15s;
-}
+      position: fixed;
+      top: 6px;
+      right: 6px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 100000;
+      transition: transform 0.15s, background 0.15s;
+    }
     .wifi-btn:focus { outline: 2px solid rgba(47,140,255,0.6); }
     .wifi-btn svg { width:18px; height:18px; fill:#ddd; }
 
-    /* ==== ADDED: Wi‑Fi overlay styles ==== */
     #wifiOverlay {
       position: fixed;
       inset: 0;
@@ -115,7 +110,6 @@
     }
     #wifiOverlay .close-wifi:hover { opacity: 1; }
 
-    /* ==== ADDED: Expanded Settings (SD) overlay ==== */
     #expandedSettingsOverlay {
       position: fixed;
       inset: 0;
@@ -150,7 +144,6 @@
     }
     #expandedSettingsOverlay .close-settings:hover { opacity: 1; }
 
-    /* ==== rest of existing styles (unchanged) ==== */
     .header-home,
     .header-brand {
       display: flex;
@@ -532,7 +525,6 @@
     .footnote { margin-top: 12px; font-size: 13px; color: var(--muted); }
     .flex { display: flex; gap: 8px; align-items: center; }
 
-    /* Expanded dropdown */
     .expanded-dropdown {
       display: none;
       position: absolute;
@@ -564,7 +556,6 @@
     }
     .toolbar .btn-wrapper { position: relative; }
 
-    /* Wrapper for Expanded button + SD button */
     .expanded-group {
       position: relative;
       display: inline-flex;
@@ -658,8 +649,6 @@
     .btn.hidden,
     .footnote.hidden { display: none !important; }
 
-
-    /* Modal styles */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -933,6 +922,46 @@
       background: rgba(52,211,153,0.12);
       color: var(--ok);
     }
+
+    /* ---- Source filter bar styles ---- */
+    #sourceFilterBar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      align-items: center;
+      margin-right: 12px;
+      padding: 2px 0;
+    }
+    .source-dot-filter {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: background 0.15s;
+      user-select: none;
+      font-size: 12px;
+      color: #e5e7eb;
+    }
+    .source-dot-filter:hover {
+      background: rgba(255,255,255,0.06);
+    }
+    .source-dot-filter .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .source-dot-filter .label {
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .source-dot-filter.disabled {
+      opacity: 0.4;
+      text-decoration: line-through;
+    }
   </style>
 </head>
 <body>
@@ -952,149 +981,55 @@
       </button>
 
       <button class="btn btn-primary btn-small repair-batch-launch hidden"
-              id="runBatchRepairBtn"
-              type="button">
-        Run Batch Repair
-      </button>
-
+              id="runBatchRepairBtn" type="button">Run Batch Repair</button>
       <button class="btn btn-primary btn-small repair-batch-launch hidden"
-              id="runBatchFetchSubsBtn"
-              type="button">
-        Fetch Subs
-      </button>
-
+              id="runBatchFetchSubsBtn" type="button">Fetch Subs</button>
       <button class="btn btn-primary btn-small repair-batch-launch hidden"
-              id="runBatchSubsBtn"
-              type="button">
-        Generate Subs
-      </button>
+              id="runBatchSubsBtn" type="button">Generate Subs</button>
     </div>
 
     <!-- Center -->
     <div class="controls">
 
       <div class="controls-row primary">
-
-        <button class="btn btn-primary hidden" id="nestCollectionBtn">
-          Nest Collection
-        </button>
-
-        <button class="btn btn-primary hidden" id="genreContentBtn">
-          Genres
-        </button>
-
-        <button class="btn btn-primary hidden" id="addContentBtn">
-          <span class="btn-icon">➕</span> <span class="btn-label">Add Video</span>
-        </button>
-
-        <button class="btn" id="reloadBtn">
-          <span class="btn-icon">🔄</span> <span class="btn-label">Reload</span>
-        </button>
-
-        <button class="btn btn-secondary" id="browseShellsBtn" title="Shells">
-          <span class="btn-icon">📦</span> <span class="btn-label">Shells</span>
-        </button>
-        <button class="btn btn-secondary" id="backupBtn"
-                title="Backup Library">
-          <span class="btn-icon">💾</span> <span class="btn-label">Backup</span>
-        </button>
-
-        <button class="btn btn-secondary" id="restoreBtn"
-                title="Restore Library">
-          <span class="btn-icon">♻️</span> <span class="btn-label">Restore</span>
-        </button>
-
+        <button class="btn btn-primary hidden" id="nestCollectionBtn">Nest Collection</button>
+        <button class="btn btn-primary hidden" id="genreContentBtn">Genres</button>
+        <button class="btn btn-primary hidden" id="addContentBtn"><span class="btn-icon">➕</span> <span class="btn-label">Add Video</span></button>
+        <button class="btn" id="reloadBtn"><span class="btn-icon">🔄</span> <span class="btn-label">Reload</span></button>
+        <button class="btn btn-secondary" id="browseShellsBtn" title="Shells"><span class="btn-icon">📦</span> <span class="btn-label">Shells</span></button>
+        <button class="btn btn-secondary" id="backupBtn" title="Backup Library"><span class="btn-icon">💾</span> <span class="btn-label">Backup</span></button>
+        <button class="btn btn-secondary" id="restoreBtn" title="Restore Library"><span class="btn-icon">♻️</span> <span class="btn-label">Restore</span></button>
       </div>
 
       <div class="controls-row secondary">
-
-        <button class="btn btn-primary" id="scanAllVideosBtn">
-          <span class="btn-icon">🎥</span> <span class="btn-label">Scan Videos</span>
-        </button>
-
-        <button class="btn btn-warn" id="scanAllSubsBtn">
-          <span class="btn-icon">📝</span> <span class="btn-label">Scan Subs</span>
-        </button>
-
-        <button class="btn" id="pauseResumeBtn" disabled>
-          <span class="btn-icon">⏸</span> <span class="btn-label">Pause</span>
-        </button>
-
-        <button class="btn" id="stopScanBtn" disabled>
-          <span class="btn-icon">⏹</span> <span class="btn-label">Stop</span>
-        </button>
-
+        <button class="btn btn-primary" id="scanAllVideosBtn"><span class="btn-icon">🎥</span> <span class="btn-label">Scan Videos</span></button>
+        <button class="btn btn-warn" id="scanAllSubsBtn"><span class="btn-icon">📝</span> <span class="btn-label">Scan Subs</span></button>
+        <button class="btn" id="pauseResumeBtn" disabled><span class="btn-icon">⏸</span> <span class="btn-label">Pause</span></button>
+        <button class="btn" id="stopScanBtn" disabled><span class="btn-icon">⏹</span> <span class="btn-label">Stop</span></button>
       </div>
 
     </div>
 
     <!-- Right -->
     <div class="header-brand">
-
       <div class="brand-copy">
-
-        <h1 id="libraryTitleText">
-          Video Library Manager
-        </h1>
-
+        <h1 id="libraryTitleText">Video Library Manager</h1>
         <div class="brand-subrow">
-
-          <div class="brand-sub" id="headerSubtitle">
-            Video • Music • Games • Books &amp; Manga • Pausable scans
-          </div>
-
+          <div class="brand-sub" id="headerSubtitle">Video • Music • Games • Books &amp; Manga • Pausable scans</div>
           <div class="library-switcher title-switcher" id="librarySwitcher">
-
-            <button class="library-hub"
-                    id="libraryHub"
-                    aria-label="Switch library"
-                    title="Switch library">
-              📺
-            </button>
-
-            <div class="library-wheel"
-                 id="libraryWheel"
-                 aria-hidden="true">
-
-              <button class="library-wheel-btn"
-                      data-library="video"
-                      data-pos="nw"
-                      title="Video">
-                📺
-              </button>
-
-              <button class="library-wheel-btn"
-                      data-library="music"
-                      data-pos="ne"
-                      title="Music">
-                🎵
-              </button>
-
-              <button class="library-wheel-btn"
-                      data-library="games"
-                      data-pos="se"
-                      title="Games">
-                🎮
-              </button>
-
-              <button class="library-wheel-btn"
-                      data-library="books"
-                      data-pos="sw"
-                      title="Books & Manga">
-                📚
-              </button>
-
+            <button class="library-hub" id="libraryHub" aria-label="Switch library" title="Switch library">📺</button>
+            <div class="library-wheel" id="libraryWheel" aria-hidden="true">
+              <button class="library-wheel-btn" data-library="video" data-pos="nw" title="Video">📺</button>
+              <button class="library-wheel-btn" data-library="music" data-pos="ne" title="Music">🎵</button>
+              <button class="library-wheel-btn" data-library="games" data-pos="se" title="Games">🎮</button>
+              <button class="library-wheel-btn" data-library="books" data-pos="sw" title="Books & Manga">📚</button>
             </div>
-
           </div>
-
         </div>
-
       </div>
-
     </div>
 
-    <!-- ===== ADDED: Wi‑Fi button ===== -->
+    <!-- Wi‑Fi button -->
     <div class="wifi-btn" id="wifiBtn" role="button" aria-haspopup="dialog" aria-label="Wi‑Fi Settings" title="Wi‑Fi Settings" style="display:none;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M5 12.55a11 11 0 0 1 14.08 0" />
@@ -1123,71 +1058,68 @@
     .observe(document.querySelector(".header"));
   requestAnimationFrame(updateResponsiveButtons);
 </script>
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-label" id="totalEpisodesLabel">Total episodes</div>
-      <div class="stat-value" id="totalEpisodes">—</div>
-    </div>
-    <div class="stat-card clickable" id="missingVideosCard">
-      <div class="stat-label">Videos missing</div>
-      <div class="stat-value" id="missingVideos" style="color: var(--danger);">—</div>
-    </div>
-    <div class="stat-card clickable" id="missingSubsCard">
-      <div class="stat-label">Subtitles missing</div>
-      <div class="stat-value" id="missingSubtitles" style="color: var(--warn);">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Scanned / Total</div>
-      <div class="stat-value" id="scanProgress">0 / 0</div>
-    </div>
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label" id="totalEpisodesLabel">Total episodes</div>
+    <div class="stat-value" id="totalEpisodes">—</div>
   </div>
-
-  <div class="progress-container"><div class="progress-bar" id="progressBar"></div><div class="progress-label" id="progressLabel">0 / 0</div></div>
-  <div id="statusMessage" class="footnote" style="margin-bottom: 8px;">Ready. Load library and start scanning.</div>
-
-  <div class="toolbar">
-    <input type="text" id="searchInput" class="search-input" placeholder="🔎 Filter by show, season, or filename…" />
-    <button class="btn" id="expandAllBtn">📂 Show all</button>
-    <button class="btn" id="collapseAllBtn">📁 Collapse all</button>
-    <span class="badge muted" id="visibleCount">—</span>
-
-    <!-- Expanded button, SD button, and dropdown -->
-    <div class="expanded-group">
-      <button class="btn" id="expandedBtn">Expanded</button><button class="btn btn-sd" id="expandedSettingsBtn" title="Expanded Settings" aria-label="Expanded Settings">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block;">
-    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-    <line x1="6" y1="6" x2="6.01" y2="6"></line>
-    <line x1="6" y1="18" x2="6.01" y2="18"></line>
-  </svg>
-</button>
-      <div id="expandedDropdown" class="expanded-dropdown">
-        <label><input type="checkbox" id="chkExpanded" /> Expanded Port</label>
-        <label><input type="checkbox" id="chkLocal" /> Local Expanded</label>
-      </div>
-    </div>
+  <div class="stat-card clickable" id="missingVideosCard">
+    <div class="stat-label">Videos missing</div>
+    <div class="stat-value" id="missingVideos" style="color: var(--danger);">—</div>
   </div>
-
-  <div class="tree-container">
-    <div class="tree" id="tree"></div>
+  <div class="stat-card clickable" id="missingSubsCard">
+    <div class="stat-label">Subtitles missing</div>
+    <div class="stat-value" id="missingSubtitles" style="color: var(--warn);">—</div>
   </div>
-  <div class="footnote">* Subtitle check replaces .mp4 with .vtt (same path)</div>
+  <div class="stat-card">
+    <div class="stat-label">Scanned / Total</div>
+    <div class="stat-value" id="scanProgress">0 / 0</div>
+  </div>
 </div>
 
-<!-- Modal for Manager list -->
+<div class="progress-container"><div class="progress-bar" id="progressBar"></div><div class="progress-label" id="progressLabel">0 / 0</div></div>
+<div id="statusMessage" class="footnote" style="margin-bottom: 8px;">Ready. Load library and start scanning.</div>
+
+<div class="toolbar">
+  <input type="text" id="searchInput" class="search-input" placeholder="🔎 Filter by show, season, or filename…" />
+
+  <!-- SOURCE FILTER BAR -->
+  <div id="sourceFilterBar"></div>
+
+  <button class="btn" id="expandAllBtn">📂 Show all</button>
+  <button class="btn" id="collapseAllBtn">📁 Collapse all</button>
+  <span class="badge muted" id="visibleCount">—</span>
+
+  <div class="expanded-group">
+    <button class="btn" id="expandedBtn">Expanded</button>
+    <button class="btn btn-sd" id="expandedSettingsBtn" title="Expanded Settings" aria-label="Expanded Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block;">
+        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+        <line x1="6" y1="6" x2="6.01" y2="6"></line>
+        <line x1="6" y1="18" x2="6.01" y2="18"></line>
+      </svg>
+    </button>
+    <div id="expandedDropdown" class="expanded-dropdown">
+      <label><input type="checkbox" id="chkExpanded" /> Expanded Port</label>
+      <label><input type="checkbox" id="chkLocal" /> Local Expanded</label>
+    </div>
+  </div>
+</div>
+
+<div class="tree-container">
+  <div class="tree" id="tree"></div>
+</div>
+<div class="footnote">* Subtitle check replaces .mp4 with .vtt (same path)</div>
+
+<!-- Modals -->
 <div id="missingModal" class="modal-overlay" style="display: none;">
   <div class="modal">
-    <div class="modal-header">
-      <h3 id="modalTitle">Manager</h3>
-      <button class="modal-close" id="closeModalBtn">&times;</button>
-    </div>
-    <div class="modal-body" id="modalBody">
-      <!-- dynamic content -->
-    </div>
+    <div class="modal-header"><h3 id="modalTitle">Manager</h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
+    <div class="modal-body" id="modalBody"></div>
   </div>
 </div>
 
-<!-- Modal for ffmpeg repair -->
 <div id="repairModal" class="modal-overlay" style="display: none;">
   <div class="modal repair-modal">
     <div class="modal-header">
@@ -1199,7 +1131,6 @@
   </div>
 </div>
 
-<!-- Modal for add-content flow -->
 <div id="addContentModal" class="modal-overlay" style="display: none;">
   <div class="modal add-modal">
     <div class="modal-header">
@@ -1211,20 +1142,178 @@
   </div>
 </div>
 
-<!-- ===== ADDED: Wi‑Fi overlay ===== -->
 <div id="wifiOverlay">
   <button class="close-wifi" id="closeWifiBtn" aria-label="Close Wi‑Fi settings">&times;</button>
   <iframe id="wifiIframe" src="./wifisettings.html" allow="fullscreen"></iframe>
 </div>
 
-<!-- ===== ADDED: Expanded Settings (SD) overlay ===== -->
 <div id="expandedSettingsOverlay">
   <button class="close-settings" id="closeSettingsBtn" aria-label="Close Expanded Settings">&times;</button>
   <iframe id="settingsIframe" src="./expandedsettings.html" allow="fullscreen"></iframe>
 </div>
 
 <script>
+// ================================================================
+// SOURCE FILTER – read from window.__availableSources, build dots, filter items
+// ================================================================
+
+// Global state: map sourceId -> enabled
+window.__sourceFilterState = {};
+
+// Source list (will be populated from window.__availableSources)
+window.__sourceList = [];
+
+// Get a color for a source (consistent across all items)
+function getSourceColor(sourceId) {
+  if (!sourceId) return '#cccccc';
+  let hash = 0;
+  for (let i = 0; i < sourceId.length; i++) {
+    hash = sourceId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  hash = Math.abs(hash);
+  const colors = [
+    '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
+    '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4',
+    '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000',
+    '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9'
+  ];
+  return colors[hash % colors.length];
+}
+
+function isSourceEnabledForNode(node) {
+  if (!node) return true;
+  const origin = node._origin || 'local';
+  // If no filter state or all sources enabled, everything visible
+  if (Object.keys(window.__sourceFilterState).length === 0) return true;
+  // Check if any enabled source matches this node's origin
+  for (const [id, enabled] of Object.entries(window.__sourceFilterState)) {
+    if (!enabled) continue;
+    const src = window.__sourceList.find(s => s.id === id);
+    if (!src) continue;
+    // Match: if the node's origin equals this source's origin, or starts with it (for subpaths)
+    if (origin === src.origin || (typeof origin === 'string' && origin.startsWith(src.origin))) {
+      return true;
+    }
+    // Special: if node origin is 'local' and source is server-origin (or vice versa)
+    if (origin === 'local' && (src.id === 'server-origin' || src.id === 'server')) return true;
+  }
+  return false;
+}
+
+// Build the source filter bar from window.__availableSources (populated by loadexpanded.js)
+async function buildSourceFilter() {
+  const bar = document.getElementById('sourceFilterBar');
+  if (!bar) return;
+  bar.innerHTML = '';
+
+  // Wait for __availableSources to be set
+  let sources = window.__availableSources;
+  if (!sources || !Array.isArray(sources) || sources.length === 0) {
+    // Fallback: try to read from config files directly (for compatibility)
+    sources = [];
+    const serverOrigin = window.location.origin;
+    sources.push({ id: 'server-origin', label: 'Server', origin: serverOrigin });
+    // Read expandedstorage.txt
+    try {
+      const res = await fetch('./expandedstorage.txt', { cache: 'no-store' });
+      if (res.ok) {
+        const text = await res.text();
+        const entries = text.split(/[\s,;|]+/).map(s => s.trim()).filter(s => s && !s.startsWith('#'));
+        for (const entry of entries) {
+          let origin = entry;
+          if (!/^https?:\/\//i.test(origin)) {
+            origin = `${window.location.protocol}//${window.location.hostname}:${entry}`;
+          }
+          sources.push({ id: `expanded-${entry}`, label: `Expanded: ${entry}`, origin });
+        }
+      }
+    } catch (e) {}
+    // Read localexpanded.txt
+    try {
+      const res = await fetch('./localexpanded.txt', { cache: 'no-store' });
+      if (res.ok) {
+        const text = await res.text();
+        const lines = text.split('\n').map(s => s.trim()).filter(s => s && !s.startsWith('#'));
+        for (const line of lines) {
+          let origin = line;
+          if (!/^https?:\/\//i.test(origin)) {
+            origin = `http://${origin}`;
+          }
+          sources.push({ id: `local-${origin}`, label: `Node: ${origin}`, origin });
+        }
+      }
+    } catch (e) {}
+    window.__sourceList = sources;
+  } else {
+    window.__sourceList = sources;
+  }
+
+  // Initialize state: all enabled by default
+  window.__sourceList.forEach(src => {
+    window.__sourceFilterState[src.id] = true;
+  });
+
+  // Render dots
+  window.__sourceList.forEach(src => {
+    const dot = document.createElement('span');
+    dot.className = 'source-dot-filter';
+    dot.dataset.id = src.id;
+    const color = getSourceColor(src.id);
+    dot.innerHTML = `
+      <span class="dot" style="background:${color};"></span>
+      <span class="label">${src.label}</span>
+    `;
+    dot.addEventListener('click', () => {
+      // Toggle
+      const newState = !window.__sourceFilterState[src.id];
+      window.__sourceFilterState[src.id] = newState;
+      dot.classList.toggle('disabled', !newState);
+      // Re-render tree and update counts
+      renderTree();
+      if (typeof window.filterTiles === 'function') window.filterTiles();
+    });
+    bar.appendChild(dot);
+  });
+}
+
+// ================================================================
+// END SOURCE FILTER
+// ================================================================
+
+// ---- (the existing manage.html script continues below) ----
+
+function hashCode(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return Math.abs(hash);
+  }
+
+  // ---- Source color palette (Tableau 20) ----
+  const SOURCE_COLORS = [
+    '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
+    '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4',
+    '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000',
+    '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9'
+  ];
+
+  function getSourceColor(source) {
+    if (!source) return '#cccccc';
+    const hash = hashCode(source);
+    return SOURCE_COLORS[hash % SOURCE_COLORS.length];
+  }
 (function(){
+  // ---- Helper: hashCode for source colors ----
+  function hashCode(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return Math.abs(hash);
+  }
+
+  // ---- Main logic ----
   const els = {
     total: document.getElementById('totalEpisodes'),
     totalLabel: document.getElementById('totalEpisodesLabel'),
@@ -1272,11 +1361,10 @@
     libraryHub: document.getElementById('libraryHub'),
     libraryWheel: document.getElementById('libraryWheel'),
     librarySwitcher: document.getElementById('librarySwitcher'),
-	backupBtn: document.getElementById('backupBtn'),
+    backupBtn: document.getElementById('backupBtn'),
     restoreBtn: document.getElementById('restoreBtn'),
     browseShellsBtn: document.getElementById('browseShellsBtn'),
     footnote: document.querySelector('.footnote'),
-    // SD button and overlay
     expandedSettingsBtn: document.getElementById('expandedSettingsBtn'),
     settingsOverlay: document.getElementById('expandedSettingsOverlay'),
     settingsIframe: document.getElementById('settingsIframe'),
@@ -1290,13 +1378,11 @@
       els.settingsIframe.src = './expandedsettings.html?' + Date.now();
       els.settingsOverlay.style.display = 'flex';
     });
-
     if (els.closeSettingsBtn) {
       els.closeSettingsBtn.addEventListener('click', function() {
         els.settingsOverlay.style.display = 'none';
       });
     }
-
     els.settingsOverlay.addEventListener('click', function(e) {
       if (e.target === els.settingsOverlay) {
         els.settingsOverlay.style.display = 'none';
@@ -1309,6 +1395,7 @@
     try { window.__lmEmbedBridge?.refreshControls?.(); } catch (_) {}
   });
 
+  // ---- Constants ----
   const STATUS = {
     UNCHECKED: 'unchecked',
     CHECKING: 'checking',
@@ -1323,7 +1410,6 @@
   const VIDEO_EXTS = ['.mp4', '.mkv', '.mov', '.webm', '.m4v', '.avi', '.bin', '.iso', '.chd', '.pbp'];
   const SUB_EXTS = ['.vtt', '.srt', '.sub', '.txt'];
   const BOOK_FILE_EXTS = ['.pdf', '.epub', '.cbz', '.cbr', '.mobi', '.azw', '.azw3', '.txt', '.md', '.zip'];
-
 
   const LIBRARIES = {
     video: {
@@ -1409,6 +1495,7 @@
       build: buildBooksLibrary
     }
   };
+
   let activeKey = 'video';
   let activeConfig = LIBRARIES[activeKey];
   let hierarchyRoots = [];
@@ -1451,9 +1538,9 @@
   let subtitleGroupHoldCandidate = null;
   let subtitleGroupHoldTriggered = false;
 
-  // ---- Platform detection ----
   let currentPlatform = 'windows';
 
+  // ---- Helper functions ----
   function clearRepairBatchState() {
     repairBatchMode = false;
     repairBatchSelected = new Set();
@@ -1563,19 +1650,13 @@
     if (!raw) return '';
     try {
       const isAbsolute = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(raw) || raw.startsWith('//');
-      
-      // If relative, we handle '?' as a separator but keep '#' as part of the path
-      // because in library file contexts, '#' is usually a filename character.
       if (!isAbsolute) {
         const qIndex = raw.indexOf('?');
         const pathPart = qIndex === -1 ? raw : raw.slice(0, qIndex);
         const queryPart = qIndex === -1 ? '' : raw.slice(qIndex);
         return new URL(encodePathSegments(pathPart) + queryPart, base).href;
       }
-      
       const u = new URL(raw, base);
-      // For absolute URLs, if there is a hash, it might actually be part of the filename.
-      // We re-encode the pathname specifically.
       u.pathname = encodePathSegments(u.pathname);
       return u.href;
     } catch {
@@ -1624,6 +1705,7 @@
     }
   }
 
+  // ---- Library UI setup ----
   function setLibraryUI(key) {
     activeKey = key;
     activeConfig = LIBRARIES[key];
@@ -1692,6 +1774,7 @@
     }
   }
 
+  // ---- Data fetching helpers ----
   async function readServerBaseFromTxt() {
     try {
       const res = await fetch('./serverip.txt', { cache: 'no-store' });
@@ -1743,7 +1826,6 @@
     return fn(window, document);
   }
 
-  // ---- FIXED regex: avoid String.raw to prevent syntax error ----
   function extractArrayLiteral(text, varName) {
     const pattern = '(?:const|let|var)\\s+' + varName + '\\s*=\\s*(\\[[\\s\\S]*?\\]);';
     const re = new RegExp(pattern);
@@ -1752,6 +1834,7 @@
     return match[1];
   }
 
+  // ---- Library load functions ----
   async function loadVideoData(text) {
     try {
       const data = await runLibrarySource(text, "typeof episodes !== 'undefined' ? episodes : window.episodes");
@@ -2063,13 +2146,11 @@
     return s.trim();
   }
 
-
   function normalizeMusicScanBase(raw) {
     let s = String(raw ?? '').trim();
     if (!s) return '';
     try { s = decodeURIComponent(s); } catch {}
     s = s.split(/[\/]/).pop();
-    // Modified: Only strip query parameters ('?'), preserved '#' as it's common in music titles
     s = s.replace(/\?.*$/, '');
     s = s.replace(/\.(mp3|flac|wav|m4a|ogg|aac|opus|wma|alac)(\?.*)?$/i, '');
     const dollar = s.lastIndexOf('$');
@@ -2704,55 +2785,55 @@
     return html;
   }
 
-
-function leafActionsHtml(node) {
-  const secondaryIcon = activeKey === 'video' ? '📝' : '🖼️';
-  let html = `<button class="btn btn-small" data-action="scan-leaf-primary" data-node-id="${escapeHtml(node.id)}" title="Check ${escapeHtml(activeConfig.primaryVerb)}">${activeConfig.icon}</button>`;
-  if (node.secondaryCandidates && node.secondaryCandidates.length) {
-    if (isSubtitleBatchLeaf(node) && subtitleBatchMode && subtitleBatchSelected.size) {
-      const checked = subtitleBatchSelected.has(node.id);
-      html += `<label class="repair-batch-toggle${checked ? ' is-done' : ''}" title="${checked ? 'Selected' : 'Select for subtitle generation'}"><input type="checkbox" data-action="subtitle-batch-toggle" data-node-id="${escapeHtml(node.id)}" ${checked ? 'checked' : ''}><span>${checked ? '✅' : '📝'}</span></label>`;
-    } else if (node.subtitleBatchState === 'done') {
-      html += `<span class="repair-batch-status done">✅</span>`;
-    } else if (node.subtitleBatchState === 'failed') {
-      html += `<span class="repair-batch-status failed">❌</span>`;
-    } else {
-      html += `<button class="btn btn-small btn-warn" data-action="scan-leaf-secondary" data-node-id="${escapeHtml(node.id)}" title="Check ${escapeHtml(activeConfig.secondaryVerb)}">${secondaryIcon}</button>`;
-    }
-  }
-  if (node.repairable && activeConfig.showRepair) {
-    if (repairBatchMode && repairBatchSelected.size) {
-      const checked = repairBatchSelected.has(node.id);
-      const done = node.repairBatchState === 'done';
-      html += `<label class="repair-batch-toggle${done ? ' is-done' : ''}" title="${done ? 'Finished' : 'Select for batch repair'}"><input type="checkbox" data-action="repair-batch-toggle" data-node-id="${escapeHtml(node.id)}" ${checked ? 'checked' : ''} ${done ? 'disabled' : ''}><span>${done ? '✅' : 'ffmpeg'}</span></label>`;
-    } else if (node.repairBatchState === 'done') {
-      html += `<span class="repair-batch-status done">✅</span>`;
-    } else if (node.repairBatchState === 'failed') {
-      html += `<span class="repair-batch-status failed">❌</span>`;
-    } else {
-      html += `<button class="btn btn-small btn-primary" data-action="repair-leaf" data-node-id="${escapeHtml(node.id)}" title="Repair with ffmpeg">🛠️</button>`;
-    }
-  }
-  return html;
-}
-
-function groupActionsHtml(node) {
-  const counts = countNodeIssues(node);
-  if (!counts.total) return '';
-  let html = `<span class="node-actions">`;
-  html += `<button class="btn btn-small" data-action="scan-group-primary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.primaryLabel.toLowerCase())}">${activeConfig.icon}</button>`;
-  if (supportsSecondaryScan()) {
+  function leafActionsHtml(node) {
     const secondaryIcon = activeKey === 'video' ? '📝' : '🖼️';
-    html += `<button class="btn btn-small btn-warn" data-action="scan-group-secondary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.secondaryLabel.toLowerCase())}">${secondaryIcon}</button>`;
+    let html = `<button class="btn btn-small" data-action="scan-leaf-primary" data-node-id="${escapeHtml(node.id)}" title="Check ${escapeHtml(activeConfig.primaryVerb)}">${activeConfig.icon}</button>`;
+    if (node.secondaryCandidates && node.secondaryCandidates.length) {
+      if (isSubtitleBatchLeaf(node) && subtitleBatchMode && subtitleBatchSelected.size) {
+        const checked = subtitleBatchSelected.has(node.id);
+        html += `<label class="repair-batch-toggle${checked ? ' is-done' : ''}" title="${checked ? 'Selected' : 'Select for subtitle generation'}"><input type="checkbox" data-action="subtitle-batch-toggle" data-node-id="${escapeHtml(node.id)}" ${checked ? 'checked' : ''}><span>${checked ? '✅' : '📝'}</span></label>`;
+      } else if (node.subtitleBatchState === 'done') {
+        html += `<span class="repair-batch-status done">✅</span>`;
+      } else if (node.subtitleBatchState === 'failed') {
+        html += `<span class="repair-batch-status failed">❌</span>`;
+      } else {
+        html += `<button class="btn btn-small btn-warn" data-action="scan-leaf-secondary" data-node-id="${escapeHtml(node.id)}" title="Check ${escapeHtml(activeConfig.secondaryVerb)}">${secondaryIcon}</button>`;
+      }
+    }
+    if (node.repairable && activeConfig.showRepair) {
+      if (repairBatchMode && repairBatchSelected.size) {
+        const checked = repairBatchSelected.has(node.id);
+        const done = node.repairBatchState === 'done';
+        html += `<label class="repair-batch-toggle${done ? ' is-done' : ''}" title="${done ? 'Finished' : 'Select for batch repair'}"><input type="checkbox" data-action="repair-batch-toggle" data-node-id="${escapeHtml(node.id)}" ${checked ? 'checked' : ''} ${done ? 'disabled' : ''}><span>${done ? '✅' : 'ffmpeg'}</span></label>`;
+      } else if (node.repairBatchState === 'done') {
+        html += `<span class="repair-batch-status done">✅</span>`;
+      } else if (node.repairBatchState === 'failed') {
+        html += `<span class="repair-batch-status failed">❌</span>`;
+      } else {
+        html += `<button class="btn btn-small btn-primary" data-action="repair-leaf" data-node-id="${escapeHtml(node.id)}" title="Repair with ffmpeg">🛠️</button>`;
+      }
+    }
+    return html;
   }
-  if (activeConfig.showRepair && collectRepairableLeavesUnderNode(node).length) {
-    html += `<button class="btn btn-small btn-primary" data-action="repair-group" data-node-id="${escapeHtml(node.id)}" title="Repair all in this group">🛠️</button>`;
-  }
-  html += `</span>`;
-  return html;
-}
 
-function renderLeaf(node) {
+  function groupActionsHtml(node) {
+    const counts = countNodeIssues(node);
+    if (!counts.total) return '';
+    let html = `<span class="node-actions">`;
+    html += `<button class="btn btn-small" data-action="scan-group-primary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.primaryLabel.toLowerCase())}">${activeConfig.icon}</button>`;
+    if (supportsSecondaryScan()) {
+      const secondaryIcon = activeKey === 'video' ? '📝' : '🖼️';
+      html += `<button class="btn btn-small btn-warn" data-action="scan-group-secondary" data-node-id="${escapeHtml(node.id)}" title="Scan ${escapeHtml(activeConfig.secondaryLabel.toLowerCase())}">${secondaryIcon}</button>`;
+    }
+    if (activeConfig.showRepair && collectRepairableLeavesUnderNode(node).length) {
+      html += `<button class="btn btn-small btn-primary" data-action="repair-group" data-node-id="${escapeHtml(node.id)}" title="Repair all in this group">🛠️</button>`;
+    }
+    html += `</span>`;
+    return html;
+  }
+   function renderLeaf(node) {
+    // Check source filter before rendering
+    if (!isSourceEnabledForNode(node)) return '';
 
     const title = escapeHtml(safeDecode(node.displayName || node.key || ''));
     const subtitle = escapeHtml(
@@ -2764,10 +2845,26 @@ function renderLeaf(node) {
       ? escapeHtml(safeDecode((node.primaryUrl || '').split('/').pop() || node.displayName || node.key || ''))
       : title;
 
+    const source = node._origin || 'local';
+    // Find the source id from __sourceList based on origin
+    let sourceId = 'local';
+    if (window.__sourceList) {
+      for (const src of window.__sourceList) {
+        if (src.origin === source || (typeof source === 'string' && source.startsWith(src.origin))) {
+          sourceId = src.id;
+          break;
+        }
+      }
+    }
+    const color = getSourceColor(sourceId);
+
     return `
       <div class="episode-row">
         <span class="ep-name" title="${title}">
-          <span class="ep-file-name">${activeConfig.icon} ${fileName}</span>
+          <span class="ep-file-name">
+            <span class="source-dot" style="background:${color};display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;flex-shrink:0;" title="${escapeHtml(source)}"></span>
+            ${fileName}
+          </span>
           <span class="ep-episode-title">${subtitle}</span>
         </span>
         ${leafStatsHtml(node)}
@@ -2778,6 +2875,7 @@ function renderLeaf(node) {
     `;
   }
 
+  // ---- (remaining original functions unchanged) ----
   function normalizeSearchText(value) {
     return String(value ?? '')
       .toLowerCase()
@@ -2816,16 +2914,6 @@ function renderLeaf(node) {
     const blob = buildSearchBlob(node);
     const compactBlob = blob.replace(/\s+/g, '');
     return tokens.every(token => blob.includes(token) || compactBlob.includes(token));
-  }
-
-  function countVisibleLeaves(node, term, ancestorMatched = false) {
-    if (!node) return 0;
-    const selfMatched = !term || ancestorMatched || matchesSearch(node, term);
-    if (!selfMatched) return 0;
-    if (node.type === 'leaf') return 1;
-    const nextAncestorMatched = ancestorMatched || matchesSearch(node, term);
-    return [...(node.children || []), ...(node.episodes || [])]
-      .reduce((sum, child) => sum + countVisibleLeaves(child, term, nextAncestorMatched), 0);
   }
 
   function renderGroup(node, term, ancestorMatched = false) {
@@ -2909,6 +2997,19 @@ function renderLeaf(node) {
       total += counts.total;
     }
     return { primaryMissing, secondaryMissing, total };
+  }
+
+  // ---- countVisibleLeaves (source-filter integrated) ----
+  function countVisibleLeaves(node, term, ancestorMatched = false) {
+    if (!node) return 0;
+    // If leaf and not enabled by source filter, ignore it
+    if (node.type === 'leaf' && !isSourceEnabledForNode(node)) return 0;
+    const selfMatched = !term || ancestorMatched || matchesSearch(node, term);
+    if (!selfMatched) return 0;
+    if (node.type === 'leaf') return 1;
+    const nextAncestorMatched = ancestorMatched || matchesSearch(node, term);
+    return [...(node.children || []), ...(node.episodes || [])]
+      .reduce((sum, child) => sum + countVisibleLeaves(child, term, nextAncestorMatched), 0);
   }
 
   async function checkUrlExists(url) {
@@ -3087,7 +3188,6 @@ function renderLeaf(node) {
     setProgressDisplay(checked, total);
   }
 
-
   function refreshMissingSubtitleModalIfOpen() {
     if (!els.missingModal || els.missingModal.style.display === 'none') return;
     const title = String(els.modalTitle?.textContent || '');
@@ -3096,117 +3196,117 @@ function renderLeaf(node) {
   }
 
   function getMissingDisplayName(item, isPrimary) {
-  const url = isPrimary ? (item.primaryUrl || '') : (item.secondaryUrl || '');
-  if (url) {
-    try {
-      let filename = url.split('/').pop() || '';
-      filename = filename.split('?')[0].split('#')[0];
-      if (filename) return decodeURIComponent(filename);
-    } catch {}
+    const url = isPrimary ? (item.primaryUrl || '') : (item.secondaryUrl || '');
+    if (url) {
+      try {
+        let filename = url.split('/').pop() || '';
+        filename = filename.split('?')[0].split('#')[0];
+        if (filename) return decodeURIComponent(filename);
+      } catch {}
+    }
+    return item.displayName || item.key || 'Untitled';
   }
-  return item.displayName || item.key || 'Untitled';
-}
 
-function getMissingSubtitleItems() {
-  return flatItems.filter(item => item.secondaryCandidates && item.secondaryCandidates.length && (item.secondaryStatus === STATUS.MISSING || item.secondaryStatus === STATUS.ERROR));
-}
+  function getMissingSubtitleItems() {
+    return flatItems.filter(item => item.secondaryCandidates && item.secondaryCandidates.length && (item.secondaryStatus === STATUS.MISSING || item.secondaryStatus === STATUS.ERROR));
+  }
 
-function renderMissingSubtitleModal(missing) {
-  const selectedCount = subtitleBatchMode ? subtitleBatchSelected.size : 0;
-  const selectedIds = subtitleBatchSelected;
-  const grouped = {};
-  missing.forEach(item => {
-    const group = getGroupPath(item);
-    if (!grouped[group]) grouped[group] = [];
-    grouped[group].push(item);
-  });
+  function renderMissingSubtitleModal(missing) {
+    const selectedCount = subtitleBatchMode ? subtitleBatchSelected.size : 0;
+    const selectedIds = subtitleBatchSelected;
+    const grouped = {};
+    missing.forEach(item => {
+      const group = getGroupPath(item);
+      if (!grouped[group]) grouped[group] = [];
+      grouped[group].push(item);
+    });
 
-  let html = '<div class="missing-modal-toolbar">';
-  html += '<div class="missing-modal-toolbar-stack">';
-  html += '  <div class="missing-modal-toolbar-row">';
-  html += '    <button class="btn btn-primary" data-action="missing-subtitles-fetch-all">Fetchs all Subs</button>';
-  html += '  </div>';
-  if (selectedCount) {
+    let html = '<div class="missing-modal-toolbar">';
+    html += '<div class="missing-modal-toolbar-stack">';
     html += '  <div class="missing-modal-toolbar-row">';
-    html += '    <button class="btn btn-warn" data-action="missing-subtitles-fetch-selected">Fetchs Selected Subs</button>';
-    html += `    <span class="badge ok">${selectedCount} selected</span>`;
+    html += '    <button class="btn btn-primary" data-action="missing-subtitles-fetch-all">Fetchs all Subs</button>';
     html += '  </div>';
-  }
-  html += '</div>';
-  html += '<div class="missing-modal-hint">Hold a subtitle checkbox to select it, or click the row to fetch that item by itself.</div>';
-  html += '</div>';
-
-  Object.keys(grouped).sort().forEach(group => {
-    const items = grouped[group].slice().sort((a, b) => {
-      const aName = getMissingDisplayName(a, false);
-      const bName = getMissingDisplayName(b, false);
-      return aName.localeCompare(bName, undefined, { numeric: true, sensitivity: 'base' });
-    });
-    html += `<div class="missing-group"><div class="missing-group-title">${escapeHtml(group)} (${items.length})</div>`;
-    items.forEach(item => {
-      const display = getMissingDisplayName(item, false);
-      const selected = selectedIds.has(item.id);
-      const rowTitle = safeDecode(item.displayName || item.key || display || 'Untitled');
-      html += `
-        <div class="missing-sub-row${selected ? ' selected' : ''}" data-action="missing-subtitle-open" data-node-id="${escapeHtml(item.id)}">
-          <div class="missing-sub-meta">
-            <div class="missing-sub-title" title="${escapeHtml(rowTitle)}">${escapeHtml(display)}</div>
-            <div class="missing-sub-path">${escapeHtml(group)}</div>
-          </div>
-          <div class="missing-sub-actions">
-            <label class="missing-sub-select${selected ? ' is-selected' : ''}" title="${escapeHtml(selected ? 'Selected' : 'Hold to select subtitle')}" data-action="missing-subtitle-toggle" data-node-id="${escapeHtml(item.id)}">
-              <input type="checkbox" ${selected ? 'checked' : ''} aria-label="${escapeHtml(display)}">
-              <span class="missing-sub-select-icon">${selected ? '✅' : '📝'}</span>
-            </label>
-          </div>
-        </div>`;
-    });
+    if (selectedCount) {
+      html += '  <div class="missing-modal-toolbar-row">';
+      html += '    <button class="btn btn-warn" data-action="missing-subtitles-fetch-selected">Fetchs Selected Subs</button>';
+      html += `    <span class="badge ok">${selectedCount} selected</span>`;
+      html += '  </div>';
+    }
     html += '</div>';
-  });
+    html += '<div class="missing-modal-hint">Hold a subtitle checkbox to select it, or click the row to fetch that item by itself.</div>';
+    html += '</div>';
 
-  return html;
-}
+    Object.keys(grouped).sort().forEach(group => {
+      const items = grouped[group].slice().sort((a, b) => {
+        const aName = getMissingDisplayName(a, false);
+        const bName = getMissingDisplayName(b, false);
+        return aName.localeCompare(bName, undefined, { numeric: true, sensitivity: 'base' });
+      });
+      html += `<div class="missing-group"><div class="missing-group-title">${escapeHtml(group)} (${items.length})</div>`;
+      items.forEach(item => {
+        const display = getMissingDisplayName(item, false);
+        const selected = selectedIds.has(item.id);
+        const rowTitle = safeDecode(item.displayName || item.key || display || 'Untitled');
+        html += `
+          <div class="missing-sub-row${selected ? ' selected' : ''}" data-action="missing-subtitle-open" data-node-id="${escapeHtml(item.id)}">
+            <div class="missing-sub-meta">
+              <div class="missing-sub-title" title="${escapeHtml(rowTitle)}">${escapeHtml(display)}</div>
+              <div class="missing-sub-path">${escapeHtml(group)}</div>
+            </div>
+            <div class="missing-sub-actions">
+              <label class="missing-sub-select${selected ? ' is-selected' : ''}" title="${escapeHtml(selected ? 'Selected' : 'Hold to select subtitle')}" data-action="missing-subtitle-toggle" data-node-id="${escapeHtml(item.id)}">
+                <input type="checkbox" ${selected ? 'checked' : ''} aria-label="${escapeHtml(display)}">
+                <span class="missing-sub-select-icon">${selected ? '✅' : '📝'}</span>
+              </label>
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+    });
 
-function showMissingModal(which) {
-  const isPrimary = which === 'primary';
-  const label = isPrimary ? activeConfig.primaryLabel : activeConfig.secondaryLabel;
-  const missing = flatItems.filter(item => isPrimary
-    ? (item.primaryStatus === STATUS.MISSING || item.primaryStatus === STATUS.ERROR)
-    : (item.secondaryCandidates && item.secondaryCandidates.length && (item.secondaryStatus === STATUS.MISSING || item.secondaryStatus === STATUS.ERROR))
-  );
-
-  if (!missing.length) {
-    els.modalTitle.textContent = `No missing ${label || ''}`.trim();
-    els.modalBody.innerHTML = `<p class="empty-message" style="padding:20px">No missing ${escapeHtml(label || '')}</p>`;
-    els.missingModal.style.display = 'flex';
-    return;
+    return html;
   }
 
-  els.modalTitle.textContent = `Missing ${label} (${missing.length})`;
+  function showMissingModal(which) {
+    const isPrimary = which === 'primary';
+    const label = isPrimary ? activeConfig.primaryLabel : activeConfig.secondaryLabel;
+    const missing = flatItems.filter(item => isPrimary
+      ? (item.primaryStatus === STATUS.MISSING || item.primaryStatus === STATUS.ERROR)
+      : (item.secondaryCandidates && item.secondaryCandidates.length && (item.secondaryStatus === STATUS.MISSING || item.secondaryStatus === STATUS.ERROR))
+    );
 
-  if (!isPrimary) {
-    els.modalBody.innerHTML = renderMissingSubtitleModal(missing);
+    if (!missing.length) {
+      els.modalTitle.textContent = `No missing ${label || ''}`.trim();
+      els.modalBody.innerHTML = `<p class="empty-message" style="padding:20px">No missing ${escapeHtml(label || '')}</p>`;
+      els.missingModal.style.display = 'flex';
+      return;
+    }
+
+    els.modalTitle.textContent = `Missing ${label} (${missing.length})`;
+
+    if (!isPrimary) {
+      els.modalBody.innerHTML = renderMissingSubtitleModal(missing);
+      els.missingModal.style.display = 'flex';
+      return;
+    }
+
+    const grouped = {};
+    missing.forEach(item => {
+      const group = getGroupPath(item);
+      if (!grouped[group]) grouped[group] = [];
+      grouped[group].push(getMissingDisplayName(item, isPrimary));
+    });
+
+    let html = '';
+    Object.keys(grouped).sort().forEach(group => {
+      const files = grouped[group].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+      html += `<div class="missing-group"><div class="missing-group-title">${escapeHtml(group)} (${files.length})</div><ul class="missing-file-list">`;
+      files.forEach(f => { html += `<li>${escapeHtml(f)}</li>`; });
+      html += `</ul></div>`;
+    });
+    els.modalBody.innerHTML = html;
     els.missingModal.style.display = 'flex';
-    return;
   }
-
-  const grouped = {};
-  missing.forEach(item => {
-    const group = getGroupPath(item);
-    if (!grouped[group]) grouped[group] = [];
-    grouped[group].push(getMissingDisplayName(item, isPrimary));
-  });
-
-  let html = '';
-  Object.keys(grouped).sort().forEach(group => {
-    const files = grouped[group].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-    html += `<div class="missing-group"><div class="missing-group-title">${escapeHtml(group)} (${files.length})</div><ul class="missing-file-list">`;
-    files.forEach(f => { html += `<li>${escapeHtml(f)}</li>`; });
-    html += `</ul></div>`;
-  });
-  els.modalBody.innerHTML = html;
-  els.missingModal.style.display = 'flex';
-}
 
   function hideModal() {
     els.missingModal.style.display = 'none';
@@ -3288,6 +3388,7 @@ function showMissingModal(which) {
   });
 
   wireAddContentModalActions();
+
   function buildContentFlowUrl(mode = 'add') {
     const page = activeConfig.flowPage || '';
     if (!page) return '';
@@ -3322,9 +3423,6 @@ function showMissingModal(which) {
     els.addContentModal.style.display = 'flex';
     wireAddContentModalActions();
   }
-
-
-
 
   function getEmbeddedFlowApi() {
     try {
@@ -3386,519 +3484,512 @@ function showMissingModal(which) {
     }, true);
   }
 
-function isRepairableLeaf(node) {
-  return !!(node && node.type === 'leaf' && node.repairable && activeConfig.showRepair);
-}
-
-function collectRepairableLeavesUnderNode(node) {
-  return collectLeavesUnderNode(node).filter(isRepairableLeaf);
-}
-
-function updateRepairBatchUi() {
-  if (!els.runBatchRepairBtn) return;
-  const repairActive = repairBatchMode && repairBatchSelected.size > 0;
-  els.runBatchRepairBtn.classList.toggle('hidden', !repairActive);
-  els.runBatchRepairBtn.disabled = !repairActive || !!repairBatchCurrent;
-
-  if (els.repairModalCounter) {
-    const processed = repairBatchCompleted.size + repairBatchFailed.size;
-    const total = repairBatchTotal || repairBatchSelected.size || (repairBatchQueue.length + processed);
-    const failed = repairBatchFailed.size;
-    const pending = Math.max(total - processed - (repairBatchCurrent ? 1 : 0), 0);
-    const currentLabel = repairBatchCurrent ? ` · working on ${escapeHtml(getRepairFileName(repairBatchCurrent))}` : '';
-    els.repairModalCounter.innerHTML = total
-      ? `<span>${processed}/${total} processed</span><span>• ${failed} failed</span>${pending ? `<span>• ${pending} pending</span>` : ''}${currentLabel}`
-      : '';
+  function isRepairableLeaf(node) {
+    return !!(node && node.type === 'leaf' && node.repairable && activeConfig.showRepair);
   }
-}
 
-function setRepairBatchMode(enabled, seedNode = null) {
-  if (enabled) {
-    repairBatchMode = true;
-    repairBatchSelected = new Set();
-    repairBatchCompleted = new Set();
-    repairBatchFailed = new Set();
-    repairBatchQueue = [];
-    repairBatchCurrent = null;
-    repairBatchTotal = 0;
-    if (seedNode && isRepairableLeaf(seedNode)) {
-      repairBatchSelected.add(seedNode.id);
+  function collectRepairableLeavesUnderNode(node) {
+    return collectLeavesUnderNode(node).filter(isRepairableLeaf);
+  }
+
+  function updateRepairBatchUi() {
+    if (!els.runBatchRepairBtn) return;
+    const repairActive = repairBatchMode && repairBatchSelected.size > 0;
+    els.runBatchRepairBtn.classList.toggle('hidden', !repairActive);
+    els.runBatchRepairBtn.disabled = !repairActive || !!repairBatchCurrent;
+
+    if (els.repairModalCounter) {
+      const processed = repairBatchCompleted.size + repairBatchFailed.size;
+      const total = repairBatchTotal || repairBatchSelected.size || (repairBatchQueue.length + processed);
+      const failed = repairBatchFailed.size;
+      const pending = Math.max(total - processed - (repairBatchCurrent ? 1 : 0), 0);
+      const currentLabel = repairBatchCurrent ? ` · working on ${escapeHtml(getRepairFileName(repairBatchCurrent))}` : '';
+      els.repairModalCounter.innerHTML = total
+        ? `<span>${processed}/${total} processed</span><span>• ${failed} failed</span>${pending ? `<span>• ${pending} pending</span>` : ''}${currentLabel}`
+        : '';
     }
-  } else {
-    clearRepairBatchState();
-  }
-  updateRepairBatchUi();
-  renderTree();
-}
-
-function selectRepairLeaf(id, checked) {
-  if (!id) return;
-  if (checked) repairBatchSelected.add(id);
-  else repairBatchSelected.delete(id);
-
-  if (!repairBatchSelected.size) {
-    clearRepairBatchState();
   }
 
-  updateRepairBatchUi();
-  renderTree();
-}
-
-function getRepairFileName(node) {
-  const raw = String(node?.primaryUrl || node?.secondaryUrl || node?.key || node?.displayName || 'Repair item').trim();
-  if (!raw) return 'Repair item';
-  try {
-    const parsed = new URL(raw, window.location.href);
-    const segment = parsed.pathname.split('/').pop() || '';
-    return safeDecode(segment || parsed.pathname || raw);
-  } catch {
-    const segment = raw.split('/').pop() || raw;
-    return safeDecode(segment);
-  }
-}
-
-
-function isSubtitleBatchLeaf(node) {
-  return !!(node && node.type === 'leaf' && activeKey === 'video' && node.repairable && node.secondaryCandidates && node.secondaryCandidates.length);
-}
-
-function updateSubtitleBatchUi() {
-  const canGenerate = activeKey === 'video' && supportsSecondaryScan();
-  const subtitleActive = subtitleBatchMode && subtitleBatchSelected.size > 0;
-  if (els.runBatchFetchSubsBtn) {
-    els.runBatchFetchSubsBtn.classList.toggle('hidden', !canGenerate || !subtitleActive);
-    els.runBatchFetchSubsBtn.disabled = !canGenerate || !subtitleActive;
-    if (!els.runBatchFetchSubsBtn.title) els.runBatchFetchSubsBtn.title = 'Fetch subtitles from Open Subtitles';
-  }
-  if (els.runBatchSubsBtn) {
-    els.runBatchSubsBtn.classList.toggle('hidden', !canGenerate || !subtitleActive);
-    els.runBatchSubsBtn.disabled = !canGenerate || !subtitleActive;
+  function setRepairBatchMode(enabled, seedNode = null) {
+    if (enabled) {
+      repairBatchMode = true;
+      repairBatchSelected = new Set();
+      repairBatchCompleted = new Set();
+      repairBatchFailed = new Set();
+      repairBatchQueue = [];
+      repairBatchCurrent = null;
+      repairBatchTotal = 0;
+      if (seedNode && isRepairableLeaf(seedNode)) {
+        repairBatchSelected.add(seedNode.id);
+      }
+    } else {
+      clearRepairBatchState();
+    }
+    updateRepairBatchUi();
+    renderTree();
   }
 
-  if (els.repairModalCounter && subtitleBatchCurrent) {
-    const processed = subtitleBatchCompleted.size + subtitleBatchFailed.size;
-    const total = subtitleBatchTotal || subtitleBatchSelected.size || (subtitleBatchQueue.length + processed);
-    const failed = subtitleBatchFailed.size;
-    const pending = Math.max(total - processed - 1, 0);
-    const currentLabel = subtitleBatchCurrent ? ` · working on ${escapeHtml(getRepairFileName(subtitleBatchCurrent))}` : '';
-    els.repairModalCounter.innerHTML = total
-      ? `<span>${processed}/${total} processed</span><span>• ${failed} failed</span>${pending ? `<span>• ${pending} pending</span>` : ''}${currentLabel}`
-      : '';
+  function selectRepairLeaf(id, checked) {
+    if (!id) return;
+    if (checked) repairBatchSelected.add(id);
+    else repairBatchSelected.delete(id);
+
+    if (!repairBatchSelected.size) {
+      clearRepairBatchState();
+    }
+
+    updateRepairBatchUi();
+    renderTree();
   }
 
-  if (els.repairModalNote && subtitleBatchCurrent) {
-    els.repairModalNote.textContent = 'This opens the subtitle fetch page in the repair iframe so the batch can wait through the API-key prompt and continue automatically when the job reports back.';
+  function getRepairFileName(node) {
+    const raw = String(node?.primaryUrl || node?.secondaryUrl || node?.key || node?.displayName || 'Repair item').trim();
+    if (!raw) return 'Repair item';
+    try {
+      const parsed = new URL(raw, window.location.href);
+      const segment = parsed.pathname.split('/').pop() || '';
+      return safeDecode(segment || parsed.pathname || raw);
+    } catch {
+      const segment = raw.split('/').pop() || raw;
+      return safeDecode(segment);
+    }
   }
-}
 
-function setSubtitleBatchMode(enabled, seedNode = null) {
-  if (enabled) {
+  function isSubtitleBatchLeaf(node) {
+    return !!(node && node.type === 'leaf' && activeKey === 'video' && node.repairable && node.secondaryCandidates && node.secondaryCandidates.length);
+  }
+
+  function updateSubtitleBatchUi() {
+    const canGenerate = activeKey === 'video' && supportsSecondaryScan();
+    const subtitleActive = subtitleBatchMode && subtitleBatchSelected.size > 0;
+    if (els.runBatchFetchSubsBtn) {
+      els.runBatchFetchSubsBtn.classList.toggle('hidden', !canGenerate || !subtitleActive);
+      els.runBatchFetchSubsBtn.disabled = !canGenerate || !subtitleActive;
+      if (!els.runBatchFetchSubsBtn.title) els.runBatchFetchSubsBtn.title = 'Fetch subtitles from Open Subtitles';
+    }
+    if (els.runBatchSubsBtn) {
+      els.runBatchSubsBtn.classList.toggle('hidden', !canGenerate || !subtitleActive);
+      els.runBatchSubsBtn.disabled = !canGenerate || !subtitleActive;
+    }
+
+    if (els.repairModalCounter && subtitleBatchCurrent) {
+      const processed = subtitleBatchCompleted.size + subtitleBatchFailed.size;
+      const total = subtitleBatchTotal || subtitleBatchSelected.size || (subtitleBatchQueue.length + processed);
+      const failed = subtitleBatchFailed.size;
+      const pending = Math.max(total - processed - 1, 0);
+      const currentLabel = subtitleBatchCurrent ? ` · working on ${escapeHtml(getRepairFileName(subtitleBatchCurrent))}` : '';
+      els.repairModalCounter.innerHTML = total
+        ? `<span>${processed}/${total} processed</span><span>• ${failed} failed</span>${pending ? `<span>• ${pending} pending</span>` : ''}${currentLabel}`
+        : '';
+    }
+
+    if (els.repairModalNote && subtitleBatchCurrent) {
+      els.repairModalNote.textContent = 'This opens the subtitle fetch page in the repair iframe so the batch can wait through the API-key prompt and continue automatically when the job reports back.';
+    }
+  }
+
+  function setSubtitleBatchMode(enabled, seedNode = null) {
+    if (enabled) {
+      subtitleBatchMode = true;
+      subtitleBatchSelected = new Set();
+      subtitleBatchCompleted = new Set();
+      subtitleBatchFailed = new Set();
+      subtitleBatchQueue = [];
+      subtitleBatchCurrent = null;
+      subtitleBatchTotal = 0;
+      if (seedNode && isSubtitleBatchLeaf(seedNode)) {
+        subtitleBatchSelected.add(seedNode.id);
+      }
+    } else {
+      clearSubtitleBatchState();
+    }
+    updateSubtitleBatchUi();
+    renderTree();
+  }
+
+  function selectSubtitleLeaf(id, checked) {
+    if (!id) return;
+    if (checked) {
+      subtitleBatchMode = true;
+      subtitleBatchSelected.add(id);
+    } else {
+      subtitleBatchSelected.delete(id);
+    }
+
+    if (!subtitleBatchSelected.size) {
+      clearSubtitleBatchState();
+    }
+
+    updateSubtitleBatchUi();
+    renderTree();
+  }
+
+  function collectSelectedSubtitleQueue() {
+    return [...subtitleBatchSelected].map(id => nodeMap.get(id)).filter(isSubtitleBatchLeaf);
+  }
+
+  function markSubtitleBatchResult(jobId, ok, detail = '') {
+    if (!jobId) return;
+    if (ok) {
+      subtitleBatchCompleted.add(jobId);
+      subtitleBatchFailed.delete(jobId);
+    } else {
+      subtitleBatchFailed.add(jobId);
+    }
+    const node = nodeMap.get(jobId);
+    if (node) {
+      node.subtitleBatchState = ok ? 'done' : 'failed';
+      node.subtitleBatchDetail = detail || '';
+      if (ok) {
+        node.secondaryStatus = STATUS.EXISTS;
+        node.secondaryUrl = node.secondaryCandidates?.[0] || node.secondaryUrl || '';
+        subtitleBatchSelected.delete(jobId);
+      }
+    }
+    updateStats();
+    updateSubtitleBatchUi();
+    renderTree();
+    refreshMissingSubtitleModalIfOpen();
+  }
+
+  function finishSubtitleBatch() {
+    const ran = subtitleBatchCompleted.size + subtitleBatchFailed.size;
+    const failedNodes = [...subtitleBatchFailed].map(id => nodeMap.get(id)).filter(isSubtitleBatchLeaf);
+    const failedNames = failedNodes.map(node => getRepairFileName(node)).filter(Boolean);
+    const failureText = failedNames.length ? `; failed: ${failedNames.join(', ')}` : '; no failures';
+    setStatus(`✅ Subtitle fetch complete: ${ran} ran${failureText}`);
+    subtitleBatchCurrent = null;
+    subtitleBatchQueue = [];
+    subtitleBatchTotal = 0;
+    updateStats();
+    updateSubtitleBatchUi();
+    renderTree();
+    refreshMissingSubtitleModalIfOpen();
+
+    if (failedNodes.length) {
+      subtitleBatchMode = true;
+      subtitleBatchSelected = new Set(failedNodes.map(node => node.id));
+      updateSubtitleBatchUi();
+      showMissingModal('secondary');
+      return;
+    }
+
+    clearSubtitleBatchState();
+    updateSubtitleBatchUi();
+  }
+
+  function runNextSubtitleBatchJob() {
+    if (!subtitleBatchQueue.length) {
+      finishSubtitleBatch();
+      return;
+    }
+    const next = subtitleBatchQueue.shift();
+    if (!next) {
+      finishSubtitleBatch();
+      return;
+    }
+    subtitleBatchCurrent = next;
+    updateSubtitleBatchUi();
+    openSubtitleModal(next, { batch: true });
+  }
+
+  function closeSubtitleIfNeeded() {
+    hideRepairModal();
+  }
+
+  function getCurrentMissingSubtitleQueue() {
+    return getMissingSubtitleItems();
+  }
+
+  function startFetchedSubtitleBatch(queue) {
+    const items = (queue || []).filter(isSubtitleBatchLeaf);
+    if (!items.length) {
+      setStatus('✨ No subtitle jobs found in that selection.');
+      return;
+    }
     subtitleBatchMode = true;
-    subtitleBatchSelected = new Set();
+    subtitleBatchSelected = new Set(items.map(node => node.id));
     subtitleBatchCompleted = new Set();
     subtitleBatchFailed = new Set();
-    subtitleBatchQueue = [];
+    subtitleBatchQueue = items.slice();
     subtitleBatchCurrent = null;
-    subtitleBatchTotal = 0;
-    if (seedNode && isSubtitleBatchLeaf(seedNode)) {
-      subtitleBatchSelected.add(seedNode.id);
-    }
-  } else {
-    clearSubtitleBatchState();
-  }
-  updateSubtitleBatchUi();
-  renderTree();
-}
-
-function selectSubtitleLeaf(id, checked) {
-  if (!id) return;
-  if (checked) {
-    subtitleBatchMode = true;
-    subtitleBatchSelected.add(id);
-  } else {
-    subtitleBatchSelected.delete(id);
-  }
-
-  if (!subtitleBatchSelected.size) {
-    clearSubtitleBatchState();
-  }
-
-  updateSubtitleBatchUi();
-  renderTree();
-}
-
-function collectSelectedSubtitleQueue() {
-  return [...subtitleBatchSelected].map(id => nodeMap.get(id)).filter(isSubtitleBatchLeaf);
-}
-
-function markSubtitleBatchResult(jobId, ok, detail = '') {
-  if (!jobId) return;
-  if (ok) {
-    subtitleBatchCompleted.add(jobId);
-    subtitleBatchFailed.delete(jobId);
-  } else {
-    subtitleBatchFailed.add(jobId);
-  }
-  const node = nodeMap.get(jobId);
-  if (node) {
-    node.subtitleBatchState = ok ? 'done' : 'failed';
-    node.subtitleBatchDetail = detail || '';
-    if (ok) {
-      node.secondaryStatus = STATUS.EXISTS;
-      node.secondaryUrl = node.secondaryCandidates?.[0] || node.secondaryUrl || '';
-      subtitleBatchSelected.delete(jobId);
-    }
-  }
-  updateStats();
-  updateSubtitleBatchUi();
-  renderTree();
-  refreshMissingSubtitleModalIfOpen();
-}
-
-function finishSubtitleBatch() {
-  const ran = subtitleBatchCompleted.size + subtitleBatchFailed.size;
-  const failedNodes = [...subtitleBatchFailed].map(id => nodeMap.get(id)).filter(isSubtitleBatchLeaf);
-  const failedNames = failedNodes.map(node => getRepairFileName(node)).filter(Boolean);
-  const failureText = failedNames.length ? `; failed: ${failedNames.join(', ')}` : '; no failures';
-  setStatus(`✅ Subtitle fetch complete: ${ran} ran${failureText}`);
-  subtitleBatchCurrent = null;
-  subtitleBatchQueue = [];
-  subtitleBatchTotal = 0;
-  updateStats();
-  updateSubtitleBatchUi();
-  renderTree();
-  refreshMissingSubtitleModalIfOpen();
-
-  if (failedNodes.length) {
-    subtitleBatchMode = true;
-    subtitleBatchSelected = new Set(failedNodes.map(node => node.id));
+    subtitleBatchTotal = items.length;
+    hideModal();
     updateSubtitleBatchUi();
-    showMissingModal('secondary');
-    return;
+    renderTree();
+    runNextSubtitleBatchJob();
   }
 
-  clearSubtitleBatchState();
-  updateSubtitleBatchUi();
-}
-
-function runNextSubtitleBatchJob() {
-  if (!subtitleBatchQueue.length) {
-    finishSubtitleBatch();
-    return;
-  }
-  const next = subtitleBatchQueue.shift();
-  if (!next) {
-    finishSubtitleBatch();
-    return;
-  }
-  subtitleBatchCurrent = next;
-  updateSubtitleBatchUi();
-  openSubtitleModal(next, { batch: true });
-}
-
-function closeSubtitleIfNeeded() {
-  hideRepairModal();
-}
-
-function getCurrentMissingSubtitleQueue() {
-  return getMissingSubtitleItems();
-}
-
-function startFetchedSubtitleBatch(queue) {
-  const items = (queue || []).filter(isSubtitleBatchLeaf);
-  if (!items.length) {
-    setStatus('✨ No subtitle jobs found in that selection.');
-    return;
-  }
-  subtitleBatchMode = true;
-  subtitleBatchSelected = new Set(items.map(node => node.id));
-  subtitleBatchCompleted = new Set();
-  subtitleBatchFailed = new Set();
-  subtitleBatchQueue = items.slice();
-  subtitleBatchCurrent = null;
-  subtitleBatchTotal = items.length;
-  hideModal();
-  updateSubtitleBatchUi();
-  renderTree();
-  runNextSubtitleBatchJob();
-}
-
-function launchSelectedSubtitles() {
-  const queue = collectSelectedSubtitleQueue();
-  if (!queue.length) {
-    setStatus('✨ Select at least one subtitle job first.');
-    return;
-  }
-
-  let opened = 0;
-  const blocked = [];
-  for (const node of queue) {
-    const url = buildWhisperPageUrl(node);
-    const win = window.open(url, '_blank', 'noopener,noreferrer');
-    if (win) opened++;
-    else blocked.push(getRepairFileName(node));
-  }
-
-  setStatus(opened
-    ? `🚀 Opened ${opened} Whisper tab${opened === 1 ? '' : 's'} for subtitles.${blocked.length ? ` Blocked: ${blocked.join(', ')}` : ''}`
-    : `❌ The browser blocked the new Whisper tabs.${blocked.length ? ` Blocked: ${blocked.join(', ')}` : ''}`);
-
-  clearSubtitleBatchState();
-  updateSubtitleBatchUi();
-  renderTree();
-}
-
-function startSelectedFetchedSubtitleBatch() {
-  const queue = collectSelectedSubtitleQueue();
-  if (!queue.length) {
-    setStatus('✨ Select at least one subtitle job first.');
-    return;
-  }
-  startFetchedSubtitleBatch(queue);
-}
-
-function launchSelectedFetchedSubtitles() {
-  startSelectedFetchedSubtitleBatch();
-}
-
-function launchAllMissingFetchedSubtitles() {
-  const queue = getCurrentMissingSubtitleQueue();
-  if (!queue.length) {
-    setStatus('✨ No missing subtitles found.');
-    return;
-  }
-  startFetchedSubtitleBatch(queue);
-}
-
-function launchSingleFetchedSubtitle(node) {
-  if (!isSubtitleBatchLeaf(node)) return;
-  startFetchedSubtitleBatch([node]);
-}
-
-function collectSelectedRepairQueue() {
-  return [...repairBatchSelected].map(id => nodeMap.get(id)).filter(isRepairableLeaf);
-}
-
-function collectSelectedRepairQueue() {
-  return [...repairBatchSelected].map(id => nodeMap.get(id)).filter(isRepairableLeaf);
-}
-
-function startRepairBatch(nodes) {
-  const queue = (nodes || []).flatMap(collectRepairableLeavesUnderNode).filter(Boolean);
-  if (!queue.length) {
-    setStatus('✨ No repairable files found in that selection.');
-    return;
-  }
-  repairBatchMode = true;
-  repairBatchSelected = new Set(queue.map(node => node.id));
-  repairBatchCompleted = new Set();
-  repairBatchFailed = new Set();
-  repairBatchQueue = queue.slice();
-  repairBatchCurrent = null;
-  repairBatchTotal = queue.length;
-  updateRepairBatchUi();
-  renderTree();
-  runNextRepairBatchJob();
-}
-
-function startSelectedRepairBatch() {
-  const queue = collectSelectedRepairQueue();
-  if (!queue.length) {
-    setStatus('✨ Select at least one repairable item first.');
-    return;
-  }
-  repairBatchMode = true;
-  repairBatchSelected = new Set(queue.map(node => node.id));
-  repairBatchQueue = queue.slice();
-  repairBatchCompleted = new Set();
-  repairBatchFailed = new Set();
-  repairBatchCurrent = null;
-  repairBatchTotal = queue.length;
-  updateRepairBatchUi();
-  renderTree();
-  runNextRepairBatchJob();
-}
-
-function markRepairBatchResult(jobId, ok, detail = '') {
-  if (!jobId) return;
-  if (ok) {
-    repairBatchCompleted.add(jobId);
-    repairBatchFailed.delete(jobId);
-  } else {
-    repairBatchFailed.add(jobId);
-  }
-  const node = nodeMap.get(jobId);
-  if (node) {
-    node.repairBatchState = ok ? 'done' : 'failed';
-    node.repairBatchDetail = detail || '';
-  }
-  updateRepairBatchUi();
-  renderTree();
-}
-
-function finishRepairBatch() {
-  const ran = repairBatchCompleted.size + repairBatchFailed.size;
-  const failedNames = [...repairBatchFailed].map(id => getRepairFileName(nodeMap.get(id))).filter(Boolean);
-  const failureText = failedNames.length ? `; failed: ${failedNames.join(', ')}` : '; no failures';
-  setStatus(`✅ Batch repair complete: ${ran} ran with ffmpeg${failureText}`);
-  repairBatchCurrent = null;
-  repairBatchQueue = [];
-  repairBatchMode = false;
-  repairBatchSelected = new Set();
-  repairBatchTotal = 0;
-  updateRepairBatchUi();
-  renderTree();
-}
-
-function runNextRepairBatchJob() {
-  if (!repairBatchQueue.length) {
-    finishRepairBatch();
-    return;
-  }
-  const next = repairBatchQueue.shift();
-  if (!next) {
-    finishRepairBatch();
-    return;
-  }
-  repairBatchCurrent = next;
-  updateRepairBatchUi();
-  openRepairModal(next, { batch: true });
-}
-
-function closeRepairIfNeeded() {
-  hideRepairModal();
-}
-
-
-function buildRepairPageUrl(ep) {
-  const isArduino = currentPlatform === 'arduino' || currentPlatform === 'esp';
-  const basePage = isArduino ? '/ffmpeg/repair-ffmpeg-wasm.html' : '/ffmpeg/repair.html';
-  const sourceUrl = String(ep?.primaryUrl || '').trim();
-  const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
-  const outputName = decodeURIComponent(sourceUrl.split('/').pop() || 'video');
-  const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
-  const params = new URLSearchParams({
-    source: sourceUrl,
-    sourceUrl: sourceUrl,
-    name: outputName,
-    folder: folderUrl,
-    upload: uploadUrl,
-    targetUrl: uploadUrl,
-    mode: 'seek-repair',
-    flow: '1',
-    auto: '1',
-    close: '1',
-    proxy: '1',
-    jobId: String(ep?.id || '')
-  });
-  return `${basePage}?${params.toString()}`;
-}
-
-function openRepairModal(ep, options = {}) {
-  if (!ep?.primaryUrl) return;
-  const outputName = decodeURIComponent(ep.primaryUrl.split('/').pop() || 'video');
-  els.repairModalTitle.textContent = options.batch ? `🛠️ Batch repair: ${outputName}` : `🛠️ Repair ${outputName}`;
-  if (els.repairModalNote) {
-    els.repairModalNote.textContent = 'This opens the ffmpeg repair page for the selected episode and uploads the repaired output back to the same server path.';
-  }
-  els.repairFrame.src = buildRepairPageUrl(ep);
-  els.repairModal.style.display = 'flex';
-  updateRepairBatchUi();
-}
-
-function openSubtitleModal(ep, options = {}) {
-  if (!ep?.primaryUrl) return;
-  const outputName = decodeURIComponent(ep.primaryUrl.split('/').pop() || 'subtitle');
-  els.repairModalTitle.textContent = options.batch ? `📝 Batch fetch: ${outputName}` : `📝 Fetch ${outputName}`;
-  if (els.repairModalNote) {
-    els.repairModalNote.textContent = 'This opens the subtitle fetch page in the repair iframe so the batch can wait through the API-key prompt and continue automatically when the job reports back.';
-  }
-  els.repairFrame.src = buildopensubtitlesPageUrl(ep);
-  els.repairModal.style.display = 'flex';
-  updateSubtitleBatchUi();
-}
-
-function buildWhisperPageUrl(ep) {
-  const sourceUrl = String(ep?.primaryUrl || '').trim();
-  const safeSource = sourceUrl ? safeFileUrl(sourceUrl, window.location.href) : '';
-  const folderUrl = safeSource ? new URL('.', safeSource).href : '';
-  const baseName = safeSource
-    ? safeDecode(new URL(safeSource).pathname.split('/').pop() || '')
-    : safeDecode(String(ep?.displayName || ep?.key || 'subtitle'));
-  const outputName = `${baseName.replace(/\.[^.]+$/, '') || 'subtitle'}.vtt`;
-  const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
-  const params = new URLSearchParams({
-    source: safeSource || sourceUrl,
-    name: outputName,
-    folder: folderUrl,
-    upload: uploadUrl,
-    mode: 'flow',
-    flow: '1',
-    auto: '1',
-    proxy: '1',
-    jobId: String(ep?.id || '')
-  });
-  return `/whisper-subtitles.html?${params.toString()}`;
-}
-
-function buildopensubtitlesPageUrl(ep) {
-  const sourceUrl = String(ep?.primaryUrl || '').trim();
-  const safeSource = sourceUrl ? safeFileUrl(sourceUrl, window.location.href) : '';
-  const folderUrl = safeSource ? new URL('.', safeSource).href : '';
-  const baseName = safeSource
-    ? safeDecode(new URL(safeSource).pathname.split('/').pop() || '')
-    : safeDecode(String(ep?.displayName || ep?.key || 'subtitle'));
-  const outputName = `${baseName.replace(/\.[^.]+$/, '') || 'subtitle'}.vtt`;
-  const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
-  const seriesHint = (() => {
-    try {
-      if (typeof getGroupPath === 'function') {
-        const path = String(getGroupPath(ep) || '').trim();
-        if (path) return path;
-      }
-    } catch (e) {}
-    const parts = [];
-    let parent = ep && ep.parentKey && nodeMap && typeof nodeMap.get === 'function' ? nodeMap.get(ep.parentKey) : null;
-    while (parent) {
-      const label = String(parent.displayName || parent.key || '').trim();
-      if (label) parts.unshift(label);
-      parent = parent.parentKey && nodeMap && typeof nodeMap.get === 'function' ? nodeMap.get(parent.parentKey) : null;
+  function launchSelectedSubtitles() {
+    const queue = collectSelectedSubtitleQueue();
+    if (!queue.length) {
+      setStatus('✨ Select at least one subtitle job first.');
+      return;
     }
-    return parts.join(' › ');
-  })();
-  const episodeTitle = safeDecode(String(ep?.displayName || ep?.key || 'subtitle'));
-  const search = [seriesHint, episodeTitle, baseName].filter(Boolean).join(' ').trim();
-  const parsedMatch = baseName.match(/\bS(\d{1,2})\s*E?(\d{1,3})\b/i) || baseName.match(/\b(\d{1,2})x(\d{1,3})\b/i);
-  const season = parsedMatch ? Number.parseInt(parsedMatch[1], 10) : '';
-  const episode = parsedMatch ? Number.parseInt(parsedMatch[2], 10) : '';
-  const params = new URLSearchParams({
-    source: safeSource || sourceUrl,
-    name: outputName,
-    folder: folderUrl,
-    upload: uploadUrl,
-    language: 'en',
-    provider: '',
-    mode: 'fetch',
-    flow: '1',
-    auto: '1',
-    close: '1',
-    proxy: '1',
-    jobId: String(ep?.id || ''),
-    series: seriesHint,
-    show: seriesHint,
-    librarySeries: seriesHint,
-    title: episodeTitle,
-    episodeTitle,
-    libraryTitle: episodeTitle || baseName,
-    search
-  });
-  if (Number.isFinite(season)) params.set('season', String(season));
-  if (Number.isFinite(episode)) params.set('episode', String(episode));
-  return `/opensubtitles-subtitles.html?${params.toString()}`;
-}
 
-function toggleWheel(force) {
+    let opened = 0;
+    const blocked = [];
+    for (const node of queue) {
+      const url = buildWhisperPageUrl(node);
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      if (win) opened++;
+      else blocked.push(getRepairFileName(node));
+    }
 
+    setStatus(opened
+      ? `🚀 Opened ${opened} Whisper tab${opened === 1 ? '' : 's'} for subtitles.${blocked.length ? ` Blocked: ${blocked.join(', ')}` : ''}`
+      : `❌ The browser blocked the new Whisper tabs.${blocked.length ? ` Blocked: ${blocked.join(', ')}` : ''}`);
+
+    clearSubtitleBatchState();
+    updateSubtitleBatchUi();
+    renderTree();
+  }
+
+  function startSelectedFetchedSubtitleBatch() {
+    const queue = collectSelectedSubtitleQueue();
+    if (!queue.length) {
+      setStatus('✨ Select at least one subtitle job first.');
+      return;
+    }
+    startFetchedSubtitleBatch(queue);
+  }
+
+  function launchSelectedFetchedSubtitles() {
+    startSelectedFetchedSubtitleBatch();
+  }
+
+  function launchAllMissingFetchedSubtitles() {
+    const queue = getCurrentMissingSubtitleQueue();
+    if (!queue.length) {
+      setStatus('✨ No missing subtitles found.');
+      return;
+    }
+    startFetchedSubtitleBatch(queue);
+  }
+
+  function launchSingleFetchedSubtitle(node) {
+    if (!isSubtitleBatchLeaf(node)) return;
+    startFetchedSubtitleBatch([node]);
+  }
+
+  function collectSelectedRepairQueue() {
+    return [...repairBatchSelected].map(id => nodeMap.get(id)).filter(isRepairableLeaf);
+  }
+
+  function startRepairBatch(nodes) {
+    const queue = (nodes || []).flatMap(collectRepairableLeavesUnderNode).filter(Boolean);
+    if (!queue.length) {
+      setStatus('✨ No repairable files found in that selection.');
+      return;
+    }
+    repairBatchMode = true;
+    repairBatchSelected = new Set(queue.map(node => node.id));
+    repairBatchCompleted = new Set();
+    repairBatchFailed = new Set();
+    repairBatchQueue = queue.slice();
+    repairBatchCurrent = null;
+    repairBatchTotal = queue.length;
+    updateRepairBatchUi();
+    renderTree();
+    runNextRepairBatchJob();
+  }
+
+  function startSelectedRepairBatch() {
+    const queue = collectSelectedRepairQueue();
+    if (!queue.length) {
+      setStatus('✨ Select at least one repairable item first.');
+      return;
+    }
+    repairBatchMode = true;
+    repairBatchSelected = new Set(queue.map(node => node.id));
+    repairBatchQueue = queue.slice();
+    repairBatchCompleted = new Set();
+    repairBatchFailed = new Set();
+    repairBatchCurrent = null;
+    repairBatchTotal = queue.length;
+    updateRepairBatchUi();
+    renderTree();
+    runNextRepairBatchJob();
+  }
+
+  function markRepairBatchResult(jobId, ok, detail = '') {
+    if (!jobId) return;
+    if (ok) {
+      repairBatchCompleted.add(jobId);
+      repairBatchFailed.delete(jobId);
+    } else {
+      repairBatchFailed.add(jobId);
+    }
+    const node = nodeMap.get(jobId);
+    if (node) {
+      node.repairBatchState = ok ? 'done' : 'failed';
+      node.repairBatchDetail = detail || '';
+    }
+    updateRepairBatchUi();
+    renderTree();
+  }
+
+  function finishRepairBatch() {
+    const ran = repairBatchCompleted.size + repairBatchFailed.size;
+    const failedNames = [...repairBatchFailed].map(id => getRepairFileName(nodeMap.get(id))).filter(Boolean);
+    const failureText = failedNames.length ? `; failed: ${failedNames.join(', ')}` : '; no failures';
+    setStatus(`✅ Batch repair complete: ${ran} ran with ffmpeg${failureText}`);
+    repairBatchCurrent = null;
+    repairBatchQueue = [];
+    repairBatchMode = false;
+    repairBatchSelected = new Set();
+    repairBatchTotal = 0;
+    updateRepairBatchUi();
+    renderTree();
+  }
+
+  function runNextRepairBatchJob() {
+    if (!repairBatchQueue.length) {
+      finishRepairBatch();
+      return;
+    }
+    const next = repairBatchQueue.shift();
+    if (!next) {
+      finishRepairBatch();
+      return;
+    }
+    repairBatchCurrent = next;
+    updateRepairBatchUi();
+    openRepairModal(next, { batch: true });
+  }
+
+  function closeRepairIfNeeded() {
+    hideRepairModal();
+  }
+
+  function buildRepairPageUrl(ep) {
+    const isArduino = currentPlatform === 'arduino' || currentPlatform === 'esp';
+    const basePage = isArduino ? '/ffmpeg/repair-ffmpeg-wasm.html' : '/ffmpeg/repair.html';
+    const sourceUrl = String(ep?.primaryUrl || '').trim();
+    const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
+    const outputName = decodeURIComponent(sourceUrl.split('/').pop() || 'video');
+    const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
+    const params = new URLSearchParams({
+      source: sourceUrl,
+      sourceUrl: sourceUrl,
+      name: outputName,
+      folder: folderUrl,
+      upload: uploadUrl,
+      targetUrl: uploadUrl,
+      mode: 'seek-repair',
+      flow: '1',
+      auto: '1',
+      close: '1',
+      proxy: '1',
+      jobId: String(ep?.id || '')
+    });
+    return `${basePage}?${params.toString()}`;
+  }
+
+  function openRepairModal(ep, options = {}) {
+    if (!ep?.primaryUrl) return;
+    const outputName = decodeURIComponent(ep.primaryUrl.split('/').pop() || 'video');
+    els.repairModalTitle.textContent = options.batch ? `🛠️ Batch repair: ${outputName}` : `🛠️ Repair ${outputName}`;
+    if (els.repairModalNote) {
+      els.repairModalNote.textContent = 'This opens the ffmpeg repair page for the selected episode and uploads the repaired output back to the same server path.';
+    }
+    els.repairFrame.src = buildRepairPageUrl(ep);
+    els.repairModal.style.display = 'flex';
+    updateRepairBatchUi();
+  }
+
+  function openSubtitleModal(ep, options = {}) {
+    if (!ep?.primaryUrl) return;
+    const outputName = decodeURIComponent(ep.primaryUrl.split('/').pop() || 'subtitle');
+    els.repairModalTitle.textContent = options.batch ? `📝 Batch fetch: ${outputName}` : `📝 Fetch ${outputName}`;
+    if (els.repairModalNote) {
+      els.repairModalNote.textContent = 'This opens the subtitle fetch page in the repair iframe so the batch can wait through the API-key prompt and continue automatically when the job reports back.';
+    }
+    els.repairFrame.src = buildopensubtitlesPageUrl(ep);
+    els.repairModal.style.display = 'flex';
+    updateSubtitleBatchUi();
+  }
+
+  function buildWhisperPageUrl(ep) {
+    const sourceUrl = String(ep?.primaryUrl || '').trim();
+    const safeSource = sourceUrl ? safeFileUrl(sourceUrl, window.location.href) : '';
+    const folderUrl = safeSource ? new URL('.', safeSource).href : '';
+    const baseName = safeSource
+      ? safeDecode(new URL(safeSource).pathname.split('/').pop() || '')
+      : safeDecode(String(ep?.displayName || ep?.key || 'subtitle'));
+    const outputName = `${baseName.replace(/\.[^.]+$/, '') || 'subtitle'}.vtt`;
+    const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
+    const params = new URLSearchParams({
+      source: safeSource || sourceUrl,
+      name: outputName,
+      folder: folderUrl,
+      upload: uploadUrl,
+      mode: 'flow',
+      flow: '1',
+      auto: '1',
+      proxy: '1',
+      jobId: String(ep?.id || '')
+    });
+    return `/whisper-subtitles.html?${params.toString()}`;
+  }
+
+  function buildopensubtitlesPageUrl(ep) {
+    const sourceUrl = String(ep?.primaryUrl || '').trim();
+    const safeSource = sourceUrl ? safeFileUrl(sourceUrl, window.location.href) : '';
+    const folderUrl = safeSource ? new URL('.', safeSource).href : '';
+    const baseName = safeSource
+      ? safeDecode(new URL(safeSource).pathname.split('/').pop() || '')
+      : safeDecode(String(ep?.displayName || ep?.key || 'subtitle'));
+    const outputName = `${baseName.replace(/\.[^.]+$/, '') || 'subtitle'}.vtt`;
+    const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
+    const seriesHint = (() => {
+      try {
+        if (typeof getGroupPath === 'function') {
+          const path = String(getGroupPath(ep) || '').trim();
+          if (path) return path;
+        }
+      } catch (e) {}
+      const parts = [];
+      let parent = ep && ep.parentKey && nodeMap && typeof nodeMap.get === 'function' ? nodeMap.get(ep.parentKey) : null;
+      while (parent) {
+        const label = String(parent.displayName || parent.key || '').trim();
+        if (label) parts.unshift(label);
+        parent = parent.parentKey && nodeMap && typeof nodeMap.get === 'function' ? nodeMap.get(parent.parentKey) : null;
+      }
+      return parts.join(' › ');
+    })();
+    const episodeTitle = safeDecode(String(ep?.displayName || ep?.key || 'subtitle'));
+    const search = [seriesHint, episodeTitle, baseName].filter(Boolean).join(' ').trim();
+    const parsedMatch = baseName.match(/\bS(\d{1,2})\s*E?(\d{1,3})\b/i) || baseName.match(/\b(\d{1,2})x(\d{1,3})\b/i);
+    const season = parsedMatch ? Number.parseInt(parsedMatch[1], 10) : '';
+    const episode = parsedMatch ? Number.parseInt(parsedMatch[2], 10) : '';
+    const params = new URLSearchParams({
+      source: safeSource || sourceUrl,
+      name: outputName,
+      folder: folderUrl,
+      upload: uploadUrl,
+      language: 'en',
+      provider: '',
+      mode: 'fetch',
+      flow: '1',
+      auto: '1',
+      close: '1',
+      proxy: '1',
+      jobId: String(ep?.id || ''),
+      series: seriesHint,
+      show: seriesHint,
+      librarySeries: seriesHint,
+      title: episodeTitle,
+      episodeTitle,
+      libraryTitle: episodeTitle || baseName,
+      search
+    });
+    if (Number.isFinite(season)) params.set('season', String(season));
+    if (Number.isFinite(episode)) params.set('episode', String(episode));
+    return `/opensubtitles-subtitles.html?${params.toString()}`;
+  }
+
+  function toggleWheel(force) {
     const open = typeof force === 'boolean' ? force : !els.libraryWheel.classList.contains('open');
     els.libraryWheel.classList.toggle('open', open);
     els.libraryWheel.setAttribute('aria-hidden', String(!open));
@@ -3940,9 +4031,7 @@ function toggleWheel(force) {
     return uploadInput;
   }
 
-  // ============================================================
-  // UPLOAD USING platformAPI (no slicing, no direct fetch)
-  // ============================================================
+  // ---- Upload function ----
   async function promptUpload(node, which) {
     const targetUrl = getUploadTarget(node, which);
     if (!targetUrl) {
@@ -3956,28 +4045,24 @@ function toggleWheel(force) {
       const file = input.files && input.files[0];
       if (!file) return;
 
-      // Extract path and base URL from the target URL
+      let baseUrl = node._origin || window.location.origin;
       let targetPath = targetUrl;
-      let baseUrl = window.location.origin;
       try {
-        const url = new URL(targetUrl, window.location.href);
-        targetPath = url.pathname + (url.search || '');
+        const url = new URL(targetUrl, baseUrl);
         baseUrl = url.origin;
+        targetPath = url.pathname + (url.search || '');
       } catch (e) {
-        // If targetUrl is not a valid URL, treat it as a path
         targetPath = targetUrl.startsWith('/') ? targetUrl : '/' + targetUrl;
-        baseUrl = window.location.origin;
       }
 
       setStatus(`Uploading ${file.name} to ${targetPath}…`);
       setProgressDisplay(0, 1, `Uploading ${file.name}`);
 
       try {
-        // Use platformAPI.uploadFile (supports all platforms)
         await window.platformAPI.uploadFile(
-          file,           // File object
-          targetPath,     // path part (e.g., "/Profiles/Guest-Resume.txt")
-          baseUrl,        // base URL (e.g., "http://192.168.1.100")
+          file,
+          targetPath,
+          baseUrl,
           (loaded, total) => {
             const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
             setStatus(`Uploading ${file.name}… ${pct}%`);
@@ -3985,7 +4070,6 @@ function toggleWheel(force) {
           }
         );
 
-        // Mark as existing
         if (which === 'primary') node.primaryStatus = STATUS.EXISTS;
         else node.secondaryStatus = STATUS.EXISTS;
         setStatus(`✅ Uploaded ${file.name}`);
@@ -4001,20 +4085,86 @@ function toggleWheel(force) {
     input.click();
   }
 
-  // -------- CORE: loadLibrary merges main + expanded/local expanded --------
-  // -------- using explicit fetch/merge based on checkbox state. --------
-  // -------- Additionally, enrich data with origin for remote sources --------
+  // ---- Helper: add _origin to data ----
+  function addOriginToEpisodes(obj, origin) {
+    if (!obj || typeof obj !== 'object') return;
+    for (const key in obj) {
+      const value = obj[key];
+      if (Array.isArray(value)) {
+        for (const ep of value) {
+          if (ep && typeof ep === 'object') ep._origin = origin;
+        }
+      } else if (value && typeof value === 'object') {
+        addOriginToEpisodes(value, origin);
+      }
+    }
+  }
 
+  function addOriginToArray(arr, origin) {
+    if (!Array.isArray(arr)) return;
+    for (const item of arr) {
+      if (item && typeof item === 'object') item._origin = origin;
+    }
+  }
+
+  // ---- NEW: load ALL library data from origin ----
+  async function loadAllLibraryData() {
+    const tasks = [];
+
+    // 1. Video
+    tasks.push(
+      fetchLibraryResource('./library.js')
+        .then(({ text }) => loadVideoData(text))
+        .then(data => { window.episodes = data || {}; })
+        .catch(() => { window.episodes = {}; })
+    );
+
+    // 2. Music
+    tasks.push(
+      fetchLibraryResource('./musiclibrary.js')
+        .then(({ text }) => loadMusicData(text))
+        .then(data => { window.musicLibrary = data || []; })
+        .catch(() => { window.musicLibrary = []; })
+    );
+
+    // 3. Games
+    tasks.push(
+      fetchLibraryResource('./games.js')
+        .then(({ text }) => loadGamesData(text))
+        .then(data => { window.games = data || []; })
+        .catch(() => { window.games = []; })
+    );
+
+    // 4. Books (three separate files)
+    const bookFiles = ['books.js', 'manga.js', 'guidebooks.js'];
+    for (const file of bookFiles) {
+      tasks.push(
+        fetchLibraryResource(file)
+          .then(({ text }) => {
+            // extractBookDataFromJs is defined earlier in this script
+            const data = extractBookDataFromJs(text, file.replace(/\.js$/, ''));
+            const target = file.replace(/\.js$/, '');
+            window[target] = data || [];
+          })
+          .catch(() => {
+            // file may not exist, leave undefined
+          })
+      );
+    }
+
+    await Promise.allSettled(tasks);
+  }
+
+  // ---- Core library loading (merged) ----
   function enrichWithOrigin(data, origin, key) {
     if (!data || !origin) return data;
     if (key === 'video') {
-      // data is an object of episode arrays or season arrays
       for (const folder in data) {
         const value = data[folder];
         if (Array.isArray(value)) {
           for (let i = 0; i < value.length; i++) {
             if (typeof value[i] === 'string') {
-              // It's a reference to another season; we'll handle later when building the tree
+              // reference to another season – skip
             } else if (typeof value[i] === 'object' && value[i] !== null) {
               value[i]._origin = origin;
             }
@@ -4073,7 +4223,6 @@ function toggleWheel(force) {
     }
   }
 
-  // Generic merge function for different library types (preserves origins)
   function mergeLibraryData(baseData, newData, key) {
     if (!newData) return baseData;
     if (key === 'video') {
@@ -4140,119 +4289,108 @@ function toggleWheel(force) {
     return baseData;
   }
 
+  // ---- loadLibrary (uses merged globals) ----
   async function loadLibrary() {
+    if (window.__loadexpandedPromise) await window.__loadexpandedPromise;
+    if (window.__loadlocalexpandedPromise) await window.__loadlocalexpandedPromise;
+
+    let mainData = null;
     const prefs = window.__sourceConfig || { expanded: false, local: false };
-    // Step 1: load main data
     const loadingName = Array.isArray(activeConfig.files) && activeConfig.files.length
       ? activeConfig.files.map(file => String(file).split('/').pop()).join(' • ')
       : activeConfig.file;
+
     setStatus(`Loading ${loadingName}…`);
 
-    let mainData = null;
-    if (Array.isArray(activeConfig.files) && activeConfig.files.length) {
-      const bundle = await fetchLibraryBundle(activeConfig);
-      mainData = await activeConfig.loadData(bundle);
+    switch (activeKey) {
+      case 'video':
+        mainData = window.episodes || {};
+        if (typeof mainData !== 'object' || Array.isArray(mainData)) mainData = {};
+        break;
+      case 'music':
+        mainData = window.musicLibrary || [];
+        break;
+      case 'games':
+        mainData = window.games || [];
+        break;
+      case 'books': {
+        const sections = [];
+        const sources = [
+          { key: 'books', label: 'Books', data: window.books },
+          { key: 'manga', label: 'Manga', data: window.manga },
+          { key: 'guidebooks', label: 'Guidebooks', data: window.guidebooks }
+        ];
+        for (const src of sources) {
+          if (Array.isArray(src.data) && src.data.length) {
+            sections.push({
+              key: src.key,
+              label: src.label,
+              data: { items: src.data },
+              _origin: window.location.href
+            });
+          }
+        }
+        mainData = sections;
+        break;
+      }
+      default:
+        if (Array.isArray(activeConfig.files) && activeConfig.files.length) {
+          const bundle = await fetchLibraryBundle(activeConfig);
+          mainData = await activeConfig.loadData(bundle);
+        } else {
+          const { text } = await fetchLibraryText(activeConfig);
+          mainData = await activeConfig.loadData(text);
+        }
+    }
+
+    if (mainData) {
+      setStatus(`✅ Loaded ${flatItems.length} items from merged globals (${prefs.expanded ? 'expanded' : 'local'}${prefs.local ? ' + local' : ''})`);
     } else {
-      const { text } = await fetchLibraryText(activeConfig);
-      mainData = await activeConfig.loadData(text);
-    }
-
-    // Step 2: merge expanded if enabled
-    if (prefs.expanded) {
-      try {
-        const remoteData = await fetchExpandedData();
-        if (remoteData) {
-          mainData = mergeLibraryData(mainData, remoteData, activeKey);
-          setStatus(`Merged Expanded sources…`);
-        }
-      } catch (e) {
-        setStatus(`⚠️ Expanded merge failed: ${e.message}`);
+      setStatus(`⚠️ No global data found, falling back to direct fetch…`);
+      if (Array.isArray(activeConfig.files) && activeConfig.files.length) {
+        const bundle = await fetchLibraryBundle(activeConfig);
+        mainData = await activeConfig.loadData(bundle);
+      } else {
+        const { text } = await fetchLibraryText(activeConfig);
+        mainData = await activeConfig.loadData(text);
       }
     }
 
-    // Step 3: merge local expanded if enabled
-    if (prefs.local) {
-      try {
-        const remoteData = await fetchLocalExpandedData();
-        if (remoteData) {
-          mainData = mergeLibraryData(mainData, remoteData, activeKey);
-          setStatus(`Merged Local Expanded sources…`);
-        }
-      } catch (e) {
-        setStatus(`⚠️ Local Expanded merge failed: ${e.message}`);
-      }
-    }
-
-    // Step 4: build tree
     hierarchyRoots = activeConfig.build(mainData);
-    currentSource = `main${prefs.expanded ? ' + expanded' : ''}${prefs.local ? ' + local' : ''}`;
+    currentSource = `merged${prefs.expanded ? ' + expanded' : ''}${prefs.local ? ' + local' : ''}`;
     setStatus(`✅ Loaded ${flatItems.length} items from ${currentSource}`);
     updateStats();
     renderTree();
   }
 
-  // Fetch remote data from expandedstorage.txt port
-  async function fetchExpandedData() {
-    const port = await fetch('./expandedstorage.txt', { cache: 'no-store' }).then(r => r.text()).then(t => t.trim()).catch(() => '');
-    if (!port) return null;
-    const baseUrl = `${window.location.protocol}//${window.location.hostname}:${port}`;
-    return fetchRemoteData(baseUrl);
-  }
-
-  // Fetch remote data from localexpanded.txt entries
-  async function fetchLocalExpandedData() {
-    const raw = await fetch('./localexpanded.txt', { cache: 'no-store' }).then(r => r.text()).catch(() => '');
-    const entries = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
-    if (!entries.length) return null;
-
-    const servers = [];
-    for (const entry of entries) {
-      const match = entry.match(/^(.*?)\s*\[(.*?)\]\s*$/);
-      if (match) {
-        servers.push(match[1].trim());
-        servers.push(match[2].trim());
-      } else {
-        servers.push(entry);
-      }
+  // ---- Switch library ----
+  async function switchLibrary(key) {
+    if (!LIBRARIES[key] || key === activeKey) {
+      toggleWheel(false);
+      return;
     }
-
-    let mergedData = null;
-    for (const server of servers) {
-      const baseUrl = server.startsWith('http') ? server : `http://${server}`;
-      const remote = await fetchRemoteData(baseUrl);
-      if (remote) {
-        mergedData = mergeLibraryData(mergedData, remote, activeKey);
-      }
-    }
-    return mergedData;
-  }
-
- async function switchLibrary(key) {
-  if (!LIBRARIES[key] || key === activeKey) {
+    scanQueue = [];
+    scanIndex = 0;
+    scanning = false;
+    paused = false;
+    els.pauseBtn.disabled = true;
+    els.stopBtn.disabled = true;
+    els.scanPrimaryBtn.disabled = false;
+    els.scanSecondaryBtn.disabled = false;
+    els.search.value = '';
+    activeKey = key;
+    activeConfig = LIBRARIES[key];
+    setLibraryUI(activeKey);
+    hierarchyRoots = [];
+    flatItems = [];
+    nodeMap = new Map();
+    expandedNodes = new Set();
+    els.tree.innerHTML = '<div class="empty-message">Loading…</div>';
     toggleWheel(false);
-    return;
+    await loadLibrary();
   }
-  scanQueue = [];
-  scanIndex = 0;
-  scanning = false;
-  paused = false;
-  els.pauseBtn.disabled = true;
-  els.stopBtn.disabled = true;
-  els.scanPrimaryBtn.disabled = false;
-  els.scanSecondaryBtn.disabled = false;
-  els.search.value = '';
-  activeKey = key;
-  activeConfig = LIBRARIES[key];
-  setLibraryUI(activeKey);   // <-- ADD THIS LINE
-  hierarchyRoots = [];
-  flatItems = [];
-  nodeMap = new Map();
-  expandedNodes = new Set();
-  els.tree.innerHTML = '<div class="empty-message">Loading…</div>';
-  toggleWheel(false);
-  await loadLibrary();
-}
 
+  // ---- Repair/upload actions ----
   async function repairOrUploadFromAction(node, action) {
     if (action === 'repair-leaf') {
       openRepairModal(node);
@@ -4272,133 +4410,133 @@ function toggleWheel(force) {
     return nodeMap.get(id);
   }
 
+  // ---- Event listeners ----
+  els.tree.addEventListener('pointerdown', (e) => {
+    const repairBtn = e.target.closest('[data-action="repair-leaf"]');
+    if (repairBtn) {
+      const node = getNodeById(repairBtn.dataset.nodeId);
+      if (!node || !isRepairableLeaf(node)) return;
+      clearTimeout(repairHoldTimer);
+      repairHoldCandidate = node;
+      repairHoldTriggered = false;
+      repairHoldTimer = setTimeout(() => {
+        repairHoldTriggered = true;
+        setRepairBatchMode(true, node);
+        updateRepairBatchUi();
+        renderTree();
+      }, 420);
+      return;
+    }
 
-els.tree.addEventListener('pointerdown', (e) => {
-  const repairBtn = e.target.closest('[data-action="repair-leaf"]');
-  if (repairBtn) {
-    const node = getNodeById(repairBtn.dataset.nodeId);
-    if (!node || !isRepairableLeaf(node)) return;
+    const subtitleBtn = e.target.closest('[data-action="scan-leaf-secondary"]');
+    if (subtitleBtn && activeKey === 'video') {
+      const node = getNodeById(subtitleBtn.dataset.nodeId);
+      if (!node || !isSubtitleBatchLeaf(node)) return;
+      clearTimeout(subtitleHoldTimer);
+      subtitleHoldCandidate = node;
+      subtitleHoldTriggered = false;
+      subtitleHoldTimer = setTimeout(() => {
+        subtitleHoldTriggered = true;
+        setRepairBatchMode(false);
+        setSubtitleBatchMode(true, node);
+        updateSubtitleBatchUi();
+        renderTree();
+      }, 420);
+      return;
+    }
+
+    const repairGroupBtn = e.target.closest('[data-action="repair-group"]');
+    if (repairGroupBtn) {
+      const node = getNodeById(repairGroupBtn.dataset.nodeId);
+      if (!node) return;
+      clearTimeout(repairGroupHoldTimer);
+      repairGroupHoldCandidate = node;
+      repairGroupHoldTriggered = false;
+      repairGroupHoldTimer = setTimeout(() => {
+        repairGroupHoldTriggered = true;
+        seedRepairBatchFromNode(node);
+      }, 420);
+      return;
+    }
+
+    const subtitleGroupBtn = e.target.closest('[data-action="scan-group-secondary"]');
+    if (subtitleGroupBtn && activeKey === 'video') {
+      const node = getNodeById(subtitleGroupBtn.dataset.nodeId);
+      if (!node) return;
+      clearTimeout(subtitleGroupHoldTimer);
+      subtitleGroupHoldCandidate = node;
+      subtitleGroupHoldTriggered = false;
+      subtitleGroupHoldTimer = setTimeout(() => {
+        subtitleGroupHoldTriggered = true;
+        seedSubtitleBatchFromNode(node);
+      }, 420);
+    }
+  });
+
+  els.tree.addEventListener('pointerup', (e) => {
+    const repairBtn = e.target.closest('[data-action="repair-leaf"]');
+    if (repairBtn) {
+      clearTimeout(repairHoldTimer);
+      if (repairHoldTriggered) {
+        e.preventDefault();
+        repairHoldCandidate = null;
+        return;
+      }
+    }
+
+    const subtitleBtn = e.target.closest('[data-action="scan-leaf-secondary"]');
+    if (subtitleBtn && activeKey === 'video') {
+      clearTimeout(subtitleHoldTimer);
+      if (subtitleHoldTriggered) {
+        e.preventDefault();
+        subtitleHoldCandidate = null;
+        return;
+      }
+    }
+
+    const repairGroupBtn = e.target.closest('[data-action="repair-group"]');
+    if (repairGroupBtn) {
+      clearTimeout(repairGroupHoldTimer);
+      if (repairGroupHoldTriggered) {
+        e.preventDefault();
+        repairGroupHoldCandidate = null;
+        return;
+      }
+    }
+
+    const subtitleGroupBtn = e.target.closest('[data-action="scan-group-secondary"]');
+    if (subtitleGroupBtn && activeKey === 'video') {
+      clearTimeout(subtitleGroupHoldTimer);
+      if (subtitleGroupHoldTriggered) {
+        e.preventDefault();
+        subtitleGroupHoldCandidate = null;
+        return;
+      }
+    }
+  });
+
+  els.tree.addEventListener('pointerleave', () => {
     clearTimeout(repairHoldTimer);
-    repairHoldCandidate = node;
-    repairHoldTriggered = false;
-    repairHoldTimer = setTimeout(() => {
-      repairHoldTriggered = true;
-      setRepairBatchMode(true, node);
-      updateRepairBatchUi();
-      renderTree();
-    }, 420);
-    return;
-  }
-
-  const subtitleBtn = e.target.closest('[data-action="scan-leaf-secondary"]');
-  if (subtitleBtn && activeKey === 'video') {
-    const node = getNodeById(subtitleBtn.dataset.nodeId);
-    if (!node || !isSubtitleBatchLeaf(node)) return;
     clearTimeout(subtitleHoldTimer);
-    subtitleHoldCandidate = node;
-    subtitleHoldTriggered = false;
-    subtitleHoldTimer = setTimeout(() => {
-      subtitleHoldTriggered = true;
-      setRepairBatchMode(false);
-      setSubtitleBatchMode(true, node);
-      updateSubtitleBatchUi();
-      renderTree();
-    }, 420);
-    return;
-  }
+    clearRepairGroupHoldState();
+    clearSubtitleGroupHoldState();
+  });
 
-  const repairGroupBtn = e.target.closest('[data-action="repair-group"]');
-  if (repairGroupBtn) {
-    const node = getNodeById(repairGroupBtn.dataset.nodeId);
-    if (!node) return;
-    clearTimeout(repairGroupHoldTimer);
-    repairGroupHoldCandidate = node;
-    repairGroupHoldTriggered = false;
-    repairGroupHoldTimer = setTimeout(() => {
-      repairGroupHoldTriggered = true;
-      seedRepairBatchFromNode(node);
-    }, 420);
-    return;
-  }
-
-  const subtitleGroupBtn = e.target.closest('[data-action="scan-group-secondary"]');
-  if (subtitleGroupBtn && activeKey === 'video') {
-    const node = getNodeById(subtitleGroupBtn.dataset.nodeId);
-    if (!node) return;
-    clearTimeout(subtitleGroupHoldTimer);
-    subtitleGroupHoldCandidate = node;
-    subtitleGroupHoldTriggered = false;
-    subtitleGroupHoldTimer = setTimeout(() => {
-      subtitleGroupHoldTriggered = true;
-      seedSubtitleBatchFromNode(node);
-    }, 420);
-  }
-});
-
-els.tree.addEventListener('pointerup', (e) => {
-  const repairBtn = e.target.closest('[data-action="repair-leaf"]');
-  if (repairBtn) {
-    clearTimeout(repairHoldTimer);
-    if (repairHoldTriggered) {
-      e.preventDefault();
-      repairHoldCandidate = null;
+  els.tree.addEventListener('change', async (e) => {
+    const repairToggle = e.target.closest('[data-action="repair-batch-toggle"]');
+    if (repairToggle) {
+      const node = getNodeById(repairToggle.dataset.nodeId);
+      if (!node || !isRepairableLeaf(node)) return;
+      selectRepairLeaf(node.id, repairToggle.checked);
       return;
     }
-  }
-
-  const subtitleBtn = e.target.closest('[data-action="scan-leaf-secondary"]');
-  if (subtitleBtn && activeKey === 'video') {
-    clearTimeout(subtitleHoldTimer);
-    if (subtitleHoldTriggered) {
-      e.preventDefault();
-      subtitleHoldCandidate = null;
-      return;
+    const subtitleToggle = e.target.closest('[data-action="subtitle-batch-toggle"]');
+    if (subtitleToggle) {
+      const node = getNodeById(subtitleToggle.dataset.nodeId);
+      if (!node || !isSubtitleBatchLeaf(node)) return;
+      selectSubtitleLeaf(node.id, subtitleToggle.checked);
     }
-  }
-
-  const repairGroupBtn = e.target.closest('[data-action="repair-group"]');
-  if (repairGroupBtn) {
-    clearTimeout(repairGroupHoldTimer);
-    if (repairGroupHoldTriggered) {
-      e.preventDefault();
-      repairGroupHoldCandidate = null;
-      return;
-    }
-  }
-
-  const subtitleGroupBtn = e.target.closest('[data-action="scan-group-secondary"]');
-  if (subtitleGroupBtn && activeKey === 'video') {
-    clearTimeout(subtitleGroupHoldTimer);
-    if (subtitleGroupHoldTriggered) {
-      e.preventDefault();
-      subtitleGroupHoldCandidate = null;
-      return;
-    }
-  }
-});
-
-els.tree.addEventListener('pointerleave', () => {
-  clearTimeout(repairHoldTimer);
-  clearTimeout(subtitleHoldTimer);
-  clearRepairGroupHoldState();
-  clearSubtitleGroupHoldState();
-});
-
-els.tree.addEventListener('change', async (e) => {
-  const repairToggle = e.target.closest('[data-action="repair-batch-toggle"]');
-  if (repairToggle) {
-    const node = getNodeById(repairToggle.dataset.nodeId);
-    if (!node || !isRepairableLeaf(node)) return;
-    selectRepairLeaf(node.id, repairToggle.checked);
-    return;
-  }
-  const subtitleToggle = e.target.closest('[data-action="subtitle-batch-toggle"]');
-  if (subtitleToggle) {
-    const node = getNodeById(subtitleToggle.dataset.nodeId);
-    if (!node || !isSubtitleBatchLeaf(node)) return;
-    selectSubtitleLeaf(node.id, subtitleToggle.checked);
-  }
-});
+  });
 
   els.tree.addEventListener('click', async (e) => {
     const actionBtn = e.target.closest('[data-action]');
@@ -4534,8 +4672,7 @@ els.tree.addEventListener('change', async (e) => {
     }
   });
 
-
-
+  // ---- Main UI setup ----
   els.search.addEventListener('input', renderTree);
   els.expandAllBtn.addEventListener('click', expandAll);
   els.collapseAllBtn.addEventListener('click', collapseAll);
@@ -4546,6 +4683,8 @@ els.tree.addEventListener('change', async (e) => {
     } catch (err) {
       setStatus(`❌ Load failed: ${err.message}`);
     }
+    // Also rebuild source filter (in case config files changed)
+    await buildSourceFilter();
   });
 
   els.scanPrimaryBtn.addEventListener('click', () => startScan(flatItems, true, false, true));
@@ -4631,7 +4770,6 @@ els.tree.addEventListener('change', async (e) => {
   els.addContentBtn?.addEventListener('click', () => openAddContentModal('add'));
   els.runBatchRepairBtn?.addEventListener('click', () => startSelectedRepairBatch());
   els.addContentBtn?.addEventListener('click', () => openAddContentModal('add'));
-  els.runBatchRepairBtn?.addEventListener('click', () => startSelectedRepairBatch());
 
   els.backupBtn?.addEventListener('click', () => {
     window.location.href = './Backup-flow.html';
@@ -4642,6 +4780,7 @@ els.tree.addEventListener('change', async (e) => {
   els.browseShellsBtn?.addEventListener('click', () => {
     window.location.href = './browse.html';
   });
+
   els.libraryHub.addEventListener('click', e => {
     e.stopPropagation();
     toggleWheel();
@@ -4715,7 +4854,6 @@ els.tree.addEventListener('change', async (e) => {
     window.location.href = window.location.pathname + query;
   }
 
-  // Parse query string on load to set config
   function initSourcesFromQuery() {
     const urlParams = new URLSearchParams(window.location.search);
     const sourcesParam = urlParams.get('sources');
@@ -4731,11 +4869,9 @@ els.tree.addEventListener('change', async (e) => {
     }
 
     setCheckboxesFromPrefs(prefs);
-    // Store globally for use in loadLibrary
     window.__sourceConfig = { expanded: prefs.expanded, local: prefs.local };
   }
 
-  // Toggle dropdown
   if (expandedBtn && expandedDropdown) {
     expandedBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -4747,7 +4883,6 @@ els.tree.addEventListener('change', async (e) => {
     expandedDropdown.addEventListener('click', (e) => e.stopPropagation());
   }
 
-  // Checkbox changes
   if (chkExpanded) {
     chkExpanded.addEventListener('change', () => {
       const prefs = {
@@ -4767,35 +4902,78 @@ els.tree.addEventListener('change', async (e) => {
     });
   }
 
-  // Run init
   initSourcesFromQuery();
 
-  // Wait for expanded scripts only to ensure they don't interfere (they are loaded but we ignore their globals)
+  // ---- Helper to extract folders from mainfolders.js (for loadBaseData) ----
+  function extractFoldersFromJs(text) {
+    const arrMatch = /(?:const|let|var)?\s*folders\s*=\s*\[([\s\S]*?)\]/m.exec(text);
+    if (!arrMatch) return { names: [], adultSet: new Set() };
+    let content = arrMatch[1].replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\n)\s*\/\/.*$/gm, '');
+    const re = /(['"])(.*?)\1/g;
+    const names = [];
+    const adultSet = new Set();
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      let rawName = (m[2] || '').trim();
+      if (!rawName) continue;
+      const hasStar = rawName.includes('*');
+      const cleanName = rawName.replace(/\*/g, '').trim();
+      names.push(cleanName);
+      if (hasStar) adultSet.add(cleanName);
+    }
+    return { names, adultSet };
+  }
+
+  // ---- Dynamic script loader ----
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = () => {
+        if (src.includes('loadexpanded') && window.__loadexpandedPromise) {
+          window.__loadexpandedPromise.then(resolve).catch(reject);
+        } else if (src.includes('loadlocalexpanded') && window.__loadlocalexpandedPromise) {
+          window.__loadlocalexpandedPromise.then(resolve).catch(reject);
+        } else {
+          resolve();
+        }
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  // ---- Main init ----
   async function init() {
-    // ----- fetch platform -----
     try {
       currentPlatform = await window.platformAPI.getPlatform(window.location.href);
     } catch (_) {
       currentPlatform = 'windows';
     }
     setLibraryUI(activeKey);
-    try {
-      await loadLibrary();
-    } catch (e) {
-      setStatus(`❌ ${e.message}`);
-      els.tree.innerHTML = '<div class="empty-message">Failed to load library file</div>';
-    }
+
+    // 1. Load ALL origin data
+    setStatus('Loading all libraries from origin…');
+    await loadAllLibraryData();
+
+    // 2. Load remote‑merge scripts (they will append to the globals)
+    await loadScript('./loadlocalexpanded.js');
+    await loadScript('./loadexpanded.js');
+
+    // 3. Build the video library tree (default view)
+    setStatus('Building library tree…');
+    await loadLibrary();   // uses window.episodes
     updateStats();
     renderTree();
+
+    // 4. Build the source filter bar (after library is loaded)
+    await buildSourceFilter();
   }
 
   init();
 
-  // ================================================================
-  // ==== ADDED: Wi‑Fi button logic (same as profile.html) =========
-  // ================================================================
+  // ---- Wi‑Fi button ----
   (async function initWifiButton() {
-    // Wait for platformAPI (already defined via loadplatform.js)
     while (typeof window.platformAPI === 'undefined') {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
@@ -4818,7 +4996,6 @@ els.tree.addEventListener('change', async (e) => {
       }
     }
 
-    // Open overlay on click
     wifiBtn?.addEventListener('click', function(e) {
       e.preventDefault();
       const overlay = document.getElementById('wifiOverlay');
@@ -4829,7 +5006,6 @@ els.tree.addEventListener('change', async (e) => {
       }
     });
 
-    // Close overlay
     const closeWifi = document.getElementById('closeWifiBtn');
     if (closeWifi) {
       closeWifi.addEventListener('click', function() {
@@ -4848,6 +5024,5 @@ els.tree.addEventListener('change', async (e) => {
 
 })();
 </script>
-
 </body>
 </html>

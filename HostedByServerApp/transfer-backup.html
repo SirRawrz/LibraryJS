@@ -851,27 +851,15 @@
   }
 
    // ------------------------------------------------------------
-  // processTransferItem using platformAPI (updated for Arduino source proxy)
+  // processTransferItem using platformAPI (updated for unified streaming)
   // ------------------------------------------------------------
   async function processTransferItem({ item, preserveSetup, dest, strategy, total, index, batchMode = false }) {
     const label = itemKindLabel(item);
     const sourceUrl = item.sourceUrl || '';
 
-    // Determine source platform to decide if we should use remote copy.
-    // If source is Arduino/ESP, we want the browser to proxy chunks,
-    // so we force canRemoteCopy = false even if destination supports it.
-    let sourcePlatform = 'unknown';
-    try {
-      sourcePlatform = await platformAPI.getPlatform(state.sourceBase);
-    } catch (_) {}
-    const isSourceArduino = (sourcePlatform === 'arduino' || sourcePlatform === 'esp');
-
-    // Remote copy is allowed only if destination supports it AND source is NOT Arduino.
-    const canRemoteCopy = strategy.supportsRemoteCopy && !!sourceUrl && !isSourceArduino;
-
-    if (isSourceArduino) {
-      console.log(`[processTransferItem] Source is Arduino, using browser proxy (remote copy disabled).`);
-    }
+    // Remote copy is allowed if destination supports it and we have a source URL.
+    // No platform-specific exclusions – all support chunked PUT via platformAPI.
+    const canRemoteCopy = strategy.supportsRemoteCopy && !!sourceUrl;
 
     if (!batchMode) {
       setProgress(index, total, `Preparing ${label} (${index}/${total})`);
@@ -897,15 +885,8 @@
             log(`Trying ${candidatePath} for ${label} via remote-copy.`);
             await platformAPI.copyFile(candidateSourceUrl, candidatePath, dest);
           } else {
-            // If source is Arduino, we pass the URL directly to uploadFile (streaming).
-            // Otherwise, download the whole blob first.
-            if (isSourceArduino) {
-              await platformAPI.uploadFile(candidateSourceUrl, candidatePath, dest);
-            } else {
-              const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
-              log(`Fetched ${candidatePath} for ${label}.`);
-              await platformAPI.uploadFile(candidatePayload, candidatePath, dest);
-            }
+            // Always stream via URL – platformAPI handles 5 MB ranged chunks
+            await platformAPI.uploadFile(candidateSourceUrl, candidatePath, dest);
           }
           if (candidatePath !== item.path) {
             log(`Selected ${candidatePath} for ${label}.`);
@@ -917,7 +898,6 @@
           log(`Artwork candidate failed for ${candidatePath}: ${message}`);
         }
       }
-
       throw lastError || new Error(`All artwork candidates failed for ${label}.`);
     }
 
@@ -926,71 +906,56 @@
       const manifestCandidates = Array.isArray(item.audiobookManifestCandidates) && item.audiobookManifestCandidates.length
         ? item.audiobookManifestCandidates
         : [{ path: item.path, sourceUrl }];
-      const manifestPayload = item.blob || null;
-      let payloadToUse = manifestPayload;
       let manifestSourceUrl = sourceUrl;
       let manifestSourcePath = item.path;
 
-      if (!payloadToUse) {
-        let lastManifestError = null;
-
-        for (const candidate of manifestCandidates) {
-          const candidatePath = normalizeRelativePath(candidate.path || item.path);
-          const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
-          try {
-            if (isSourceArduino) {
-              // For Arduino source, pass the URL directly to uploadFile
-              payloadToUse = candidateSourceUrl; // URL string
-              manifestSourceUrl = candidateSourceUrl;
-              manifestSourcePath = candidatePath;
-              log(`Using audiobook manifest source URL ${candidatePath} for ${item.path}.`);
-              break;
-            } else {
-              payloadToUse = await withRetry(`download ${label}`, () => sourcePayloadFromUrl(candidateSourceUrl), { retries: 2, delay: 250 });
-              manifestSourceUrl = candidateSourceUrl;
-              manifestSourcePath = candidatePath;
-              if (candidatePath !== item.path) {
-                log(`Using audiobook manifest source ${candidatePath} for ${item.path}.`);
-              }
-              break;
-            }
-          } catch (err) {
-            lastManifestError = err;
-            const message = err?.message || String(err);
-            log(`Audiobook manifest candidate failed for ${candidatePath}: ${message}`);
+      // Find first existing manifest candidate (we don't download it now, we'll stream later)
+      let foundCandidate = null;
+      let lastManifestError = null;
+      for (const candidate of manifestCandidates) {
+        const candidatePath = normalizeRelativePath(candidate.path || item.path);
+        const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
+        try {
+          // We can do a quick HEAD check to see if the file exists, but for simplicity we'll just use the first candidate and let uploadFile handle 404.
+          // If you want to avoid retries, you could check with a HEAD request first.
+          foundCandidate = { path: candidatePath, sourceUrl: candidateSourceUrl };
+          manifestSourceUrl = candidateSourceUrl;
+          manifestSourcePath = candidatePath;
+          if (candidatePath !== item.path) {
+            log(`Using audiobook manifest source ${candidatePath} for ${item.path}.`);
           }
-        }
-
-        if (!payloadToUse) {
-          const message = lastManifestError?.message || `Unable to find audiobook manifest for ${item.path}.`;
-          if (item.optional && /HTTP\s+404/i.test(message)) {
-            log(`Skipped ${label}: not found on source.`);
-            return { skipped: true };
-          }
-          throw lastManifestError || new Error(message);
-        }
-
-        if (manifestSourcePath && manifestSourcePath !== item.path) {
-          log(`Resolved audiobook manifest to ${manifestSourcePath}.`);
-        } else {
-          log(`Downloaded source bytes for ${label}.`);
+          break;
+        } catch (err) {
+          lastManifestError = err;
+          const message = err?.message || String(err);
+          log(`Audiobook manifest candidate failed for ${candidatePath}: ${message}`);
         }
       }
 
+      if (!foundCandidate) {
+        const message = lastManifestError?.message || `Unable to find audiobook manifest for ${item.path}.`;
+        if (item.optional && /HTTP\s+404/i.test(message)) {
+          log(`Skipped ${label}: not found on source.`);
+          return { skipped: true };
+        }
+        throw lastManifestError || new Error(message);
+      }
+
+      // Upload manifest via streamed URL (or remote copy)
       const uploadMode = canRemoteCopy ? 'copy' : strategy.method;
       log(`Uploading ${label} via ${uploadMode.toUpperCase()}.`);
       if (canRemoteCopy) {
         await withRetry(`upload ${label}`, () => platformAPI.copyFile(manifestSourceUrl, item.path, dest), { retries: 3, delay: 600 });
       } else {
-        await withRetry(`upload ${label}`, () => platformAPI.uploadFile(payloadToUse, item.path, dest), { retries: 3, delay: 600 });
+        await withRetry(`upload ${label}`, () => platformAPI.uploadFile(manifestSourceUrl, item.path, dest), { retries: 3, delay: 600 });
       }
       log(`Uploaded ${label}.`);
 
-      const candidates = Array.isArray(item.audiobookCandidates) ? item.audiobookCandidates : [];
-      if (!candidates.length) return { manifestUploaded: true, missingAudio: true };
+      const audioCandidates = Array.isArray(item.audiobookCandidates) ? item.audiobookCandidates : [];
+      if (!audioCandidates.length) return { manifestUploaded: true, missingAudio: true };
 
       let lastAudioError = null;
-      for (const candidate of candidates) {
+      for (const candidate of audioCandidates) {
         const candidatePath = normalizeRelativePath(candidate.path || item.path);
         const candidateSourceUrl = resolveSourceUrl(state.sourceBase, candidate.sourceUrl, candidatePath);
         try {
@@ -998,13 +963,8 @@
             log(`Trying ${candidatePath} for audiobook audio via remote-copy.`);
             await platformAPI.copyFile(candidateSourceUrl, candidatePath, dest);
           } else {
-            if (isSourceArduino) {
-              await platformAPI.uploadFile(candidateSourceUrl, candidatePath, dest);
-            } else {
-              const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
-              log(`Fetched ${candidatePath} for audiobook audio.`);
-              await platformAPI.uploadFile(candidatePayload, candidatePath, dest);
-            }
+            // Stream via URL – chunked upload
+            await platformAPI.uploadFile(candidateSourceUrl, candidatePath, dest);
           }
           if (candidatePath !== item.path) {
             log(`Selected ${candidatePath} for audiobook audio.`);
@@ -1016,7 +976,6 @@
           log(`Audiobook audio candidate failed for ${candidatePath}: ${message}`);
         }
       }
-
       if (lastAudioError) {
         const message = lastAudioError?.message || String(lastAudioError);
         if (/HTTP\s+404/i.test(message)) {
@@ -1024,7 +983,6 @@
           return { manifestUploaded: true, missingAudio: true };
         }
       }
-
       return { manifestUploaded: true, missingAudio: true };
     }
 
@@ -1041,14 +999,8 @@
             log(`Trying ${candidatePath} for ${label} via remote-copy.`);
             await platformAPI.copyFile(candidateSourceUrl, candidatePath, dest);
           } else {
-            if (isSourceArduino) {
-              // Stream directly from Arduino
-              await platformAPI.uploadFile(candidateSourceUrl, candidatePath, dest);
-            } else {
-              const candidatePayload = await sourcePayloadFromUrl(candidateSourceUrl);
-              log(`Fetched ${candidatePath} for ${label}.`);
-              await platformAPI.uploadFile(candidatePayload, candidatePath, dest);
-            }
+            // Always stream via URL – chunked upload
+            await platformAPI.uploadFile(candidateSourceUrl, candidatePath, dest);
           }
           if (candidatePath !== item.path) {
             log(`Selected ${candidatePath} for ${label}.`);
@@ -1060,11 +1012,10 @@
           log(`Music candidate failed for ${candidatePath}: ${message}`);
         }
       }
-
       throw lastError || new Error(`All music candidates failed for ${label}.`);
     }
 
-        // ---- Regular media ----
+    // ---- Regular media ----
     if (item.kind === 'media') {
       if (canRemoteCopy) {
         log(`Using remote-copy for ${label}.`);
