@@ -4,9 +4,12 @@
  *
  * Supported platforms:
  *   - windows    : direct PUT to the same origin (port 80/443)
- *   - android    : PUT to /api/file/upload with FormData (files[]) or chunked PUT with Content-Range
- *   - iphone     : POST to /pocketserver-api/upload with FormData (files[], targetDir)
- *   - arduino/esp: PUT to port 81 at /upload?path=...  (now uses chunked upload with ranged fetches)
+ *   - android    : POST to /api/file/upload with FormData (files[])
+ *   - iphone     : PUT to the same path (direct file upload, no FormData)
+ *   - iphones    : same as iphone
+ *   - arduino/esp: PUT to port 81 at /upload?path=...  (chunked upload with ranged fetches)
+ *
+ * @version 2.2 - Improved error handling, Android uses POST for multipart.
  */
 (function() {
   // Per-origin cache: baseUrl -> platform string
@@ -15,9 +18,9 @@
 
   const PLATFORM_CONFIG = {
     windows:   { uploadPort: null, uploadPath: null, method: 'PUT', useFormData: false, supportsRemoteCopy: true },
-    android:   { uploadPort: null, uploadPath: '/api/file/upload', method: 'PUT', useFormData: true, supportsRemoteCopy: true },
-    iphone:    { uploadPort: null, uploadPath: '/pocketserver-api/upload', method: 'POST', useFormData: true, supportsRemoteCopy: false },
-    iphones:   { uploadPort: null, uploadPath: '/pocketserver-api/upload', method: 'POST', useFormData: true, supportsRemoteCopy: false },
+    android:   { uploadPort: null, uploadPath: '/api/file/upload', method: 'POST', useFormData: true, supportsRemoteCopy: true },
+    iphone:    { uploadPort: null, uploadPath: null, method: 'PUT', useFormData: false, supportsRemoteCopy: true },
+    iphones:   { uploadPort: null, uploadPath: null, method: 'PUT', useFormData: false, supportsRemoteCopy: true },
     arduino:   { uploadPort: 81,   uploadPath: '/upload', method: 'PUT', useFormData: false, supportsRemoteCopy: false },
     esp:       { uploadPort: 81,   uploadPath: '/upload', method: 'PUT', useFormData: false, supportsRemoteCopy: false }
   };
@@ -290,8 +293,8 @@
       const configs = {
         windows:   { maxConcurrentUploads: 6, timeoutMs: 600000, supportsRemoteCopy: true },
         android:   { maxConcurrentUploads: 3, timeoutMs: 900000, supportsRemoteCopy: true, chunkSize: 8 * 1024 * 1024 },
-        iphone:    { maxConcurrentUploads: 2, timeoutMs: 900000, supportsRemoteCopy: false },
-        iphones:   { maxConcurrentUploads: 2, timeoutMs: 900000, supportsRemoteCopy: false },
+        iphone:    { maxConcurrentUploads: 2, timeoutMs: 900000, supportsRemoteCopy: true },
+        iphones:   { maxConcurrentUploads: 2, timeoutMs: 900000, supportsRemoteCopy: true },
         arduino:   { maxConcurrentUploads: 1, timeoutMs: 600000, supportsRemoteCopy: false, chunkSize: 5 * 1024 * 1024 },
         esp:       { maxConcurrentUploads: 1, timeoutMs: 600000, supportsRemoteCopy: false, chunkSize: 5 * 1024 * 1024 }
       };
@@ -394,9 +397,7 @@
       // Normalize accidental full URLs into server-relative paths.
       try {
         const parsed = new URL(targetPath);
-
         targetPath = decodeURIComponent(parsed.pathname);
-
         if (!targetPath.startsWith('/')) {
           targetPath = '/' + targetPath;
         }
@@ -422,28 +423,16 @@
         console.log('[platformAPI] Upload URL (Arduino):', url);
         return url;
       } else if (platform === 'android') {
-
         const url = new URL(config.uploadPath, origin);
-
         const { dirPath, fileName } = parseTargetPath(targetPath);
-
         url.searchParams.set('path', decodeURIComponent(dirPath));
-
         if (fileName) {
-          url.searchParams.set(
-            'name',
-            decodeURIComponent(fileName)
-          );
+          url.searchParams.set('name', decodeURIComponent(fileName));
         }
-
         console.log('[platformAPI] Upload URL (Android):', url.toString());
-
-        return url.toString();
-      } else if (platform === 'iphone' || platform === 'iphones') {
-        const url = new URL(config.uploadPath, origin);
-        console.log('[platformAPI] Upload URL (iPhone):', url.toString());
         return url.toString();
       } else {
+        // All other platforms (windows, iphone, iphones) use PUT to the target path
         const cleanPath = targetPath.startsWith('/') ? targetPath.slice(1) : targetPath;
         const url = new URL(cleanPath, origin);
         console.log('[platformAPI] Upload URL (PUT):', url.toString());
@@ -577,7 +566,9 @@
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(xhr.responseText);
           } else {
-            reject(new Error(`Upload failed: HTTP ${xhr.status} – ${xhr.responseText}`));
+            // Include response text in error for debugging
+            const errorMsg = `Upload failed: HTTP ${xhr.status} – ${xhr.responseText || 'No response body'}`;
+            reject(new Error(errorMsg));
           }
         };
 
@@ -617,5 +608,5 @@
   };
 
   window.platformAPI = platformAPI;
-  console.log('[loadplatform] platformAPI installed (per-origin platform detection)');
+  console.log('[loadplatform] version 2.2 – Improved error handling and Android POST support');
 })();
