@@ -1,4 +1,3 @@
-
 (function () {
   // config
   const INACTIVITY_MS = 15000; // 15s before slideshow when idle
@@ -16,28 +15,58 @@
   let idx = -1;
   let lastActivity = Date.now();
 
-  // overlay / two image slots
+  // ---- overlay creation (safe, handles body not yet ready) ----
   let overlay = document.getElementById('tvdAlbumScreensaver');
   if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'tvdAlbumScreensaver';
-    Object.assign(overlay.style, {
-      position: 'fixed', inset: '0', zIndex: 99990, display: 'none',
-      alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.95)',
-      backdropFilter: 'blur(4px)', cursor: 'default', overflow: 'hidden'
-    });
-    overlay.innerHTML = `
-      <div id="tvdScrInner" style="width:100%;height:100%;display:block;position:relative;overflow:hidden;">
-        <img id="tvdScrA" style="position:absolute; top:0; left:0; height:100%; width:100%; object-fit:contain; opacity:0; transition:opacity ${FADE_MS}ms ease;">
-        <img id="tvdScrB" style="position:absolute; top:0; right:0; height:100%; width:100%; object-fit:contain; opacity:0; transition:opacity ${FADE_MS}ms ease;">
-        <div id="tvdScrCaption" style="position:absolute; left:20px; bottom:24px; color:rgba(255,255,255,0.0); font-weight:600;"></div>
-      </div>`;
-    document.body.appendChild(overlay);
+    // If body doesn't exist yet, wait for DOMContentLoaded
+    if (!document.body) {
+      document.addEventListener('DOMContentLoaded', function createOverlayOnLoad() {
+        if (document.getElementById('tvdAlbumScreensaver')) return;
+        overlay = document.createElement('div');
+        overlay.id = 'tvdAlbumScreensaver';
+        Object.assign(overlay.style, {
+          position: 'fixed', inset: '0', zIndex: 99990, display: 'none',
+          alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.95)',
+          backdropFilter: 'blur(4px)', cursor: 'default', overflow: 'hidden'
+        });
+        overlay.innerHTML = `
+          <div id="tvdScrInner" style="width:100%;height:100%;display:block;position:relative;overflow:hidden;">
+            <img id="tvdScrA" style="position:absolute; top:0; left:0; height:100%; width:100%; object-fit:contain; opacity:0; transition:opacity ${FADE_MS}ms ease;">
+            <img id="tvdScrB" style="position:absolute; top:0; right:0; height:100%; width:100%; object-fit:contain; opacity:0; transition:opacity ${FADE_MS}ms ease;">
+            <div id="tvdScrCaption" style="position:absolute; left:20px; bottom:24px; color:rgba(255,255,255,0.0); font-weight:600;"></div>
+          </div>`;
+        document.body.appendChild(overlay);
+        // re‑assign references after creation
+        window._tvdScrA = document.getElementById('tvdScrA');
+        window._tvdScrB = document.getElementById('tvdScrB');
+        window._tvdScrCaption = document.getElementById('tvdScrCaption');
+      });
+      // we still need references later; we'll use getElementById when needed
+      overlay = null;
+    } else {
+      overlay = document.createElement('div');
+      overlay.id = 'tvdAlbumScreensaver';
+      Object.assign(overlay.style, {
+        position: 'fixed', inset: '0', zIndex: 99990, display: 'none',
+        alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.95)',
+        backdropFilter: 'blur(4px)', cursor: 'default', overflow: 'hidden'
+      });
+      overlay.innerHTML = `
+        <div id="tvdScrInner" style="width:100%;height:100%;display:block;position:relative;overflow:hidden;">
+          <img id="tvdScrA" style="position:absolute; top:0; left:0; height:100%; width:100%; object-fit:contain; opacity:0; transition:opacity ${FADE_MS}ms ease;">
+          <img id="tvdScrB" style="position:absolute; top:0; right:0; height:100%; width:100%; object-fit:contain; opacity:0; transition:opacity ${FADE_MS}ms ease;">
+          <div id="tvdScrCaption" style="position:absolute; left:20px; bottom:24px; color:rgba(255,255,255,0.0); font-weight:600;"></div>
+        </div>`;
+      document.body.appendChild(overlay);
+    }
   }
 
-  const imgA = document.getElementById('tvdScrA');
-  const imgB = document.getElementById('tvdScrB');
-  const caption = document.getElementById('tvdScrCaption');
+  // Helper to get elements (they may be created later)
+  function getImgA() { return document.getElementById('tvdScrA'); }
+  function getImgB() { return document.getElementById('tvdScrB'); }
+  function getCaption() { return document.getElementById('tvdScrCaption'); }
+
+  // We'll use these getters inside functions, so we don't rely on static references.
 
   // helpers
   function getStoredProfile() {
@@ -109,7 +138,9 @@
   }
 
   function resetSlotStyles() {
-    // normalize both slots to default single-image layout
+    const imgA = getImgA();
+    const imgB = getImgB();
+    if (!imgA || !imgB) return;
     [imgA, imgB].forEach(el => {
       el.style.transition = `opacity ${FADE_MS}ms ease`;
       el.style.top = '0';
@@ -125,17 +156,23 @@
   function hideOverlay() {
     if (!playingSlideshow) return;
     playingSlideshow = false;
-    overlay.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
     clearTimeout(slideTimer);
     slideTimer = null;
     idx = -1;
-    imgA.src = imgB.src = '';
-    imgA.style.opacity = imgB.style.opacity = '0';
+    const imgA = getImgA();
+    const imgB = getImgB();
+    if (imgA) imgA.src = imgB.src = '';
+    if (imgA) imgA.style.opacity = imgB.style.opacity = '0';
   }
 
   // Atomic advance: decide pairing, preload all needed, then set layout + fade
   async function advance() {
     if (!playingSlideshow || !images.length) { hideOverlay(); return; }
+    const imgA = getImgA();
+    const imgB = getImgB();
+    const caption = getCaption();
+    if (!imgA || !imgB) { hideOverlay(); return; }
 
     // choose next primary index
     idx = (idx + 1) % images.length;
@@ -197,7 +234,7 @@
       imgB.src = secondarySrc;
 
       // set caption hidden (we removed text earlier); kept but invisible
-      caption.textContent = '';
+      if (caption) caption.textContent = '';
 
       // fade both in together
       // use RAF to ensure the browser notices the new src/styles before transition
@@ -222,7 +259,7 @@
       // set primary into left slot (A)
       imgA.style.opacity = '0';
       imgA.src = primarySrc;
-      caption.textContent = '';
+      if (caption) caption.textContent = '';
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -235,11 +272,22 @@
     slideTimer = setTimeout(advance, SLIDE_MS);
   }
 
+  // ---- UPDATED: check both video AND audio ----
+  function isAnyMediaPlaying() {
+    const media = document.querySelectorAll('video, audio');
+    for (const el of media) {
+      // Must have a source, be ready, and not be paused/ended
+      if (el && el.currentSrc && el.readyState > 0 && !el.paused && !el.ended) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // ---- UPDATED: start only if no media is playing ----
   async function startSlideshowIfAppropriate() {
     if (playingSlideshow) return;
-    const vid = (window.vid || document.querySelector('video'));
-    const noMediaPlaying = !vid || vid.paused || vid.ended || !vid.currentSrc || vid.readyState === 0;
-    if (!noMediaPlaying) return;
+    if (isAnyMediaPlaying()) return;
 
     const profile = getStoredProfile();
     const fetched = await listImagesForProfile(profile);
@@ -255,7 +303,7 @@
     // start
     playingSlideshow = true;
     idx = -1;
-    overlay.style.display = 'flex';
+    if (overlay) overlay.style.display = 'flex';
     // ensure both slots are reset
     resetSlotStyles();
 
@@ -271,12 +319,13 @@
     }
     resetInactivityTimer();
   }
+
   function resetInactivityTimer() {
     clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(async () => {
-      const vid = (window.vid || document.querySelector('video'));
-      const noMediaPlaying = !vid || vid.paused || vid.ended || !vid.currentSrc || vid.readyState === 0;
-      if (noMediaPlaying) await startSlideshowIfAppropriate();
+      if (!isAnyMediaPlaying()) {
+        await startSlideshowIfAppropriate();
+      }
     }, INACTIVITY_MS);
   }
 
@@ -311,19 +360,31 @@
   // Remote/controller navigation often moves focus without generating pointer events.
   document.addEventListener('focusin', onUserActivity, { passive: true, capture: true });
 
-  function wireVideoEvents() {
-    const vid = (window.vid || document.querySelector('video'));
-    if (!vid) return;
-    vid.addEventListener('play', onPlaybackStart, { passive: true });
-    vid.addEventListener('playing', onPlaybackStart, { passive: true });
-    vid.addEventListener('pause', () => { resetInactivityTimer(); }, { passive: true });
-    vid.addEventListener('ended', () => { resetInactivityTimer(); }, { passive: true });
+  // ---- UPDATED: wire events to ALL media elements (video AND audio) ----
+  function wireMediaEvents() {
+    const media = document.querySelectorAll('video, audio');
+    for (const el of media) {
+      // Remove existing listeners to avoid duplicates
+      el.removeEventListener('play', onPlaybackStart);
+      el.removeEventListener('playing', onPlaybackStart);
+      el.removeEventListener('pause', resetInactivityTimer);
+      el.removeEventListener('ended', resetInactivityTimer);
+      // Add fresh ones
+      el.addEventListener('play', onPlaybackStart, { passive: true });
+      el.addEventListener('playing', onPlaybackStart, { passive: true });
+      el.addEventListener('pause', resetInactivityTimer, { passive: true });
+      el.addEventListener('ended', resetInactivityTimer, { passive: true });
+    }
   }
 
-  document.addEventListener('DOMContentLoaded', () => { wireVideoEvents(); resetInactivityTimer(); });
-  try { wireVideoEvents(); resetInactivityTimer(); } catch(e){}
+  // ---- init ----
+  document.addEventListener('DOMContentLoaded', () => { wireMediaEvents(); resetInactivityTimer(); });
+  try { wireMediaEvents(); resetInactivityTimer(); } catch(e){}
 
-  const mo = new MutationObserver(() => { if (document.querySelector('video')) wireVideoEvents(); });
+  // Watch for new media elements (video or audio)
+  const mo = new MutationObserver(() => {
+    if (document.querySelector('video, audio')) wireMediaEvents();
+  });
   mo.observe(document.body, { childList: true, subtree: true });
 
   // debug / control surface

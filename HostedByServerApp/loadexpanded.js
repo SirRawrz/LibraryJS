@@ -1,5 +1,5 @@
 // loadexpanded.js – Enhanced search with dynamic music & library globals loading
-// Implements priority-based merging for music, games, and books
+// Implements priority-based merging for music, games, books, and now videos
 (function() {
   window.__loadexpandedPromise = new Promise(async (resolve) => {
     // ----------------------------------------------------------------
@@ -60,6 +60,19 @@
      * Duplicates are overwritten by higher-priority sources.
      * Every item is guaranteed to be an object with _origin and _sourceId.
      */
+    function resolveAssetAgainstSource(value, sourceOrigin) {
+      if (!value) return value;
+      const raw = String(value).trim();
+      if (!raw || /^(?:data:|blob:|javascript:|#)/i.test(raw)) return raw;
+
+      try {
+        const base = String(sourceOrigin || window.location.origin).replace(/\/+$/, '') + '/';
+        return new URL(raw, base).href;
+      } catch (e) {
+        return raw;
+      }
+    }
+
     function mergeCategoryData(fetchedDatasets, category) {
       const mergedMap = new Map();
 
@@ -69,33 +82,65 @@
         const items = Array.isArray(data) ? data : Object.values(data);
 
         items.forEach(item => {
-          // Normalize: if item is not an object, wrap it with a `raw` property
           let normalizedItem = item;
-          if (typeof item !== 'object' || item === null) {
-            normalizedItem = { raw: String(item) };
-          } else if (Array.isArray(item)) {
-            // If it's an array, treat it as a special case (unlikely for music/games/books)
-            // We'll just keep it and add origin to the array? Better to flatten or ignore.
-            // For safety, we'll wrap it in an object with a "items" property.
-            normalizedItem = { items: item };
-          }
-
-          // Ensure it's a plain object (not Array) for adding properties
-          if (typeof normalizedItem === 'object' && !Array.isArray(normalizedItem)) {
-            normalizedItem._origin = source.origin;
-            normalizedItem._sourceId = source.id;
-          }
-
-          // Determine a unique key for deduplication
           let uniqueKey = '';
+
+          // --- Special handling for music: always extract raw string and origin ---
           if (category === 'music') {
-            uniqueKey = normalizedItem.base || normalizedItem.title || normalizedItem.raw || JSON.stringify(normalizedItem);
-          } else if (category === 'games') {
-            uniqueKey = normalizedItem.name || normalizedItem.title || normalizedItem.file || JSON.stringify(normalizedItem);
-          } else if (category === 'books') {
-            uniqueKey = normalizedItem.title || normalizedItem.file || normalizedItem.name || JSON.stringify(normalizedItem);
+            let rawValue = '';
+            if (typeof item === 'string') {
+              rawValue = item;
+            } else if (item && typeof item === 'object' && item.raw) {
+              rawValue = item.raw;
+            } else if (item && typeof item === 'object' && item.title) {
+              rawValue = item.title;
+            } else {
+              rawValue = String(item);
+            }
+            normalizedItem = {
+              raw: rawValue,
+              _origin: source.origin,
+              _sourceId: source.id
+            };
+            uniqueKey = rawValue;
           } else {
-            uniqueKey = normalizedItem.id || normalizedItem.title || JSON.stringify(normalizedItem);
+            // Normalize: if item is not an object, wrap it with a `raw` property
+            if (typeof item !== 'object' || item === null) {
+              normalizedItem = { raw: String(item) };
+            } else if (Array.isArray(item)) {
+              normalizedItem = { items: item };
+            }
+
+            // Ensure it's a plain object (not Array) for adding properties
+            if (typeof normalizedItem === 'object' && !Array.isArray(normalizedItem)) {
+              normalizedItem._origin = source.origin;
+              normalizedItem._sourceId = source.id;
+            }
+
+            // Determine a unique key for deduplication
+            if (category === 'games') {
+              // games.js commonly stores tile art as ./Images/example.jpg.
+              // Resolve that relative path against the server that supplied this
+              // particular games.js, rather than against the page being viewed.
+              if (normalizedItem.img) {
+                normalizedItem._sourceImg = normalizedItem.img;
+                normalizedItem.img = resolveAssetAgainstSource(normalizedItem.img, source.origin);
+              }
+              if (normalizedItem.image && !normalizedItem.img) {
+                normalizedItem._sourceImg = normalizedItem.image;
+                normalizedItem.image = resolveAssetAgainstSource(normalizedItem.image, source.origin);
+              }
+              if (normalizedItem.cover && !normalizedItem.img && !normalizedItem.image) {
+                normalizedItem._sourceImg = normalizedItem.cover;
+                normalizedItem.cover = resolveAssetAgainstSource(normalizedItem.cover, source.origin);
+              }
+
+              uniqueKey = normalizedItem.name || normalizedItem.title || normalizedItem.file || JSON.stringify(normalizedItem);
+            } else if (category === 'books') {
+              uniqueKey = normalizedItem.title || normalizedItem.file || normalizedItem.name || JSON.stringify(normalizedItem);
+            } else {
+              uniqueKey = normalizedItem.id || normalizedItem.title || JSON.stringify(normalizedItem);
+            }
           }
 
           if (uniqueKey) {
@@ -312,54 +357,65 @@
       return items;
     }
 
+    // ================================================================
+    // FIX: buildMusicIndex – store the raw string (with $code) in the `raw` field
+    // ================================================================
     function buildMusicIndex() {
       const items = [];
       if (Array.isArray(window.musicLibrary)) {
         for (const entry of window.musicLibrary) {
-          let raw = '';
+          let rawString = '';
           let origin = entry._origin || null;
           let sourceId = entry._sourceId || null;
 
+          // Extract the raw string from the entry
           if (typeof entry === 'string') {
-            raw = entry;
+            rawString = entry;
           } else if (entry && typeof entry === 'object' && entry.raw) {
-            raw = entry.raw;
+            rawString = entry.raw;
           } else if (entry && typeof entry === 'object' && entry.title && entry.artist) {
-            // already structured
+            // already structured – we'll keep it as is, but also provide rawString if available
+            rawString = entry.raw || '';
             items.push({
               title: entry.title || '',
               artist: entry.artist || '',
               genre: entry.genre || '',
-              raw: entry.raw || '',
+              raw: rawString, // use the raw string
               _origin: origin,
               _sourceId: sourceId
             });
             continue;
           } else {
-            continue;
+            continue; // skip invalid entries
           }
 
+          // rawString now holds the full string (e.g., "Song Title - Artist Name$code")
+          // We need to keep the original rawString for the `raw` field later.
+          const originalRaw = rawString; // preserve the full string with $code
+
+          // Parse to extract genre code and split into song/artist
           let genreCode = '';
-          const dollarIdx = raw.lastIndexOf('$');
+          const dollarIdx = originalRaw.lastIndexOf('$');
           if (dollarIdx !== -1) {
-            genreCode = raw.slice(dollarIdx + 1);
-            raw = raw.slice(0, dollarIdx);
+            genreCode = originalRaw.slice(dollarIdx + 1);
+            rawString = originalRaw.slice(0, dollarIdx); // remove the $code for parsing
           }
-          const parts = raw.split(' - ').map(s => s.trim());
-          let song = raw;
+          const parts = rawString.split(' - ').map(s => s.trim());
+          let song = rawString;
           let artist = '';
           if (parts.length > 1) {
             artist = parts[parts.length - 1];
             song = parts.slice(0, parts.length - 1).join(' - ');
           }
           const genreName = (window.musicLibraryGenreMap && window.musicLibraryGenreMap[genreCode]) || genreCode;
+
           items.push({
             title: song,
             parent: 'Music',
             source: 'music',
             artist: artist,
             genre: genreName,
-            raw: entry,
+            raw: originalRaw,          // <-- FIXED: store the full raw string with $code
             _origin: origin,
             _sourceId: sourceId
           });
@@ -410,7 +466,7 @@
             else favs.splice(idx, 1);
             if (typeof setStoredFavorites === 'function') setStoredFavorites(favs);
             else localStorage.setItem('favorites', JSON.stringify(favs));
-            if (typeof saveFavoritesToServer === 'function') try { saveFavoritesToServer(favs).catch(()=>{}); } catch(e){}
+            if (typeof saveFavoritesToServer === 'function') try { saveFavoritesToServer(favs).catch(()=>{}); } catch(e){} 
           }
         } catch (e) {}
         refreshStarVisual();
@@ -653,8 +709,15 @@
         if (m.artist) div.appendChild(artistP);
         if (m.genre) div.appendChild(genreP);
 
+        // ---- Click handler now uses m.raw (the full raw string with $code) ----
         div.addEventListener('click', () => {
-          try { window.location.href = `./Music.html?play=${encodeURIComponent(m.raw || m.title)}`; } catch(e){}
+          try {
+            // Use the raw string if available, otherwise fallback to title
+            const playParam = encodeURIComponent(m.raw || m.title || '');
+            window.location.href = `./Music.html?play=${playParam}`;
+          } catch(e) {
+            console.warn('Music tile click error', e);
+          }
         });
         grid.appendChild(div);
       });
@@ -1025,358 +1088,255 @@
     })();
 
     // ================================================================
-    // 2. OPTIONAL: Merge remote server if expandedstorage.txt exists
+    // 2. REFRESH FUNCTION: merge all data from all sources
     // ================================================================
-    
-    // Core structural functions safely moved out of inner loops
-    function addFolderOrigin(folder, baseUrl) {
-      if (!window.folderOriginMap) window.folderOriginMap = {};
-      if (!window.folderOriginMap[folder]) window.folderOriginMap[folder] = baseUrl;
-    }
-    function extractFoldersFromJs(text) {
-      const arrMatch = /(?:const|let|var)?\s*folders\s*=\s*\[([\s\S]*?)\]/m.exec(text);
-      if (!arrMatch) return { names: [], adultSet: new Set() };
-      let content = arrMatch[1].replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\n)\s*\/\/.*$/gm, '');
-      const re = /(['"])(.*?)\1/g;
-      const names = []; const adultSet = new Set(); let m;
-      while ((m = re.exec(content)) !== null) {
-        let rawName = (m[2] || '').trim();
-        if (!rawName) continue;
-        const hasStar = rawName.includes('*');
-        const cleanName = rawName.replace(/\*/g, '').trim();
-        names.push(cleanName);
-        if (hasStar) adultSet.add(cleanName);
+
+    async function refreshAllData() {
+      // Core structural functions
+      function addFolderOrigin(folder, baseUrl) {
+        if (!window.folderOriginMap) window.folderOriginMap = {};
+        if (!window.folderOriginMap[folder]) window.folderOriginMap[folder] = baseUrl;
       }
-      return { names, adultSet };
-    }
-    function prependBaseToPaths(obj, baseUrl) {
-      if (!obj || typeof obj !== 'object') return obj;
-      if (Array.isArray(obj)) return obj.map(item => prependBaseToPaths(item, baseUrl));
-      const result = {};
-      for (const [key, value] of Object.entries(obj)) {
-        if (typeof value === 'string') {
-          if (value.startsWith('./') || value.startsWith('../') || value.startsWith('/')) result[key] = baseUrl + '/' + value.replace(/^(\.\/|\.\.\/|\/)/, '');
-          else if (value.startsWith('http://') || value.startsWith('https://')) result[key] = value;
+      function extractFoldersFromJs(text) {
+        const arrMatch = /(?:const|let|var)?\s*folders\s*=\s*\[([\s\S]*?)\]/m.exec(text);
+        if (!arrMatch) return { names: [], adultSet: new Set() };
+        let content = arrMatch[1].replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\n)\s*\/\/.*$/gm, '');
+        const re = /(['"])(.*?)\1/g;
+        const names = []; const adultSet = new Set(); let m;
+        while ((m = re.exec(content)) !== null) {
+          let rawName = (m[2] || '').trim();
+          if (!rawName) continue;
+          const hasStar = rawName.includes('*');
+          const cleanName = rawName.replace(/\*/g, '').trim();
+          names.push(cleanName);
+          if (hasStar) adultSet.add(cleanName);
+        }
+        return { names, adultSet };
+      }
+      function prependBaseToPaths(obj, baseUrl) {
+        if (!obj || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(item => prependBaseToPaths(item, baseUrl));
+        const result = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (typeof value === 'string') {
+            if (value.startsWith('./') || value.startsWith('../') || value.startsWith('/')) result[key] = baseUrl + '/' + value.replace(/^(\.\/|\.\.\/|\/)/, '');
+            else if (value.startsWith('http://') || value.startsWith('https://')) result[key] = value;
+            else result[key] = value;
+          } else if (typeof value === 'object' && value !== null) result[key] = prependBaseToPaths(value, baseUrl);
           else result[key] = value;
-        } else if (typeof value === 'object' && value !== null) result[key] = prependBaseToPaths(value, baseUrl);
-        else result[key] = value;
+        }
+        return result;
       }
-      return result;
-    }
-    function extractEpisodesFromLibraryJs(text) {
-      try { return new Function(`"use strict"; ${text}; return episodes;`)(); } catch (e) { return null; }
-    }
-    function extractGamesFromJs(text) {
-      try { const r = new Function(`"use strict"; ${text}; return typeof games !== 'undefined' ? games : null;`)(); return Array.isArray(r) ? r : null; } catch (e) { return null; }
-    }
-    function extractMusicFromJs(text) {
-      try { return new Function(`"use strict"; ${text}; return { musicLibrary: typeof musicLibrary !== 'undefined' ? musicLibrary : null, musicLibraryGenreMap: typeof musicLibraryGenreMap !== 'undefined' ? musicLibraryGenreMap : null };`)(); } catch (e) { return null; }
-    }
-    
-    // Sort logic
-    const MAIN_FOLDER_PINNED_TOP = ["Continue Watching", "Games", "Music", "Books", "Manga", "Animated Movies", "Movies", "Favorites"];
-    const MAIN_FOLDER_PINNED_BOTTOM = ["Beanstalk Videos"];
-    function normalizeLookupKey(value) { return String(value || '').replace(/\s+/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
-    function compareMainFolderTitles(a, b) {
-      const aTitle = String(a || '').trim(); const bTitle = String(b || '').trim();
-      const aTop = MAIN_FOLDER_PINNED_TOP.indexOf(aTitle); const bTop = MAIN_FOLDER_PINNED_TOP.indexOf(bTitle);
-      if (aTop !== -1 || bTop !== -1) {
-        if (aTop === -1) return 1; if (bTop === -1) return -1;
-        return aTop - bTop;
+      function extractEpisodesFromLibraryJs(text) {
+        try { return new Function(`"use strict"; ${text}; return episodes;`)(); } catch (e) { return null; }
       }
-      const aBottom = MAIN_FOLDER_PINNED_BOTTOM.indexOf(aTitle); const bBottom = MAIN_FOLDER_PINNED_BOTTOM.indexOf(bTitle);
-      if (aBottom !== -1 || bBottom !== -1) {
-        if (aBottom === -1) return -1; if (bBottom === -1) return 1;
-        return aBottom - bBottom;
+
+      // Sort logic
+      const MAIN_FOLDER_PINNED_TOP = ["Continue Watching", "Games", "Music", "Books", "Manga", "Animated Movies", "Movies", "Favorites"];
+      const MAIN_FOLDER_PINNED_BOTTOM = ["Beanstalk Videos"];
+      function normalizeLookupKey(value) { return String(value || '').replace(/\s+/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+      function compareMainFolderTitles(a, b) {
+        const aTitle = String(a || '').trim(); const bTitle = String(b || '').trim();
+        const aTop = MAIN_FOLDER_PINNED_TOP.indexOf(aTitle); const bTop = MAIN_FOLDER_PINNED_TOP.indexOf(bTitle);
+        if (aTop !== -1 || bTop !== -1) {
+          if (aTop === -1) return 1; if (bTop === -1) return -1;
+          return aTop - bTop;
+        }
+        const aBottom = MAIN_FOLDER_PINNED_BOTTOM.indexOf(aTitle); const bBottom = MAIN_FOLDER_PINNED_BOTTOM.indexOf(bTitle);
+        if (aBottom !== -1 || bBottom !== -1) {
+          if (aBottom === -1) return -1; if (bBottom === -1) return 1;
+          return aBottom - bBottom;
+        }
+        const aNorm = aTitle.replace(/^The\s+/i, ''); const bNorm = bTitle.replace(/^The\s+/i, '');
+        const aKey = normalizeLookupKey(aNorm); const bKey = normalizeLookupKey(bNorm);
+        if (aKey !== bKey) return aKey.localeCompare(bKey, undefined, { sensitivity: 'base' });
+        return aTitle.localeCompare(bTitle, undefined, { sensitivity: 'base' });
       }
-      const aNorm = aTitle.replace(/^The\s+/i, ''); const bNorm = bTitle.replace(/^The\s+/i, '');
-      const aKey = normalizeLookupKey(aNorm); const bKey = normalizeLookupKey(bNorm);
-      if (aKey !== bKey) return aKey.localeCompare(bKey, undefined, { sensitivity: 'base' });
-      return aTitle.localeCompare(bTitle, undefined, { sensitivity: 'base' });
-    }
-    function mergeMainFolderTitlesPreferAdult(currentTitles, incomingTitles) {
-      const merged = new Map();
-      function upsert(rawTitle) {
-        const title = String(rawTitle || '').trim();
-        if (!title) return;
-        const base = collapseTrailingAdultMarks(title);
-        const key = normalizeLookupKey(base || title);
-        const hasStar = /\*$/.test(title);
-        const existing = merged.get(key);
-        if (!existing) { merged.set(key, { title: hasStar ? title : base, hasStar }); return; }
-        if (hasStar && !existing.hasStar) merged.set(key, { title, hasStar: true });
+      function mergeMainFolderTitlesPreferAdult(currentTitles, incomingTitles) {
+        const merged = new Map();
+        function upsert(rawTitle) {
+          const title = String(rawTitle || '').trim();
+          if (!title) return;
+          const base = collapseTrailingAdultMarks(title);
+          const key = normalizeLookupKey(base || title);
+          const hasStar = /\*$/.test(title);
+          const existing = merged.get(key);
+          if (!existing) { merged.set(key, { title: hasStar ? title : base, hasStar }); return; }
+          if (hasStar && !existing.hasStar) merged.set(key, { title, hasStar: true });
+        }
+        (Array.isArray(currentTitles) ? currentTitles : []).forEach(upsert);
+        (Array.isArray(incomingTitles) ? incomingTitles : []).forEach(upsert);
+        return Array.from(merged.values()).map(entry => entry.title).sort(compareMainFolderTitles);
       }
-      (Array.isArray(currentTitles) ? currentTitles : []).forEach(upsert);
-      (Array.isArray(incomingTitles) ? incomingTitles : []).forEach(upsert);
-      return Array.from(merged.values()).map(entry => entry.title).sort(compareMainFolderTitles);
-    }
-    function normalizeSeasonsArray(arr) {
-      if (!Array.isArray(arr)) return arr;
-      const kidsMode = (typeof window.isKidsModeActive === 'function') ? window.isKidsModeActive() : false;
-      if (!kidsMode) return arr;
-      return arr.filter(item => typeof item === 'string' && !item.includes('*'));
-    }
+      function normalizeSeasonsArray(arr) {
+        if (!Array.isArray(arr)) return arr;
+        const kidsMode = (typeof window.isKidsModeActive === 'function') ? window.isKidsModeActive() : false;
+        if (!kidsMode) return arr;
+        return arr.filter(item => typeof item === 'string' && !item.includes('*'));
+      }
 
-    // ================================================================
-    // NEW: Priority-based merge for non-video categories
-    // ================================================================
-    // Gather all sources
-    const sourcesList = await getPrioritizedSources();
+      // ================================================================
+      // Priority-based merge for non-video categories (music, games, books)
+      // ================================================================
+      const sourcesList = await getPrioritizedSources();
+      const musicDatasets = [];
+      const gamesDatasets = [];
+      const booksDatasets = [];
+      const availableSources = [];
 
-    // Prepare datasets for each category
-    const musicDatasets = [];
-    const gamesDatasets = [];
-    const booksDatasets = [];
+      for (const src of sourcesList) {
+        availableSources.push({ id: src.id, label: src.label, origin: src.origin });
 
-    // Also collect available sources for UI filter
-    const availableSources = [];
+        async function fetchJsArray(url, varName, timeoutMs = 2500) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (!res.ok) return null;
+            const text = await res.text();
+            const fn = new Function(`"use strict"; ${text}; return typeof ${varName} !== 'undefined' ? ${varName} : null;`);
+            return fn();
+          } catch (e) {
+            if (e.name === 'AbortError') return null;
+            console.debug(`[loadexpanded] Could not fetch ${url} (${e.message})`);
+            return null;
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        }
 
-    for (const src of sourcesList) {
-      availableSources.push({ id: src.id, label: src.label, origin: src.origin });
+        let base = src.origin.endsWith('/') ? src.origin : src.origin + '/';
 
-      // Helper to fetch a JS file and extract the variable
-      async function fetchJsArray(url, varName) {
+        const musicData = await fetchJsArray(base + 'musiclibrary.js', 'musicLibrary');
+        if (musicData) musicDatasets.push({ source: src, data: musicData });
+
+        const gamesData = await fetchJsArray(base + 'games.js', 'games');
+        if (gamesData) gamesDatasets.push({ source: src, data: gamesData });
+
+        const bookFiles = ['books', 'manga', 'guidebooks'];
+        let combinedBooks = [];
+        for (const file of bookFiles) {
+          const data = await fetchJsArray(base + file + '.js', file);
+          if (data && Array.isArray(data)) {
+            data.forEach(item => { if (item && typeof item === 'object') item._category = file; });
+            combinedBooks = combinedBooks.concat(data);
+          }
+        }
+        if (combinedBooks.length) booksDatasets.push({ source: src, data: combinedBooks });
+      }
+
+      const mergedMusic = mergeCategoryData(musicDatasets, 'music');
+      const mergedGames = mergeCategoryData(gamesDatasets, 'games');
+      const mergedBooks = mergeCategoryData(booksDatasets, 'books');
+
+      if (mergedMusic.length) {
+        window.musicLibrary = mergedMusic;
+        console.log(`[loadexpanded] ✅ Merged musicLibrary with ${mergedMusic.length} items (priority sources).`);
+      }
+      if (mergedGames.length) {
+        window.games = mergedGames;
+        console.log(`[loadexpanded] ✅ Merged games with ${mergedGames.length} items (priority sources).`);
+      }
+      if (mergedBooks.length) {
+        window.books = mergedBooks.filter(item => item._category === 'books');
+        window.manga = mergedBooks.filter(item => item._category === 'manga');
+        window.guidebooks = mergedBooks.filter(item => item._category === 'guidebooks');
+        console.log(`[loadexpanded] ✅ Merged books with ${window.books.length}, manga ${window.manga.length}, guidebooks ${window.guidebooks.length} (priority sources).`);
+      }
+
+      window.__availableSources = availableSources;
+      window.__sourceList = availableSources;
+
+      // ================================================================
+      // VIDEO MERGE using the same priority sources
+      // ================================================================
+
+      // We'll merge folders and episodes from all sources in priority order
+      let mergedFolders = [];
+      let mergedEpisodes = {};
+
+      for (const src of sourcesList) {
+        let base = src.origin.endsWith('/') ? src.origin : src.origin + '/';
+        console.log(`[loadexpanded] Merging video from ${src.origin} (priority ${src.priority})`);
+
+        // 1. Fetch mainfolders.js
         try {
-          const res = await fetch(url, { cache: 'no-store' });
-          if (!res.ok) return null;
-          const text = await res.text();
-          const fn = new Function(`"use strict"; ${text}; return typeof ${varName} !== 'undefined' ? ${varName} : null;`);
-          return fn();
+          const mfRes = await fetch(`${base}mainfolders.js`, { cache: 'no-store' });
+          if (mfRes.ok) {
+            const mfText = await mfRes.text();
+            const parsed = extractFoldersFromJs(mfText);
+            const remoteFolders = parsed.names;
+            const remoteAdultSet = parsed.adultSet;
+            mergedFolders = mergeMainFolderTitlesPreferAdult(mergedFolders, remoteFolders);
+            if (!window.__adultFolderNames) window.__adultFolderNames = [];
+            for (const name of remoteAdultSet) {
+              if (!window.__adultFolderNames.includes(name)) window.__adultFolderNames.push(name);
+            }
+            for (const f of remoteFolders) {
+              if (!window.folderOriginMap) window.folderOriginMap = {};
+              if (!window.folderOriginMap[f]) window.folderOriginMap[f] = src.origin;
+            }
+          }
         } catch (e) {
-          console.warn(`[loadexpanded] Could not fetch ${url}`, e);
-          return null;
+          console.debug(`[loadexpanded] Could not fetch mainfolders from ${src.origin}`, e);
         }
-      }
 
-      let base = src.origin;
-      if (!base.endsWith('/')) base += '/';
-
-      // Fetch music
-      const musicData = await fetchJsArray(base + 'musiclibrary.js', 'musicLibrary');
-      if (musicData) {
-        musicDatasets.push({ source: src, data: musicData });
-      }
-
-      // Fetch games
-      const gamesData = await fetchJsArray(base + 'games.js', 'games');
-      if (gamesData) {
-        gamesDatasets.push({ source: src, data: gamesData });
-      }
-
-      // Fetch books (multiple files)
-      const bookFiles = ['books', 'manga', 'guidebooks'];
-      let combinedBooks = [];
-      for (const file of bookFiles) {
-        const data = await fetchJsArray(base + file + '.js', file);
-        if (data && Array.isArray(data)) {
-          // Tag each item with its category for later splitting
-          data.forEach(item => {
-            if (item && typeof item === 'object') {
-              item._category = file;
-            }
-          });
-          combinedBooks = combinedBooks.concat(data);
-        }
-      }
-      if (combinedBooks.length) {
-        booksDatasets.push({ source: src, data: combinedBooks });
-      }
-    }
-
-    // Merge each category using priority system
-    const mergedMusic = mergeCategoryData(musicDatasets, 'music');
-    const mergedGames = mergeCategoryData(gamesDatasets, 'games');
-    const mergedBooks = mergeCategoryData(booksDatasets, 'books');
-
-    // Assign to window
-    if (mergedMusic.length) {
-      window.musicLibrary = mergedMusic;
-      console.log(`[loadexpanded] ✅ Merged musicLibrary with ${mergedMusic.length} items (priority sources).`);
-    }
-    if (mergedGames.length) {
-      window.games = mergedGames;
-      console.log(`[loadexpanded] ✅ Merged games with ${mergedGames.length} items (priority sources).`);
-    }
-    if (mergedBooks.length) {
-      const books = mergedBooks.filter(item => item._category === 'books');
-      const manga = mergedBooks.filter(item => item._category === 'manga');
-      const guidebooks = mergedBooks.filter(item => item._category === 'guidebooks');
-      if (books.length) window.books = books;
-      if (manga.length) window.manga = manga;
-      if (guidebooks.length) window.guidebooks = guidebooks;
-      console.log(`[loadexpanded] ✅ Merged books with ${books.length}, manga ${manga.length}, guidebooks ${guidebooks.length} (priority sources).`);
-    }
-
-    // Store available sources for UI filter (used in manage.html and index.html)
-    window.__availableSources = availableSources;
-    window.__sourceList = availableSources; // Also set for renderLeaf in manage.html
-
-    // ================================================================
-    // Continue with existing video merge (unchanged)
-    // ================================================================
-
-    try {
-      console.log('[loadexpanded] Looking for expandedstorage.txt...');
-      const portRes = await fetch('./expandedstorage.txt', { cache: 'no-store' });
-      if (!portRes.ok) {
-        console.warn('[loadexpanded] expandedstorage.txt not found, skipping remote merge.');
-        resolve(); return;
-      }
-      
-      const rawText = await portRes.text();
-      const ports = rawText.split(/[\s,;|]+/).map(s => s.trim()).filter(s => s && !s.startsWith('#'));
-
-      if (ports.length === 0) {
-        console.warn('[loadexpanded] expandedstorage.txt has no valid ports, skipping remote merge.');
-        resolve(); return;
-      }
-
-      if (!window.__remoteEpisodes) window.__remoteEpisodes = {};
-      if (!window.__remoteFoldersSet) window.__remoteFoldersSet = new Set();
-      if (!window.expandedImageOrigins) window.expandedImageOrigins = [];
-      if (typeof folders === 'undefined' || !Array.isArray(folders)) window.folders = [];
-
-      const fetchPromises = ports.map(async (portString) => {
-        let baseUrl = portString;
-        if (!portString.startsWith('http://') && !portString.startsWith('https://')) {
-          baseUrl = `${window.location.protocol}//${window.location.hostname}:${portString}`;
-        }
-        if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-
-        console.log(`[loadexpanded] Fetching remote data concurrently from ${baseUrl}...`);
-        const data = { baseUrl, valid: false };
+        // 2. Fetch library.js (episodes)
         try {
-           const [mf, lib, lsf, gm, mus] = await Promise.allSettled([
-             fetch(`${baseUrl}/mainfolders.js`, { cache: 'no-store' }),
-             fetch(`${baseUrl}/library.js`, { cache: 'no-store' }),
-             fetch(`${baseUrl}/loadseasonfunctions.js`, { cache: 'no-store' }),
-             fetch(`${baseUrl}/games.js`, { cache: 'no-store' }),
-             fetch(`${baseUrl}/musiclibrary.js`, { cache: 'no-store' })
-           ]);
-           
-           if (mf.status === 'fulfilled' && mf.value.ok) data.mfText = await mf.value.text();
-           if (lib.status === 'fulfilled' && lib.value.ok) data.libText = await lib.value.text();
-           if (lsf.status === 'fulfilled' && lsf.value.ok) data.lsfText = await lsf.value.text();
-           if (gm.status === 'fulfilled' && gm.value.ok) data.gmText = await gm.value.text();
-           if (mus.status === 'fulfilled' && mus.value.ok) data.musText = await mus.value.text();
-           
-           data.valid = true;
-        } catch(e) {
-           console.warn(`[loadexpanded] Network error connecting to ${baseUrl}:`, e);
-        }
-        return data;
-      });
-
-      const portResults = await Promise.all(fetchPromises);
-
-      for (const res of portResults) {
-        if (!res.valid) continue;
-        const { baseUrl, mfText, libText, lsfText, gmText, musText } = res;
-        
-        // 1. Merge mainfolders
-        if (mfText) {
-          const parsed = extractFoldersFromJs(mfText);
-          const remoteFolders = parsed.names;
-          const remoteAdultSet = parsed.adultSet;
-          const localFolders = folders.slice();
-          const merged = mergeMainFolderTitlesPreferAdult(localFolders, remoteFolders);
-          
-          folders.length = 0;
-          folders.push(...merged);
-          
-          remoteFolders.forEach(f => {
-              addFolderOrigin(f, baseUrl);
-              window.__remoteFoldersSet.add(f);
-          });
-          
-          if (typeof window.isKidsModeActive === 'function' && window.isKidsModeActive()) {
-            const allAdult = new Set(window.__adultFolderNames || []);
-            for (const name of remoteAdultSet) allAdult.add(name);
-            for (let i = folders.length - 1; i >= 0; i--) {
-              if (allAdult.has(folders[i])) folders.splice(i, 1);
+          const libRes = await fetch(`${base}library.js`, { cache: 'no-store' });
+          if (libRes.ok) {
+            const libText = await libRes.text();
+            const remoteEpisodes = extractEpisodesFromLibraryJs(libText);
+            if (remoteEpisodes) {
+              const transformed = prependBaseToPaths(remoteEpisodes, src.origin);
+              // Overwrite episodes with higher priority (last source wins)
+              for (const key in transformed) {
+                mergedEpisodes[key] = transformed[key];
+                if (!window.folderOriginMap) window.folderOriginMap = {};
+                if (!window.folderOriginMap[key]) window.folderOriginMap[key] = src.origin;
+              }
             }
-            window.__adultFolderNames = Array.from(allAdult);
           }
+        } catch (e) {
+          console.debug(`[loadexpanded] Could not fetch library from ${src.origin}`, e);
         }
-        
-        // 2. Merge library (episodes and books/manga)
-        if (libText) {
-          const remoteEpisodes = extractEpisodesFromLibraryJs(libText);
-          if (remoteEpisodes) {
-            const transformed = prependBaseToPaths(remoteEpisodes, baseUrl);
-            Object.assign(window.__remoteEpisodes, transformed);
 
-            const adultSet = new Set(window.__adultFolderNames || []);
-            const filteredEpisodes = {};
-            for (const key in transformed) {
-              if (adultSet.has(key)) continue;
-              const seasons = transformed[key];
-              if (Array.isArray(seasons)) {
-                const filtered = normalizeSeasonsArray(seasons);
-                if (filtered.length > 0) filteredEpisodes[key] = filtered;
-              } else filteredEpisodes[key] = seasons;
-            }
-
-            let targetEpisodes;
-            try { targetEpisodes = eval('episodes'); } catch (e) { targetEpisodes = window.episodes; }
-            if (typeof targetEpisodes === 'object' && targetEpisodes !== null) {
-              for (const key in filteredEpisodes) {
-                if (!(key in targetEpisodes)) {
-                  targetEpisodes[key] = filteredEpisodes[key];
-                  addFolderOrigin(key, baseUrl);
-                }
-              }
-            } else {
-              if (!window.episodes) window.episodes = {};
-              for (const key in filteredEpisodes) {
-                if (!(key in window.episodes)) {
-                  window.episodes[key] = filteredEpisodes[key];
-                  addFolderOrigin(key, baseUrl);
-                }
-              }
-            }
-
-            try {
-              const sandbox = { window: {} };
-              const fn = new Function('window', libText);
-              fn(sandbox.window);
-              const libGlobals = ['libraryData', 'books', 'manga', 'guidebooks'];
-              for (const g of libGlobals) {
-                if (sandbox.window[g] !== undefined) {
-                  const transformed2 = prependBaseToPaths(sandbox.window[g], baseUrl);
-                  if (!window[g] || !Array.isArray(window[g])) {
-                    window[g] = transformed2;
-                  } else if (Array.isArray(window[g]) && Array.isArray(transformed2)) {
-                    for (const item of transformed2) {
-                      const exists = window[g].some(local => (item.title && local.title === item.title) || local === item);
-                      if (!exists) window[g].push(item);
-                    }
-                  }
-                }
-              }
-            } catch (e) {}
+        // 3. Fetch loadseasonfunctions.js (append new functions)
+        try {
+          const lsfRes = await fetch(`${base}loadseasonfunctions.js`, { cache: 'no-store' });
+          if (lsfRes.ok) {
+            const lsfText = await lsfRes.text();
+            const script = document.createElement('script');
+            script.textContent = lsfText;
+            document.head.appendChild(script);
+            script.remove();
           }
+        } catch (e) {
+          console.debug(`[loadexpanded] Could not fetch loadseasonfunctions from ${src.origin}`, e);
         }
-        
-        // 3. Merge loadseasonfunctions
-        if (lsfText) {
-           const script = document.createElement('script');
-           script.textContent = lsfText;
-           document.head.appendChild(script);
-           script.remove();
-        }
-        
-        // 4. Merge games (skip – already handled by priority merge)
-        // 5. Merge music (skip – already handled by priority merge)
-        // We keep the old blocks commented to avoid duplication.
-        // if (gmText) { ... } // skipped
-        // if (musText) { ... } // skipped
+      }
 
-        if (!window.expandedImageOrigins.includes(baseUrl)) {
-          window.expandedImageOrigins.push(baseUrl);
-        }
-      } 
-      
+      // --- MUTATE the actual global variables (folders, episodes) ---
+      if (typeof folders !== 'undefined' && Array.isArray(folders)) {
+        // Directly mutate the existing array
+        folders.length = 0;
+        folders.push(...mergedFolders);
+      } else {
+        window.folders = mergedFolders;
+      }
+
+      if (typeof episodes !== 'undefined' && typeof episodes === 'object') {
+        // Clear and re-assign properties
+        for (let key in episodes) delete episodes[key];
+        for (let key in mergedEpisodes) episodes[key] = mergedEpisodes[key];
+      } else {
+        window.episodes = mergedEpisodes;
+      }
+
+      console.log('[loadexpanded] Video merge completed with priority sources.');
+
+      // ---- (Legacy) Override loadEpisodes to check remote episodes ----
       const originalLoadEpisodes = window.loadEpisodes;
       if (typeof originalLoadEpisodes === 'function') {
         window.loadEpisodes = async function(folderName) {
@@ -1398,7 +1358,8 @@
       }
 
       console.log('[loadexpanded] Remote merge completed (video & folders).');
-      
+
+      // Trigger a UI refresh if needed
       setTimeout(() => {
         const searchEl = document.getElementById('searchInput');
         if (searchEl && searchEl.value.trim().length > 0) {
@@ -1407,11 +1368,13 @@
           if (typeof window.loadMainFolders === 'function') window.loadMainFolders();
         }
       }, 50);
+    } // end of refreshAllData
 
-    } catch (e) {
-      console.error('[loadexpanded] Remote merge failed:', e);
-    }
+    // Expose the function so manage.html can call it after settings save
+    window.refreshLibraryData = refreshAllData;
 
+    // Initial load
+    await refreshAllData();
     resolve();
   });
 })();

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1200,7 +1199,25 @@ function isSourceEnabledForNode(node) {
   return false;
 }
 
-// Build the source filter bar from window.__availableSources (populated by loadexpanded.js)
+// Read filter prefs from localStorage
+function getFilterPrefs() {
+  try {
+    const expanded = localStorage.getItem('pref-filter-expanded') !== 'false';
+    const local = localStorage.getItem('pref-filter-local') !== 'false';
+    return { expanded, local };
+  } catch (e) {
+    return { expanded: true, local: true };
+  }
+}
+
+function saveFilterPrefs(expanded, local) {
+  try {
+    localStorage.setItem('pref-filter-expanded', expanded ? 'true' : 'false');
+    localStorage.setItem('pref-filter-local', local ? 'true' : 'false');
+  } catch (e) {}
+}
+
+// Build the source filter bar from window.__availableSources
 async function buildSourceFilter() {
   const bar = document.getElementById('sourceFilterBar');
   if (!bar) return;
@@ -1248,9 +1265,21 @@ async function buildSourceFilter() {
     window.__sourceList = sources;
   }
 
-  // Initialize state: all enabled by default
+  // Get checkbox prefs
+  const prefs = getFilterPrefs();
+
+  // Initialize state: all enabled by default, but respect group checkboxes
+  const chkExpanded = document.getElementById('chkExpanded');
+  const chkLocal = document.getElementById('chkLocal');
+  if (chkExpanded) chkExpanded.checked = prefs.expanded;
+  if (chkLocal) chkLocal.checked = prefs.local;
+
   window.__sourceList.forEach(src => {
-    window.__sourceFilterState[src.id] = true;
+    let enabled = true;
+    if (src.id.startsWith('expanded-')) enabled = prefs.expanded;
+    else if (src.id.startsWith('local-')) enabled = prefs.local;
+    // server-origin always enabled
+    window.__sourceFilterState[src.id] = enabled;
   });
 
   // Render dots
@@ -1259,21 +1288,83 @@ async function buildSourceFilter() {
     dot.className = 'source-dot-filter';
     dot.dataset.id = src.id;
     const color = getSourceColor(src.id);
+    const enabled = window.__sourceFilterState[src.id] !== false;
+    dot.classList.toggle('disabled', !enabled);
     dot.innerHTML = `
       <span class="dot" style="background:${color};"></span>
       <span class="label">${src.label}</span>
     `;
     dot.addEventListener('click', () => {
-      // Toggle
+      // Toggle this source
       const newState = !window.__sourceFilterState[src.id];
       window.__sourceFilterState[src.id] = newState;
       dot.classList.toggle('disabled', !newState);
-      // Re-render tree and update counts
+      // Update group checkboxes if all sources of a group are enabled/disabled
+      updateGroupCheckboxesFromState();
+      // Re-render tree
       renderTree();
       if (typeof window.filterTiles === 'function') window.filterTiles();
     });
     bar.appendChild(dot);
   });
+
+  // Sync checkboxes with initial state
+  function updateGroupCheckboxesFromState() {
+    const expandedSources = window.__sourceList.filter(s => s.id.startsWith('expanded-'));
+    const localSources = window.__sourceList.filter(s => s.id.startsWith('local-'));
+    const expandedEnabled = expandedSources.some(s => window.__sourceFilterState[s.id] !== false);
+    const localEnabled = localSources.some(s => window.__sourceFilterState[s.id] !== false);
+    if (chkExpanded) chkExpanded.checked = expandedEnabled;
+    if (chkLocal) chkLocal.checked = localEnabled;
+    saveFilterPrefs(expandedEnabled, localEnabled);
+  }
+
+  // Expose the update function globally
+  window.updateGroupCheckboxesFromState = updateGroupCheckboxesFromState;
+
+  // Attach checkbox change events (no reload)
+  if (chkExpanded) {
+    chkExpanded.addEventListener('change', function() {
+      const enabled = this.checked;
+      window.__sourceList.forEach(src => {
+        if (src.id.startsWith('expanded-')) {
+          window.__sourceFilterState[src.id] = enabled;
+        }
+      });
+      // Update dots
+      document.querySelectorAll('#sourceFilterBar .source-dot-filter').forEach(dot => {
+        const id = dot.dataset.id;
+        if (id.startsWith('expanded-')) {
+          dot.classList.toggle('disabled', !enabled);
+        }
+      });
+      saveFilterPrefs(enabled, chkLocal ? chkLocal.checked : true);
+      renderTree();
+      if (typeof window.filterTiles === 'function') window.filterTiles();
+    });
+  }
+  if (chkLocal) {
+    chkLocal.addEventListener('change', function() {
+      const enabled = this.checked;
+      window.__sourceList.forEach(src => {
+        if (src.id.startsWith('local-')) {
+          window.__sourceFilterState[src.id] = enabled;
+        }
+      });
+      document.querySelectorAll('#sourceFilterBar .source-dot-filter').forEach(dot => {
+        const id = dot.dataset.id;
+        if (id.startsWith('local-')) {
+          dot.classList.toggle('disabled', !enabled);
+        }
+      });
+      saveFilterPrefs(chkExpanded ? chkExpanded.checked : true, enabled);
+      renderTree();
+      if (typeof window.filterTiles === 'function') window.filterTiles();
+    });
+  }
+
+  // Initial sync
+  updateGroupCheckboxesFromState();
 }
 
 // ================================================================
@@ -1856,9 +1947,14 @@ function hashCode(str) {
   }
 
   async function loadGamesData(text) {
-    const arr = extractArrayLiteral(text, 'games');
-    return new Function(`return (${arr});`)();
-  }
+    try {
+        const arr = extractArrayLiteral(text, 'games');
+        return new Function(`return (${arr});`)();
+    } catch (e) {
+        console.warn('[manage] Could not parse games array, returning empty.', e);
+        return [];
+    }
+}
 
   function inferSourceKeyFromPath(source) {
     const base = String(source || '').split(/[\\/]/).pop() || '';
@@ -3384,6 +3480,24 @@ function hashCode(str) {
           closeRepairIfNeeded();
         }
       }
+      return;
+    }
+    // NEW: handle settings saved from expandedsettings overlay
+        if (event.data?.type === 'settings-saved') {
+      setStatus('🔄 Refreshing all library data from sources…', '');
+      try {
+        // First, re‑fetch and merge all data from all sources (expanded, local, server)
+        if (typeof window.refreshLibraryData === 'function') {
+          await window.refreshLibraryData();
+        }
+        // Then rebuild the tree and UI from the fresh globals
+        await loadLibrary();
+        await buildSourceFilter();
+        setStatus('✅ Library fully reloaded with new expanded settings.', 'success');
+      } catch (err) {
+        setStatus(`❌ Refresh failed: ${err.message}`, 'error');
+      }
+      return;
     }
   });
 
@@ -3862,29 +3976,33 @@ function hashCode(str) {
     hideRepairModal();
   }
 
-  function buildRepairPageUrl(ep) {
-    const isArduino = currentPlatform === 'arduino' || currentPlatform === 'esp';
-    const basePage = isArduino ? '/ffmpeg/repair-ffmpeg-wasm.html' : '/ffmpeg/repair.html';
-    const sourceUrl = String(ep?.primaryUrl || '').trim();
-    const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
-    const outputName = decodeURIComponent(sourceUrl.split('/').pop() || 'video');
-    const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
-    const params = new URLSearchParams({
-      source: sourceUrl,
-      sourceUrl: sourceUrl,
-      name: outputName,
-      folder: folderUrl,
-      upload: uploadUrl,
-      targetUrl: uploadUrl,
-      mode: 'seek-repair',
-      flow: '1',
-      auto: '1',
-      close: '1',
-      proxy: '1',
-      jobId: String(ep?.id || '')
-    });
-    return `${basePage}?${params.toString()}`;
-  }
+function buildRepairPageUrl(ep) {
+  // List of platforms that should use the WASM ffmpeg repair page.
+  // Add any new platform strings here as needed.
+  const WASM_PLATFORMS = ['arduino', 'esp'];
+  const useWasm = WASM_PLATFORMS.includes(currentPlatform);
+
+  const basePage = useWasm ? '/ffmpeg/repair-ffmpeg-wasm.html' : '/ffmpeg/repair.html';
+  const sourceUrl = String(ep?.primaryUrl || '').trim();
+  const folderUrl = sourceUrl ? new URL('.', sourceUrl).href : '';
+  const outputName = decodeURIComponent(sourceUrl.split('/').pop() || 'video');
+  const uploadUrl = folderUrl ? new URL(encodeURIComponent(outputName), folderUrl).href : '';
+  const params = new URLSearchParams({
+    source: sourceUrl,
+    sourceUrl: sourceUrl,
+    name: outputName,
+    folder: folderUrl,
+    upload: uploadUrl,
+    targetUrl: uploadUrl,
+    mode: 'seek-repair',
+    flow: '1',
+    auto: '1',
+    close: '1',
+    proxy: '1',
+    jobId: String(ep?.id || '')
+  });
+  return `${basePage}?${params.toString()}`;
+}
 
   function openRepairModal(ep, options = {}) {
     if (!ep?.primaryUrl) return;
@@ -4815,63 +4933,13 @@ function hashCode(str) {
   });
 
   // ---- Source selection (Expanded) ----
-  const chkExpanded = document.getElementById('chkExpanded');
-  const chkLocal = document.getElementById('chkLocal');
+  // The checkboxes are now handled inside buildSourceFilter and sync with filter state.
+  // We keep the dropdown toggle but remove the reload behavior.
+  // The checkboxes are wired in buildSourceFilter.
+
+  // We'll keep the dropdown toggle logic.
   const expandedBtn = document.getElementById('expandedBtn');
   const expandedDropdown = document.getElementById('expandedDropdown');
-
-  function readSourcePrefs() {
-    try {
-      const stored = localStorage.getItem('selectedSources');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return {
-          expanded: typeof parsed.expanded === 'boolean' ? parsed.expanded : true,
-          local: typeof parsed.local === 'boolean' ? parsed.local : true
-        };
-      }
-    } catch (e) {}
-    return { expanded: true, local: true };
-  }
-
-  function writeSourcePrefs(prefs) {
-    try {
-      localStorage.setItem('selectedSources', JSON.stringify(prefs));
-    } catch (e) {}
-  }
-
-  function setCheckboxesFromPrefs(prefs) {
-    if (chkExpanded) chkExpanded.checked = prefs.expanded;
-    if (chkLocal) chkLocal.checked = prefs.local;
-  }
-
-  function applyPrefsAndReload(prefs) {
-    writeSourcePrefs(prefs);
-    const parts = [];
-    if (prefs.expanded) parts.push('expanded');
-    if (prefs.local) parts.push('local');
-    const query = parts.length ? `?sources=${parts.join(',')}` : '';
-    window.location.href = window.location.pathname + query;
-  }
-
-  function initSourcesFromQuery() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const sourcesParam = urlParams.get('sources');
-    let prefs = readSourcePrefs();
-
-    if (sourcesParam) {
-      const enabled = sourcesParam.split(',').map(s => s.trim().toLowerCase());
-      prefs = {
-        expanded: enabled.includes('expanded'),
-        local: enabled.includes('local')
-      };
-      writeSourcePrefs(prefs);
-    }
-
-    setCheckboxesFromPrefs(prefs);
-    window.__sourceConfig = { expanded: prefs.expanded, local: prefs.local };
-  }
-
   if (expandedBtn && expandedDropdown) {
     expandedBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -4882,27 +4950,6 @@ function hashCode(str) {
     });
     expandedDropdown.addEventListener('click', (e) => e.stopPropagation());
   }
-
-  if (chkExpanded) {
-    chkExpanded.addEventListener('change', () => {
-      const prefs = {
-        expanded: chkExpanded.checked,
-        local: chkLocal ? chkLocal.checked : true
-      };
-      applyPrefsAndReload(prefs);
-    });
-  }
-  if (chkLocal) {
-    chkLocal.addEventListener('change', () => {
-      const prefs = {
-        expanded: chkExpanded ? chkExpanded.checked : true,
-        local: chkLocal.checked
-      };
-      applyPrefsAndReload(prefs);
-    });
-  }
-
-  initSourcesFromQuery();
 
   // ---- Helper to extract folders from mainfolders.js (for loadBaseData) ----
   function extractFoldersFromJs(text) {

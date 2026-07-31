@@ -781,7 +781,8 @@
         const enabled = row.querySelector('input[type="checkbox"]').checked;
         if (val) finalPorts.push(enabled ? val : `#${val}`);
       });
-      const portsContent = finalPorts.join(', ');
+      let portsContent = finalPorts.join(', ');
+      if (!portsContent.trim()) portsContent = '# empty';
 
       // Collect Nodes
       const finalNodes = [];
@@ -794,29 +795,26 @@
           finalNodes.push(enabled ? lineStr : `#${lineStr}`);
         }
       });
-      const nodesContent = finalNodes.join('\n');
+      let nodesContent = finalNodes.join('\n');
+      if (!nodesContent.trim()) nodesContent = '# empty';
 
       const uploadTasks = [];
-      if (portsContent.trim() !== '') {
-        const portsBlob = new Blob([portsContent], { type: 'text/plain' });
-        uploadTasks.push(platformAPI.uploadFile(portsBlob, '/expandedstorage.txt', window.location.origin));
-      }
-      if (nodesContent.trim() !== '') {
-        const nodesBlob = new Blob([nodesContent], { type: 'text/plain' });
-        uploadTasks.push(platformAPI.uploadFile(nodesBlob, '/localexpanded.txt', window.location.origin));
-      }
 
-      if (uploadTasks.length === 0) {
-        setStatus('No changes to save (empty content).', 'warning');
-        return;
-      }
+      const portsBlob = new Blob([portsContent], { type: 'text/plain' });
+      uploadTasks.push(platformAPI.uploadFile(portsBlob, '/expandedstorage.txt', window.location.origin));
+
+      const nodesBlob = new Blob([nodesContent], { type: 'text/plain' });
+      uploadTasks.push(platformAPI.uploadFile(nodesBlob, '/localexpanded.txt', window.location.origin));
 
       setStatus('Uploading…', '');
       saveBtn.disabled = true;
+
       try {
         await Promise.all(uploadTasks);
         setStatus('✅ Expanded settings saved!', 'success');
-        setTimeout(closeOverlay, 1500);
+        // Notify parent to refresh
+        window.parent.postMessage({ type: 'settings-saved' }, '*');
+        setTimeout(closeOverlay, 1000);
       } catch (err) {
         console.error('Upload failed:', err);
         setStatus('❌ Upload failed: ' + err.message, 'error');
