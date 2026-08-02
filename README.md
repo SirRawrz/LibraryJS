@@ -1,6 +1,6 @@
 ## LibraryJS
 
-LibraryJS is about making your media a portable digital archive that can be **given**, and not just shared, to friends and family. The Android and Windows apps act like the console, while your storage device acts like the cartridge. Your media, library data, and LibraryJS files live together on your storage and can move between different Windows and Android devices freely, like a VHS tape or game cartridge. Currently supports 5 different server types, able to connect to each other and expand the library while the other devices are accessible!
+LibraryJS is about making your media a portable digital archive that can be **given**, and not just shared, to friends and family. The Android and Windows apps act like the console, while your storage device acts like the cartridge. Your media, library data, and LibraryJS files live together on your storage and can move between different Windows and Android devices freely, like a VHS tape or game cartridge. Currently supports 5 different server types, able to connect to each other and mesh the Libraries into one Library while the other devices are accessible!
 
 <img width="800" alt="image" src="https://github.com/user-attachments/assets/319d84c9-caea-4448-89c7-9f5333f6cb75" />
 
